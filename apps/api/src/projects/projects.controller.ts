@@ -1,13 +1,28 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { z } from 'zod';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { ProjectCreateSchema, ProjectPatchSchema } from '@comicai/types';
 import { ProjectsService } from './projects.service';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
 
-const CreateSchema = z.object({ name: z.string().min(1).max(100) });
-const PatchSchema = z.object({ name: z.string().min(1).max(100).optional() });
-
-class CreateDto { static zodSchema = CreateSchema; name!: string }
-class PatchDto { static zodSchema = PatchSchema; name?: string }
+class CreateDto {
+  static zodSchema = ProjectCreateSchema;
+  name!: string;
+}
+class PatchDto {
+  static zodSchema = ProjectPatchSchema;
+  name?: string;
+  thumbnail?: string | null;
+}
 
 @Controller('projects')
 @UseGuards(SessionGuard)
@@ -15,7 +30,9 @@ export class ProjectsController {
   constructor(private readonly svc: ProjectsService) {}
 
   @Get()
-  list(@Req() req: AuthedRequest) { return this.svc.list(req.user.id); }
+  list(@Req() req: AuthedRequest) {
+    return this.svc.list(req.user.id);
+  }
 
   @Post()
   @HttpCode(201)

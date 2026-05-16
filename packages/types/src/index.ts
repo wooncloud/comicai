@@ -1,5 +1,9 @@
 // ComicAI 공통 타입 (계약). 변경 시 owner: A-Backend.
 
+export * from './envelope';
+export * from './schemas';
+export * from './paths';
+
 export type ModelProvider = 'gemini' | 'openai' | 'mock';
 export type ModelId = 'gemini-nano-banana' | 'gpt-image-1' | 'mock';
 
@@ -108,21 +112,9 @@ export interface ProjectDTO {
 }
 
 // ─── 렌더 ──────────────────────────────────────
-export type RenderStatus =
-  | 'queued'
-  | 'running'
-  | 'succeeded'
-  | 'failed'
-  | 'timeout'
-  | 'canceled';
+export type RenderStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'canceled';
 
-export type RenderErrorCategory =
-  | 'transient'
-  | 'auth'
-  | 'quota'
-  | 'safety'
-  | 'invalid'
-  | 'timeout';
+export type RenderErrorCategory = 'transient' | 'auth' | 'quota' | 'safety' | 'invalid' | 'timeout';
 
 export interface RenderError {
   category: RenderErrorCategory;

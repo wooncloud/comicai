@@ -1,19 +1,28 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { z } from 'zod';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { PageCreateSchema, PagePatchSchema } from '@comicai/types';
 import { PagesService } from './pages.service';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
 
-const SizeSchema = z.object({ w: z.number().int().positive(), h: z.number().int().positive() });
-const CreateSchema = z.object({
-  size: SizeSchema.default({ w: 800, h: 1200 }),
-});
-const PatchSchema = z.object({
-  order: z.number().int().nonnegative().optional(),
-  size: SizeSchema.optional(),
-});
-
-class CreateDto { static zodSchema = CreateSchema; size!: { w: number; h: number } }
-class PatchDto { static zodSchema = PatchSchema; order?: number; size?: { w: number; h: number } }
+class CreateDto {
+  static zodSchema = PageCreateSchema;
+  size!: { w: number; h: number };
+}
+class PatchDto {
+  static zodSchema = PagePatchSchema;
+  order?: number;
+  size?: { w: number; h: number };
+}
 
 @Controller()
 @UseGuards(SessionGuard)

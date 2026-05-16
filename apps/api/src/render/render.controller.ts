@@ -1,17 +1,15 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
-import { z } from 'zod';
+import { RenderStartSchema, type ModelId } from '@comicai/types';
 import { RenderService } from './render.service';
 import { SseHub } from './sse.hub';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
-import type { ModelId } from '@comicai/types';
 
-const StartSchema = z.object({
-  model: z.enum(['gemini-nano-banana', 'gpt-image-1', 'mock']),
-  seed: z.number().int().optional(),
-});
-
-class StartDto { static zodSchema = StartSchema; model!: ModelId; seed?: number }
+class StartDto {
+  static zodSchema = RenderStartSchema;
+  model!: ModelId;
+  seed?: number;
+}
 
 @Controller()
 @UseGuards(SessionGuard)

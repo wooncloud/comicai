@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { LoggerModule } from 'nestjs-pino';
 import { HealthController } from './health/health.controller';
 import { AuthModule } from './auth/auth.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
@@ -13,6 +14,39 @@ import { ExportModule } from './export/export.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+        transport:
+          process.env.NODE_ENV === 'production'
+            ? undefined
+            : {
+                target: 'pino-pretty',
+                options: { singleLine: true, translateTime: 'SYS:HH:MM:ss' },
+              },
+        redact: {
+          paths: [
+            'req.headers.cookie',
+            'req.headers.authorization',
+            'res.headers["set-cookie"]',
+            '*.apiKey',
+            '*.api_key',
+            '*.secret',
+            '*.token',
+            '*.ciphertext',
+            '*.password',
+            '*.passwordHash',
+          ],
+          censor: '***',
+        },
+        autoLogging: { ignore: (req) => req.url === '/healthz' },
+        customLogLevel: (_req, res, err) => {
+          if (err || res.statusCode >= 500) return 'error';
+          if (res.statusCode >= 400) return 'warn';
+          return 'info';
+        },
+      },
+    }),
     AuthModule,
     ApiKeysModule,
     ProjectsModule,

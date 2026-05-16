@@ -1,12 +1,19 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GetObjectCommand, HeadBucketCommand, CreateBucketCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  HeadBucketCommand,
+  CreateBucketCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import sharp from 'sharp';
 import { ulid } from 'ulid';
 import type { ImageRef } from '@comicai/types';
 
 @Injectable()
 export class StorageService implements OnModuleInit {
+  private readonly logger = new Logger(StorageService.name);
   private client!: S3Client;
   private bucket!: string;
 
@@ -37,8 +44,7 @@ export class StorageService implements OnModuleInit {
       try {
         await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn('[storage] bucket create failed', err);
+        this.logger.warn({ err }, 'bucket create failed');
       }
     }
   }
@@ -76,9 +82,13 @@ export class StorageService implements OnModuleInit {
     const chunks: Buffer[] = [];
     if (r.Body && Symbol.asyncIterator in r.Body) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for await (const chunk of r.Body as any) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      for await (const chunk of r.Body as any)
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     }
-    return { bytes: Uint8Array.from(Buffer.concat(chunks)), mimeType: r.ContentType ?? 'application/octet-stream' };
+    return {
+      bytes: Uint8Array.from(Buffer.concat(chunks)),
+      mimeType: r.ContentType ?? 'application/octet-stream',
+    };
   }
 }
 

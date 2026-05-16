@@ -1,13 +1,13 @@
 import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { z } from 'zod';
+import { ExportRequestSchema } from '@comicai/types';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
 import { ExportService } from './export.service';
 
-const ExportSchema = z.object({
-  format: z.enum(['png', 'jpg']).default('png'),
-});
-
-class ExportDto { static zodSchema = ExportSchema; format!: 'png' | 'jpg' }
+class ExportDto {
+  static zodSchema = ExportRequestSchema;
+  format!: 'png' | 'jpg';
+  dpi?: number;
+}
 
 @Controller()
 @UseGuards(SessionGuard)
