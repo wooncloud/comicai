@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { ApiPaths, type ApiKeySummary, type ModelProvider } from '@comicai/types';
+import Link from 'next/link';
 import { ApiKeyList } from '@/components/api-key-list';
 import { ApiKeyForm } from '@/components/api-key-form';
 import { AppShell } from '@/components/shell/app-shell';
@@ -58,9 +59,14 @@ export default function SettingsPage() {
       <main className="mx-auto max-w-2xl px-6 py-16">
         <div className="flex items-baseline justify-between">
           <h1 className="text-2xl font-semibold">설정</h1>
-          <Button variant="link" size="sm" onClick={onLogout}>
-            로그아웃
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="link" size="sm">
+              <Link href="/settings/security">계정 및 보안</Link>
+            </Button>
+            <Button variant="link" size="sm" onClick={onLogout}>
+              로그아웃
+            </Button>
+          </div>
         </div>
 
         <section className="mt-12">

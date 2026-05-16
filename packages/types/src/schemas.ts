@@ -2,16 +2,33 @@
 import { z } from 'zod';
 
 // ─── 인증 ─────────────────────────────────────
+// 10자 이상, 영문+숫자 (spec docs/20-ux/screens/02-auth-signup.md §3)
+const PasswordSchema = z
+  .string()
+  .min(10)
+  .max(200)
+  .regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, '영문과 숫자를 각각 1자 이상 포함해야 합니다.');
+
 export const CredentialsSchema = z.object({
   email: z.string().email().max(255),
-  // 10자 이상, 영문+숫자 (spec docs/20-ux/screens/02-auth-signup.md §3)
-  password: z
-    .string()
-    .min(10)
-    .max(200)
-    .regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, '영문과 숫자를 각각 1자 이상 포함해야 합니다.'),
+  password: PasswordSchema,
 });
 export type Credentials = z.infer<typeof CredentialsSchema>;
+
+export const PasswordResetRequestSchema = z.object({
+  email: z.string().email().max(255),
+});
+export const PasswordResetConfirmSchema = z.object({
+  token: z.string().min(16).max(200),
+  password: PasswordSchema,
+});
+export const PasswordChangeSchema = z.object({
+  currentPassword: z.string().min(1).max(200),
+  newPassword: PasswordSchema,
+});
+export type PasswordResetRequest = z.infer<typeof PasswordResetRequestSchema>;
+export type PasswordResetConfirm = z.infer<typeof PasswordResetConfirmSchema>;
+export type PasswordChange = z.infer<typeof PasswordChangeSchema>;
 
 // ─── 프로필 ───────────────────────────────────
 // spec 03-api-contracts.md PATCH /v1/me

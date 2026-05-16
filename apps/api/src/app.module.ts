@@ -7,6 +7,8 @@ import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
 import { HealthController } from './health/health.controller';
 import { MetricsModule } from './metrics/metrics.module';
 import { AuthModule } from './auth/auth.module';
+import { OAuthModule } from './auth/oauth/oauth.module';
+import { EmailModule } from './email/email.module';
 import { MeModule } from './me/me.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { ProjectsModule } from './projects/projects.module';
@@ -57,7 +59,9 @@ import { ExportModule } from './export/export.module';
       { name: 'strict', ttl: seconds(60), limit: 10 },
     ]),
     MetricsModule,
+    EmailModule,
     AuthModule,
+    OAuthModule,
     MeModule,
     ApiKeysModule,
     ProjectsModule,

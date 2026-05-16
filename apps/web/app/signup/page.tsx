@@ -6,6 +6,7 @@ import { api, ApiError } from '@/lib/api';
 import { ApiPaths } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { OAuthButtons } from '@/components/oauth-buttons';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function SignupPage() {
     setPending(true);
     try {
       await api(ApiPaths.signup, { method: 'POST', body: JSON.stringify({ email, password }) });
-      router.push('/settings');
+      router.push('/projects');
     } catch (err) {
       if (err instanceof ApiError && err.code === 'EMAIL_TAKEN') {
         setError('이미 사용 중인 이메일입니다.');
@@ -63,7 +64,13 @@ export default function SignupPage() {
           {pending ? '가입 중…' : '회원가입'}
         </Button>
       </form>
-      <p className="mt-6 text-sm text-neutral-600">
+      <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="h-px flex-1 bg-border" />
+        또는
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <OAuthButtons />
+      <p className="mt-6 text-sm text-muted-foreground">
         이미 계정이 있나요?{' '}
         <Link href="/login" className="underline">
           로그인

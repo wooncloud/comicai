@@ -7,6 +7,17 @@ export * from './paths';
 export type ModelProvider = 'gemini' | 'openai' | 'mock';
 export type ModelId = 'gemini-nano-banana' | 'gpt-image-1' | 'mock';
 
+export type OAuthProvider = 'google' | 'github';
+
+export interface SessionInfo {
+  id: string;
+  current: boolean;
+  ip: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  lastUsedAt: string;
+}
+
 export interface ApiKeySummary {
   id: string;
   provider: ModelProvider;

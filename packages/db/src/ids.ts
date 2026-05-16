@@ -10,7 +10,9 @@ export type IdPrefix =
   | 'char'
   | 'bg'
   | 'style'
-  | 'world';
+  | 'world'
+  | 'evf'
+  | 'prt';
 
 export function newId(prefix: IdPrefix): string {
   return `${prefix}_${ulid()}`;
@@ -18,9 +20,13 @@ export function newId(prefix: IdPrefix): string {
 
 export function entityIdPrefix(type: 'style' | 'character' | 'background' | 'worldview'): IdPrefix {
   switch (type) {
-    case 'style': return 'style';
-    case 'character': return 'char';
-    case 'background': return 'bg';
-    case 'worldview': return 'world';
+    case 'style':
+      return 'style';
+    case 'character':
+      return 'char';
+    case 'background':
+      return 'bg';
+    case 'worldview':
+      return 'world';
   }
 }
