@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import type { Response } from 'express';
+import Redis from 'ioredis';
 import { formatSseEvent, type RenderSseEvent } from '@comicai/events';
 
 interface BufferedEvent {
@@ -8,16 +10,51 @@ interface BufferedEvent {
 }
 
 const BUFFER_LIMIT = 64;
-// 완료/실패 후 재연결 클라이언트의 마지막 replay를 위해 5분간 유지.
 const TERMINAL_RETENTION_MS = 5 * 60_000;
 const TERMINAL_STATUSES = new Set(['succeeded', 'failed', 'timeout', 'canceled']);
+const CHANNEL_PREFIX = 'render:events:';
+const CHANNEL_PATTERN = CHANNEL_PREFIX + '*';
 
+/**
+ * 렌더 작업의 SSE 이벤트 허브.
+ * - 같은 프로세스에서 발행된 이벤트: in-memory deliver로 즉시 fan-out.
+ * - 다른 프로세스(분리된 worker)에서 발행: Redis pub/sub로 받아 fan-out.
+ * - 자신이 발행한 메시지는 originId로 식별해 중복 deliver를 피함.
+ */
 @Injectable()
-export class SseHub {
+export class SseHub implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger('SseHub');
   private readonly subs = new Map<string, Set<Response>>();
   private readonly buffers = new Map<string, BufferedEvent[]>();
   private readonly counters = new Map<string, number>();
   private readonly cleanupTimers = new Map<string, NodeJS.Timeout>();
+  private readonly instanceId = randomUUID();
+  private publisher?: Redis;
+  private subscriber?: Redis;
+
+  async onModuleInit(): Promise<void> {
+    const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
+    this.publisher = new Redis(url, { lazyConnect: false, maxRetriesPerRequest: null });
+    this.subscriber = new Redis(url, { lazyConnect: false, maxRetriesPerRequest: null });
+    this.publisher.on('error', (e) => this.logger.warn(`redis publisher: ${e.message}`));
+    this.subscriber.on('error', (e) => this.logger.warn(`redis subscriber: ${e.message}`));
+    await this.subscriber.psubscribe(CHANNEL_PATTERN);
+    this.subscriber.on('pmessage', (_pattern, channel, message) => {
+      try {
+        const payload = JSON.parse(message) as { originId: string; evt: RenderSseEvent };
+        if (payload.originId === this.instanceId) return;
+        const jobId = channel.slice(CHANNEL_PREFIX.length);
+        this.deliver(jobId, payload.evt);
+      } catch (err) {
+        this.logger.warn(`bad sse payload on ${channel}: ${(err as Error).message}`);
+      }
+    });
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.subscriber?.quit();
+    await this.publisher?.quit();
+  }
 
   subscribe(jobId: string, res: Response, lastEventId?: string) {
     let set = this.subs.get(jobId);
@@ -38,7 +75,20 @@ export class SseHub {
     });
   }
 
-  publish(jobId: string, evt: RenderSseEvent) {
+  publish(jobId: string, evt: RenderSseEvent): void {
+    this.deliver(jobId, evt);
+    if (!this.publisher) return;
+    const payload = JSON.stringify({ originId: this.instanceId, evt });
+    this.publisher
+      .publish(CHANNEL_PREFIX + jobId, payload)
+      .catch((err) => this.logger.warn(`redis publish 실패: ${(err as Error).message}`));
+  }
+
+  ping(jobId: string): void {
+    this.publish(jobId, { type: 'ping', at: new Date().toISOString() });
+  }
+
+  private deliver(jobId: string, evt: RenderSseEvent): void {
     const seq = (this.counters.get(jobId) ?? 0) + 1;
     this.counters.set(jobId, seq);
     const buf = this.buffers.get(jobId) ?? [];
@@ -53,10 +103,6 @@ export class SseHub {
     if (evt.type === 'status' && TERMINAL_STATUSES.has(evt.status)) {
       this.scheduleCleanup(jobId);
     }
-  }
-
-  ping(jobId: string) {
-    this.publish(jobId, { type: 'ping', at: new Date().toISOString() });
   }
 
   private scheduleCleanup(jobId: string) {

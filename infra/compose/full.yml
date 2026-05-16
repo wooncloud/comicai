@@ -69,7 +69,6 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-comicai}:${POSTGRES_PASSWORD:-comicai}@postgres:5432/${POSTGRES_DB:-comicai}?schema=public
-    # prisma migrate deploy + 즉시 종료
     entrypoint: ["sh", "-c"]
     command: ["cd packages/db && npx prisma migrate deploy"]
     restart: "no"
@@ -79,6 +78,7 @@ services:
       context: ../..
       dockerfile: infra/docker/api.Dockerfile
     container_name: comicai-api
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -101,10 +101,14 @@ services:
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MASTER_KEY: ${MASTER_KEY:?MASTER_KEY 필수 — .env에 설정하세요}
       SESSION_SECRET: ${SESSION_SECRET:-}
-      # api와 워커 같이 돌릴 거라 워커 활성화. 분리하려면 1로 변경.
-      RENDER_WORKER_DISABLED: "0"
-      # cmux 임베디드 브라우저 등 http://localhost 환경에서 테스트하려면 0으로.
+      # 워커는 별도 컨테이너에서 처리.
+      RENDER_WORKER_DISABLED: "1"
       COOKIE_SECURE: ${COOKIE_SECURE:-0}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:4000}
     ports:
       - "4000:4000"
     healthcheck:
@@ -113,26 +117,96 @@ services:
       timeout: 3s
       retries: 20
 
+  worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+    container_name: comicai-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-comicai}:${POSTGRES_PASSWORD:-comicai}@postgres:5432/${POSTGRES_DB:-comicai}?schema=public
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: ${S3_BUCKET:-comicai}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MASTER_KEY: ${MASTER_KEY:?MASTER_KEY 필수 — .env에 설정하세요}
+      RENDER_WORKER_DISABLED: "0"
+      RENDER_CONCURRENCY: ${RENDER_CONCURRENCY:-2}
+    command: ["node", "apps/api/dist/worker.js"]
+
   web:
     build:
       context: ../..
       dockerfile: infra/docker/web.Dockerfile
       args:
-        # 브라우저에서 호출하는 URL — 호스트 포트로 노출된 api.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
     container_name: comicai-web
+    restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      # /health 페이지처럼 SSR fetch는 컨테이너 내부 DNS 사용.
       INTERNAL_API_URL: http://api:4000
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
     ports:
       - "3000:3000"
 
+  # Cloudflare Zero Trust Tunnel — TUNNEL_TOKEN 없으면 비활성화.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: comicai-cloudflared
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN 필수}
+    depends_on:
+      - web
+      - api
+
+  # 일일 백업 — pg_dump + mc mirror. 별도 profile로 토글.
+  backup:
+    build:
+      context: ../backup
+    container_name: comicai-backup
+    restart: unless-stopped
+    profiles: ["backup"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-comicai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comicai}
+      POSTGRES_DB: ${POSTGRES_DB:-comicai}
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-comicai}
+      BACKUP_DIR: /backup
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 3 * * *}
+      RUN_ON_START: ${BACKUP_RUN_ON_START:-0}
+    volumes:
+      - backup_data:/backup
+
 volumes:
   postgres_data:
   redis_data:
   minio_data:
+  backup_data:

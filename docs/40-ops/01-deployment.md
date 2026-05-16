@@ -39,7 +39,7 @@ services:
 
   worker:
     build: ./apps/api
-    command: ["node", "dist/worker.js"]
+    command: ['node', 'dist/worker.js']
     environment: (api와 동일)
     depends_on: [postgres, redis]
 
@@ -83,5 +83,40 @@ volumes:
 - 직전 이미지 태그로 `docker compose up -d --no-deps api worker`.
 - DB 마이그레이션 롤백은 별도 매뉴얼 (Prisma).
 
+## 워커 분리
+
+`infra/compose/full.yml`은 기본적으로 api와 worker를 별도 컨테이너로 분리한다.
+
+- `api`: HTTP 서버만 (`RENDER_WORKER_DISABLED=1`).
+- `worker`: `node apps/api/dist/worker.js` 진입점, BullMQ 워커만 부팅.
+- 두 컨테이너는 동일 이미지를 공유 (Dockerfile은 그대로).
+- SSE는 `Redis pub/sub` 기반으로 동작하므로 worker가 publish한 이벤트가 api 인스턴스의 클라이언트로 fan-out됨.
+
+운영 정책상 같은 컨테이너에서 동시 운영하려면 worker 서비스를 끄고 api의 `RENDER_WORKER_DISABLED=0`으로 둘 것.
+
+## Cloudflare Tunnel
+
+`profiles: ["tunnel"]`로 토글:
+
+```sh
+docker compose -f infra/compose/full.yml --profile tunnel up -d
+```
+
+`CLOUDFLARE_TUNNEL_TOKEN`이 필수. cloudflared 대시보드에서 토큰 발급 후 `.env`에 설정.
+
+## 백업
+
+`profiles: ["backup"]` 컨테이너가 cron으로 매일 03:00 KST에 `pg_dump`(gzip) + MinIO 버킷 `mc mirror`를 `backup_data` 볼륨에 저장.
+
+- `BACKUP_SCHEDULE`, `BACKUP_RETENTION_DAYS`로 조정.
+- 즉시 테스트: `BACKUP_RUN_ON_START=1`로 부팅 직후 1회 실행.
+
+## 테스트
+
+- 단위: `pnpm -r test` (vitest, mock 기반).
+- 통합 (API): `pnpm --filter @comicai/api test:integration` — testcontainers로 Postgres/Redis 부팅, Prisma migrate deploy 후 supertest로 검증. Docker 데몬 필요.
+- E2E (Web): `pnpm --filter @comicai/web e2e:install && pnpm --filter @comicai/web e2e` — Playwright. 사전에 API + 인프라가 떠 있어야 함.
+
 ## 변경 이력
-- 2026-05-16: 초기 작성
+
+- 2026-05-16: 초기 작성 + worker 분리 / backup / E2E 추가
