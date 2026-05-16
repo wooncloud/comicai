@@ -17,13 +17,13 @@ export function EntityCard({ entity, onUpdated, onEdit, onRemove }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
     setError(null);
     setUploading(true);
     try {
       const fd = new FormData();
-      fd.append('file', file);
+      for (const f of files) fd.append('files', f);
       const updated = await api<ConsistencyEntityDTO>(ApiPaths.consistencyImages(entity.id), {
         method: 'POST',
         body: fd,
@@ -73,6 +73,7 @@ export function EntityCard({ entity, onUpdated, onEdit, onRemove }: Props) {
             ref={fileRef}
             type="file"
             accept="image/png,image/jpeg,image/webp"
+            multiple
             className="hidden"
             onChange={onUpload}
             disabled={uploading}
@@ -96,18 +97,31 @@ function ImageGrid({ entity }: { entity: ConsistencyEntityDTO }) {
   }
   return (
     <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-      {entity.refImages.map((img, i) => (
-        <li
-          key={img.storageKey}
-          className="aspect-square overflow-hidden rounded-md border border-border bg-muted"
-          title={`참조 ${i + 1}`}
-        >
-          {/* presigned download endpoint은 추후 P6에서 통합 — 일단 storage key만 표시 */}
-          <div className="flex h-full w-full items-center justify-center text-caption text-muted-foreground">
-            <span>#{i + 1}</span>
-          </div>
-        </li>
-      ))}
+      {entity.refImages.map((img, i) => {
+        const url = entity.refImageUrls[i];
+        return (
+          <li
+            key={img.storageKey}
+            className="aspect-square overflow-hidden rounded-md border border-border bg-muted"
+            title={`참조 ${i + 1}`}
+          >
+            {url ? (
+              <a href={url} target="_blank" rel="noopener" className="block h-full w-full">
+                <img
+                  src={url}
+                  alt={`참조 ${i + 1}`}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              </a>
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-caption text-muted-foreground">
+                #{i + 1}
+              </div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }

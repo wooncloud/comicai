@@ -79,6 +79,8 @@ export interface ConsistencyEntityDTO {
   aliases: string[];
   description: string;
   refImages: ImageRef[];
+  /** refImages와 동일 순서의 presigned URL (브라우저 미리보기용). */
+  refImageUrls: string[];
   version: number;
   createdAt: string;
   updatedAt: string;

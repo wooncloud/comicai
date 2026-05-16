@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -9,11 +10,11 @@ import {
   Post,
   Query,
   Req,
-  UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import {
   ConsistencyCreateSchema,
   ConsistencyPatchSchema,
@@ -23,7 +24,6 @@ import {
 import { ConsistencyService } from './consistency.service';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
-import { requireUploadedFile } from '../common/upload';
 
 class CreateDto {
   static zodSchema = ConsistencyCreateSchema;
@@ -67,13 +67,24 @@ export class ConsistencyController {
     await this.svc.remove(req.user.id, id);
   }
 
+  /**
+   * 참조 이미지 N개 업로드. multipart field 'files' (다중) 권장.
+   * 옛 클라이언트의 'file' 단일 필드도 multer가 같은 흐름에 합쳐 처리해줌.
+   */
   @Post('consistency/:id/images')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
-  uploadImage(
+  @UseInterceptors(FilesInterceptor('files', 12, { limits: { fileSize: MAX_UPLOAD_BYTES } }))
+  uploadImages(
     @Req() req: AuthedRequest,
     @Param('id') id: string,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFiles() files: Express.Multer.File[] = [],
   ) {
-    return this.svc.appendImage(req.user.id, id, requireUploadedFile(file).buffer);
+    if (!files.length) {
+      throw new BadRequestException({ code: 'UPLOAD_FILE_MISSING', message: '파일이 없습니다.' });
+    }
+    return this.svc.appendImages(
+      req.user.id,
+      id,
+      files.map((f) => f.buffer),
+    );
   }
 }

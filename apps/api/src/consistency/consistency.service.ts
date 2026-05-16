@@ -4,18 +4,21 @@ import type { ConsistencyEntityDTO, EntityType, ImageRef } from '@comicai/types'
 import { ProjectsService } from '../projects/projects.service';
 import { StorageService } from '../storage/storage.service';
 
-function toDto(row: {
-  id: string;
-  projectId: string;
-  type: string;
-  name: string;
-  aliases: string[];
-  description: string;
-  refImages: unknown;
-  version: number;
-  createdAt: Date;
-  updatedAt: Date;
-}): ConsistencyEntityDTO {
+function toDto(
+  row: {
+    id: string;
+    projectId: string;
+    type: string;
+    name: string;
+    aliases: string[];
+    description: string;
+    refImages: unknown;
+    version: number;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  refImageUrls: string[] = [],
+): ConsistencyEntityDTO {
   return {
     id: row.id,
     projectId: row.projectId,
@@ -24,6 +27,7 @@ function toDto(row: {
     aliases: row.aliases,
     description: row.description,
     refImages: (row.refImages as unknown as ImageRef[]) ?? [],
+    refImageUrls,
     version: row.version,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -47,7 +51,15 @@ export class ConsistencyService {
       where: { projectId, ...(type ? { type } : {}) },
       orderBy: { updatedAt: 'desc' },
     });
-    return rows.map(toDto);
+    return Promise.all(rows.map((r) => this.dtoWithUrls(r)));
+  }
+
+  private async dtoWithUrls(row: Parameters<typeof toDto>[0]): Promise<ConsistencyEntityDTO> {
+    const refs = (row.refImages as unknown as ImageRef[]) ?? [];
+    const urls = await Promise.all(
+      refs.map(async (ref) => (await this.storage.presignDownload(ref.storageKey)).url),
+    );
+    return toDto(row, urls);
   }
 
   async create(
@@ -66,7 +78,7 @@ export class ConsistencyService {
         description: data.description,
       },
     });
-    return toDto(row);
+    return this.dtoWithUrls(row);
   }
 
   async patch(
@@ -79,7 +91,7 @@ export class ConsistencyService {
       where: { id: owned.id },
       data: { ...patch, version: { increment: 1 } },
     });
-    return toDto(row);
+    return this.dtoWithUrls(row);
   }
 
   async remove(userId: string, id: string) {
@@ -87,26 +99,30 @@ export class ConsistencyService {
     await prisma.consistencyEntity.delete({ where: { id: owned.id } });
   }
 
-  /** 참조 이미지를 업로드하고 엔티티에 추가. version +1. */
-  async appendImage(
+  /** 참조 이미지를 N개 업로드하고 엔티티에 추가. version +1. */
+  async appendImages(
     userId: string,
     entityId: string,
-    fileBuffer: Buffer,
+    fileBuffers: Buffer[],
   ): Promise<ConsistencyEntityDTO> {
     const owned = await this.findOwned(userId, entityId);
-    const ref = await this.storage.storeUploadedImage(
-      { kind: 'consistency-ref', projectId: owned.projectId, entityId: owned.id },
-      fileBuffer,
+    const newRefs = await Promise.all(
+      fileBuffers.map((buf) =>
+        this.storage.storeUploadedImage(
+          { kind: 'consistency-ref', projectId: owned.projectId, entityId: owned.id },
+          buf,
+        ),
+      ),
     );
-    const refs = (owned.refImages as unknown as ImageRef[]) ?? [];
+    const existing = (owned.refImages as unknown as ImageRef[]) ?? [];
     const row = await prisma.consistencyEntity.update({
       where: { id: owned.id },
       data: {
-        refImages: [...refs, ref] as unknown as object,
+        refImages: [...existing, ...newRefs] as unknown as object,
         version: { increment: 1 },
       },
     });
-    return toDto(row);
+    return this.dtoWithUrls(row);
   }
 
   private async findOwned(userId: string, id: string) {
