@@ -1,6 +1,15 @@
 'use client';
 import { useState } from 'react';
 import type { ModelProvider } from '@comicai/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Props {
   onSubmit: (provider: ModelProvider, label: string, secret: string) => Promise<void>;
@@ -29,52 +38,47 @@ export function ApiKeyForm({ onSubmit }: Props) {
   }
 
   return (
-    <form onSubmit={handle} className="space-y-3 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
-      <div className="flex gap-3">
-        <label className="block flex-1">
-          <span className="text-xs text-neutral-600">제공자</span>
-          <select
-            value={provider}
-            onChange={(e) => setProvider(e.target.value as ModelProvider)}
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
-          >
-            <option value="gemini">Gemini</option>
-            <option value="openai">OpenAI</option>
-          </select>
-        </label>
-        <label className="block flex-1">
-          <span className="text-xs text-neutral-600">라벨</span>
-          <input
-            type="text"
+    <form onSubmit={handle} className="space-y-4 rounded-md border border-border p-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground">제공자</label>
+          <Select value={provider} onValueChange={(v) => setProvider(v as ModelProvider)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="gemini">Gemini</SelectItem>
+              <SelectItem value="openai">OpenAI</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground">라벨</label>
+          <Input
             required
             value={label}
             maxLength={80}
             placeholder="예: 개인 Gemini"
             onChange={(e) => setLabel(e.target.value)}
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
           />
-        </label>
+        </div>
       </div>
-      <label className="block">
-        <span className="text-xs text-neutral-600">API 키</span>
-        <input
+      <div className="space-y-1.5">
+        <label className="text-xs text-muted-foreground">API 키</label>
+        <Input
           type="password"
           required
           minLength={8}
           value={secret}
           onChange={(e) => setSecret(e.target.value)}
           autoComplete="off"
-          className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="font-mono"
         />
-      </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-      >
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <Button type="submit" disabled={pending} size="sm">
         {pending ? '등록 중…' : '등록'}
-      </button>
+      </Button>
     </form>
   );
 }
