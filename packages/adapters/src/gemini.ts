@@ -18,7 +18,10 @@ interface GeminiRequest {
   headers: Record<string, string>;
   body: {
     contents: { role: string; parts: GeminiPart[] }[];
-    generationConfig: { responseModalities: string[] };
+    generationConfig: {
+      responseModalities: string[];
+      imageConfig?: { aspectRatio?: string };
+    };
   };
 }
 
@@ -45,9 +48,10 @@ export const GeminiAdapter: ModelAdapter = {
     for (const w of ir.worldviews) parts.push({ text: `[세계관] ${w.description}` });
     for (const img of refs) parts.push(toRefPart(img));
     parts.push({
-      text: `위 레퍼런스의 그림체·캐릭터·배경 일관성을 유지하라.\n${ir.userPrompt}${
-        ir.seed != null ? `\nseed=${ir.seed}` : ''
-      }`,
+      text:
+        `위 레퍼런스의 그림체·캐릭터·배경 일관성을 유지하라.\n` +
+        `최종 출력은 패널 비율 ${ir.aspectRatio}(${ir.panelSize.w}×${ir.panelSize.h}px)에 정확히 맞춰 잘림 없이 구도를 잡을 것.\n` +
+        `${ir.userPrompt}${ir.seed != null ? `\nseed=${ir.seed}` : ''}`,
     });
 
     return {
@@ -56,7 +60,11 @@ export const GeminiAdapter: ModelAdapter = {
       body: {
         contents: [{ role: 'user', parts }],
         // 이미지 생성 모델은 responseModalities를 요구. responseMimeType은 400을 유발.
-        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+        // imageConfig.aspectRatio로 패널 비율을 모델에 직접 전달(지원 시 자동 적용).
+        generationConfig: {
+          responseModalities: ['IMAGE', 'TEXT'],
+          imageConfig: { aspectRatio: ir.aspectRatio },
+        },
       },
     };
   },

@@ -113,7 +113,9 @@ function buildPrompt(ir: RenderIR): string {
   for (const c of ir.characters) lines.push(`캐릭터 ${c.name}: ${c.description}`);
   for (const b of ir.backgrounds) lines.push(`배경 ${b.name}: ${b.description}`);
   for (const w of ir.worldviews) lines.push(`세계관: ${w.description}`);
-  lines.push(`종횡비 ${ir.aspectRatio}.`);
+  lines.push(
+    `패널 비율 ${ir.aspectRatio} (${ir.panelSize.w}×${ir.panelSize.h}px). 구도는 이 비율에서 잘리지 않게 잡을 것.`,
+  );
   if (ir.seed != null) lines.push(`seed=${ir.seed}`);
   lines.push(ir.userPrompt);
   return lines.join('\n');
