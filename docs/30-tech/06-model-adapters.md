@@ -13,9 +13,9 @@ export interface ModelAdapter {
   classifyError(err: unknown): RenderError;
 }
 
-export type ModelId = 'gemini-nano-banana' | 'gpt-image-1' | 'mock';
+export type ModelId = 'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock';
 export type RenderError = {
-  category: 'transient'|'auth'|'quota'|'safety'|'invalid'|'timeout';
+  category: 'transient' | 'auth' | 'quota' | 'safety' | 'invalid' | 'timeout';
   message: string;
   rawResponse?: unknown;
 };
@@ -38,11 +38,13 @@ export const MockAdapter: ModelAdapter = {
 ## Gemini Adapter (M3)
 
 ### 파라미터 매핑
-- 모델: `gemini-2.5-flash-image` (nano banana 계열, 최신 확인 필요).
+
+- 모델: `gemini-3.1-flash-image-preview`.
 - 엔드포인트: Google Generative Language API `generateContent`.
 - 멀티모달: `contents[].parts[]` 에 image/text 혼합.
 
 ### buildRequest 의사 코드
+
 ```ts
 buildRequest(ir, apiKey) {
   const parts: Part[] = [];
@@ -67,7 +69,7 @@ buildRequest(ir, apiKey) {
   parts.push({ text: `위 레퍼런스의 그림체·캐릭터·배경 일관성을 유지하라.\n${ir.userPrompt}` });
 
   return {
-    url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
+    url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent',
     headers: { 'x-goog-api-key': apiKey, 'content-type': 'application/json' },
     body: {
       contents: [{ role: 'user', parts }],
@@ -81,33 +83,37 @@ buildRequest(ir, apiKey) {
 ```
 
 ### 에러 분류
-| 모델 응답 | 카테고리 |
-|---|---|
-| HTTP 401 / 403 | `auth` |
-| HTTP 429 / quota error | `quota` |
-| HTTP 5xx, ECONNRESET | `transient` |
-| `SAFETY` / `BLOCKED_REASON_*` | `safety` |
-| `INVALID_ARGUMENT` (잘못된 이미지) | `invalid` |
-| AbortError | `timeout` |
+
+| 모델 응답                          | 카테고리    |
+| ---------------------------------- | ----------- |
+| HTTP 401 / 403                     | `auth`      |
+| HTTP 429 / quota error             | `quota`     |
+| HTTP 5xx, ECONNRESET               | `transient` |
+| `SAFETY` / `BLOCKED_REASON_*`      | `safety`    |
+| `INVALID_ARGUMENT` (잘못된 이미지) | `invalid`   |
+| AbortError                         | `timeout`   |
 
 ## OpenAI Adapter (M3 후반)
 
 ### 파라미터 매핑
-- 모델: `gpt-image-1`.
+
+- 모델: `gpt-image-2`.
 - 엔드포인트: `/v1/images/generations` (또는 `/edits` for image-conditioned).
 - 멀티 이미지: `image[]` 배열.
 
 ### 주의
+
 - 최대 reference 이미지 수 제한 있음 → 우선순위 잘라내기 (style → character → background → conti).
 - 텍스트는 단일 `prompt` 문자열로 직렬화 필요 (Gemini처럼 멀티파트 불가능한 경우 대비).
 
 ## 우선순위 자르기 알고리즘
+
 ```ts
 function selectReferences(ir, maxImages) {
   const buckets = [
-    ir.styles.flatMap(s => s.images),
-    ir.characters.flatMap(c => c.images),
-    ir.backgrounds.flatMap(b => b.images),
+    ir.styles.flatMap((s) => s.images),
+    ir.characters.flatMap((c) => c.images),
+    ir.backgrounds.flatMap((b) => b.images),
     ir.contiSketch ? [ir.contiSketch] : [],
     ir.userImages,
   ];
@@ -123,9 +129,11 @@ function selectReferences(ir, maxImages) {
 ```
 
 ## 어댑터 테스트 전략
+
 - 단위: `buildRequest`의 결과 페이로드 스냅샷 테스트.
 - 계약: MSW로 모델사 응답 모킹 → 에러 분류기 검증.
 - 통합: BYOK 키 환경변수로 실제 호출 (CI에서는 skip).
 
 ## 변경 이력
+
 - 2026-05-16: 초기 작성

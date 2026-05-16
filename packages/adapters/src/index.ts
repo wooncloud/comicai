@@ -23,8 +23,8 @@ import { OpenAIAdapter } from './openai';
 
 const REGISTRY: Record<ModelId, ModelAdapter> = {
   mock: MockAdapter,
-  'gemini-nano-banana': GeminiAdapter,
-  'gpt-image-1': OpenAIAdapter,
+  'gemini-3.1-flash-image-preview': GeminiAdapter,
+  'gpt-image-2': OpenAIAdapter,
 };
 
 export function getAdapter(model: ModelId): ModelAdapter {

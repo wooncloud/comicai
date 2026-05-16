@@ -24,6 +24,7 @@
 ## 엔티티
 
 ### User
+
 ```ts
 {
   id: string;            // user_...
@@ -35,6 +36,7 @@
 ```
 
 ### ApiKey
+
 ```ts
 {
   id: string;
@@ -49,6 +51,7 @@
 ```
 
 ### Project
+
 ```ts
 {
   id: string;            // proj_...
@@ -61,6 +64,7 @@
 ```
 
 ### ConsistencyEntity
+
 ```ts
 {
   id: string;            // char_... / bg_... / style_... / world_...
@@ -84,6 +88,7 @@ type ImageRef = {
 ```
 
 ### Page
+
 ```ts
 {
   id: string;            // page_...
@@ -96,6 +101,7 @@ type ImageRef = {
 ```
 
 ### Panel
+
 ```ts
 {
   id: string;            // panel_...
@@ -117,12 +123,13 @@ type PanelShape = {
 ```
 
 ### RenderJob
+
 ```ts
 {
   id: string;            // render_...
   panelId: string;
   userId: string;
-  model: 'gemini-nano-banana' | 'gpt-image-1';
+  model: 'gemini-3.1-flash-image-preview' | 'gpt-image-2';
   ir: RenderIR;          // JSONB 스냅샷
   status: 'queued'|'running'|'succeeded'|'failed'|'timeout'|'canceled';
   resultImage?: ImageRef;
@@ -221,9 +228,11 @@ CREATE INDEX idx_consistency_project ON consistency_entities(project_id, type);
 ```
 
 ## ULID + Prefix 생성 규칙
+
 - 라이브러리: `ulid` 또는 `ulidx`.
 - ID = `{prefix}_{ULID}`.
 - 새 prefix 추가 시 [`../00-overview/02-glossary.md`](../00-overview/02-glossary.md)에 등록.
 
 ## 변경 이력
+
 - 2026-05-16: 초기 작성

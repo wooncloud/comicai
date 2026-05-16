@@ -5,7 +5,7 @@ export * from './schemas';
 export * from './paths';
 
 export type ModelProvider = 'gemini' | 'openai' | 'mock';
-export type ModelId = 'gemini-nano-banana' | 'gpt-image-1' | 'mock';
+export type ModelId = 'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock';
 
 export const OAUTH_PROVIDERS = ['google', 'github'] as const;
 export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];

@@ -35,14 +35,14 @@ interface Props {
 }
 
 const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
-  { id: 'gemini-nano-banana', label: 'Gemini' },
-  { id: 'gpt-image-1', label: 'OpenAI' },
+  { id: 'gemini-3.1-flash-image-preview', label: 'Gemini' },
+  { id: 'gpt-image-2', label: 'OpenAI' },
 ];
 
 export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDeleted }: Props) {
   const [doc, setDoc] = useState<TipTapDoc>(panel.text ?? emptyDoc());
   const [status, setStatus] = useState<RenderStatus | null>(null);
-  const [model, setModel] = useState<ModelId>('gemini-nano-banana');
+  const [model, setModel] = useState<ModelId>('gemini-3.1-flash-image-preview');
   const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [historyKey, setHistoryKey] = useState(0);

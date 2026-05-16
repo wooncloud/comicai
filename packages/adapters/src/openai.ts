@@ -4,7 +4,8 @@ import { selectReferences } from './priority';
 
 const OPENAI_GEN_URL = 'https://api.openai.com/v1/images/generations';
 const OPENAI_EDIT_URL = 'https://api.openai.com/v1/images/edits';
-const MAX_REF_IMAGES = 4; // gpt-image-1 보수적 상한
+const OPENAI_MODEL = 'gpt-image-2';
+const MAX_REF_IMAGES = 4; // gpt-image-2 보수적 상한
 
 interface OpenAIRequest {
   apiKey: string;
@@ -24,7 +25,7 @@ class OpenAIHttpError extends Error {
 }
 
 export const OpenAIAdapter: ModelAdapter = {
-  id: 'gpt-image-1',
+  id: OPENAI_MODEL,
 
   buildRequest(ir: RenderIR, apiKey: string): OpenAIRequest {
     const refs = selectReferences(ir, MAX_REF_IMAGES);
@@ -45,7 +46,7 @@ export const OpenAIAdapter: ModelAdapter = {
         req.referenceKeys.map(async (key) => ({ key, ...(await ctx.loadReference(key)) })),
       );
       const form = new FormData();
-      form.append('model', 'gpt-image-1');
+      form.append('model', OPENAI_MODEL);
       form.append('prompt', req.prompt);
       form.append('size', req.size);
       form.append('n', '1');
@@ -68,7 +69,7 @@ export const OpenAIAdapter: ModelAdapter = {
         authorization: `Bearer ${req.apiKey}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ model: 'gpt-image-1', prompt: req.prompt, n: 1, size: req.size }),
+      body: JSON.stringify({ model: OPENAI_MODEL, prompt: req.prompt, n: 1, size: req.size }),
       signal,
     });
     return parseOpenAIImageResponse(res);
@@ -122,7 +123,7 @@ function buildPrompt(ir: RenderIR): string {
 }
 
 function aspectToSize(aspect: string): string {
-  // gpt-image-1 허용 사이즈: 1024x1024, 1024x1536, 1536x1024.
+  // gpt-image-2 허용 사이즈: 1024x1024, 1024x1536, 1536x1024.
   const parts = aspect.split(':').map((x) => Number(x) || 1);
   const w = parts[0] ?? 1;
   const h = parts[1] ?? 1;

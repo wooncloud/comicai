@@ -2,7 +2,7 @@ import type { AdapterImage, ImageRef, RenderError, RenderIR } from '@comicai/typ
 import type { AdapterContext, ModelAdapter } from './index';
 import { selectReferences } from './priority';
 
-const GEMINI_MODEL = 'gemini-2.5-flash-image';
+const GEMINI_MODEL = 'gemini-3.1-flash-image-preview';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const MAX_REF_IMAGES = 16;
 
@@ -36,7 +36,7 @@ class GeminiHttpError extends Error {
 }
 
 export const GeminiAdapter: ModelAdapter = {
-  id: 'gemini-nano-banana',
+  id: 'gemini-3.1-flash-image-preview',
 
   buildRequest(ir: RenderIR, apiKey: string): GeminiRequest {
     const parts: GeminiPart[] = [];

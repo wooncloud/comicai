@@ -75,7 +75,7 @@ export const PagePatchSchema = z.object({
 });
 
 // ─── 렌더 ─────────────────────────────────────
-export const RenderModelSchema = z.enum(['gemini-nano-banana', 'gpt-image-1', 'mock']);
+export const RenderModelSchema = z.enum(['gemini-3.1-flash-image-preview', 'gpt-image-2', 'mock']);
 export const RenderStartSchema = z.object({
   model: RenderModelSchema,
   seed: z.number().int().optional(),
