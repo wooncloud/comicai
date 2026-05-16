@@ -3,7 +3,6 @@ import { entityIdPrefix, newId, prisma } from '@comicai/db';
 import type { ConsistencyEntityDTO, EntityType, ImageRef } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
 import { StorageService } from '../storage/storage.service';
-import { validateAndNormalizeImage } from '../storage/image-validator';
 
 function toDto(row: {
   id: string;
@@ -95,16 +94,10 @@ export class ConsistencyService {
     fileBuffer: Buffer,
   ): Promise<ConsistencyEntityDTO> {
     const owned = await this.findOwned(userId, entityId);
-    const validated = await validateAndNormalizeImage(fileBuffer);
-    const ref = await this.storage.putImage(
+    const ref = await this.storage.storeUploadedImage(
       { kind: 'consistency-ref', projectId: owned.projectId, entityId: owned.id },
-      validated.bytes,
-      validated.mimeType,
-      validated.width,
-      validated.height,
+      fileBuffer,
     );
-    await this.storage.putThumbnail(ref.storageKey, validated.bytes).catch(() => undefined);
-
     const current = await prisma.consistencyEntity.findUniqueOrThrow({
       where: { id: owned.id },
       select: { refImages: true },

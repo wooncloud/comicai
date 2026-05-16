@@ -12,7 +12,6 @@ import {
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { StorageService } from '../storage/storage.service';
-import { validateAndNormalizeImage } from '../storage/image-validator';
 
 function panelDto(row: {
   id: string;
@@ -78,15 +77,10 @@ export class PanelsService {
 
   async appendUpload(userId: string, panelId: string, fileBuffer: Buffer): Promise<PanelDTO> {
     const owned = await this.assertOwned(userId, panelId);
-    const validated = await validateAndNormalizeImage(fileBuffer);
-    const ref = await this.storage.putImage(
+    const ref = await this.storage.storeUploadedImage(
       { kind: 'panel-upload', projectId: owned.projectId, panelId: owned.id },
-      validated.bytes,
-      validated.mimeType,
-      validated.width,
-      validated.height,
+      fileBuffer,
     );
-    await this.storage.putThumbnail(ref.storageKey, validated.bytes).catch(() => undefined);
     const current = await prisma.panel.findUniqueOrThrow({
       where: { id: owned.id },
       select: { refImages: true },

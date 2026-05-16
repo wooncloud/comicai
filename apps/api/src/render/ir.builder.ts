@@ -11,6 +11,7 @@ import {
   type PanelShape,
 } from '@comicai/types';
 import { resolveMentionIds, serializeTextWithNameReplacement } from '@comicai/events';
+import { shapeBoundingBox } from '../common/bbox';
 
 /**
  * Panel + Project 컨텍스트에서 RenderIR을 합성.
@@ -73,18 +74,8 @@ export async function buildRenderIR(panelId: string, seed?: number): Promise<Ren
 }
 
 function computePanelSize(shape: PanelShape): { w: number; h: number } {
-  if (!shape.points.length) return { w: 1, h: 1 };
-  let minX = Infinity,
-    minY = Infinity,
-    maxX = -Infinity,
-    maxY = -Infinity;
-  for (const p of shape.points) {
-    if (p.x < minX) minX = p.x;
-    if (p.y < minY) minY = p.y;
-    if (p.x > maxX) maxX = p.x;
-    if (p.y > maxY) maxY = p.y;
-  }
-  return { w: Math.max(1, Math.round(maxX - minX)), h: Math.max(1, Math.round(maxY - minY)) };
+  const { w, h } = shapeBoundingBox(shape);
+  return { w: Math.max(1, Math.round(w)), h: Math.max(1, Math.round(h)) };
 }
 
 function computeAspectRatio(shape: PanelShape): string {

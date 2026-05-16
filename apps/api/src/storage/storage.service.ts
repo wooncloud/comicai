@@ -11,6 +11,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import sharp from 'sharp';
 import { ulid } from 'ulid';
 import type { ImageRef } from '@comicai/types';
+import { validateAndNormalizeImage } from './image-validator';
 
 export type ImageScope =
   | { kind: 'render'; renderJobId: string }
@@ -97,6 +98,27 @@ export class StorageService implements OnModuleInit {
       .toBuffer();
     await this.put(thumbKey, thumb, 'image/webp');
     return thumbKey;
+  }
+
+  /**
+   * 업로드 버퍼를 검증/리사이즈한 뒤 본 이미지+썸네일을 저장하고 ImageRef를 반환.
+   * consistency/panel 업로드 두 곳에서 공유.
+   */
+  async storeUploadedImage(scope: ImageScope, fileBuffer: Buffer): Promise<ImageRef> {
+    const validated = await validateAndNormalizeImage(fileBuffer);
+    const ref = await this.putImage(
+      scope,
+      validated.bytes,
+      validated.mimeType,
+      validated.width,
+      validated.height,
+    );
+    try {
+      await this.putThumbnail(ref.storageKey, validated.bytes);
+    } catch (err) {
+      this.logger.warn({ err, storageKey: ref.storageKey }, 'thumbnail generation failed');
+    }
+    return ref;
   }
 
   /** 다운로드용 pre-signed URL (15분 TTL). */

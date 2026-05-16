@@ -41,15 +41,17 @@ export const OpenAIAdapter: ModelAdapter = {
     // 참조 이미지가 있으면 /v1/images/edits (multipart, image[]) 사용,
     // 없으면 /v1/images/generations.
     if (req.referenceKeys.length > 0) {
+      const refs = await Promise.all(
+        req.referenceKeys.map(async (key) => ({ key, ...(await ctx.loadReference(key)) })),
+      );
       const form = new FormData();
       form.append('model', 'gpt-image-1');
       form.append('prompt', req.prompt);
       form.append('size', req.size);
       form.append('n', '1');
-      for (const key of req.referenceKeys) {
-        const { bytes, mimeType } = await ctx.loadReference(key);
-        const blob = new Blob([Buffer.from(bytes)], { type: mimeType });
-        form.append('image[]', blob, fileName(key, mimeType));
+      for (const r of refs) {
+        const blob = new Blob([Buffer.from(r.bytes)], { type: r.mimeType });
+        form.append('image[]', blob, fileName(r.key, r.mimeType));
       }
       const res = await fetch(OPENAI_EDIT_URL, {
         method: 'POST',
