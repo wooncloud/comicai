@@ -11,6 +11,26 @@ const config: Config = {
       screens: { '2xl': '1400px' },
     },
     extend: {
+      fontFamily: {
+        sans: [
+          'var(--font-pretendard)',
+          'var(--font-inter)',
+          'system-ui',
+          '-apple-system',
+          'sans-serif',
+        ],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+      },
+      fontSize: {
+        // (size, lineHeight, letterSpacing). spec 화면들의 hero/section/body 톤.
+        'display-lg': ['3rem', { lineHeight: '1.15', letterSpacing: '-0.02em' }],
+        'display-md': ['2.25rem', { lineHeight: '1.2', letterSpacing: '-0.015em' }],
+        'title-lg': ['1.5rem', { lineHeight: '1.3', letterSpacing: '-0.01em' }],
+        'title-md': ['1.125rem', { lineHeight: '1.4' }],
+        'body-lg': ['1rem', { lineHeight: '1.55' }],
+        'body-sm': ['0.875rem', { lineHeight: '1.5' }],
+        caption: ['0.75rem', { lineHeight: '1.4' }],
+      },
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',

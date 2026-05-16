@@ -83,6 +83,8 @@ export interface PanelDTO {
   text: TipTapDoc;
   refImages: ImageRef[];
   currentRenderId?: string | null;
+  /** 현재 렌더의 상태(있다면). 캔버스 위 배지 표시용. */
+  currentRenderStatus?: RenderStatus | null;
   history: string[];
 }
 
@@ -176,6 +178,8 @@ export interface RenderJobDTO {
   model: ModelId;
   status: RenderStatus;
   resultImage?: ImageRef | null;
+  /** presigned URL for history/inspector display. Optional — populated by history endpoint. */
+  resultImageUrl?: string | null;
   error?: RenderError | null;
   attempts: number;
   createdAt: string;

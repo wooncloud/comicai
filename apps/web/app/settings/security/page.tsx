@@ -1,9 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { api, ApiError } from '@/lib/api';
 import { ApiPaths, type OAuthProvider, type SessionInfo, type SessionUser } from '@comicai/types';
-import { AppShell } from '@/components/shell/app-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -27,21 +25,12 @@ export default function SecurityPage() {
   }, []);
 
   return (
-    <AppShell>
-      <main className="mx-auto max-w-2xl px-6 py-16">
-        <div className="flex items-baseline justify-between">
-          <h1 className="text-2xl font-semibold">계정 및 보안</h1>
-          <Button asChild variant="link" size="sm">
-            <Link href="/settings">API 키 설정</Link>
-          </Button>
-        </div>
-
-        <EmailVerificationSection me={me} />
-        <PasswordSection me={me} onChanged={refresh} />
-        <OAuthSection me={me} />
-        <SessionsSection sessions={sessions} onChanged={refresh} />
-      </main>
-    </AppShell>
+    <div className="space-y-12">
+      <EmailVerificationSection me={me} />
+      <PasswordSection me={me} onChanged={refresh} />
+      <OAuthSection me={me} />
+      <SessionsSection sessions={sessions} onChanged={refresh} />
+    </div>
   );
 }
 
@@ -61,8 +50,8 @@ function EmailVerificationSection({ me }: { me: SessionUser | null }) {
 
   if (!me) return null;
   return (
-    <section className="mt-12 space-y-3">
-      <h2 className="text-lg font-medium">이메일</h2>
+    <section className="space-y-3">
+      <h2 className="text-title-lg font-semibold">이메일</h2>
       <div className="flex items-center gap-3 text-sm">
         <span>{me.email}</span>
         <Button variant="outline" size="sm" disabled={pending || done} onClick={resend}>
@@ -109,8 +98,8 @@ function PasswordSection({ me, onChanged }: { me: SessionUser | null; onChanged:
 
   if (!me) return null;
   return (
-    <section className="mt-12 space-y-3">
-      <h2 className="text-lg font-medium">비밀번호</h2>
+    <section className="space-y-3">
+      <h2 className="text-title-lg font-semibold">비밀번호</h2>
       <form onSubmit={onSubmit} className="space-y-3">
         <Input
           type="password"
@@ -148,8 +137,8 @@ function OAuthSection({ me }: { me: SessionUser | null }) {
   if (!me) return null;
   const linked = new Set(me.oauthProviders ?? []);
   return (
-    <section className="mt-12 space-y-3">
-      <h2 className="text-lg font-medium">외부 로그인</h2>
+    <section className="space-y-3">
+      <h2 className="text-title-lg font-semibold">외부 로그인</h2>
       <ul className="space-y-2 text-sm">
         {OAUTH_PROVIDERS.map((p) => (
           <li
@@ -192,8 +181,8 @@ function SessionsSection({
 
   if (!sessions) return null;
   return (
-    <section className="mt-12 space-y-3">
-      <h2 className="text-lg font-medium">활성 세션</h2>
+    <section className="space-y-3">
+      <h2 className="text-title-lg font-semibold">활성 세션</h2>
       <ul className="divide-y divide-border rounded-md border border-border text-sm">
         {sessions.map((s) => (
           <li key={s.id} className="flex items-center justify-between gap-3 px-4 py-3">

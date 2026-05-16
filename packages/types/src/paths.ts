@@ -41,4 +41,6 @@ export const ApiPaths = {
   renderJob: (id: string) => `/render-jobs/${id}`,
   renderJobCancel: (id: string) => `/render-jobs/${id}/cancel`,
   renderJobEvents: (id: string) => `/render-jobs/${id}/events`,
+  renderJobRestore: (id: string) => `/render-jobs/${id}/restore`,
+  panelHistory: (id: string) => `/panels/${id}/history`,
 } as const;

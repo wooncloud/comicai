@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ApiPaths, type PageDTO, type PanelDTO, type PanelShape } from '@comicai/types';
 import { PageCanvas } from '@/components/editor/page-canvas';
 import { PanelInspector } from '@/components/editor/panel-inspector';
-import { useToast } from '@/components/ui/toast';
+import { ExportDialog } from '@/components/editor/export-dialog';
 
 export default function PageEditor() {
   const params = useParams<{ id: string; pageid: string }>();
@@ -17,23 +17,7 @@ export default function PageEditor() {
   const [page, setPage] = useState<PageDTO | null>(null);
   const [panels, setPanels] = useState<PanelDTO[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const toast = useToast();
-  const [exporting, setExporting] = useState(false);
-
-  async function exportPage(format: 'png' | 'jpg') {
-    setExporting(true);
-    try {
-      const result = await api<{ storageKey: string }>(ApiPaths.pageExport(pageId), {
-        method: 'POST',
-        body: JSON.stringify({ format }),
-      });
-      toast.push('success', `내보내기 완료: ${result.storageKey}`);
-    } catch (err) {
-      toast.push('error', `내보내기 실패: ${(err as Error).message}`);
-    } finally {
-      setExporting(false);
-    }
-  }
+  const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
     if (!pageId) return;
@@ -60,36 +44,29 @@ export default function PageEditor() {
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-3 dark:border-neutral-800 dark:bg-neutral-950">
+      <header className="flex items-center justify-between border-b border-border bg-background px-6 py-3">
         <Breadcrumb
           items={[
-            { label: '프로젝트', href: '/projects' },
+            { label: '대시보드', href: '/dashboard' },
             { label: project?.name ?? '…', href: `/projects/${projectId}` },
             { label: `페이지 ${page ? page.order + 1 : '…'}` },
           ]}
         />
         <div className="flex items-center gap-3">
-          <span className="text-xs text-neutral-500">
+          <span className="text-caption text-muted-foreground">
             패널 {panels.length}개 · 드래그로 새 패널 생성
           </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => exportPage('png')}
-            disabled={exporting}
-          >
-            PNG 내보내기
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => exportPage('jpg')}
-            disabled={exporting}
-          >
-            JPG 내보내기
+          <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
+            내보내기
           </Button>
         </div>
       </header>
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        pageId={pageId}
+        panels={panels}
+      />
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 overflow-auto bg-neutral-100 p-6 dark:bg-neutral-900">
           <div className="mx-auto" style={{ width: 'fit-content' }}>

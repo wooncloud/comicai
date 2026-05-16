@@ -55,7 +55,7 @@ export default function LoginPage() {
     setPending(true);
     try {
       await api(ApiPaths.login, { method: 'POST', body: JSON.stringify({ email, password }) });
-      router.push('/projects');
+      router.push('/dashboard');
     } catch (err) {
       if (err instanceof ApiError && err.code === 'INVALID_CREDENTIALS') {
         setError('이메일 또는 비밀번호가 올바르지 않습니다.');

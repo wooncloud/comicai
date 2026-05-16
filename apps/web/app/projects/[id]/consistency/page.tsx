@@ -8,6 +8,7 @@ import { useProject } from '@/lib/use-project';
 import { ApiPaths, type ConsistencyEntityDTO, type EntityType } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { EntityCard } from '@/components/consistency/entity-card';
 
 const TABS: { key: EntityType; label: string }[] = [
   { key: 'style', label: '그림체' },
@@ -16,13 +17,15 @@ const TABS: { key: EntityType; label: string }[] = [
   { key: 'worldview', label: '세계관' },
 ];
 
+const EMPTY_FORM = { name: '', aliases: '', description: '' };
+
 export default function ConsistencyPage() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
   const [tab, setTab] = useState<EntityType>('style');
   const [items, setItems] = useState<ConsistencyEntityDTO[]>([]);
   const [editing, setEditing] = useState<ConsistencyEntityDTO | null>(null);
-  const [form, setForm] = useState({ name: '', aliases: '', description: '' });
+  const [form, setForm] = useState(EMPTY_FORM);
   const project = useProject(projectId);
 
   async function refresh() {
@@ -47,25 +50,26 @@ export default function ConsistencyPage() {
       description: form.description,
     };
     if (editing) {
-      await api(ApiPaths.consistency(editing.id), {
+      const updated = await api<ConsistencyEntityDTO>(ApiPaths.consistency(editing.id), {
         method: 'PATCH',
         body: JSON.stringify(payload),
       });
+      setItems((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     } else {
-      await api(ApiPaths.projectConsistency(projectId), {
+      const created = await api<ConsistencyEntityDTO>(ApiPaths.projectConsistency(projectId), {
         method: 'POST',
         body: JSON.stringify({ type: tab, ...payload }),
       });
+      setItems((prev) => [created, ...prev]);
     }
     setEditing(null);
-    setForm({ name: '', aliases: '', description: '' });
-    await refresh();
+    setForm(EMPTY_FORM);
   }
 
   async function remove(id: string) {
     if (!confirm('삭제하시겠습니까?')) return;
     await api(ApiPaths.consistency(id), { method: 'DELETE' });
-    await refresh();
+    setItems((prev) => prev.filter((p) => p.id !== id));
   }
 
   function beginEdit(item: ConsistencyEntityDTO) {
@@ -77,31 +81,35 @@ export default function ConsistencyPage() {
     });
   }
 
+  function applyUpdated(next: ConsistencyEntityDTO) {
+    setItems((prev) => prev.map((p) => (p.id === next.id ? next : p)));
+  }
+
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl px-6 py-12">
+      <div className="mx-auto max-w-6xl px-6 py-10">
         <Breadcrumb
           items={[
-            { label: '프로젝트', href: '/projects' },
+            { label: '대시보드', href: '/dashboard' },
             { label: project?.name ?? '…', href: `/projects/${projectId}` },
             { label: '일관성 정보' },
           ]}
         />
-        <h1 className="mt-2 text-2xl font-semibold">일관성 정보</h1>
+        <h1 className="mt-2 text-display-md font-semibold">일관성 정보</h1>
 
-        <div className="mt-6 flex gap-2 border-b border-neutral-200 dark:border-neutral-800">
+        <div className="mt-6 flex gap-1 border-b border-border">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => {
                 setTab(t.key);
                 setEditing(null);
-                setForm({ name: '', aliases: '', description: '' });
+                setForm(EMPTY_FORM);
               }}
-              className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+              className={`-mb-px border-b-2 px-4 py-2 text-body-sm transition-colors ${
                 tab === t.key
-                  ? 'border-neutral-900 font-medium dark:border-white'
-                  : 'border-transparent text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                  ? 'border-foreground font-medium text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               {t.label}
@@ -109,83 +117,70 @@ export default function ConsistencyPage() {
           ))}
         </div>
 
-        <div className="mt-6 grid gap-8 md:grid-cols-[1fr_320px]">
-          <ul className="space-y-2">
-            {items.length === 0 && (
-              <li className="rounded-md border border-dashed border-neutral-300 p-6 text-sm text-neutral-500 dark:border-neutral-700">
-                항목이 없습니다.
-              </li>
+        <div className="mt-8 grid gap-8 md:grid-cols-[1fr_320px]">
+          <section className="space-y-4">
+            {items.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border p-12 text-center text-body-sm text-muted-foreground">
+                항목이 없습니다. 오른쪽 폼으로 추가해보세요.
+              </div>
+            ) : (
+              <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {items.map((it) => (
+                  <EntityCard
+                    key={it.id}
+                    entity={it}
+                    onUpdated={applyUpdated}
+                    onEdit={() => beginEdit(it)}
+                    onRemove={() => remove(it.id)}
+                  />
+                ))}
+              </ul>
             )}
-            {items.map((it) => (
-              <li
-                key={it.id}
-                className="flex items-center justify-between rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-800"
-              >
-                <div>
-                  <div className="font-medium">{it.name}</div>
-                  {it.aliases.length > 0 && (
-                    <div className="text-xs text-neutral-500">alias: {it.aliases.join(', ')}</div>
-                  )}
-                  {it.description && (
-                    <div className="mt-1 line-clamp-2 text-xs text-neutral-600 dark:text-neutral-400">
-                      {it.description}
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => beginEdit(it)} className="text-xs underline">
-                    수정
-                  </button>
-                  <button onClick={() => remove(it.id)} className="text-xs text-red-600 underline">
-                    삭제
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+          </section>
 
-          <form
-            onSubmit={save}
-            className="space-y-3 rounded-md border border-neutral-200 p-4 text-sm dark:border-neutral-800"
-          >
-            <div className="font-medium">{editing ? `${editing.name} 수정` : '새 항목'}</div>
-            <Input
-              required
-              placeholder="이름"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <Input
-              placeholder="별칭 (쉼표 구분)"
-              value={form.aliases}
-              onChange={(e) => setForm({ ...form, aliases: e.target.value })}
-            />
-            <textarea
-              placeholder="설명"
-              rows={5}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
-            <div className="flex gap-2">
-              <Button type="submit" size="sm">
-                {editing ? '저장' : '추가'}
-              </Button>
-              {editing && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setEditing(null);
-                    setForm({ name: '', aliases: '', description: '' });
-                  }}
-                >
-                  취소
+          <aside className="sticky top-20 h-fit space-y-3 rounded-lg border border-border bg-card p-4">
+            <h2 className="text-body-lg font-medium">
+              {editing ? `${editing.name} 수정` : '새 항목'}
+            </h2>
+            <form onSubmit={save} className="space-y-3">
+              <Input
+                required
+                placeholder="이름"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+              <Input
+                placeholder="별칭 (쉼표 구분)"
+                value={form.aliases}
+                onChange={(e) => setForm({ ...form, aliases: e.target.value })}
+              />
+              <textarea
+                placeholder="설명"
+                rows={5}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-body-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <div className="flex gap-2">
+                <Button type="submit" size="sm">
+                  {editing ? '저장' : '추가'}
                 </Button>
-              )}
-            </div>
-          </form>
+                {editing && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditing(null);
+                      setForm(EMPTY_FORM);
+                    }}
+                  >
+                    취소
+                  </Button>
+                )}
+              </div>
+            </form>
+          </aside>
         </div>
       </div>
     </AppShell>

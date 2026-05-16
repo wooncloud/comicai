@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
 import type { PanelDTO, PanelShape } from '@comicai/types';
+import { PanelStatusBadge } from './panel-status-badge';
 
 interface Props {
   width: number;
@@ -11,11 +12,6 @@ interface Props {
   onCreate: (shape: PanelShape) => void;
 }
 
-/**
- * SVG 기반 페이지 캔버스 PoC. tldraw 정식 통합은 후속 PR.
- * - 드래그로 사각형 패널 생성
- * - 클릭으로 패널 선택
- */
 export function PageCanvas({ width, height, panels, selectedId, onSelect, onCreate }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [drawing, setDrawing] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(
@@ -49,7 +45,7 @@ export function PageCanvas({ width, height, panels, selectedId, onSelect, onCrea
     const w = Math.abs(drawing.x0 - drawing.x1);
     const h = Math.abs(drawing.y0 - drawing.y1);
     setDrawing(null);
-    if (w < 24 || h < 24) return; // 너무 작은 드래그는 무시
+    if (w < 24 || h < 24) return;
     const shape: PanelShape = {
       type: 'rect',
       points: [
@@ -68,16 +64,15 @@ export function PageCanvas({ width, height, panels, selectedId, onSelect, onCrea
     <svg
       ref={svgRef}
       viewBox={`0 0 ${width} ${height}`}
-      className="block h-[80vh] max-h-[1200px] w-auto rounded-md border border-neutral-300 bg-white shadow-sm dark:border-neutral-600"
+      className="block h-[80vh] max-h-[1200px] w-auto rounded-md border border-border bg-card shadow-sm"
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
     >
-      {/* 가이드 격자 */}
       <defs>
         <pattern id="grid" width={50} height={50} patternUnits="userSpaceOnUse">
-          <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#e5e7eb" strokeWidth={0.5} />
+          <path d="M 50 0 L 0 0 0 50" fill="none" stroke="hsl(var(--border))" strokeWidth={0.5} />
         </pattern>
       </defs>
       <rect width={width} height={height} fill="url(#grid)" />
@@ -85,6 +80,7 @@ export function PageCanvas({ width, height, panels, selectedId, onSelect, onCrea
       {panels.map((p) => {
         const pts = p.shape.points.map((pt) => `${pt.x},${pt.y}`).join(' ');
         const isSelected = p.id === selectedId;
+        const bbox = boundingBox(p.shape.points);
         return (
           <g key={p.id}>
             <polygon
@@ -98,6 +94,13 @@ export function PageCanvas({ width, height, panels, selectedId, onSelect, onCrea
                 onSelect(p.id);
               }}
             />
+            {p.currentRenderStatus && (
+              <foreignObject x={bbox.x + 8} y={bbox.y + 8} width={120} height={28}>
+                <div className="pointer-events-none">
+                  <PanelStatusBadge status={p.currentRenderStatus} />
+                </div>
+              </foreignObject>
+            )}
           </g>
         );
       })}
@@ -116,4 +119,10 @@ export function PageCanvas({ width, height, panels, selectedId, onSelect, onCrea
       )}
     </svg>
   );
+}
+
+function boundingBox(points: { x: number; y: number }[]): { x: number; y: number } {
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  return { x: Math.min(...xs), y: Math.min(...ys) };
 }

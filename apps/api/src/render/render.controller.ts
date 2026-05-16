@@ -5,6 +5,7 @@ import { RenderStartSchema, type ModelId } from '@comicai/types';
 import { RenderService } from './render.service';
 import { SseHub } from './sse.hub';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { PanelsService } from '../panels/panels.service';
 
 class StartDto {
   static zodSchema = RenderStartSchema;
@@ -18,6 +19,7 @@ export class RenderController {
   constructor(
     private readonly svc: RenderService,
     private readonly hub: SseHub,
+    private readonly panels: PanelsService,
   ) {}
 
   @Post('panels/:id/render')
@@ -35,6 +37,11 @@ export class RenderController {
   @HttpCode(204)
   async cancel(@Req() req: AuthedRequest, @Param('id') id: string) {
     await this.svc.cancel(req.user.id, id);
+  }
+
+  @Post('render-jobs/:id/restore')
+  restore(@Req() req: AuthedRequest, @Param('id') id: string) {
+    return this.panels.restoreRender(req.user.id, id);
   }
 
   @Get('render-jobs/:id/events')

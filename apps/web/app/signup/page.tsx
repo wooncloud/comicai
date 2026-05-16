@@ -21,7 +21,7 @@ export default function SignupPage() {
     setPending(true);
     try {
       await api(ApiPaths.signup, { method: 'POST', body: JSON.stringify({ email, password }) });
-      router.push('/projects');
+      router.push('/dashboard');
     } catch (err) {
       if (err instanceof ApiError && err.code === 'EMAIL_TAKEN') {
         setError('이미 사용 중인 이메일입니다.');

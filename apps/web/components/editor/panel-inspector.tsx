@@ -172,6 +172,11 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
         panelId={panel.id}
         currentRenderId={panel.currentRenderId}
         refreshKey={historyKey}
+        onRestored={(p) => {
+          onPanelUpdated(p);
+          setResultImage(p.currentRenderId ?? null);
+          setHistoryKey((k) => k + 1);
+        }}
       />
 
       <div className="mt-auto">
