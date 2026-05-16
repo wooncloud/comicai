@@ -1,7 +1,7 @@
 // 클라이언트에서 백엔드 API 호출용 래퍼.
 // 세션 쿠키 전송을 위해 항상 credentials: 'include'.
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000') + '/v1';
 
 export class ApiError extends Error {
   constructor(
