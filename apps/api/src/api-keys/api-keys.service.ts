@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { prisma } from '@comicai/db';
+import { newId, prisma } from '@comicai/db';
 import { seal } from './crypto';
 
 export type Provider = 'gemini' | 'openai';
@@ -23,7 +23,14 @@ export class ApiKeysService {
   async create(userId: string, provider: Provider, label: string, secret: string) {
     const sealed = seal(secret);
     const row = await prisma.apiKey.create({
-      data: { userId, provider, label, ciphertext: sealed.ciphertext, nonce: sealed.nonce },
+      data: {
+        id: newId('apikey'),
+        userId,
+        provider,
+        label,
+        ciphertext: sealed.ciphertext,
+        nonce: sealed.nonce,
+      },
       select: { id: true, provider: true, label: true, createdAt: true },
     });
     return {

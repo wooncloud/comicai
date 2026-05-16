@@ -7,6 +7,7 @@ import { ApiKeyLogMaskInterceptor } from './common/log-mask.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.setGlobalPrefix('v1', { exclude: ['healthz'] });
   app.use(cookieParser());
   app.useGlobalPipes(new ZodValidationPipe());
   app.useGlobalInterceptors(new ApiKeyLogMaskInterceptor());
