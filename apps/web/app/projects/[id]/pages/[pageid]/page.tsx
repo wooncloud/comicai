@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import type { PageDTO, PanelDTO, PanelShape } from '@comicai/types';
 import { PageCanvas } from '@/components/editor/page-canvas';
 import { PanelInspector } from '@/components/editor/panel-inspector';
+import { useToast } from '@/components/ui/toast';
 
 export default function PageEditor() {
   const params = useParams<{ id: string; pageid: string }>();
@@ -13,6 +14,23 @@ export default function PageEditor() {
   const [page, setPage] = useState<PageDTO | null>(null);
   const [panels, setPanels] = useState<PanelDTO[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const toast = useToast();
+  const [exporting, setExporting] = useState(false);
+
+  async function exportPage(format: 'png' | 'jpg') {
+    setExporting(true);
+    try {
+      const result = await api<{ storageKey: string }>(`/pages/${pageId}/export`, {
+        method: 'POST',
+        body: JSON.stringify({ format }),
+      });
+      toast.push('success', `내보내기 완료: ${result.storageKey}`);
+    } catch (err) {
+      toast.push('error', `내보내기 실패: ${(err as Error).message}`);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function refreshPanels() {
     const list = await api<PanelDTO[]>(`/pages/${pageId}/panels`);
@@ -51,8 +69,24 @@ export default function PageEditor() {
             페이지 {page ? page.order + 1 : '…'} 편집
           </h1>
         </div>
-        <div className="text-xs text-neutral-500">
-          패널 {panels.length}개 · 드래그로 새 패널 생성
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-neutral-500">
+            패널 {panels.length}개 · 드래그로 새 패널 생성
+          </span>
+          <button
+            onClick={() => exportPage('png')}
+            disabled={exporting}
+            className="rounded-md border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+          >
+            PNG 내보내기
+          </button>
+          <button
+            onClick={() => exportPage('jpg')}
+            disabled={exporting}
+            className="rounded-md border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+          >
+            JPG 내보내기
+          </button>
         </div>
       </header>
       <div className="flex flex-1 overflow-hidden">

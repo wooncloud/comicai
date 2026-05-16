@@ -8,6 +8,7 @@ import { ConsistencyModule } from './consistency/consistency.module';
 import { PagesModule } from './pages/pages.module';
 import { PanelsModule } from './panels/panels.module';
 import { RenderModule } from './render/render.module';
+import { ExportModule } from './export/export.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { RenderModule } from './render/render.module';
     PagesModule,
     PanelsModule,
     RenderModule,
+    ExportModule,
   ],
   controllers: [HealthController],
 })

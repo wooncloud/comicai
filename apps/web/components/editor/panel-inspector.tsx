@@ -6,6 +6,8 @@ import type { PanelDTO, RenderJobDTO, RenderStatus, TipTapDoc, ModelId } from '@
 import { emptyDoc } from '@comicai/types';
 import { PanelTextEditor } from './panel-editor';
 import { PanelStatusBadge } from './panel-status-badge';
+import { HistoryTray } from './history-tray';
+import { useToast } from '@/components/ui/toast';
 
 interface Props {
   projectId: string;
@@ -26,6 +28,8 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
   const [model, setModel] = useState<ModelId>('mock');
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [historyKey, setHistoryKey] = useState(0);
+  const toast = useToast();
 
   // panel이 바뀌면 로컬 상태 초기화
   useEffect(() => {
@@ -53,7 +57,10 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
       });
       onPanelUpdated(updated);
     } catch (err) {
-      if (err instanceof ApiError) setError(`저장 실패: ${err.code}`);
+      if (err instanceof ApiError) {
+        setError(`저장 실패: ${err.code}`);
+        toast.push('error', `저장 실패: ${err.code}`);
+      }
     }
   });
 
@@ -80,7 +87,13 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
         const payload = JSON.parse((e as MessageEvent).data) as { status: RenderStatus; resultImage?: { storageKey: string } };
         setStatus(payload.status);
         if (payload.resultImage) setResultImage(payload.resultImage.storageKey);
-        if (payload.status === 'succeeded' || payload.status === 'failed' || payload.status === 'canceled') {
+        if (payload.status === 'succeeded') {
+          toast.push('success', '렌더 완료');
+          setHistoryKey((k) => k + 1);
+          es.close();
+        } else if (payload.status === 'failed' || payload.status === 'canceled') {
+          toast.push('error', payload.status === 'failed' ? '렌더 실패' : '렌더 취소됨');
+          setHistoryKey((k) => k + 1);
           es.close();
         }
       } catch {}
@@ -140,6 +153,8 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
           {status === 'queued' || status === 'running' ? '생성 중…' : '생성하기'}
         </button>
       </div>
+
+      <HistoryTray panelId={panel.id} currentRenderId={panel.currentRenderId} refreshKey={historyKey} />
 
       <div className="mt-auto">
         <button onClick={onDelete} className="text-xs text-red-600 underline">
