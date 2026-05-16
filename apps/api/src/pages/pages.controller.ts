@@ -31,6 +31,11 @@ export class PagesController {
     return this.svc.create(req.user.id, pid, body.size);
   }
 
+  @Get('pages/:id')
+  get(@Req() req: AuthedRequest, @Param('id') id: string) {
+    return this.svc.get(req.user.id, id);
+  }
+
   @Patch('pages/:id')
   patch(@Req() req: AuthedRequest, @Param('id') id: string, @Body() body: PatchDto) {
     return this.svc.patch(req.user.id, id, body);

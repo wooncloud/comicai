@@ -1,10 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
 import { AppShell } from '@/components/shell/app-shell';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { api } from '@/lib/api';
-import type { ConsistencyEntityDTO, EntityType, ProjectDTO } from '@comicai/types';
+import { useProject } from '@/lib/use-project';
+import type { ConsistencyEntityDTO, EntityType } from '@comicai/types';
 
 const TABS: { key: EntityType; label: string }[] = [
   { key: 'style', label: '그림체' },
@@ -20,11 +21,7 @@ export default function ConsistencyPage() {
   const [items, setItems] = useState<ConsistencyEntityDTO[]>([]);
   const [editing, setEditing] = useState<ConsistencyEntityDTO | null>(null);
   const [form, setForm] = useState({ name: '', aliases: '', description: '' });
-  const [project, setProject] = useState<ProjectDTO | null>(null);
-
-  useEffect(() => {
-    if (projectId) api<ProjectDTO>(`/projects/${projectId}`).then(setProject).catch(() => {});
-  }, [projectId]);
+  const project = useProject(projectId);
 
   async function refresh() {
     const list = await api<ConsistencyEntityDTO[]>(
@@ -75,12 +72,13 @@ export default function ConsistencyPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-4xl px-6 py-12">
-        <Link
-          href={`/projects/${projectId}`}
-          className="text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
-        >
-          ← {project?.name ?? '프로젝트'}
-        </Link>
+        <Breadcrumb
+          items={[
+            { label: '프로젝트', href: '/projects' },
+            { label: project?.name ?? '…', href: `/projects/${projectId}` },
+            { label: '일관성 정보' },
+          ]}
+        />
         <h1 className="mt-2 text-2xl font-semibold">일관성 정보</h1>
 
         <div className="mt-6 flex gap-2 border-b border-neutral-200 dark:border-neutral-800">

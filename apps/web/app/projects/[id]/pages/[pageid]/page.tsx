@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
 import { api } from '@/lib/api';
-import type { PageDTO, PanelDTO, PanelShape, ProjectDTO } from '@comicai/types';
+import { useProject } from '@/lib/use-project';
+import { btnSecondaryXs } from '@/lib/ui-classes';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
+import type { PageDTO, PanelDTO, PanelShape } from '@comicai/types';
 import { PageCanvas } from '@/components/editor/page-canvas';
 import { PanelInspector } from '@/components/editor/panel-inspector';
 import { useToast } from '@/components/ui/toast';
@@ -11,8 +13,8 @@ import { useToast } from '@/components/ui/toast';
 export default function PageEditor() {
   const params = useParams<{ id: string; pageid: string }>();
   const { id: projectId, pageid: pageId } = params;
+  const project = useProject(projectId);
   const [page, setPage] = useState<PageDTO | null>(null);
-  const [project, setProject] = useState<ProjectDTO | null>(null);
   const [panels, setPanels] = useState<PanelDTO[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const toast = useToast();
@@ -33,24 +35,17 @@ export default function PageEditor() {
     }
   }
 
-  async function refreshPanels() {
-    const list = await api<PanelDTO[]>(`/pages/${pageId}/panels`);
-    setPanels(list);
-  }
-
   useEffect(() => {
-    if (!projectId || !pageId) return;
+    if (!pageId) return;
     (async () => {
-      const [proj, pages] = await Promise.all([
-        api<ProjectDTO>(`/projects/${projectId}`),
-        api<PageDTO[]>(`/projects/${projectId}/pages`),
+      const [p, list] = await Promise.all([
+        api<PageDTO>(`/pages/${pageId}`),
+        api<PanelDTO[]>(`/pages/${pageId}/panels`),
       ]);
-      setProject(proj);
-      const p = pages.find((x) => x.id === pageId) ?? null;
       setPage(p);
-      await refreshPanels();
+      setPanels(list);
     })();
-  }, [projectId, pageId]);
+  }, [pageId]);
 
   async function createPanel(shape: PanelShape) {
     const created = await api<PanelDTO>(`/pages/${pageId}/panels`, {
@@ -66,36 +61,21 @@ export default function PageEditor() {
   return (
     <div className="flex h-screen flex-col">
       <header className="flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-3 dark:border-neutral-800 dark:bg-neutral-950">
-        <nav className="flex items-center gap-2 text-sm">
-          <Link href="/projects" className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white">
-            프로젝트
-          </Link>
-          <span className="text-neutral-400">/</span>
-          <Link
-            href={`/projects/${projectId}`}
-            className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
-          >
-            {project?.name ?? '…'}
-          </Link>
-          <span className="text-neutral-400">/</span>
-          <span className="font-medium">페이지 {page ? page.order + 1 : '…'}</span>
-        </nav>
+        <Breadcrumb
+          items={[
+            { label: '프로젝트', href: '/projects' },
+            { label: project?.name ?? '…', href: `/projects/${projectId}` },
+            { label: `페이지 ${page ? page.order + 1 : '…'}` },
+          ]}
+        />
         <div className="flex items-center gap-3">
           <span className="text-xs text-neutral-500">
             패널 {panels.length}개 · 드래그로 새 패널 생성
           </span>
-          <button
-            onClick={() => exportPage('png')}
-            disabled={exporting}
-            className="rounded-md border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
-          >
+          <button onClick={() => exportPage('png')} disabled={exporting} className={btnSecondaryXs}>
             PNG 내보내기
           </button>
-          <button
-            onClick={() => exportPage('jpg')}
-            disabled={exporting}
-            className="rounded-md border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
-          >
+          <button onClick={() => exportPage('jpg')} disabled={exporting} className={btnSecondaryXs}>
             JPG 내보내기
           </button>
         </div>

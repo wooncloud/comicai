@@ -8,6 +8,7 @@ const KEY_PREFIX = 'session:';
 
 export interface SessionPayload {
   userId: string;
+  email: string;
 }
 
 @Injectable()

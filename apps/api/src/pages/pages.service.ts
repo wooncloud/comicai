@@ -43,6 +43,12 @@ export class PagesService {
     return toDto(row);
   }
 
+  async get(userId: string, id: string): Promise<PageDTO> {
+    await this.findOwned(userId, id);
+    const row = await prisma.page.findUniqueOrThrow({ where: { id } });
+    return toDto(row);
+  }
+
   async patch(userId: string, id: string, patch: { order?: number; size?: { w: number; h: number } }) {
     await this.findOwned(userId, id);
     const row = await prisma.page.update({

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/shell/app-shell';
 import { api } from '@/lib/api';
+import { btnPrimary } from '@/lib/ui-classes';
 import type { ProjectDTO } from '@comicai/types';
 
 export default function ProjectsHome() {
@@ -46,7 +47,7 @@ export default function ProjectsHome() {
           <button
             type="submit"
             disabled={pending}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+            className={btnPrimary}
           >
             생성
           </button>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/shell/app-shell';
 import { api } from '@/lib/api';
+import { btnSecondary } from '@/lib/ui-classes';
 import type { PageDTO, ProjectDTO } from '@comicai/types';
 
 export default function ProjectDetail() {
@@ -40,7 +41,7 @@ export default function ProjectDetail() {
           <h1 className="text-2xl font-semibold">{project?.name ?? '로딩…'}</h1>
           <Link
             href={`/projects/${projectId}/consistency`}
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+            className={btnSecondary}
           >
             일관성 관리
           </Link>
@@ -51,7 +52,7 @@ export default function ProjectDetail() {
             <h2 className="text-lg font-medium">페이지</h2>
             <button
               onClick={addPage}
-              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+              className={btnSecondary}
             >
               + 페이지 추가
             </button>
