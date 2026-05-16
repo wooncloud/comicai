@@ -8,57 +8,19 @@
 - 외부 노출: Cloudflare Zero Trust Tunnel (`cloudflared`).
 - 컨테이너: Docker Compose.
 
-## docker-compose 구성 (개요)
+## docker-compose 구성
 
-```yaml
-services:
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_PASSWORD: ...
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+실제 정의는 `infra/compose/full.yml`을 참고. 핵심 구성:
 
-  redis:
-    image: redis:7
+- `postgres` / `redis` / `minio` — 인프라.
+- `migrate` — Prisma 마이그레이션 1회 실행 후 종료.
+- `api` — HTTP 전용 (`RENDER_WORKER_DISABLED=1`).
+- `worker` — 렌더 워커 전용 (`node apps/api/dist/worker.js`).
+- `web` — Next.js standalone.
+- `cloudflared` — `profile=tunnel` 시 활성. `CLOUDFLARE_TUNNEL_TOKEN` 필수.
+- `backup` — `profile=backup` 시 활성. pg_dump + mc mirror cron.
 
-  minio:
-    image: minio/minio
-    command: server /data --console-address ":9001"
-    volumes:
-      - minio_data:/data
-
-  api:
-    build: ./apps/api
-    environment:
-      DATABASE_URL: postgres://...
-      REDIS_URL: redis://redis:6379
-      S3_ENDPOINT: http://minio:9000
-      MASTER_KEY: ${MASTER_KEY}
-    depends_on: [postgres, redis, minio]
-
-  worker:
-    build: ./apps/api
-    command: ['node', 'dist/worker.js']
-    environment: (api와 동일)
-    depends_on: [postgres, redis]
-
-  web:
-    build: ./apps/web
-    environment:
-      NEXT_PUBLIC_API_URL: https://api.example.com
-    depends_on: [api]
-
-  cloudflared:
-    image: cloudflare/cloudflared
-    command: tunnel run
-    environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
-
-volumes:
-  postgres_data:
-  minio_data:
-```
+공통 환경변수는 `x-db-env`, `x-s3-env`, `x-api-env` YAML 앵커로 정의되어 있어 변경은 한 곳에서.
 
 ## 환경 변수
 

@@ -3,13 +3,11 @@ import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import { type INestApplication } from '@nestjs/common';
-import cookieParser from 'cookie-parser';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { RedisContainer, type StartedRedisContainer } from '@testcontainers/redis';
+import { CSRF_COOKIE_NAME } from '@comicai/types';
 import { AppModule } from '../../src/app.module';
-import { ZodValidationPipe } from '../../src/common/zod-validation.pipe';
-import { ResponseEnvelopeInterceptor } from '../../src/common/response-envelope.interceptor';
-import { AllExceptionsFilter } from '../../src/common/all-exceptions.filter';
+import { applyAppPipeline } from '../../src/bootstrap';
 
 export interface IntegrationContext {
   app: INestApplication;
@@ -21,14 +19,18 @@ const REPO_ROOT = path.resolve(__dirname, '../../../..');
 const DB_PACKAGE = path.join(REPO_ROOT, 'packages/db');
 
 export async function startIntegration(): Promise<IntegrationContext> {
-  const pg = await new PostgreSqlContainer('postgres:16-alpine')
-    .withDatabase('comicai_test')
-    .withUsername('comicai')
-    .withPassword('comicai')
-    .start();
-  const redis = await new RedisContainer('redis:7-alpine').start();
+  const [pg, redis] = await Promise.all([
+    new PostgreSqlContainer('postgres:16-alpine')
+      .withDatabase('comicai_test')
+      .withUsername('comicai')
+      .withPassword('comicai')
+      .start(),
+    new RedisContainer('redis:7-alpine').start(),
+  ]);
 
-  process.env.DATABASE_URL = pg.getConnectionUri() + '?schema=public';
+  const pgUri = new URL(pg.getConnectionUri());
+  pgUri.searchParams.set('schema', 'public');
+  process.env.DATABASE_URL = pgUri.toString();
   process.env.REDIS_URL = `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`;
   process.env.NODE_ENV = 'test';
   process.env.LOG_LEVEL = 'error';
@@ -37,8 +39,12 @@ export async function startIntegration(): Promise<IntegrationContext> {
   process.env.SESSION_SECRET = 'test-secret';
   process.env.COOKIE_SECURE = '0';
   process.env.RENDER_WORKER_DISABLED = '1';
+  // MinIO 컨테이너를 띄우지 않으므로 StorageService의 S3 호출은 즉시 실패시킨다.
+  process.env.S3_ENDPOINT = 'http://127.0.0.1:1';
+  process.env.STORAGE_AUTO_CREATE_BUCKET = '0';
+  // SSE Redis 연결이 필요 없는 테스트에서 publish/subscribe 비활성화.
+  process.env.SSE_HUB_DISABLED = '1';
 
-  // Prisma migrate deploy (이미 빌드된 client 사용).
   execSync('npx prisma migrate deploy', {
     cwd: DB_PACKAGE,
     env: { ...process.env },
@@ -46,11 +52,7 @@ export async function startIntegration(): Promise<IntegrationContext> {
   });
 
   const app = await NestFactory.create(AppModule, { logger: false });
-  app.setGlobalPrefix('v1', { exclude: ['healthz'] });
-  app.use(cookieParser());
-  app.useGlobalPipes(new ZodValidationPipe());
-  app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
-  app.useGlobalFilters(new AllExceptionsFilter());
+  applyAppPipeline(app);
   await app.init();
 
   return { app, pg, redis };
@@ -58,15 +60,17 @@ export async function startIntegration(): Promise<IntegrationContext> {
 
 export async function stopIntegration(ctx: IntegrationContext): Promise<void> {
   await ctx.app.close();
-  await ctx.redis.stop();
-  await ctx.pg.stop();
+  await Promise.all([ctx.redis.stop(), ctx.pg.stop()]);
 }
 
 export function csrfFromCookies(setCookie: string | string[] | undefined): string | undefined {
   const cookies = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
+  const prefix = `${CSRF_COOKIE_NAME}=`;
   for (const c of cookies) {
-    const m = c.match(/^comicai_csrf=([^;]+)/);
-    if (m) return decodeURIComponent(m[1]);
+    if (c.startsWith(prefix)) {
+      const end = c.indexOf(';');
+      return decodeURIComponent(end === -1 ? c.slice(prefix.length) : c.slice(prefix.length, end));
+    }
   }
   return undefined;
 }

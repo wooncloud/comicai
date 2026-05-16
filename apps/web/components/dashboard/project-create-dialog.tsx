@@ -53,6 +53,7 @@ export function ProjectCreateDialog({ open, onOpenChange, onCreated }: Props) {
           <Input
             autoFocus
             required
+            aria-label="프로젝트 이름"
             placeholder="예: 우주 학교"
             value={name}
             onChange={(e) => setName(e.target.value)}

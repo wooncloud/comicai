@@ -31,4 +31,18 @@ export function formatSseEvent(evt: RenderSseEvent, id?: string | number): strin
   return lines.join('\n');
 }
 
+/** SSE 이벤트의 cross-process pub/sub 봉투. originId로 echo를 차단한다. */
+export interface RenderPubSubEnvelope {
+  originId: string;
+  evt: RenderSseEvent;
+}
+
+export function encodePubSubEnvelope(envelope: RenderPubSubEnvelope): string {
+  return JSON.stringify(envelope);
+}
+
+export function decodePubSubEnvelope(raw: string): RenderPubSubEnvelope {
+  return JSON.parse(raw) as RenderPubSubEnvelope;
+}
+
 export { resolveMentionIds, serializeTextWithNameReplacement } from './mention';
