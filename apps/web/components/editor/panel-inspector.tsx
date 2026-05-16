@@ -35,7 +35,6 @@ interface Props {
 }
 
 const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
-  { id: 'mock', label: 'Mock (테스트)' },
   { id: 'gemini-nano-banana', label: 'Gemini' },
   { id: 'gpt-image-1', label: 'OpenAI' },
 ];
@@ -43,7 +42,7 @@ const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
 export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDeleted }: Props) {
   const [doc, setDoc] = useState<TipTapDoc>(panel.text ?? emptyDoc());
   const [status, setStatus] = useState<RenderStatus | null>(null);
-  const [model, setModel] = useState<ModelId>('mock');
+  const [model, setModel] = useState<ModelId>('gemini-nano-banana');
   const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
