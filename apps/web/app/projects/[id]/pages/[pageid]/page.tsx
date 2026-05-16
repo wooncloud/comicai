@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import type { PageDTO, PanelDTO, PanelShape } from '@comicai/types';
+import type { PageDTO, PanelDTO, PanelShape, ProjectDTO } from '@comicai/types';
 import { PageCanvas } from '@/components/editor/page-canvas';
 import { PanelInspector } from '@/components/editor/panel-inspector';
 import { useToast } from '@/components/ui/toast';
@@ -12,6 +12,7 @@ export default function PageEditor() {
   const params = useParams<{ id: string; pageid: string }>();
   const { id: projectId, pageid: pageId } = params;
   const [page, setPage] = useState<PageDTO | null>(null);
+  const [project, setProject] = useState<ProjectDTO | null>(null);
   const [panels, setPanels] = useState<PanelDTO[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const toast = useToast();
@@ -40,7 +41,11 @@ export default function PageEditor() {
   useEffect(() => {
     if (!projectId || !pageId) return;
     (async () => {
-      const pages = await api<PageDTO[]>(`/projects/${projectId}/pages`);
+      const [proj, pages] = await Promise.all([
+        api<ProjectDTO>(`/projects/${projectId}`),
+        api<PageDTO[]>(`/projects/${projectId}/pages`),
+      ]);
+      setProject(proj);
       const p = pages.find((x) => x.id === pageId) ?? null;
       setPage(p);
       await refreshPanels();
@@ -61,14 +66,20 @@ export default function PageEditor() {
   return (
     <div className="flex h-screen flex-col">
       <header className="flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-3 dark:border-neutral-800 dark:bg-neutral-950">
-        <div>
-          <Link href={`/projects/${projectId}`} className="text-xs text-neutral-500 hover:underline">
-            ← 프로젝트로
+        <nav className="flex items-center gap-2 text-sm">
+          <Link href="/projects" className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white">
+            프로젝트
           </Link>
-          <h1 className="text-base font-semibold">
-            페이지 {page ? page.order + 1 : '…'} 편집
-          </h1>
-        </div>
+          <span className="text-neutral-400">/</span>
+          <Link
+            href={`/projects/${projectId}`}
+            className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
+          >
+            {project?.name ?? '…'}
+          </Link>
+          <span className="text-neutral-400">/</span>
+          <span className="font-medium">페이지 {page ? page.order + 1 : '…'}</span>
+        </nav>
         <div className="flex items-center gap-3">
           <span className="text-xs text-neutral-500">
             패널 {panels.length}개 · 드래그로 새 패널 생성
@@ -117,8 +128,13 @@ export default function PageEditor() {
             }}
           />
         ) : (
-          <aside className="flex w-96 flex-col items-center justify-center border-l border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900">
-            패널을 선택하거나 캔버스에서 드래그해 새로 만드세요.
+          <aside className="flex w-64 flex-col items-center justify-center border-l border-neutral-200 bg-neutral-50 p-6 text-center text-xs text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="text-2xl text-neutral-300 dark:text-neutral-700">◯</div>
+            <p className="mt-3">
+              패널을 선택하거나
+              <br />
+              캔버스에서 드래그해 만드세요.
+            </p>
           </aside>
         )}
       </div>

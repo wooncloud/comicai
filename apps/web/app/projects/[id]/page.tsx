@@ -56,27 +56,70 @@ export default function ProjectDetail() {
               + 페이지 추가
             </button>
           </div>
-          <ul className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
-            {pages.map((p) => (
-              <li key={p.id}>
-                <Link
-                  href={`/projects/${projectId}/pages/${p.id}`}
-                  className="block aspect-[2/3] rounded border border-neutral-200 bg-white p-3 text-sm hover:border-neutral-400 dark:border-neutral-800 dark:bg-neutral-950"
-                >
-                  <div className="text-xs text-neutral-500">페이지</div>
-                  <div className="text-2xl font-semibold">{p.order + 1}</div>
-                  <div className="mt-2 text-xs text-neutral-500">
-                    {p.size.w}×{p.size.h}
-                  </div>
-                </Link>
-              </li>
-            ))}
-            {pages.length === 0 && (
-              <li className="col-span-full text-sm text-neutral-500">아직 페이지가 없습니다.</li>
-            )}
-          </ul>
+          {pages.length === 0 ? (
+            <div className="mt-4 rounded-md border border-dashed border-neutral-300 p-12 text-center text-sm text-neutral-500 dark:border-neutral-700">
+              아직 페이지가 없습니다.
+              <button
+                onClick={addPage}
+                className="ml-2 text-neutral-900 underline dark:text-white"
+              >
+                첫 페이지 만들기
+              </button>
+            </div>
+          ) : (
+            <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {pages.map((p) => (
+                <PageCard
+                  key={p.id}
+                  projectId={projectId}
+                  page={p}
+                  onChanged={refresh}
+                />
+              ))}
+            </ul>
+          )}
         </section>
       </div>
     </AppShell>
+  );
+}
+
+function PageCard({
+  projectId,
+  page,
+  onChanged,
+}: {
+  projectId: string;
+  page: PageDTO;
+  onChanged: () => void;
+}) {
+  async function remove(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm(`페이지 ${page.order + 1}을(를) 삭제하시겠습니까?`)) return;
+    await api(`/pages/${page.id}`, { method: 'DELETE' });
+    await onChanged();
+  }
+  return (
+    <li className="group relative">
+      <Link
+        href={`/projects/${projectId}/pages/${page.id}`}
+        className="block aspect-[2/3] overflow-hidden rounded-md border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-400 hover:shadow-md dark:border-neutral-700"
+      >
+        <div className="flex h-full flex-col items-center justify-center text-neutral-700">
+          <div className="text-3xl font-semibold">{page.order + 1}</div>
+          <div className="mt-1 text-[10px] text-neutral-500">
+            {page.size.w}×{page.size.h}
+          </div>
+        </div>
+      </Link>
+      <button
+        onClick={remove}
+        title="삭제"
+        className="absolute right-1.5 top-1.5 rounded bg-white/80 px-1.5 py-0.5 text-xs text-red-600 opacity-0 shadow-sm transition group-hover:opacity-100 hover:bg-white dark:bg-neutral-900/80 dark:hover:bg-neutral-900"
+      >
+        삭제
+      </button>
+    </li>
   );
 }
