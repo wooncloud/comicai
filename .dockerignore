@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+.git
+.env
+.env.local
+.env.*.local
+**/.DS_Store
+docs
+*.md
+!README.md
+coverage
+playwright-report
+test-results
+.docker-data

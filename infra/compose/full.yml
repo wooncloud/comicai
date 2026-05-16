@@ -1,0 +1,136 @@
+name: comicai
+
+# 전체 스택을 컨테이너로 띄우는 compose.
+# 사용:
+#   docker compose -f infra/compose/full.yml up -d --build
+#
+# 인프라만 띄우고 앱은 로컬 pnpm dev로 돌리려면 dev.yml 사용.
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: comicai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-comicai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comicai}
+      POSTGRES_DB: ${POSTGRES_DB:-comicai}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-comicai}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: comicai-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: comicai-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # 마이그레이션을 한 번만 적용하고 종료하는 init 컨테이너.
+  migrate:
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+    container_name: comicai-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-comicai}:${POSTGRES_PASSWORD:-comicai}@postgres:5432/${POSTGRES_DB:-comicai}?schema=public
+    # prisma migrate deploy + 즉시 종료
+    entrypoint: ["sh", "-c"]
+    command: ["cd packages/db && npx prisma migrate deploy"]
+    restart: "no"
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+    container_name: comicai-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      API_PORT: 4000
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-comicai}:${POSTGRES_PASSWORD:-comicai}@postgres:5432/${POSTGRES_DB:-comicai}?schema=public
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: ${S3_BUCKET:-comicai}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MASTER_KEY: ${MASTER_KEY:?MASTER_KEY 필수 — .env에 설정하세요}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      # api와 워커 같이 돌릴 거라 워커 활성화. 분리하려면 1로 변경.
+      RENDER_WORKER_DISABLED: "0"
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        # 브라우저에서 호출하는 URL — 호스트 포트로 노출된 api.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    container_name: comicai-web
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      # /health 페이지처럼 SSR fetch는 컨테이너 내부 DNS 사용.
+      INTERNAL_API_URL: http://api:4000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

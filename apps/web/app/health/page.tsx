@@ -1,5 +1,9 @@
 async function fetchApiHealth() {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+  // 서버 사이드 fetch는 컨테이너 네트워크에서 호출되므로 INTERNAL_API_URL 우선.
+  const base =
+    process.env.INTERNAL_API_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    'http://localhost:4000';
   try {
     const res = await fetch(`${base}/healthz`, { cache: 'no-store' });
     if (!res.ok) return { ok: false, status: res.status };
