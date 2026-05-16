@@ -11,9 +11,11 @@ import 'tldraw/tldraw.css';
 import { ComicPanelShapeUtil } from './comic-panel-shape';
 import { ComicPanelTool } from './comic-panel-tool';
 import { PageFrameShapeUtil } from './page-frame-shape';
+import { PolygonPanelTool } from './polygon-panel-tool';
+import { PolygonPreview } from './polygon-preview';
 
 const shapeUtils = [ComicPanelShapeUtil, PageFrameShapeUtil];
-const tools = [ComicPanelTool];
+const tools = [ComicPanelTool, PolygonPanelTool];
 
 const uiOverrides: TLUiOverrides = {
   tools(_editor, baseTools) {
@@ -24,6 +26,13 @@ const uiOverrides: TLUiOverrides = {
         icon: 'geo-rectangle',
         label: '패널',
         kbd: 'p',
+        onSelect: () => undefined,
+      },
+      'polygon-panel': {
+        id: 'polygon-panel',
+        icon: 'geo-star',
+        label: '다각형',
+        kbd: 'g',
         onSelect: () => undefined,
       },
     };
@@ -37,6 +46,7 @@ const components: TLComponents = {
   HelpMenu: null,
   NavigationPanel: null,
   MainMenu: () => <DefaultMainMenu />,
+  InFrontOfTheCanvas: () => <PolygonPreview />,
 };
 
 interface Props {

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect } from 'react';
 import { useValue, type Editor } from 'tldraw';
-import { MousePointer2, Pencil, Square, Type, type LucideIcon } from 'lucide-react';
+import { MousePointer2, Pencil, Square, Star, Type, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 interface Tool {
@@ -14,6 +14,7 @@ interface Tool {
 const TOOLS: readonly Tool[] = [
   { id: 'select', kbd: 'v', label: '선택', icon: MousePointer2 },
   { id: 'comic-panel', kbd: 'p', label: '패널', icon: Square },
+  { id: 'polygon-panel', kbd: 'g', label: '다각형', icon: Star },
   { id: 'draw', kbd: 'd', label: '콘티', icon: Pencil },
   { id: 'text', kbd: 't', label: '텍스트', icon: Type },
 ] as const;
