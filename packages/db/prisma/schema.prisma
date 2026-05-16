@@ -1,0 +1,38 @@
+// ComicAI Prisma 스키마
+// M0: User, ApiKey 만. 나머지 모델은 M1에서 확장.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  apiKeys ApiKey[]
+
+  @@map("users")
+}
+
+model ApiKey {
+  id         String   @id @default(cuid())
+  userId     String
+  provider   String // 'gemini' | 'openai'
+  label      String
+  ciphertext String // AES-256-GCM, base64. ciphertext + authTag.
+  nonce      String // base64, 12 bytes.
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_keys")
+}
