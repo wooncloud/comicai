@@ -40,7 +40,7 @@ export default function ProjectDetail() {
           <h1 className="text-2xl font-semibold">{project?.name ?? '로딩…'}</h1>
           <Link
             href={`/projects/${projectId}/consistency`}
-            className="text-sm underline"
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
           >
             일관성 관리
           </Link>

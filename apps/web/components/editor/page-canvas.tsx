@@ -68,7 +68,7 @@ export function PageCanvas({ width, height, panels, selectedId, onSelect, onCrea
     <svg
       ref={svgRef}
       viewBox={`0 0 ${width} ${height}`}
-      className="block h-[80vh] max-h-[1200px] w-auto rounded-md border border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-950"
+      className="block h-[80vh] max-h-[1200px] w-auto rounded-md border border-neutral-300 bg-white shadow-sm dark:border-neutral-600"
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}

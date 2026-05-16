@@ -46,9 +46,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         {me && (
-          <div className="mt-8 border-t border-neutral-200 pt-4 text-xs text-neutral-500 dark:border-neutral-800">
-            로그인:&nbsp;
-            <span className="font-mono">{me.id.slice(-8)}</span>
+          <div
+            className="mt-8 border-t border-neutral-200 pt-4 text-xs text-neutral-500 dark:border-neutral-800"
+            title={me.email}
+          >
+            <div className="truncate">{me.email}</div>
           </div>
         )}
       </aside>

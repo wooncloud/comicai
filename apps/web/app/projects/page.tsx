@@ -58,13 +58,16 @@ export default function ProjectsHome() {
             <li className="px-4 py-6 text-sm text-neutral-500">아직 프로젝트가 없습니다.</li>
           )}
           {items?.map((p) => (
-            <li key={p.id} className="flex items-center justify-between px-4 py-3">
-              <Link href={`/projects/${p.id}`} className="font-medium hover:underline">
-                {p.name}
+            <li key={p.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-900">
+              <Link
+                href={`/projects/${p.id}`}
+                className="flex items-center justify-between px-4 py-3"
+              >
+                <span className="font-medium">{p.name}</span>
+                <span className="text-xs text-neutral-500">
+                  {new Date(p.updatedAt).toLocaleString('ko-KR')}
+                </span>
               </Link>
-              <span className="text-xs text-neutral-500">
-                {new Date(p.updatedAt).toLocaleString('ko-KR')}
-              </span>
             </li>
           ))}
         </ul>

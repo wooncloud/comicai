@@ -5,6 +5,7 @@ import { api, ApiError } from '@/lib/api';
 import type { ApiKeySummary, ModelProvider } from '@comicai/types';
 import { ApiKeyList } from '@/components/api-key-list';
 import { ApiKeyForm } from '@/components/api-key-form';
+import { AppShell } from '@/components/shell/app-shell';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -47,6 +48,7 @@ export default function SettingsPage() {
   }
 
   return (
+    <AppShell>
     <main className="mx-auto max-w-2xl px-6 py-16">
       <div className="flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold">설정</h1>
@@ -71,5 +73,6 @@ export default function SettingsPage() {
         </div>
       </section>
     </main>
+    </AppShell>
   );
 }
