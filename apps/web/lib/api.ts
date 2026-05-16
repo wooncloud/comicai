@@ -4,6 +4,8 @@
 import { API_PREFIX, type ErrorCode } from '@comicai/types';
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000') + API_PREFIX;
+const CSRF_COOKIE = 'comicai_csrf';
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export class ApiError extends Error {
   constructor(
@@ -16,14 +18,26 @@ export class ApiError extends Error {
   }
 }
 
+function readCsrfToken(): string | undefined {
+  if (typeof document === 'undefined') return undefined;
+  const match = document.cookie.split('; ').find((c) => c.startsWith(`${CSRF_COOKIE}=`));
+  return match ? decodeURIComponent(match.slice(CSRF_COOKIE.length + 1)) : undefined;
+}
+
 export async function api<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+  const method = (init.method ?? 'GET').toUpperCase();
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    ...((init.headers as Record<string, string>) ?? {}),
+  };
+  if (!SAFE_METHODS.has(method)) {
+    const csrf = readCsrfToken();
+    if (csrf) headers['x-csrf-token'] = csrf;
+  }
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
-    headers: {
-      'content-type': 'application/json',
-      ...(init.headers ?? {}),
-    },
     ...init,
+    headers,
   });
   if (!res.ok) {
     let code = 'HTTP_ERROR';

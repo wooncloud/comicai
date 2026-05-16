@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { RenderStartSchema, type ModelId } from '@comicai/types';
 import { RenderService } from './render.service';
@@ -37,14 +38,16 @@ export class RenderController {
   }
 
   @Get('render-jobs/:id/events')
+  @SkipThrottle()
   async events(@Req() req: AuthedRequest, @Param('id') id: string, @Res() res: Response) {
-    // 권한 + 존재 확인
     await this.svc.getJob(req.user.id, id);
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders?.();
-    this.hub.subscribe(id, res);
+    const lastEventId =
+      typeof req.headers['last-event-id'] === 'string' ? req.headers['last-event-id'] : undefined;
+    this.hub.subscribe(id, res, lastEventId);
     const ping = setInterval(() => this.hub.ping(id), 30_000);
     res.on('close', () => clearInterval(ping));
   }

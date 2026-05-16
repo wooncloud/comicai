@@ -3,10 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
 import { prisma } from '@comicai/db';
 import { getAdapter, type AdapterContext } from '@comicai/adapters';
-import type { ImageRef, RenderError, RenderIR } from '@comicai/types';
+import type { ImageRef, RenderError, RenderIR, RenderStatus } from '@comicai/types';
 import { RENDER_QUEUE_NAME, type RenderJobData } from './render.queue';
 import { SseHub } from './sse.hub';
 import { StorageService } from '../storage/storage.service';
+import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
+import { MetricsService } from '../metrics/metrics.service';
 
 const JOB_TIMEOUT_MS = 120_000;
 const MODEL_CALL_TIMEOUT_MS = 60_000;
@@ -19,6 +21,8 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService,
     private readonly hub: SseHub,
     private readonly storage: StorageService,
+    private readonly breaker: ApiKeyBreaker,
+    private readonly metrics: MetricsService,
   ) {}
 
   onModuleInit() {
@@ -62,7 +66,9 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
 
     const adapter = getAdapter(model);
     const ir = row.ir as unknown as RenderIR;
-    const apiKey = await this.resolveApiKey(userId, model);
+    const resolved = await this.resolveApiKey(userId, model);
+    const apiKey = resolved.secret;
+    const apiKeyId = resolved.id;
 
     const ac = new AbortController();
     const wholeTimer = setTimeout(() => ac.abort(), JOB_TIMEOUT_MS);
@@ -72,6 +78,7 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
       loadReference: (key) => this.storage.getBytes(key),
     };
 
+    const stopTimer = this.metrics.renderDuration.startTimer({ model });
     try {
       const req = adapter.buildRequest(ir, apiKey);
       const raw = await adapter.call(req, ac.signal, ctx);
@@ -98,27 +105,43 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
         status: 'succeeded',
         resultImage: stored,
       });
+      this.metrics.renderAttemptsTotal.inc({ model, outcome: 'succeeded' });
+      stopTimer();
+      if (apiKeyId) await this.breaker.recordSuccess(apiKeyId);
     } catch (err) {
       clearTimeout(wholeTimer);
       clearTimeout(callTimer);
       const classified: RenderError = adapter.classifyError(err);
-      const retryable =
-        (classified.category === 'transient' || classified.category === 'timeout') &&
-        attemptsMade + 1 < 3;
-      if (retryable) {
+      if (classified.category === 'auth' && apiKeyId) {
+        await this.breaker.recordAuthFailure(apiKeyId);
+      }
+      // spec 07-error-reliability §3: transient max 3회, timeout 1회 재시도(=max 2회).
+      // auth/quota/safety/invalid는 즉시 종료.
+      const maxAttempts = retryLimitFor(classified.category);
+      if (attemptsMade + 1 < maxAttempts) {
         throw err; // bullmq가 백오프 후 재시도
       }
+      const finalStatus: RenderStatus = classified.category === 'timeout' ? 'timeout' : 'failed';
       await prisma.renderJob.update({
         where: { id: renderJobId },
-        data: { status: 'failed', error: classified as unknown as object, finishedAt: new Date() },
+        data: {
+          status: finalStatus,
+          error: classified as unknown as object,
+          finishedAt: new Date(),
+        },
       });
       this.hub.publish(renderJobId, { type: 'error', jobId: renderJobId, error: classified });
-      this.hub.publish(renderJobId, { type: 'status', jobId: renderJobId, status: 'failed' });
+      this.hub.publish(renderJobId, { type: 'status', jobId: renderJobId, status: finalStatus });
+      this.metrics.renderAttemptsTotal.inc({ model, outcome: classified.category });
+      stopTimer();
     }
   }
 
-  private async resolveApiKey(userId: string, model: string): Promise<string> {
-    if (model === 'mock') return '';
+  private async resolveApiKey(
+    userId: string,
+    model: string,
+  ): Promise<{ id: string | null; secret: string }> {
+    if (model === 'mock') return { id: null, secret: '' };
     const provider = model.startsWith('gemini') ? 'gemini' : 'openai';
     const row = await prisma.apiKey.findFirst({
       where: { userId, provider, isActive: true },
@@ -127,10 +150,16 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
     if (!row) throw new RenderApiKeyMissing(`no ${provider} key`);
     // 평문 복호화는 어댑터 호출 직전에만. 결과는 메모리 변수.
     const { open } = await import('../api-keys/crypto');
-    return open({ ciphertext: row.ciphertext, nonce: row.nonce });
+    return { id: row.id, secret: open({ ciphertext: row.ciphertext, nonce: row.nonce }) };
   }
 }
 
 export class RenderApiKeyMissing extends Error {
   readonly category = 'auth' as const;
+}
+
+function retryLimitFor(category: RenderError['category']): number {
+  if (category === 'transient') return 3;
+  if (category === 'timeout') return 2;
+  return 1; // auth/quota/safety/invalid 즉시 실패
 }

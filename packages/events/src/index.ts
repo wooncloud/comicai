@@ -21,11 +21,11 @@ export interface RenderPingEvent {
 
 export type RenderSseEvent = RenderStatusEvent | RenderErrorEvent | RenderPingEvent;
 
-/** SSE 이벤트 한 건을 wire format 문자열로 직렬화한다. */
-export function formatSseEvent(evt: RenderSseEvent, lastEventId?: string): string {
+/** SSE wire format. spec 04-render-pipeline §SSE. id가 있으면 Last-Event-ID 복구 가능. */
+export function formatSseEvent(evt: RenderSseEvent, id?: string | number): string {
   const lines: string[] = [];
   lines.push(`event: ${evt.type}`);
-  if (lastEventId) lines.push(`id: ${lastEventId}`);
+  if (id != null) lines.push(`id: ${id}`);
   lines.push(`data: ${JSON.stringify(evt)}`);
   lines.push('', '');
   return lines.join('\n');

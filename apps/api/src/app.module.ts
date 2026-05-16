@@ -1,7 +1,11 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { CsrfMiddleware } from './common/csrf.middleware';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
 import { HealthController } from './health/health.controller';
+import { MetricsModule } from './metrics/metrics.module';
 import { AuthModule } from './auth/auth.module';
 import { MeModule } from './me/me.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
@@ -48,6 +52,11 @@ import { ExportModule } from './export/export.module';
         },
       },
     }),
+    ThrottlerModule.forRoot([
+      { name: 'default', ttl: seconds(60), limit: 120 },
+      { name: 'strict', ttl: seconds(60), limit: 10 },
+    ]),
+    MetricsModule,
     AuthModule,
     MeModule,
     ApiKeysModule,
@@ -59,5 +68,10 @@ import { ExportModule } from './export/export.module';
     ExportModule,
   ],
   controllers: [HealthController],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(CsrfMiddleware).forRoutes('*');
+  }
+}
