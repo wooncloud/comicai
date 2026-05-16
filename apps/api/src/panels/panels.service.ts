@@ -103,7 +103,7 @@ export class PanelsService {
     if (patch.shape) data.shape = patch.shape as unknown as object;
     if (patch.text) data.text = patch.text as unknown as object;
     const row = await prisma.panel.update({ where: { id }, data: data as never });
-    return panelDto(row);
+    return panelDto(row, await this.loadRender(row.currentRenderId));
   }
 
   async remove(userId: string, id: string) {
@@ -122,7 +122,26 @@ export class PanelsService {
       where: { id: owned.id },
       data: { refImages: [...refs, ref] as unknown as object },
     });
-    return panelDto(row);
+    return panelDto(row, await this.loadRender(row.currentRenderId));
+  }
+
+  /** panel.currentRenderId 기준으로 status + presigned URL을 한 번에 조회. */
+  private async loadRender(currentRenderId: string | null): Promise<{
+    status: RenderStatus | null;
+    imageUrl: string | null;
+  }> {
+    if (!currentRenderId) return { status: null, imageUrl: null };
+    const job = await prisma.renderJob.findUnique({
+      where: { id: currentRenderId },
+      select: { status: true, resultImage: true },
+    });
+    if (!job) return { status: null, imageUrl: null };
+    const status = job.status as RenderStatus;
+    const imageUrl = await this.storage.presignIfSucceeded(
+      job.resultImage as ImageRef | null,
+      status,
+    );
+    return { status, imageUrl };
   }
 
   async history(userId: string, id: string): Promise<RenderJobDTO[]> {
@@ -173,11 +192,7 @@ export class PanelsService {
       where: { id: job.panelId },
       data: { currentRenderId: job.id },
     });
-    const imageUrl = await this.storage.presignIfSucceeded(
-      job.resultImage as ImageRef | null,
-      job.status as RenderStatus,
-    );
-    return panelDto(row, { status: 'succeeded', imageUrl });
+    return panelDto(row, await this.loadRender(row.currentRenderId));
   }
 
   async assertOwned(

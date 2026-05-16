@@ -151,6 +151,7 @@ export default function PageEditor() {
         </div>
         {selected ? (
           <PanelInspector
+            key={selected.id}
             projectId={projectId}
             panel={selected}
             onPanelUpdated={(p) => setPanels((prev) => prev.map((x) => (x.id === p.id ? p : x)))}
