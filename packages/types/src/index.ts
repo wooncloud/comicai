@@ -23,6 +23,14 @@ export interface ImageRef {
   mimeType: string;
 }
 
+/** 어댑터가 모델 응답으로 받은 raw 이미지. 워커가 스토리지에 업로드. */
+export interface AdapterImage {
+  bytes: Uint8Array;
+  width: number;
+  height: number;
+  mimeType: string;
+}
+
 // ─── 일관성 ─────────────────────────────────────
 export type EntityType = 'style' | 'character' | 'background' | 'worldview';
 

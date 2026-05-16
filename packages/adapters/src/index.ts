@@ -1,9 +1,9 @@
-import type { ImageRef, ModelId, RenderError, RenderIR } from '@comicai/types';
+import type { AdapterImage, ModelId, RenderError, RenderIR } from '@comicai/types';
 
 export interface ModelAdapter {
   id: ModelId;
   buildRequest(ir: RenderIR, apiKey: string): unknown;
-  call(req: unknown, signal: AbortSignal): Promise<ImageRef>;
+  call(req: unknown, signal: AbortSignal): Promise<AdapterImage>;
   classifyError(err: unknown): RenderError;
 }
 
@@ -12,7 +12,6 @@ export { GeminiAdapter } from './gemini';
 export { OpenAIAdapter } from './openai';
 export { selectReferences } from './priority';
 
-import type { ModelAdapter as _MA } from './_alias';
 import { MockAdapter } from './mock';
 import { GeminiAdapter } from './gemini';
 import { OpenAIAdapter } from './openai';
