@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import sharp from 'sharp';
 import { prisma } from '@comicai/db';
-import type { ImageRef, PanelShape } from '@comicai/types';
+import type { ImageRef, PanelShape, PanelShapeType } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { StorageService } from '../storage/storage.service';
 import { shapeBoundingBox } from '../common/bbox';
+import { buildPanelMaskSvg } from './panel-mask';
 
 export interface ExportResult {
   storageKey: string;
@@ -57,13 +58,23 @@ export class ExportService {
         .map(async (panel) => {
           const job = jobById.get(panel.currentRenderId!)!;
           const ref = job.resultImage as unknown as ImageRef;
-          const box = shapeBoundingBox(panel.shape as unknown as PanelShape);
+          const shape = panel.shape as unknown as PanelShape;
+          const box = shapeBoundingBox(shape);
+          const W = Math.round(box.w);
+          const H = Math.round(box.h);
           const { bytes } = await this.storage.getBytes(ref.storageKey);
-          const resized = await sharp(Buffer.from(bytes))
-            .resize({ width: Math.round(box.w), height: Math.round(box.h), fit: 'cover' })
-            .toBuffer();
+          const resized = sharp(Buffer.from(bytes)).resize({ width: W, height: H, fit: 'cover' });
+          // 직사각형이 아니면 SVG 알파 마스크로 잘라냄. PNG 알파 유지.
+          const masked =
+            (shape.type as PanelShapeType) === 'rect'
+              ? await resized.png().toBuffer()
+              : await resized
+                  .ensureAlpha()
+                  .composite([{ input: buildPanelMaskSvg(shape, W, H), blend: 'dest-in' }])
+                  .png()
+                  .toBuffer();
           return {
-            input: resized,
+            input: masked,
             left: Math.round(box.x),
             top: Math.round(box.y),
           } satisfies sharp.OverlayOptions;

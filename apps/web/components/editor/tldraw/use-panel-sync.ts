@@ -2,8 +2,15 @@
 import { useEffect } from 'react';
 import { type Editor, type TLShapeId, createShapeId } from 'tldraw';
 import { api } from '@/lib/api';
-import { ApiPaths, shapeBoundingBox, type PanelDTO, type PanelShape } from '@comicai/types';
+import {
+  ApiPaths,
+  shapeBoundingBox,
+  type PanelDTO,
+  type PanelShape,
+  type PanelShapeType,
+} from '@comicai/types';
 import type { ComicPanelShape } from './comic-panel-shape';
+import type { NormalizedPoint } from './panel-geometry';
 
 const SAVE_DEBOUNCE_MS = 1500;
 
@@ -44,20 +51,38 @@ export function usePanelSync({
       for (const panel of panels) {
         const bbox = shapeBoundingBox(panel.shape);
         const shape = existing.get(panel.id);
+        const status = panel.currentRenderStatus ?? null;
+        const imageUrl = panel.currentRenderImageUrl ?? null;
+        const variant = panel.shape.type as PanelShapeType;
+        const polygonPoints =
+          variant === 'polygon' ? normalizePolygonPoints(panel.shape.points, bbox) : null;
         if (shape) {
-          editor.updateShape({
-            id: shape.id,
-            type: 'comic-panel',
-            x: bbox.x,
-            y: bbox.y,
-            props: {
-              w: bbox.w,
-              h: bbox.h,
-              panelId: panel.id,
-              status: panel.currentRenderStatus ?? null,
-              resultImageUrl: null,
-            },
-          });
+          const unchanged =
+            shape.x === bbox.x &&
+            shape.y === bbox.y &&
+            shape.props.w === bbox.w &&
+            shape.props.h === bbox.h &&
+            shape.props.status === status &&
+            shape.props.resultImageUrl === imageUrl &&
+            shape.props.variant === variant &&
+            samePolygon(shape.props.polygonPoints, polygonPoints);
+          if (!unchanged) {
+            editor.updateShape({
+              id: shape.id,
+              type: 'comic-panel',
+              x: bbox.x,
+              y: bbox.y,
+              props: {
+                w: bbox.w,
+                h: bbox.h,
+                panelId: panel.id,
+                status,
+                resultImageUrl: imageUrl,
+                variant,
+                polygonPoints,
+              },
+            });
+          }
           existing.delete(panel.id);
         } else {
           editor.createShape<ComicPanelShape>({
@@ -69,8 +94,10 @@ export function usePanelSync({
               w: bbox.w,
               h: bbox.h,
               panelId: panel.id,
-              status: panel.currentRenderStatus ?? null,
-              resultImageUrl: null,
+              status,
+              resultImageUrl: imageUrl,
+              variant,
+              polygonPoints,
             },
           });
         }
@@ -193,16 +220,42 @@ export function usePanelSync({
 
 function toApiShape(shape: ComicPanelShape): PanelShape {
   const { x, y } = shape;
-  const { w, h } = shape.props;
+  const { w, h, variant, polygonPoints } = shape.props;
+  const bboxCorners = [
+    { x, y },
+    { x: x + w, y },
+    { x: x + w, y: y + h },
+    { x, y: y + h },
+  ];
+  const points =
+    variant === 'polygon' && polygonPoints && polygonPoints.length >= 3
+      ? polygonPoints.map((p) => ({ x: x + p.x * w, y: y + p.y * h }))
+      : bboxCorners;
   return {
-    type: 'rect',
-    points: [
-      { x, y },
-      { x: x + w, y },
-      { x: x + w, y: y + h },
-      { x, y: y + h },
-    ],
+    type: variant,
+    points,
     strokeColor: '#000000',
     strokeWidth: 2,
   };
+}
+
+function normalizePolygonPoints(
+  points: { x: number; y: number }[],
+  bbox: { x: number; y: number; w: number; h: number },
+): NormalizedPoint[] {
+  if (bbox.w === 0 || bbox.h === 0) return points.map(() => ({ x: 0, y: 0 }));
+  return points.map((p) => ({
+    x: (p.x - bbox.x) / bbox.w,
+    y: (p.y - bbox.y) / bbox.h,
+  }));
+}
+
+function samePolygon(a: NormalizedPoint[] | null, b: NormalizedPoint[] | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  return a.every((pa, i) => {
+    const pb = b[i];
+    return pb && pa.x === pb.x && pa.y === pb.y;
+  });
 }

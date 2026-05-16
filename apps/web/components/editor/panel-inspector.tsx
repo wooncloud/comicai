@@ -1,11 +1,13 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, API_BASE, ApiError } from '@/lib/api';
 import { useDebounced } from '@/lib/use-debounced';
 import {
   ApiPaths,
   emptyDoc,
   type PanelDTO,
+  type PanelShape,
+  type PanelShapeType,
   type RenderJobDTO,
   type RenderStatus,
   type TipTapDoc,
@@ -14,7 +16,16 @@ import {
 import { PanelTextEditor } from './panel-editor';
 import { PanelStatusBadge } from './panel-status-badge';
 import { HistoryTray } from './history-tray';
+import { PanelShapePicker } from './panel-shape-picker';
 import { useToast } from '@/components/ui/toast';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Props {
   projectId: string;
@@ -33,10 +44,20 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
   const [doc, setDoc] = useState<TipTapDoc>(panel.text ?? emptyDoc());
   const [status, setStatus] = useState<RenderStatus | null>(null);
   const [model, setModel] = useState<ModelId>('mock');
-  const [resultImage, setResultImage] = useState<string | null>(null);
+  const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
   const toast = useToast();
+  // SSE 핸들러가 항상 최신 panel/콜백을 보도록 ref로 보관.
+  const panelRef = useRef(panel);
+  const onPanelUpdatedRef = useRef(onPanelUpdated);
+  const esRef = useRef<EventSource | null>(null);
+  panelRef.current = panel;
+  onPanelUpdatedRef.current = onPanelUpdated;
+
+  function patchRender(patch: Partial<PanelDTO>) {
+    onPanelUpdatedRef.current({ ...panelRef.current, ...patch });
+  }
 
   useEffect(() => {
     setDoc(panel.text ?? emptyDoc());
@@ -45,14 +66,16 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
       api<RenderJobDTO>(ApiPaths.renderJob(panel.currentRenderId))
         .then((j) => {
           setStatus(j.status);
-          setResultImage(j.resultImage?.storageKey ?? null);
+          setResultImageUrl(j.resultImageUrl ?? null);
         })
         .catch(() => {});
     } else {
       setStatus(null);
-      setResultImage(null);
+      setResultImageUrl(null);
     }
-  }, [panel.id]);
+  }, [panel.id, panel.currentRenderId]);
+
+  useEffect(() => () => esRef.current?.close(), []);
 
   useDebounced(doc, 800, async (next) => {
     try {
@@ -71,13 +94,14 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
 
   async function startRender() {
     setError(null);
-    setResultImage(null);
+    setResultImageUrl(null);
     try {
       const { jobId } = await api<{ jobId: string }>(ApiPaths.panelRender(panel.id), {
         method: 'POST',
         body: JSON.stringify({ model }),
       });
       setStatus('queued');
+      patchRender({ currentRenderStatus: 'queued' });
       subscribeJob(jobId);
     } catch (err) {
       if (err instanceof ApiError) setError(`렌더 시작 실패: ${err.code}`);
@@ -85,25 +109,38 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
   }
 
   function subscribeJob(jobId: string) {
+    esRef.current?.close();
     const es = new EventSource(`${API_BASE}${ApiPaths.renderJobEvents(jobId)}`, {
       withCredentials: true,
     });
+    esRef.current = es;
     es.addEventListener('status', (e) => {
       try {
-        const payload = JSON.parse((e as MessageEvent).data) as {
-          status: RenderStatus;
-          resultImage?: { storageKey: string };
-        };
-        setStatus(payload.status);
-        if (payload.resultImage) setResultImage(payload.resultImage.storageKey);
-        if (payload.status === 'succeeded') {
+        const { status: next } = JSON.parse((e as MessageEvent).data) as { status: RenderStatus };
+        setStatus(next);
+        if (next === 'succeeded') {
+          // 후속 GET이 status+URL을 한 번에 푸시하므로 여기선 panel 갱신 생략.
+          api<RenderJobDTO>(ApiPaths.renderJob(jobId))
+            .then((j) => {
+              setResultImageUrl(j.resultImageUrl ?? null);
+              patchRender({
+                currentRenderStatus: 'succeeded',
+                currentRenderImageUrl: j.resultImageUrl ?? null,
+              });
+            })
+            .catch(() => {});
           toast.push('success', '렌더 완료');
           setHistoryKey((k) => k + 1);
           es.close();
-        } else if (payload.status === 'failed' || payload.status === 'canceled') {
-          toast.push('error', payload.status === 'failed' ? '렌더 실패' : '렌더 취소됨');
+          esRef.current = null;
+        } else if (next === 'failed' || next === 'canceled') {
+          patchRender({ currentRenderStatus: next });
+          toast.push('error', next === 'failed' ? '렌더 실패' : '렌더 취소됨');
           setHistoryKey((k) => k + 1);
           es.close();
+          esRef.current = null;
+        } else {
+          patchRender({ currentRenderStatus: next });
         }
       } catch {}
     });
@@ -130,11 +167,33 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
 
       <PanelTextEditor projectId={projectId} initial={doc} onChange={setDoc} />
 
-      {resultImage && (
-        <div className="rounded-md border border-neutral-200 bg-white p-2 text-xs dark:border-neutral-800 dark:bg-neutral-950">
-          <div className="font-medium">결과 이미지</div>
-          <div className="mt-1 break-all font-mono text-neutral-500">{resultImage}</div>
-        </div>
+      <PanelShapePicker
+        value={(panel.shape.type ?? 'rect') as PanelShapeType}
+        onChange={async (variant) => {
+          if (variant === panel.shape.type) return;
+          try {
+            const nextShape: PanelShape = { ...panel.shape, type: variant };
+            const updated = await api<PanelDTO>(ApiPaths.panel(panel.id), {
+              method: 'PATCH',
+              body: JSON.stringify({ shape: nextShape }),
+            });
+            onPanelUpdated(updated);
+          } catch (err) {
+            if (err instanceof ApiError) toast.push('error', `저장 실패: ${err.code}`);
+          }
+        }}
+      />
+
+      {resultImageUrl && (
+        <a
+          href={resultImageUrl}
+          target="_blank"
+          rel="noopener"
+          className="block overflow-hidden rounded-md border border-border bg-card"
+          title="원본 보기"
+        >
+          <img src={resultImageUrl} alt="렌더 결과" className="block h-auto w-full object-cover" />
+        </a>
       )}
 
       {error && (
@@ -144,25 +203,26 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
       )}
 
       <div className="space-y-2">
-        <label className="block text-xs text-neutral-600">모델</label>
-        <select
-          value={model}
-          onChange={(e) => setModel(e.target.value as ModelId)}
-          className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-        >
-          {MODEL_OPTIONS.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
-        </select>
-        <button
+        <label className="block text-caption text-muted-foreground">모델</label>
+        <Select value={model} onValueChange={(v) => setModel(v as ModelId)}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MODEL_OPTIONS.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
           onClick={startRender}
           disabled={status === 'queued' || status === 'running'}
-          className="w-full rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+          className="w-full"
         >
           {status === 'queued' || status === 'running' ? '생성 중…' : '생성하기'}
-        </button>
+        </Button>
       </div>
 
       <HistoryTray
@@ -171,7 +231,7 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
         refreshKey={historyKey}
         onRestored={(p) => {
           onPanelUpdated(p);
-          setResultImage(p.currentRenderId ?? null);
+          setResultImageUrl(p.currentRenderImageUrl ?? null);
           setHistoryKey((k) => k + 1);
         }}
       />
