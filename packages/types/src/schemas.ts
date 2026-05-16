@@ -13,16 +13,21 @@ export const CredentialsSchema = z.object({
 });
 export type Credentials = z.infer<typeof CredentialsSchema>;
 
+// ─── 프로필 ───────────────────────────────────
+// spec 03-api-contracts.md PATCH /v1/me
+export const MePatchSchema = z.object({
+  displayName: z.string().min(1).max(80).nullable().optional(),
+  avatarUrl: z.string().url().max(1000).nullable().optional(),
+});
+export type MePatch = z.infer<typeof MePatchSchema>;
+
 // ─── API Keys ─────────────────────────────────
-export const ApiKeyCreateSchema = z
-  .object({
-    provider: z.enum(['gemini', 'openai']),
-    label: z.string().min(1).max(80),
-    // spec 03-api-contracts.md:34는 `key`. 기존 코드는 `secret`. 우선 둘 다 받는다 (P1에서 정리).
-    key: z.string().min(8).optional(),
-    secret: z.string().min(8).optional(),
-  })
-  .refine((v) => v.key || v.secret, { message: 'API key is required', path: ['key'] });
+// spec 03-api-contracts.md §"API 키": body는 {provider, label, key}.
+export const ApiKeyCreateSchema = z.object({
+  provider: z.enum(['gemini', 'openai']),
+  label: z.string().min(1).max(80),
+  key: z.string().min(8).max(500),
+});
 export type ApiKeyCreate = z.infer<typeof ApiKeyCreateSchema>;
 
 // ─── 프로젝트 ─────────────────────────────────

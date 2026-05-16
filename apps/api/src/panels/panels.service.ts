@@ -1,11 +1,28 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { newId, prisma } from '@comicai/db';
-import { emptyDoc, type PanelDTO, type PanelShape, type ImageRef, type TipTapDoc, type RenderJobDTO, type ModelId, type RenderStatus } from '@comicai/types';
+import {
+  emptyDoc,
+  type PanelDTO,
+  type PanelShape,
+  type ImageRef,
+  type TipTapDoc,
+  type RenderJobDTO,
+  type ModelId,
+  type RenderStatus,
+} from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
+import { StorageService } from '../storage/storage.service';
+import { validateAndNormalizeImage } from '../storage/image-validator';
 
 function panelDto(row: {
-  id: string; pageId: string; shape: unknown; conti: unknown;
-  text: unknown; refImages: unknown; currentRenderId: string | null; history: string[];
+  id: string;
+  pageId: string;
+  shape: unknown;
+  conti: unknown;
+  text: unknown;
+  refImages: unknown;
+  currentRenderId: string | null;
+  history: string[];
 }): PanelDTO {
   return {
     id: row.id,
@@ -21,7 +38,10 @@ function panelDto(row: {
 
 @Injectable()
 export class PanelsService {
-  constructor(private readonly pages: PagesService) {}
+  constructor(
+    private readonly pages: PagesService,
+    private readonly storage: StorageService,
+  ) {}
 
   async list(userId: string, pageId: string): Promise<PanelDTO[]> {
     await this.pages.findOwned(userId, pageId);
@@ -56,6 +76,29 @@ export class PanelsService {
     await prisma.panel.delete({ where: { id } });
   }
 
+  async appendUpload(userId: string, panelId: string, fileBuffer: Buffer): Promise<PanelDTO> {
+    const owned = await this.assertOwned(userId, panelId);
+    const validated = await validateAndNormalizeImage(fileBuffer);
+    const ref = await this.storage.putImage(
+      { kind: 'panel-upload', projectId: owned.projectId, panelId: owned.id },
+      validated.bytes,
+      validated.mimeType,
+      validated.width,
+      validated.height,
+    );
+    await this.storage.putThumbnail(ref.storageKey, validated.bytes).catch(() => undefined);
+    const current = await prisma.panel.findUniqueOrThrow({
+      where: { id: owned.id },
+      select: { refImages: true },
+    });
+    const refs = (current.refImages as unknown as ImageRef[]) ?? [];
+    const row = await prisma.panel.update({
+      where: { id: owned.id },
+      data: { refImages: [...refs, ref] as unknown as object },
+    });
+    return panelDto(row);
+  }
+
   async history(userId: string, id: string): Promise<RenderJobDTO[]> {
     const panel = await this.assertOwned(userId, id);
     const rows = await prisma.renderJob.findMany({
@@ -80,10 +123,15 @@ export class PanelsService {
   async assertOwned(userId: string, id: string) {
     const row = await prisma.panel.findUnique({
       where: { id },
-      select: { id: true, pageId: true, page: { select: { project: { select: { userId: true, id: true } } } } },
+      select: {
+        id: true,
+        pageId: true,
+        page: { select: { project: { select: { userId: true, id: true } } } },
+      },
     });
-    if (!row) throw new NotFoundException({ code: 'resource/not_found' });
-    if (row.page.project.userId !== userId) throw new ForbiddenException({ code: 'auth/forbidden' });
+    if (!row) throw new NotFoundException({ code: 'PANEL_NOT_FOUND' });
+    if (row.page.project.userId !== userId)
+      throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
     return { id: row.id, pageId: row.pageId, projectId: row.page.project.id };
   }
 }

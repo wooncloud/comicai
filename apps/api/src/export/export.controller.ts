@@ -16,6 +16,6 @@ export class ExportController {
 
   @Post('pages/:id/export')
   async export(@Req() req: AuthedRequest, @Param('id') id: string, @Body() body: ExportDto) {
-    return this.svc.exportPage(req.user.id, id, body.format);
+    return this.svc.exportPage(req.user.id, id, body.format, body.dpi);
   }
 }

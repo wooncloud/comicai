@@ -11,12 +11,17 @@ export interface ApiKeySummary {
   id: string;
   provider: ModelProvider;
   label: string;
+  isActive: boolean;
+  lastVerifiedAt: string | null;
   createdAt: string;
 }
 
 export interface SessionUser {
   id: string;
   email: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  oauthProviders?: ('google' | 'github')[];
 }
 
 // ─── 미디어 ─────────────────────────────────────

@@ -1,9 +1,8 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { CredentialsSchema } from '@comicai/types';
 import { AuthService } from './auth.service';
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS, SessionService } from './session.service';
-import { SessionGuard, AuthedRequest } from './session.guard';
 
 class CredentialsDto {
   static zodSchema = CredentialsSchema;
@@ -42,11 +41,5 @@ export class AuthController {
     const sid = req.cookies?.[SESSION_COOKIE];
     if (sid) await this.sessions.destroy(sid);
     res.clearCookie(SESSION_COOKIE, { ...SESSION_COOKIE_OPTIONS, maxAge: 0 });
-  }
-
-  @Get('me')
-  @UseGuards(SessionGuard)
-  me(@Req() req: AuthedRequest) {
-    return { id: req.user.id, email: req.user.email };
   }
 }

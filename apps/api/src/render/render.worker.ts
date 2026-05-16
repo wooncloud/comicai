@@ -2,7 +2,7 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
 import { prisma } from '@comicai/db';
-import { getAdapter } from '@comicai/adapters';
+import { getAdapter, type AdapterContext } from '@comicai/adapters';
 import type { ImageRef, RenderError, RenderIR } from '@comicai/types';
 import { RENDER_QUEUE_NAME, type RenderJobData } from './render.queue';
 import { SseHub } from './sse.hub';
@@ -29,7 +29,11 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
       RENDER_QUEUE_NAME,
       (job) => this.process(job.data, job.attemptsMade),
       {
-        connection: { host: u.hostname, port: Number(u.port || 6379), password: u.password || undefined },
+        connection: {
+          host: u.hostname,
+          port: Number(u.port || 6379),
+          password: u.password || undefined,
+        },
         concurrency: Number(process.env.RENDER_CONCURRENCY ?? 2),
       },
     );
@@ -64,16 +68,29 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
     const wholeTimer = setTimeout(() => ac.abort(), JOB_TIMEOUT_MS);
     const callTimer = setTimeout(() => ac.abort(), MODEL_CALL_TIMEOUT_MS);
 
+    const ctx: AdapterContext = {
+      loadReference: (key) => this.storage.getBytes(key),
+    };
+
     try {
       const req = adapter.buildRequest(ir, apiKey);
-      await this.resolveStoragePlaceholders(req);
-      const raw = await adapter.call(req, ac.signal);
+      const raw = await adapter.call(req, ac.signal, ctx);
       clearTimeout(wholeTimer);
       clearTimeout(callTimer);
-      const stored: ImageRef = await this.storage.putImage(raw.bytes, raw.mimeType, raw.width, raw.height);
+      const stored: ImageRef = await this.storage.putImage(
+        { kind: 'render', renderJobId },
+        raw.bytes,
+        raw.mimeType,
+        raw.width,
+        raw.height,
+      );
       await prisma.renderJob.update({
         where: { id: renderJobId },
-        data: { status: 'succeeded', resultImage: stored as unknown as object, finishedAt: new Date() },
+        data: {
+          status: 'succeeded',
+          resultImage: stored as unknown as object,
+          finishedAt: new Date(),
+        },
       });
       this.hub.publish(renderJobId, {
         type: 'status',
@@ -97,23 +114,6 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
       });
       this.hub.publish(renderJobId, { type: 'error', jobId: renderJobId, error: classified });
       this.hub.publish(renderJobId, { type: 'status', jobId: renderJobId, status: 'failed' });
-    }
-  }
-
-  /**
-   * 어댑터 빌드 결과 안의 `__STORAGE__{key}` 마커를 실제 base64 바이트로 치환.
-   * Gemini inlineData.data 처럼 어댑터가 storageKey만 갖고 있던 자리.
-   */
-  private async resolveStoragePlaceholders(req: unknown, depth = 0): Promise<void> {
-    if (!req || typeof req !== 'object' || depth > 8) return;
-    for (const [k, v] of Object.entries(req as Record<string, unknown>)) {
-      if (typeof v === 'string' && v.startsWith('__STORAGE__')) {
-        const key = v.slice('__STORAGE__'.length);
-        const { bytes } = await this.storage.getBytes(key);
-        (req as Record<string, unknown>)[k] = Buffer.from(bytes).toString('base64');
-      } else if (v && typeof v === 'object') {
-        await this.resolveStoragePlaceholders(v, depth + 1);
-      }
     }
   }
 

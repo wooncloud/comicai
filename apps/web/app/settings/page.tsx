@@ -29,16 +29,21 @@ export default function SettingsPage() {
     refresh();
   }, []);
 
-  async function onCreate(provider: ModelProvider, label: string, secret: string) {
+  async function onCreate(provider: ModelProvider, label: string, key: string) {
     await api('/api-keys', {
       method: 'POST',
-      body: JSON.stringify({ provider, label, secret }),
+      body: JSON.stringify({ provider, label, key }),
     });
     await refresh();
   }
 
   async function onDelete(id: string) {
     await api(`/api-keys/${id}`, { method: 'DELETE' });
+    await refresh();
+  }
+
+  async function onVerify(id: string) {
+    await api(`/api-keys/${id}/verify`, { method: 'POST' });
     await refresh();
   }
 
@@ -69,7 +74,7 @@ export default function SettingsPage() {
           <div className="mt-6 space-y-8">
             <ApiKeyForm onSubmit={onCreate} />
             {error && <p className="text-sm text-red-600">{error}</p>}
-            {keys && <ApiKeyList items={keys} onDelete={onDelete} />}
+            {keys && <ApiKeyList items={keys} onDelete={onDelete} onVerify={onVerify} />}
           </div>
         </section>
       </main>

@@ -16,7 +16,7 @@ import { resolveMentionIds, serializeTextWithNameReplacement } from '@comicai/ev
  * Panel + Project 컨텍스트에서 RenderIR을 합성.
  * 멘션된 일관성 엔티티를 DB에서 조회해 IR 페이로드로 구성.
  */
-export async function buildRenderIR(panelId: string): Promise<RenderIR> {
+export async function buildRenderIR(panelId: string, seed?: number): Promise<RenderIR> {
   const panel = await prisma.panel.findUnique({
     where: { id: panelId },
     include: { page: { include: { project: true } } },
@@ -68,12 +68,16 @@ export async function buildRenderIR(panelId: string): Promise<RenderIR> {
     userPrompt,
     aspectRatio: computeAspectRatio(shape),
     panelSize: computePanelSize(shape),
+    seed,
   };
 }
 
 function computePanelSize(shape: PanelShape): { w: number; h: number } {
   if (!shape.points.length) return { w: 1, h: 1 };
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const p of shape.points) {
     if (p.x < minX) minX = p.x;
     if (p.y < minY) minY = p.y;

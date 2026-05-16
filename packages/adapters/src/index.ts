@@ -1,9 +1,14 @@
 import type { AdapterImage, ModelId, RenderError, RenderIR } from '@comicai/types';
 
+export interface AdapterContext {
+  /** 어댑터가 storageKey를 실제 바이트로 로드. 워커가 StorageService 기반으로 주입. */
+  loadReference: (storageKey: string) => Promise<{ bytes: Uint8Array; mimeType: string }>;
+}
+
 export interface ModelAdapter {
   id: ModelId;
   buildRequest(ir: RenderIR, apiKey: string): unknown;
-  call(req: unknown, signal: AbortSignal): Promise<AdapterImage>;
+  call(req: unknown, signal: AbortSignal, ctx: AdapterContext): Promise<AdapterImage>;
   classifyError(err: unknown): RenderError;
 }
 

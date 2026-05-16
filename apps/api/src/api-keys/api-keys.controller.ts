@@ -1,19 +1,23 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { z } from 'zod';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiKeyCreateSchema } from '@comicai/types';
 import { ApiKeysService } from './api-keys.service';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
 
-const CreateSchema = z.object({
-  provider: z.enum(['gemini', 'openai']),
-  label: z.string().min(1).max(80),
-  secret: z.string().min(8).max(500),
-});
-
 class CreateApiKeyDto {
-  static zodSchema = CreateSchema;
+  static zodSchema = ApiKeyCreateSchema;
   provider!: 'gemini' | 'openai';
   label!: string;
-  secret!: string;
+  key!: string;
 }
 
 @Controller('api-keys')
@@ -29,7 +33,12 @@ export class ApiKeysController {
   @Post()
   @HttpCode(201)
   create(@Req() req: AuthedRequest, @Body() body: CreateApiKeyDto) {
-    return this.svc.create(req.user.id, body.provider, body.label, body.secret);
+    return this.svc.create(req.user.id, body.provider, body.label, body.key);
+  }
+
+  @Post(':id/verify')
+  verify(@Req() req: AuthedRequest, @Param('id') id: string) {
+    return this.svc.verify(req.user.id, id);
   }
 
   @Delete(':id')

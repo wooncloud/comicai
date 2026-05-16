@@ -9,7 +9,7 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    api('/auth/me')
+    api('/me')
       .then(() => router.replace('/projects'))
       .catch(() => {});
   }, [router]);
@@ -17,9 +17,7 @@ export default function HomePage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-24">
       <h1 className="text-4xl font-bold tracking-tight">ComicAI</h1>
-      <p className="mt-3 text-muted-foreground">
-        일관성을 유지하며 만화를 그려주는 AI 제작 도구
-      </p>
+      <p className="mt-3 text-muted-foreground">일관성을 유지하며 만화를 그려주는 AI 제작 도구</p>
       <div className="mt-10 flex gap-3">
         <Button asChild>
           <Link href="/login">로그인</Link>

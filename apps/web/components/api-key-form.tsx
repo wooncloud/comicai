@@ -12,13 +12,13 @@ import {
 } from '@/components/ui/select';
 
 interface Props {
-  onSubmit: (provider: ModelProvider, label: string, secret: string) => Promise<void>;
+  onSubmit: (provider: ModelProvider, label: string, apiKey: string) => Promise<void>;
 }
 
 export function ApiKeyForm({ onSubmit }: Props) {
   const [provider, setProvider] = useState<ModelProvider>('gemini');
   const [label, setLabel] = useState('');
-  const [secret, setSecret] = useState('');
+  const [apiKey, setApiKey] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,9 +27,9 @@ export function ApiKeyForm({ onSubmit }: Props) {
     setError(null);
     setPending(true);
     try {
-      await onSubmit(provider, label, secret);
+      await onSubmit(provider, label, apiKey);
       setLabel('');
-      setSecret('');
+      setApiKey('');
     } catch {
       setError('등록에 실패했습니다.');
     } finally {
@@ -69,8 +69,8 @@ export function ApiKeyForm({ onSubmit }: Props) {
           type="password"
           required
           minLength={8}
-          value={secret}
-          onChange={(e) => setSecret(e.target.value)}
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
           autoComplete="off"
           className="font-mono"
         />

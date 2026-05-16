@@ -23,7 +23,7 @@ const BLACK_PNG_1x1 = Uint8Array.from([
 export const MockAdapter: ModelAdapter = {
   id: 'mock',
   buildRequest: () => ({}),
-  async call(_req, signal): Promise<AdapterImage> {
+  async call(_req, signal, _ctx): Promise<AdapterImage> {
     await sleep(Number(process.env.MOCK_RENDER_MS ?? 2000), signal);
     return { bytes: BLACK_PNG_1x1, width: 1, height: 1, mimeType: 'image/png' };
   },

@@ -7,9 +7,19 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import sharp from 'sharp';
 import { ulid } from 'ulid';
 import type { ImageRef } from '@comicai/types';
+
+export type ImageScope =
+  | { kind: 'render'; renderJobId: string }
+  | { kind: 'consistency-ref'; projectId: string; entityId: string }
+  | { kind: 'panel-upload'; projectId: string; panelId: string }
+  | { kind: 'panel-conti'; projectId: string; panelId: string }
+  | { kind: 'export'; userId: string; pageId: string };
+
+const PRESIGN_TTL_SECONDS = 15 * 60;
 
 @Injectable()
 export class StorageService implements OnModuleInit {
@@ -50,10 +60,16 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
-   * 이미지 바이트를 업로드하고 ImageRef 반환.
+   * 이미지 바이트를 spec 09-storage 키 규칙에 맞춰 업로드하고 ImageRef 반환.
    * width/height가 0이면 sharp로 자동 계측.
    */
-  async putImage(bytes: Uint8Array, mimeType: string, width = 0, height = 0): Promise<ImageRef> {
+  async putImage(
+    scope: ImageScope,
+    bytes: Uint8Array,
+    mimeType: string,
+    width = 0,
+    height = 0,
+  ): Promise<ImageRef> {
     let w = width;
     let h = height;
     if (!w || !h) {
@@ -65,16 +81,30 @@ export class StorageService implements OnModuleInit {
         // 메타데이터 추출 실패 — 일단 진행
       }
     }
-    const key = `renders/${new Date().toISOString().slice(0, 10)}/${ulid()}.${extensionFor(mimeType)}`;
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-        Body: Buffer.from(bytes),
-        ContentType: mimeType,
-      }),
-    );
+    const key = buildKey(scope, mimeType);
+    await this.put(key, Buffer.from(bytes), mimeType);
     return { storageKey: key, width: w, height: h, mimeType };
+  }
+
+  /**
+   * 256px 썸네일을 `{key}.thumb.webp`로 생성.
+   */
+  async putThumbnail(originalKey: string, bytes: Uint8Array): Promise<string> {
+    const thumbKey = `${originalKey}.thumb.webp`;
+    const thumb = await sharp(Buffer.from(bytes))
+      .resize({ width: 256, height: 256, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+    await this.put(thumbKey, thumb, 'image/webp');
+    return thumbKey;
+  }
+
+  /** 다운로드용 pre-signed URL (15분 TTL). */
+  async presignDownload(key: string): Promise<{ url: string; expiresAt: string }> {
+    const cmd = new GetObjectCommand({ Bucket: this.bucket, Key: key });
+    const url = await getSignedUrl(this.client, cmd, { expiresIn: PRESIGN_TTL_SECONDS });
+    const expiresAt = new Date(Date.now() + PRESIGN_TTL_SECONDS * 1000).toISOString();
+    return { url, expiresAt };
   }
 
   async getBytes(key: string): Promise<{ bytes: Uint8Array; mimeType: string }> {
@@ -82,13 +112,42 @@ export class StorageService implements OnModuleInit {
     const chunks: Buffer[] = [];
     if (r.Body && Symbol.asyncIterator in r.Body) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for await (const chunk of r.Body as any)
+      for await (const chunk of r.Body as any) {
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
     }
     return {
       bytes: Uint8Array.from(Buffer.concat(chunks)),
       mimeType: r.ContentType ?? 'application/octet-stream',
     };
+  }
+
+  private async put(key: string, body: Buffer, mimeType: string) {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: body,
+        ContentType: mimeType,
+      }),
+    );
+  }
+}
+
+function buildKey(scope: ImageScope, mimeType: string): string {
+  const ext = extensionFor(mimeType);
+  const id = ulid();
+  switch (scope.kind) {
+    case 'render':
+      return `projects/_/renders/${scope.renderJobId}.${ext}`;
+    case 'consistency-ref':
+      return `projects/${scope.projectId}/refs/${scope.entityId}/${id}.${ext}`;
+    case 'panel-upload':
+      return `projects/${scope.projectId}/panels/${scope.panelId}/upload/${id}.${ext}`;
+    case 'panel-conti':
+      return `projects/${scope.projectId}/panels/${scope.panelId}/conti/${id}.${ext}`;
+    case 'export':
+      return `exports/${scope.userId}/${scope.pageId}/${id}.${ext}`;
   }
 }
 

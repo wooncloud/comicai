@@ -1,9 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import sharp from 'sharp';
 import { prisma } from '@comicai/db';
-import type { ImageRef, PanelShape, RenderJobDTO } from '@comicai/types';
+import type { ImageRef, PanelShape } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { StorageService } from '../storage/storage.service';
+
+export interface ExportResult {
+  storageKey: string;
+  url: string;
+  expiresAt: string;
+  width: number;
+  height: number;
+  mimeType: string;
+}
 
 @Injectable()
 export class ExportService {
@@ -15,14 +24,20 @@ export class ExportService {
   /**
    * 페이지의 모든 패널 currentRender 이미지를 종합해 하나의 페이지 이미지로 합성.
    * 패널 shape의 bounding box에 맞춰 배치, 빈 패널은 회색 placeholder.
+   * dpi는 sharp 출력 density 메타데이터로 반영(인쇄 품질).
    */
-  async exportPage(userId: string, pageId: string, format: 'png' | 'jpg') {
+  async exportPage(
+    userId: string,
+    pageId: string,
+    format: 'png' | 'jpg',
+    dpi = 150,
+  ): Promise<ExportResult> {
     const owned = await this.pages.findOwned(userId, pageId);
     const page = await prisma.page.findUnique({
       where: { id: owned.id },
       include: { panels: true },
     });
-    if (!page) throw new NotFoundException({ code: 'resource/not_found' });
+    if (!page) throw new NotFoundException({ code: 'PAGE_NOT_FOUND' });
 
     const size = page.size as { w: number; h: number };
     const baseColor = format === 'jpg' ? '#ffffff' : { r: 0, g: 0, b: 0, alpha: 0 };
@@ -49,28 +64,36 @@ export class ExportService {
         channels: 4,
         background: baseColor as never,
       },
-    }).composite(composites);
+    })
+      .withMetadata({ density: dpi })
+      .composite(composites);
     canvas = format === 'jpg' ? canvas.jpeg({ quality: 92 }) : canvas.png();
 
     const bytes = await canvas.toBuffer();
     const ref = await this.storage.putImage(
+      { kind: 'export', userId, pageId: page.id },
       Uint8Array.from(bytes),
       format === 'jpg' ? 'image/jpeg' : 'image/png',
       Math.round(size.w),
       Math.round(size.h),
     );
-    return { storageKey: ref.storageKey, mimeType: ref.mimeType, width: ref.width, height: ref.height };
-  }
-
-  async history(userId: string, panelId: string): Promise<RenderJobDTO[]> {
-    // 위임 — 패널 서비스의 history와 동일. 본 메서드는 사용 안 함.
-    void userId; void panelId;
-    return [];
+    const presigned = await this.storage.presignDownload(ref.storageKey);
+    return {
+      storageKey: ref.storageKey,
+      url: presigned.url,
+      expiresAt: presigned.expiresAt,
+      width: ref.width,
+      height: ref.height,
+      mimeType: ref.mimeType,
+    };
   }
 }
 
 function boundingBox(shape: PanelShape) {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
   for (const p of shape.points) {
     if (p.x < minX) minX = p.x;
     if (p.y < minY) minY = p.y;

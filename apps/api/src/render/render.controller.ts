@@ -22,7 +22,7 @@ export class RenderController {
   @Post('panels/:id/render')
   @HttpCode(202)
   start(@Req() req: AuthedRequest, @Param('id') id: string, @Body() body: StartDto) {
-    return this.svc.startRender(req.user.id, id, body.model);
+    return this.svc.startRender(req.user.id, id, body.model, body.seed);
   }
 
   @Get('render-jobs/:id')

@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { HealthController } from './health/health.controller';
 import { AuthModule } from './auth/auth.module';
+import { MeModule } from './me/me.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ConsistencyModule } from './consistency/consistency.module';
@@ -48,6 +49,7 @@ import { ExportModule } from './export/export.module';
       },
     }),
     AuthModule,
+    MeModule,
     ApiKeysModule,
     ProjectsModule,
     ConsistencyModule,

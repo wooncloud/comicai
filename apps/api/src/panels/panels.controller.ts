@@ -1,7 +1,23 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { z } from 'zod';
 import { PanelsService } from './panels.service';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
 
 const PointSchema = z.object({ x: z.number(), y: z.number() });
 const ShapeSchema = z.object({
@@ -16,8 +32,15 @@ const PatchSchema = z.object({
   text: z.any().optional(),
 });
 
-class CreateDto { static zodSchema = CreateSchema; shape!: z.infer<typeof ShapeSchema> }
-class PatchDto { static zodSchema = PatchSchema; shape?: z.infer<typeof ShapeSchema>; text?: unknown }
+class CreateDto {
+  static zodSchema = CreateSchema;
+  shape!: z.infer<typeof ShapeSchema>;
+}
+class PatchDto {
+  static zodSchema = PatchSchema;
+  shape?: z.infer<typeof ShapeSchema>;
+  text?: unknown;
+}
 
 @Controller()
 @UseGuards(SessionGuard)
@@ -49,5 +72,21 @@ export class PanelsController {
   @Get('panels/:id/history')
   history(@Req() req: AuthedRequest, @Param('id') id: string) {
     return this.svc.history(req.user.id, id);
+  }
+
+  @Post('panels/:id/upload')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
+  upload(
+    @Req() req: AuthedRequest,
+    @Param('id') id: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException({
+        code: 'VALIDATION_ERROR',
+        message: 'multipart field "file"이 필요합니다.',
+      });
+    }
+    return this.svc.appendUpload(req.user.id, id, file.buffer);
   }
 }

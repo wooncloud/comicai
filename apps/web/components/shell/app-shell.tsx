@@ -15,13 +15,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [me, setMe] = useState<SessionUser | null>(null);
 
   useEffect(() => {
-    api<SessionUser>('/auth/me').then(setMe).catch((err) => {
-      if (err instanceof ApiError && err.status === 401) {
-        if (typeof window !== 'undefined' && !path?.startsWith('/login') && !path?.startsWith('/signup')) {
-          window.location.href = '/login';
+    api<SessionUser>('/me')
+      .then(setMe)
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 401) {
+          if (
+            typeof window !== 'undefined' &&
+            !path?.startsWith('/login') &&
+            !path?.startsWith('/signup')
+          ) {
+            window.location.href = '/login';
+          }
         }
-      }
-    });
+      });
   }, [path]);
 
   return (
