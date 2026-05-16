@@ -7,6 +7,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { ConsistencyModule } from './consistency/consistency.module';
 import { PagesModule } from './pages/pages.module';
 import { PanelsModule } from './panels/panels.module';
+import { RenderModule } from './render/render.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { PanelsModule } from './panels/panels.module';
     ConsistencyModule,
     PagesModule,
     PanelsModule,
+    RenderModule,
   ],
   controllers: [HealthController],
 })
