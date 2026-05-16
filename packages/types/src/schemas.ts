@@ -71,6 +71,7 @@ export const PageCreateSchema = z.object({
 export const PagePatchSchema = z.object({
   order: z.number().int().nonnegative().optional(),
   size: PageSizeSchema.optional(),
+  name: z.string().trim().min(1).max(80).nullable().optional(),
 });
 
 // ─── 렌더 ─────────────────────────────────────
@@ -92,7 +93,7 @@ export type ExportRequest = z.infer<typeof ExportRequestSchema>;
 // ─── 패널 ─────────────────────────────────────
 export const PanelPointSchema = z.object({ x: z.number(), y: z.number() });
 export const PanelShapeSchema = z.object({
-  type: z.enum(['rect', 'polygon']),
+  type: z.enum(['rect', 'rounded', 'oval', 'diamond', 'parallelogram', 'polygon']),
   points: z.array(PanelPointSchema).min(3).max(64),
   strokeColor: z.string().max(32).default('#000000'),
   strokeWidth: z.number().nonnegative().default(2),

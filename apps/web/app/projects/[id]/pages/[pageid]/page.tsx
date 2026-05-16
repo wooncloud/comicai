@@ -7,13 +7,15 @@ import { api } from '@/lib/api';
 import { useProject } from '@/lib/use-project';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
-import { ApiPaths, type PageDTO, type PanelDTO } from '@comicai/types';
+import { ApiPaths, pageLabel, type PageDTO, type PanelDTO } from '@comicai/types';
 import { PanelInspector } from '@/components/editor/panel-inspector';
 import { PageSidebar } from '@/components/editor/page-sidebar';
 import { ToolToggle } from '@/components/editor/tool-toggle';
 import { SaveStatus } from '@/components/editor/save-status';
 import { ExportDialog } from '@/components/editor/export-dialog';
+import { PageSizeSelect } from '@/components/editor/page-size-select';
 import { usePanelSync } from '@/components/editor/tldraw/use-panel-sync';
+import { usePageFrame } from '@/components/editor/tldraw/use-page-frame';
 import type { ComicPanelShape } from '@/components/editor/tldraw/comic-panel-shape';
 
 const ComicEditor = dynamic(
@@ -69,6 +71,13 @@ export default function PageEditor() {
     onSaveError,
   });
 
+  usePageFrame({
+    editor,
+    pageId,
+    size: page?.size ?? null,
+    label: page ? pageLabel(page) : 'page',
+  });
+
   // tldraw selection ↔ selectedPanelId
   useEffect(() => {
     if (!editor) return;
@@ -102,12 +111,25 @@ export default function PageEditor() {
             items={[
               { label: '대시보드', href: '/dashboard' },
               { label: project?.name ?? '…', href: `/projects/${projectId}` },
-              { label: `p${page ? page.order + 1 : '…'}` },
+              { label: page ? pageLabel(page) : '…' },
             ]}
           />
           <ToolToggle editor={editor} />
         </div>
         <div className="flex items-center gap-3">
+          {page && (
+            <PageSizeSelect
+              value={page.size}
+              onChange={(size) => {
+                // 옵티미스틱: 프레임이 즉시 새 크기로 갱신되도록 로컬 먼저 갱신.
+                setPage((prev) => (prev ? { ...prev, size } : prev));
+                api<PageDTO>(ApiPaths.page(pageId), {
+                  method: 'PATCH',
+                  body: JSON.stringify({ size }),
+                }).then(setPage);
+              }}
+            />
+          )}
           <SaveStatus state={saveState} lastSavedAt={lastSavedAt} />
           <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
             내보내기
@@ -123,7 +145,7 @@ export default function PageEditor() {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        <PageSidebar projectId={projectId} currentPageId={pageId} />
+        <PageSidebar projectId={projectId} currentPageId={pageId} currentPage={page} />
         <div className="relative flex-1 bg-muted/40">
           <ComicEditor onMount={setEditor} />
         </div>
@@ -142,7 +164,8 @@ export default function PageEditor() {
             <div className="text-display-md text-muted-foreground/30">◯</div>
             <p className="mt-3">
               패널을 선택하거나
-              <br />P 도구로 새 패널을 그려보세요.
+              <br />
+              상단 ‘패널’ 도구로 새 패널을 그려보세요.
             </p>
           </aside>
         )}

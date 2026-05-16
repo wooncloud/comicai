@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { ApiPaths } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AuthHeader } from '@/components/auth/auth-header';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -26,7 +27,8 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="mx-auto max-w-sm px-6 py-24">
+    <main className="mx-auto max-w-sm px-6 py-16">
+      <AuthHeader />
       <h1 className="text-2xl font-semibold">비밀번호 재설정</h1>
       {done ? (
         <p className="mt-8 text-sm">

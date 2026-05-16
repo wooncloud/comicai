@@ -7,6 +7,7 @@ import { ApiPaths } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OAuthButtons } from '@/components/oauth-buttons';
+import { AuthHeader } from '@/components/auth/auth-header';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -34,7 +35,8 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="mx-auto max-w-sm px-6 py-24">
+    <main className="mx-auto max-w-sm px-6 py-16">
+      <AuthHeader />
       <h1 className="text-2xl font-semibold">회원가입</h1>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <label className="block">

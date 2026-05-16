@@ -71,6 +71,13 @@ const config: Config = {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
+      // tldraw UI는 최대 z-index 1000(--layer-following-indicator)까지 사용.
+      // 모달/팝오버는 그 위에 떠야 함.
+      zIndex: {
+        overlay: '1000',
+        dialog: '1001',
+        popover: '1002',
+      },
     },
   },
   plugins: [animate],

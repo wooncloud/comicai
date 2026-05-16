@@ -27,7 +27,6 @@ export function EntityCard({ entity, onUpdated, onEdit, onRemove }: Props) {
       const updated = await api<ConsistencyEntityDTO>(ApiPaths.consistencyImages(entity.id), {
         method: 'POST',
         body: fd,
-        headers: {}, // 다중부분은 brower가 boundary 자동 설정 — content-type 덮어쓰지 않기.
       });
       onUpdated(updated);
     } catch (err) {

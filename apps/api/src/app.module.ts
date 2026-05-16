@@ -54,10 +54,7 @@ import { ExportModule } from './export/export.module';
         },
       },
     }),
-    ThrottlerModule.forRoot([
-      { name: 'default', ttl: seconds(60), limit: 120 },
-      { name: 'strict', ttl: seconds(60), limit: 10 },
-    ]),
+    ThrottlerModule.forRoot([{ name: 'default', ttl: seconds(60), limit: 120 }]),
     MetricsModule,
     EmailModule,
     AuthModule,

@@ -10,7 +10,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import sharp from 'sharp';
 import { ulid } from 'ulid';
-import type { ImageRef } from '@comicai/types';
+import type { ImageRef, RenderStatus } from '@comicai/types';
 import { validateAndNormalizeImage } from './image-validator';
 
 export type ImageScope =
@@ -25,23 +25,33 @@ const PRESIGN_TTL_SECONDS = 15 * 60;
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
+  /** 컨테이너 내부에서 사용하는 S3 클라이언트 (put/get 바이트). */
   private client!: S3Client;
+  /**
+   * presigned URL 발급 전용 클라이언트.
+   * 외부(브라우저)가 접근 가능한 host로 서명해야 SigV4 host 헤더 검증을 통과한다.
+   * S3_PUBLIC_ENDPOINT가 비어 있으면 내부 endpoint와 동일하게 동작.
+   */
+  private presignClient!: S3Client;
   private bucket!: string;
 
   constructor(private readonly config: ConfigService) {}
 
   async onModuleInit() {
     const endpoint = this.config.get<string>('S3_ENDPOINT') ?? 'http://localhost:9000';
+    const publicEndpoint = this.config.get<string>('S3_PUBLIC_ENDPOINT') ?? endpoint;
     const region = this.config.get<string>('S3_REGION') ?? 'us-east-1';
     this.bucket = this.config.get<string>('S3_BUCKET') ?? 'comicai';
-    this.client = new S3Client({
-      endpoint,
+    const credentials = {
+      accessKeyId: this.config.get<string>('S3_ACCESS_KEY') ?? 'minioadmin',
+      secretAccessKey: this.config.get<string>('S3_SECRET_KEY') ?? 'minioadmin',
+    };
+    this.client = new S3Client({ endpoint, region, forcePathStyle: true, credentials });
+    this.presignClient = new S3Client({
+      endpoint: publicEndpoint,
       region,
       forcePathStyle: true,
-      credentials: {
-        accessKeyId: this.config.get<string>('S3_ACCESS_KEY') ?? 'minioadmin',
-        secretAccessKey: this.config.get<string>('S3_SECRET_KEY') ?? 'minioadmin',
-      },
+      credentials,
     });
     if (process.env.STORAGE_AUTO_CREATE_BUCKET !== '0') {
       await this.ensureBucket();
@@ -112,9 +122,18 @@ export class StorageService implements OnModuleInit {
 
   async presignDownload(key: string): Promise<{ url: string; expiresAt: string }> {
     const cmd = new GetObjectCommand({ Bucket: this.bucket, Key: key });
-    const url = await getSignedUrl(this.client, cmd, { expiresIn: PRESIGN_TTL_SECONDS });
+    const url = await getSignedUrl(this.presignClient, cmd, { expiresIn: PRESIGN_TTL_SECONDS });
     const expiresAt = new Date(Date.now() + PRESIGN_TTL_SECONDS * 1000).toISOString();
     return { url, expiresAt };
+  }
+
+  /** 성공한 렌더의 결과 이미지만 presign. 실패/취소/진행중은 null. */
+  async presignIfSucceeded(
+    image: ImageRef | null | undefined,
+    status: RenderStatus | null | undefined,
+  ): Promise<string | null> {
+    if (!image || status !== 'succeeded') return null;
+    return (await this.presignDownload(image.storageKey)).url;
   }
 
   async getBytes(key: string): Promise<{ bytes: Uint8Array; mimeType: string }> {

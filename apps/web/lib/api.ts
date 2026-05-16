@@ -4,6 +4,7 @@ import { API_PREFIX, CSRF_COOKIE_NAME, CSRF_HEADER_NAME, type ErrorCode } from '
 export const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 export const API_BASE = API_ORIGIN + API_PREFIX;
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const HAS_FORM_DATA = typeof FormData !== 'undefined';
 
 export class ApiError extends Error {
   constructor(
@@ -24,8 +25,10 @@ function readCsrfToken(): string | undefined {
 
 export async function api<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method ?? 'GET').toUpperCase();
+  const isFormData = HAS_FORM_DATA && init.body instanceof FormData;
   const headers: Record<string, string> = {
-    'content-type': 'application/json',
+    // FormData는 브라우저가 boundary 포함 multipart/form-data를 자동 설정해야 함.
+    ...(isFormData ? {} : { 'content-type': 'application/json' }),
     ...((init.headers as Record<string, string>) ?? {}),
   };
   if (!SAFE_METHODS.has(method)) {

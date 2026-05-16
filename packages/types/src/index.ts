@@ -19,6 +19,13 @@ export const RENDER_STATUSES = [
   'canceled',
 ] as const;
 
+export const IN_PROGRESS_RENDER_STATUSES = ['queued', 'running'] as const;
+export const TERMINAL_RENDER_STATUSES = ['succeeded', 'failed', 'timeout', 'canceled'] as const;
+
+export function isInProgressRender(status: RenderStatus | null | undefined): boolean {
+  return status === 'queued' || status === 'running';
+}
+
 export interface SessionInfo {
   id: string;
   current: boolean;
@@ -78,8 +85,23 @@ export interface ConsistencyEntityDTO {
 }
 
 // ─── 패널 ──────────────────────────────────────
+/**
+ * 패널 시각적 형태.
+ * - 'rect'/'rounded'/'oval'/'diamond'/'parallelogram': `points`는 4점 bbox.
+ * - 'polygon': `points`가 그대로 다각형의 vertex들 (3점 이상). bbox는 min/max로 도출.
+ */
+export const PANEL_SHAPE_TYPES = [
+  'rect',
+  'rounded',
+  'oval',
+  'diamond',
+  'parallelogram',
+  'polygon',
+] as const;
+export type PanelShapeType = (typeof PANEL_SHAPE_TYPES)[number];
+
 export interface PanelShape {
-  type: 'rect' | 'polygon';
+  type: PanelShapeType;
   points: { x: number; y: number }[];
   strokeColor: string;
   strokeWidth: number;
@@ -95,6 +117,8 @@ export interface PanelDTO {
   currentRenderId?: string | null;
   /** 현재 렌더의 상태(있다면). 캔버스 위 배지 표시용. */
   currentRenderStatus?: RenderStatus | null;
+  /** 현재 렌더 결과의 presigned URL (성공한 경우만). 캔버스/인스펙터 미리보기용. */
+  currentRenderImageUrl?: string | null;
   history: string[];
 }
 
@@ -124,9 +148,16 @@ export interface PageDTO {
   id: string;
   projectId: string;
   order: number;
+  /** 사용자 지정 이름. null이면 'p{order+1}' 형식의 기본 라벨 사용. */
+  name: string | null;
   size: { w: number; h: number };
   background?: ImageRef | null;
   createdAt: string;
+}
+
+/** PageDTO.name과 order에서 표시용 라벨 추출. */
+export function pageLabel(page: { name: string | null; order: number }): string {
+  return page.name ?? `p${page.order + 1}`;
 }
 
 // ─── 프로젝트 ───────────────────────────────────

@@ -112,6 +112,7 @@ model Page {
   id         String   @id
   projectId  String   @map("project_id")
   order      Int
+  name       String?
   size       Json
   background Json?
   createdAt  DateTime @default(now()) @map("created_at")

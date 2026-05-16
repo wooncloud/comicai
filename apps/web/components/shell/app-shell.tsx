@@ -68,20 +68,22 @@ export function Topbar({ rightSlot }: { rightSlot?: React.ReactNode }) {
         ComicAI
       </Link>
       <nav className="flex flex-1 items-center gap-1 text-body-sm">
-        {NAV.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              'rounded px-3 py-1.5 transition-colors',
-              path?.startsWith(item.href)
-                ? 'bg-muted font-medium text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {item.label}
-          </Link>
-        ))}
+        {me &&
+          NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'rounded px-3 py-1.5 transition-colors',
+                path?.startsWith(item.href)
+                  ? 'bg-muted font-medium text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {item.label}
+            </Link>
+          ))}
+        {!me && <span className="flex-1" />}
       </nav>
       {rightSlot}
       {me ? (

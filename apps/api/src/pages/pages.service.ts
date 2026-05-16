@@ -7,6 +7,7 @@ function toDto(row: {
   id: string;
   projectId: string;
   order: number;
+  name: string | null;
   size: unknown;
   background: unknown;
   createdAt: Date;
@@ -15,6 +16,7 @@ function toDto(row: {
     id: row.id,
     projectId: row.projectId,
     order: row.order,
+    name: row.name,
     size: row.size as { w: number; h: number },
     background: (row.background as unknown as ImageRef) ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -65,7 +67,7 @@ export class PagesService {
   async patch(
     userId: string,
     id: string,
-    patch: { order?: number; size?: { w: number; h: number } },
+    patch: { order?: number; size?: { w: number; h: number }; name?: string | null },
   ) {
     await this.findOwned(userId, id);
     const row = await prisma.page.update({

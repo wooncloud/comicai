@@ -10,8 +10,9 @@ import {
 import 'tldraw/tldraw.css';
 import { ComicPanelShapeUtil } from './comic-panel-shape';
 import { ComicPanelTool } from './comic-panel-tool';
+import { PageFrameShapeUtil } from './page-frame-shape';
 
-const shapeUtils = [ComicPanelShapeUtil];
+const shapeUtils = [ComicPanelShapeUtil, PageFrameShapeUtil];
 const tools = [ComicPanelTool];
 
 const uiOverrides: TLUiOverrides = {

@@ -7,6 +7,7 @@ import { ApiPaths } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OAuthButtons } from '@/components/oauth-buttons';
+import { AuthHeader } from '@/components/auth/auth-header';
 
 function LoginBanner() {
   const params = useSearchParams();
@@ -68,7 +69,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto max-w-sm px-6 py-24">
+    <main className="mx-auto max-w-sm px-6 py-16">
+      <AuthHeader />
       <h1 className="text-2xl font-semibold">로그인</h1>
       <Suspense>
         <LoginBanner />

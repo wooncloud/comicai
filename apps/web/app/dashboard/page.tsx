@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { AppShell } from '@/components/shell/app-shell';
 import { api } from '@/lib/api';
 import { ApiPaths, type ProjectDTO } from '@comicai/types';
@@ -59,13 +58,6 @@ export default function DashboardPage() {
             ))}
           </ul>
         )}
-
-        <p className="mt-12 text-caption text-muted-foreground">
-          기존 라우트로 이동:{' '}
-          <Link href="/projects" className="underline">
-            /projects
-          </Link>
-        </p>
 
         <ProjectCreateDialog
           open={createOpen}

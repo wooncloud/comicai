@@ -51,7 +51,7 @@ export class AuthController {
   ) {}
 
   @Post('signup')
-  @Throttle({ strict: { ttl: 60_000, limit: 5 } })
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(201)
   async signup(
     @Body() body: CredentialsDto,
@@ -71,7 +71,7 @@ export class AuthController {
   }
 
   @Post('login')
-  @Throttle({ strict: { ttl: 60_000, limit: 10 } })
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @HttpCode(200)
   async login(
     @Body() body: CredentialsDto,
@@ -98,7 +98,7 @@ export class AuthController {
   }
 
   @Post('verify-email/request')
-  @Throttle({ strict: { ttl: 60_000, limit: 5 } })
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(204)
   async requestEmailVerification(@Req() req: Request) {
     const sid = req.cookies?.[SESSION_COOKIE];
@@ -125,7 +125,7 @@ export class AuthController {
   }
 
   @Post('password-reset/request')
-  @Throttle({ strict: { ttl: 60_000, limit: 5 } })
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(204)
   async requestPasswordReset(@Body() body: PasswordResetRequestDto) {
     const user = await prisma.user.findUnique({
@@ -138,7 +138,7 @@ export class AuthController {
   }
 
   @Post('password-reset/confirm')
-  @Throttle({ strict: { ttl: 60_000, limit: 5 } })
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(204)
   async confirmPasswordReset(@Body() body: PasswordResetConfirmDto) {
     const { userId } = await this.tokens.consumePasswordReset(body.token);

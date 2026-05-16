@@ -2,8 +2,8 @@ import type { AdapterImage, ImageRef, RenderError, RenderIR } from '@comicai/typ
 import type { AdapterContext, ModelAdapter } from './index';
 import { selectReferences } from './priority';
 
-const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
+const GEMINI_MODEL = 'gemini-2.5-flash-image';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const MAX_REF_IMAGES = 16;
 
 interface GeminiPart {
@@ -18,7 +18,7 @@ interface GeminiRequest {
   headers: Record<string, string>;
   body: {
     contents: { role: string; parts: GeminiPart[] }[];
-    generationConfig: { responseMimeType: string; aspectRatio?: string };
+    generationConfig: { responseModalities: string[] };
   };
 }
 
@@ -55,7 +55,8 @@ export const GeminiAdapter: ModelAdapter = {
       headers: { 'x-goog-api-key': apiKey, 'content-type': 'application/json' },
       body: {
         contents: [{ role: 'user', parts }],
-        generationConfig: { responseMimeType: 'image/png', aspectRatio: ir.aspectRatio },
+        // 이미지 생성 모델은 responseModalities를 요구. responseMimeType은 400을 유발.
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
       },
     };
   },

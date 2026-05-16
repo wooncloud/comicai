@@ -6,6 +6,7 @@ import { api, ApiError } from '@/lib/api';
 import { ApiPaths, PASSWORD_MIN_LENGTH, PASSWORD_PATTERN } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AuthHeader } from '@/components/auth/auth-header';
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -66,7 +67,8 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <main className="mx-auto max-w-sm px-6 py-24">
+    <main className="mx-auto max-w-sm px-6 py-16">
+      <AuthHeader />
       <h1 className="text-2xl font-semibold">새 비밀번호 설정</h1>
       <Suspense fallback={<p className="mt-8 text-sm">로딩…</p>}>
         <ResetPasswordForm />

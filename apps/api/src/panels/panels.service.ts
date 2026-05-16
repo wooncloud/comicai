@@ -13,6 +13,11 @@ import {
 import { PagesService } from '../pages/pages.service';
 import { StorageService } from '../storage/storage.service';
 
+interface RenderRef {
+  status: RenderStatus | null;
+  imageUrl: string | null;
+}
+
 function panelDto(
   row: {
     id: string;
@@ -24,7 +29,7 @@ function panelDto(
     currentRenderId: string | null;
     history: string[];
   },
-  currentRenderStatus: RenderStatus | null = null,
+  render: RenderRef = { status: null, imageUrl: null },
 ): PanelDTO {
   return {
     id: row.id,
@@ -34,7 +39,8 @@ function panelDto(
     text: (row.text as unknown as TipTapDoc) ?? emptyDoc(),
     refImages: (row.refImages as unknown as ImageRef[]) ?? [],
     currentRenderId: row.currentRenderId,
-    currentRenderStatus,
+    currentRenderStatus: render.status,
+    currentRenderImageUrl: render.imageUrl,
     history: row.history,
   };
 }
@@ -50,16 +56,32 @@ export class PanelsService {
     await this.pages.findOwned(userId, pageId);
     const rows = await prisma.panel.findMany({ where: { pageId } });
     const renderIds = rows.flatMap((r) => (r.currentRenderId ? [r.currentRenderId] : []));
-    const statuses = renderIds.length
+    const jobs = renderIds.length
       ? await prisma.renderJob.findMany({
           where: { id: { in: renderIds } },
-          select: { id: true, status: true },
+          select: { id: true, status: true, resultImage: true },
         })
       : [];
-    const byId = new Map(statuses.map((s) => [s.id, s.status as RenderStatus]));
-    return rows.map((r) =>
-      panelDto(r, r.currentRenderId ? (byId.get(r.currentRenderId) ?? null) : null),
+    const byId = new Map(jobs.map((j) => [j.id, j]));
+    const succeededKeys = jobs
+      .filter((j) => j.status === 'succeeded')
+      .map((j) => (j.resultImage as ImageRef | null)?.storageKey)
+      .filter((k): k is string => Boolean(k));
+    const presigned = new Map<string, string>(
+      await Promise.all(
+        succeededKeys.map(
+          async (k): Promise<[string, string]> => [k, (await this.storage.presignDownload(k)).url],
+        ),
+      ),
     );
+    return rows.map((r) => {
+      const job = r.currentRenderId ? byId.get(r.currentRenderId) : undefined;
+      const key = (job?.resultImage as ImageRef | null)?.storageKey;
+      return panelDto(r, {
+        status: (job?.status as RenderStatus | undefined) ?? null,
+        imageUrl: job?.status === 'succeeded' && key ? (presigned.get(key) ?? null) : null,
+      });
+    });
   }
 
   async create(userId: string, pageId: string, shape: PanelShape): Promise<PanelDTO> {
@@ -135,7 +157,7 @@ export class PanelsService {
   async restoreRender(userId: string, jobId: string): Promise<PanelDTO> {
     const job = await prisma.renderJob.findUnique({
       where: { id: jobId },
-      select: { id: true, panelId: true, userId: true, status: true },
+      select: { id: true, panelId: true, userId: true, status: true, resultImage: true },
     });
     if (!job || job.userId !== userId) {
       throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
@@ -151,7 +173,11 @@ export class PanelsService {
       where: { id: job.panelId },
       data: { currentRenderId: job.id },
     });
-    return panelDto(row);
+    const imageUrl = await this.storage.presignIfSucceeded(
+      job.resultImage as ImageRef | null,
+      job.status as RenderStatus,
+    );
+    return panelDto(row, { status: 'succeeded', imageUrl });
   }
 
   async assertOwned(

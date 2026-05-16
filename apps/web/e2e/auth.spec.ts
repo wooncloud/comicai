@@ -14,7 +14,7 @@ test('signup → dashboard 진입', async ({ page }) => {
   await page.getByRole('button', { name: /가입|sign up/i }).click();
 
   await page.waitForURL('**/dashboard', { timeout: 20_000 });
-  await expect(page.getByText(email)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: '내 프로젝트' })).toBeVisible({ timeout: 10_000 });
 });
 
 test('dashboard → 프로젝트 생성', async ({ page }) => {

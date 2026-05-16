@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { prisma } from '@comicai/db';
 import type { ModelId, RenderJobDTO, RenderStatus, ImageRef, RenderError } from '@comicai/types';
 import { PanelsService } from '../panels/panels.service';
+import { StorageService } from '../storage/storage.service';
 import { buildRenderIR } from './ir.builder';
 import { RenderQueue, idempotencyKey } from './render.queue';
 
@@ -10,6 +11,7 @@ export class RenderService {
   constructor(
     private readonly panels: PanelsService,
     private readonly queue: RenderQueue,
+    private readonly storage: StorageService,
   ) {}
 
   async startRender(
@@ -57,13 +59,16 @@ export class RenderService {
     if (!row || row.userId !== userId) {
       throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
     }
+    const resultImage = (row.resultImage as unknown as ImageRef) ?? null;
+    const status = row.status as RenderStatus;
     return {
       id: row.id,
       panelId: row.panelId,
       userId: row.userId,
       model: row.model as ModelId,
-      status: row.status as RenderStatus,
-      resultImage: (row.resultImage as unknown as ImageRef) ?? null,
+      status,
+      resultImage,
+      resultImageUrl: await this.storage.presignIfSucceeded(resultImage, status),
       error: (row.error as unknown as RenderError) ?? null,
       attempts: row.attempts,
       createdAt: row.createdAt.toISOString(),
@@ -72,8 +77,14 @@ export class RenderService {
   }
 
   async cancel(userId: string, id: string) {
-    const job = await this.getJob(userId, id);
-    if (job.status === 'succeeded' || job.status === 'failed') {
+    const row = await prisma.renderJob.findUnique({
+      where: { id },
+      select: { userId: true, status: true },
+    });
+    if (!row || row.userId !== userId) {
+      throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
+    }
+    if (row.status === 'succeeded' || row.status === 'failed') {
       throw new BadRequestException({ code: 'CONFLICT', message: '이미 완료된 작업입니다.' });
     }
     await prisma.renderJob.update({
