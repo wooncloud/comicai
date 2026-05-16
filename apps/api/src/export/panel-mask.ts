@@ -3,12 +3,14 @@ import type { PanelShape, PanelShapeType } from '@comicai/types';
 const ROUND_RADIUS = 14;
 
 /**
- * 패널 모양에 맞는 알파 마스크 SVG. 흰색=불투명, 검정=투명.
- * sharp.composite의 `dest-in`/`dest-out` 블렌드에 사용.
+ * 패널 모양에 맞는 알파 마스크 SVG.
+ * sharp `dest-in` 블렌드는 src의 ALPHA로 dest를 잘라낸다 — 검은색 배경은
+ * 알파=1이라 통과시켜 마스킹이 무효가 됨. 따라서 path 영역만 그리고 외부는
+ * SVG 기본 투명으로 둔다(alpha=0).
  */
 export function buildPanelMaskSvg(shape: PanelShape, w: number, h: number): Buffer {
   const path = svgPathFor(shape, w, h);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="black"/><path d="${path}" fill="white"/></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="${path}" fill="white"/></svg>`;
   return Buffer.from(svg);
 }
 
