@@ -102,6 +102,12 @@ export const PANEL_SHAPE_TYPES = [
 ] as const;
 export type PanelShapeType = (typeof PANEL_SHAPE_TYPES)[number];
 
+/** 인스펙터 picker에 노출되는 프리셋 — polygon은 별도 도구로만 진입. */
+export const PANEL_SHAPE_PRESETS = ['rect', 'rounded', 'oval', 'diamond', 'parallelogram'] as const;
+export type PanelShapePreset = (typeof PANEL_SHAPE_PRESETS)[number];
+
+export * from './panel-path';
+
 export interface PanelShape {
   type: PanelShapeType;
   points: { x: number; y: number }[];
@@ -183,12 +189,17 @@ export interface BoundingBox {
 }
 
 export function shapeBoundingBox(shape: PanelShape): BoundingBox {
-  if (!shape.points.length) return { x: 0, y: 0, w: 1, h: 1 };
+  return pointsBoundingBox(shape.points);
+}
+
+/** points 배열의 axis-aligned bbox. polygon 도구 등에서 PanelShape 객체 없이 호출. */
+export function pointsBoundingBox(points: { x: number; y: number }[]): BoundingBox {
+  if (!points.length) return { x: 0, y: 0, w: 1, h: 1 };
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
-  for (const p of shape.points) {
+  for (const p of points) {
     if (p.x < minX) minX = p.x;
     if (p.y < minY) minY = p.y;
     if (p.x > maxX) maxX = p.x;

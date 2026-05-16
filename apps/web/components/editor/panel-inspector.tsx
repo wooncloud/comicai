@@ -40,6 +40,8 @@ const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
 ];
 
 export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDeleted }: Props) {
+  // 부모(page editor)가 key={panel.id}로 마운트해 panel.id는 한 인스턴스 안에서 불변.
+  // 따라서 ref dance 없이 캡쳐된 panel/onPanelUpdated를 그대로 써도 stale 위험 없음.
   const [doc, setDoc] = useState<TipTapDoc>(panel.text ?? emptyDoc());
   const [status, setStatus] = useState<RenderStatus | null>(null);
   const [model, setModel] = useState<ModelId>('gemini-3.1-flash-image-preview');
@@ -47,20 +49,14 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
   const [error, setError] = useState<string | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
   const toast = useToast();
-  // SSE 핸들러가 항상 최신 panel/콜백을 보도록 ref로 보관.
-  const panelRef = useRef(panel);
-  const onPanelUpdatedRef = useRef(onPanelUpdated);
   const esRef = useRef<EventSource | null>(null);
-  panelRef.current = panel;
-  onPanelUpdatedRef.current = onPanelUpdated;
 
   function patchRender(patch: Partial<PanelDTO>) {
-    onPanelUpdatedRef.current({ ...panelRef.current, ...patch });
+    onPanelUpdated({ ...panel, ...patch });
   }
 
+  // panel.currentRenderId만 의존 — panel.id는 key로 분리되어 인스턴스 내 불변.
   useEffect(() => {
-    setDoc(panel.text ?? emptyDoc());
-    setError(null);
     if (panel.currentRenderId) {
       api<RenderJobDTO>(ApiPaths.renderJob(panel.currentRenderId))
         .then((j) => {
@@ -72,7 +68,7 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
       setStatus(null);
       setResultImageUrl(null);
     }
-  }, [panel.id, panel.currentRenderId]);
+  }, [panel.currentRenderId]);
 
   useEffect(() => () => esRef.current?.close(), []);
 

@@ -103,6 +103,8 @@ export class PanelsService {
     if (patch.shape) data.shape = patch.shape as unknown as object;
     if (patch.text) data.text = patch.text as unknown as object;
     const row = await prisma.panel.update({ where: { id }, data: data as never });
+    // 응답에 항상 현재 render 정보까지 채워 보냄 — 누락 시 클라이언트가 panels state를
+    // 덮으며 imageUrl을 null로 잃는 회귀 위험(efac8df 사례).
     return panelDto(row, await this.loadRender(row.currentRenderId));
   }
 

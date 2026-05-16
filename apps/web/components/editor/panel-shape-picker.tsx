@@ -1,5 +1,5 @@
 'use client';
-import { PANEL_SHAPE_TYPES, type PanelShapeType } from '@comicai/types';
+import { PANEL_SHAPE_PRESETS, type PanelShapeType } from '@comicai/types';
 import { outlinePathFor } from './tldraw/panel-geometry';
 import { cn } from '@/lib/cn';
 
@@ -23,7 +23,7 @@ export function PanelShapePicker({ value, onChange, disabled }: Props) {
     <div className="space-y-2">
       <label className="block text-caption text-muted-foreground">모양</label>
       <div className="grid grid-cols-3 gap-2">
-        {PANEL_SHAPE_TYPES.filter((v) => v !== 'polygon').map((v) => (
+        {PANEL_SHAPE_PRESETS.map((v) => (
           <ShapeButton
             key={v}
             variant={v}

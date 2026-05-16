@@ -32,9 +32,10 @@ const PANEL_SUB_MODES: readonly PanelSubMode[] = [
   { id: 'polygon-panel', kbd: 'g', label: '다각형', icon: Star },
 ] as const;
 
+// 'p'는 TOOLS와 PANEL_SUB_MODES 양쪽에 있는데 sub-mode가 뒤에 spread되어 win.
+// 둘 다 사각형 패널 도구를 가리켜 동작 동일 — 의도된 중복.
 const KBD_MAP: Record<string, string> = {
   ...Object.fromEntries(TOOLS.map((t) => [t.kbd, t.id])),
-  // 패널 sub-mode 단축키도 같이 처리.
   ...Object.fromEntries(PANEL_SUB_MODES.map((s) => [s.kbd, s.id])),
 };
 

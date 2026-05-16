@@ -1,5 +1,6 @@
 'use client';
 import { StateNode, createShapeId, type TLKeyboardEventInfo } from 'tldraw';
+import { pointsBoundingBox } from '@comicai/types';
 import type { ComicPanelShape } from './comic-panel-shape';
 import {
   polygonHoverAtom,
@@ -72,21 +73,20 @@ export class PolygonPanelTool extends StateNode {
   }
 
   private commit(points: Point[]): void {
-    if (points.length < MIN_VERTICES) return;
-    const xs = points.map((p) => p.x);
-    const ys = points.map((p) => p.y);
-    const minX = Math.min(...xs);
-    const minY = Math.min(...ys);
-    const maxX = Math.max(...xs);
-    const maxY = Math.max(...ys);
-    const w = Math.max(1, maxX - minX);
-    const h = Math.max(1, maxY - minY);
-    const normalized = points.map((p) => ({ x: (p.x - minX) / w, y: (p.y - minY) / h }));
+    if (points.length < MIN_VERTICES) {
+      // 충분치 않으면 잠자코 취소 — 사용자가 도구는 빠져나오게.
+      this.editor.setCurrentTool('select');
+      return;
+    }
+    const bbox = pointsBoundingBox(points);
+    const w = Math.max(1, bbox.w);
+    const h = Math.max(1, bbox.h);
+    const normalized = points.map((p) => ({ x: (p.x - bbox.x) / w, y: (p.y - bbox.y) / h }));
     this.editor.createShape<ComicPanelShape>({
       id: createShapeId(),
       type: 'comic-panel',
-      x: minX,
-      y: minY,
+      x: bbox.x,
+      y: bbox.y,
       props: {
         w,
         h,

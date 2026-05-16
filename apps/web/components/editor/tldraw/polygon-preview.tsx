@@ -5,25 +5,23 @@ import { polygonHoverAtom, polygonPointsAtom, type Point } from './polygon-state
 /**
  * polygon 도구 활성 시 캔버스 위에 현재 누적 vertex들 + 마우스까지의 preview 라인을 그림.
  * tldraw `components.InFrontOfTheCanvas`로 마운트되어 화면 픽셀 공간에 렌더.
+ * 카메라(zoom/pan) 변화에 useValue가 자동 리렌더 트리거.
  */
 export function PolygonPreview(): JSX.Element | null {
   const editor = useEditor();
   const toolId = useValue('current-tool', () => editor.getCurrentToolId(), [editor]);
   const points = useValue('polygon-points', () => polygonPointsAtom.get(), []);
   const hover = useValue('polygon-hover', () => polygonHoverAtom.get(), []);
-  const cam = useValue('camera', () => editor.getCamera(), [editor]);
+  // camera는 직접 쓰지 않아도 변화에 반응해 위치를 재계산하기 위해 구독.
+  useValue('camera', () => editor.getCamera(), [editor]);
 
   if (toolId !== 'polygon-panel' || points.length === 0) return null;
 
-  const screen = (p: Point) => ({
-    x: (p.x + cam.x) * cam.z,
-    y: (p.y + cam.y) * cam.z,
-  });
-  const scr = points.map(screen);
+  const scr = points.map((p) => editor.pageToScreen(p));
   const first = scr[0];
   const last = scr[scr.length - 1];
   if (!first || !last) return null;
-  const tail = hover ? screen(hover) : null;
+  const tail = hover ? editor.pageToScreen(hover) : null;
   const showCloseHint = !!(points.length >= 3 && tail && screenDist(first, tail) <= 12);
   const polyline = scr.map((p) => `${p.x},${p.y}`).join(' ');
   const closingTail = showCloseHint ? first : tail;

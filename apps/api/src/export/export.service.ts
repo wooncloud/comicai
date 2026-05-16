@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import sharp from 'sharp';
 import { prisma } from '@comicai/db';
-import type { ImageRef, PanelShape, PanelShapeType } from '@comicai/types';
+import type { ImageRef, PanelShape } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { StorageService } from '../storage/storage.service';
 import { shapeBoundingBox } from '../common/bbox';
@@ -63,16 +63,13 @@ export class ExportService {
           const W = Math.round(box.w);
           const H = Math.round(box.h);
           const { bytes } = await this.storage.getBytes(ref.storageKey);
-          const resized = sharp(Buffer.from(bytes)).resize({ width: W, height: H, fit: 'cover' });
-          // 직사각형이 아니면 SVG 알파 마스크로 잘라냄. PNG 알파 유지.
-          const masked =
-            (shape.type as PanelShapeType) === 'rect'
-              ? await resized.png().toBuffer()
-              : await resized
-                  .ensureAlpha()
-                  .composite([{ input: buildPanelMaskSvg(shape, W, H), blend: 'dest-in' }])
-                  .png()
-                  .toBuffer();
+          // rect도 마스크가 전체 영역(no-op)이라 분기 없이 한 경로로.
+          const masked = await sharp(Buffer.from(bytes))
+            .resize({ width: W, height: H, fit: 'cover' })
+            .ensureAlpha()
+            .composite([{ input: buildPanelMaskSvg(shape, W, H), blend: 'dest-in' }])
+            .png()
+            .toBuffer();
           return {
             input: masked,
             left: Math.round(box.x),
