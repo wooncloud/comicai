@@ -44,7 +44,7 @@ export class SessionService implements OnModuleDestroy {
 export const SESSION_COOKIE = 'comicai_sid';
 export const SESSION_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: process.env.COOKIE_SECURE != null ? process.env.COOKIE_SECURE === '1' : process.env.NODE_ENV === 'production',
   sameSite: 'lax' as const,
   maxAge: SESSION_TTL_SECONDS * 1000,
   path: '/',

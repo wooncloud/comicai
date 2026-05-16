@@ -103,6 +103,8 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:-}
       # api와 워커 같이 돌릴 거라 워커 활성화. 분리하려면 1로 변경.
       RENDER_WORKER_DISABLED: "0"
+      # cmux 임베디드 브라우저 등 http://localhost 환경에서 테스트하려면 0으로.
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
     ports:
       - "4000:4000"
     healthcheck:
