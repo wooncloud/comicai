@@ -1,7 +1,7 @@
 'use client';
 import { BaseBoxShapeUtil, HTMLContainer, type RecordProps, T, type TLBaseShape } from 'tldraw';
 import { PanelStatusBadge } from '../panel-status-badge';
-import type { RenderStatus } from '@comicai/types';
+import { RENDER_STATUSES, type RenderStatus } from '@comicai/types';
 
 export type ComicPanelShape = TLBaseShape<
   'comic-panel',
@@ -14,15 +14,6 @@ export type ComicPanelShape = TLBaseShape<
     resultImageUrl: string | null;
   }
 >;
-
-const RENDER_STATUSES = [
-  'queued',
-  'running',
-  'succeeded',
-  'failed',
-  'timeout',
-  'canceled',
-] as const;
 
 export class ComicPanelShapeUtil extends BaseBoxShapeUtil<ComicPanelShape> {
   static override type = 'comic-panel' as const;

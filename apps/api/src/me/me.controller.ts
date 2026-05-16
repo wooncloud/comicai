@@ -124,9 +124,8 @@ export class MeController {
   @Delete('sessions/:sid')
   @HttpCode(204)
   async revokeSession(@Req() req: AuthedRequest, @Param('sid') sid: string): Promise<void> {
-    const list = await this.sessions.listForUser(req.user.id);
-    const found = list.find((s) => s.id === sid);
-    if (!found) throw new NotFoundException({ code: 'SESSION_NOT_FOUND' });
+    const owns = await this.sessions.belongsTo(req.user.id, sid);
+    if (!owns) throw new NotFoundException({ code: 'SESSION_NOT_FOUND' });
     await this.sessions.destroy(sid);
   }
 }

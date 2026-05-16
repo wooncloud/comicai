@@ -15,22 +15,20 @@ export function PageSidebar({ projectId, currentPageId }: Props) {
   const [pages, setPages] = useState<PageDTO[] | null>(null);
   const [adding, setAdding] = useState(false);
 
-  async function refresh() {
-    setPages(await api<PageDTO[]>(ApiPaths.projectPages(projectId)));
-  }
-
   useEffect(() => {
-    refresh().catch(() => setPages([]));
+    api<PageDTO[]>(ApiPaths.projectPages(projectId))
+      .then(setPages)
+      .catch(() => setPages([]));
   }, [projectId]);
 
   async function addPage() {
     setAdding(true);
     try {
-      await api(ApiPaths.projectPages(projectId), {
+      const created = await api<PageDTO>(ApiPaths.projectPages(projectId), {
         method: 'POST',
         body: JSON.stringify({ size: { w: 800, h: 1200 } }),
       });
-      await refresh();
+      setPages((prev) => [...(prev ?? []), created]);
     } finally {
       setAdding(false);
     }

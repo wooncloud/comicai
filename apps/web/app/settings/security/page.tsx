@@ -1,11 +1,16 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
-import { ApiPaths, type OAuthProvider, type SessionInfo, type SessionUser } from '@comicai/types';
+import { api, API_BASE, ApiError } from '@/lib/api';
+import {
+  ApiPaths,
+  OAUTH_PROVIDERS,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_PATTERN,
+  type SessionInfo,
+  type SessionUser,
+} from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
-const OAUTH_PROVIDERS: OAuthProvider[] = ['google', 'github'];
 
 export default function SecurityPage() {
   const [me, setMe] = useState<SessionUser | null>(null);
@@ -113,8 +118,8 @@ function PasswordSection({ me, onChanged }: { me: SessionUser | null; onChanged:
           type="password"
           placeholder="새 비밀번호 (10자 이상, 영문+숫자)"
           autoComplete="new-password"
-          minLength={10}
-          pattern="(?=.*[A-Za-z])(?=.*\d).{10,}"
+          minLength={PASSWORD_MIN_LENGTH}
+          pattern={PASSWORD_PATTERN}
           required
           value={next}
           onChange={(e) => setNext(e.target.value)}
@@ -152,9 +157,7 @@ function OAuthSection({ me }: { me: SessionUser | null }) {
               </span>
             ) : (
               <Button asChild variant="outline" size="sm">
-                <a
-                  href={`${apiOrigin()}/v1${ApiPaths.oauthRedirect(p)}?returnTo=/settings/security`}
-                >
+                <a href={`${API_BASE}${ApiPaths.oauthRedirect(p)}?returnTo=/settings/security`}>
                   연결
                 </a>
               </Button>
@@ -212,10 +215,6 @@ function SessionsSection({
       </ul>
     </section>
   );
-}
-
-function apiOrigin(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 }
 
 function shortenUA(ua: string | null): string {

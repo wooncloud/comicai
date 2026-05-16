@@ -38,7 +38,7 @@ export default function PageEditor() {
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 
   useEffect(() => {
@@ -54,9 +54,11 @@ export default function PageEditor() {
   }, [pageId]);
 
   const onSavingChange = useCallback((v: boolean) => {
-    setSaving(v);
+    setSaveState((prev) => (v ? 'saving' : prev === 'error' ? 'error' : 'idle'));
     if (!v) setLastSavedAt(Date.now());
   }, []);
+
+  const onSaveError = useCallback(() => setSaveState('error'), []);
 
   usePanelSync({
     editor,
@@ -64,6 +66,7 @@ export default function PageEditor() {
     panels,
     onPanelsChanged: setPanels,
     onSavingChange,
+    onSaveError,
   });
 
   // tldraw selection ↔ selectedPanelId
@@ -105,7 +108,7 @@ export default function PageEditor() {
           <ToolToggle editor={editor} />
         </div>
         <div className="flex items-center gap-3">
-          <SaveStatus state={saving ? 'saving' : 'idle'} lastSavedAt={lastSavedAt} />
+          <SaveStatus state={saveState} lastSavedAt={lastSavedAt} />
           <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
             내보내기
           </Button>

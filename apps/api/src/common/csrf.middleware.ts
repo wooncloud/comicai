@@ -1,8 +1,8 @@
 import { ForbiddenException, Injectable, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
-import { randomBytes } from 'node:crypto';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@comicai/types';
-import { SESSION_COOKIE } from '../auth/session.service';
+import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from '../auth/session.service';
+import { hexToken } from './tokens';
 
 export const CSRF_COOKIE = CSRF_COOKIE_NAME;
 const SKIP_PATHS = new Set(['/healthz', '/metrics']);
@@ -21,8 +21,7 @@ export class CsrfMiddleware implements NestMiddleware {
     const sessionCookie = req.cookies?.[SESSION_COOKIE];
     if (SAFE_METHODS.has(req.method)) {
       if (sessionCookie && !req.cookies?.[CSRF_COOKIE]) {
-        const secure = (req as Request & { secure?: boolean }).secure ?? false;
-        issueCsrfToken(res, secure);
+        issueCsrfToken(res, SESSION_COOKIE_OPTIONS.secure);
       }
       return next();
     }
@@ -45,7 +44,7 @@ export class CsrfMiddleware implements NestMiddleware {
 }
 
 export function issueCsrfToken(res: Response, secure: boolean): string {
-  const token = randomBytes(32).toString('hex');
+  const token = hexToken();
   res.cookie(CSRF_COOKIE, token, {
     httpOnly: false,
     secure,

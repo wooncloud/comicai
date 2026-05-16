@@ -145,6 +145,6 @@ export class AuthController {
     const passwordHash = await argon2.hash(body.password, { type: argon2.argon2id });
     await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
     // 비밀번호 변경 시 모든 활성 세션 종료.
-    await this.sessions.destroyAllExcept(userId, '');
+    await this.sessions.destroyAllForUser(userId);
   }
 }

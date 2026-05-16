@@ -1,7 +1,8 @@
 // 백엔드 API 호출 래퍼. credentials: 'include' + envelope unwrap.
 import { API_PREFIX, CSRF_COOKIE_NAME, CSRF_HEADER_NAME, type ErrorCode } from '@comicai/types';
 
-const BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000') + API_PREFIX;
+export const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+export const API_BASE = API_ORIGIN + API_PREFIX;
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export class ApiError extends Error {
@@ -31,7 +32,7 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}): Pr
     const csrf = readCsrfToken();
     if (csrf) headers[CSRF_HEADER_NAME] = csrf;
   }
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     ...init,
     headers,

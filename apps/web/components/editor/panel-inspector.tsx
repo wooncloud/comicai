@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { api, API_BASE, ApiError } from '@/lib/api';
 import { useDebounced } from '@/lib/use-debounced';
 import {
   ApiPaths,
@@ -38,7 +38,6 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
   const [historyKey, setHistoryKey] = useState(0);
   const toast = useToast();
 
-  // panel이 바뀌면 로컬 상태 초기화
   useEffect(() => {
     setDoc(panel.text ?? emptyDoc());
     setError(null);
@@ -55,7 +54,6 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
     }
   }, [panel.id]);
 
-  // 자동저장: doc 변경 후 800ms 후 PATCH
   useDebounced(doc, 800, async (next) => {
     try {
       const updated = await api<PanelDTO>(ApiPaths.panel(panel.id), {
@@ -87,8 +85,7 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
   }
 
   function subscribeJob(jobId: string) {
-    const base = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000') + '/v1';
-    const es = new EventSource(`${base}${ApiPaths.renderJobEvents(jobId)}`, {
+    const es = new EventSource(`${API_BASE}${ApiPaths.renderJobEvents(jobId)}`, {
       withCredentials: true,
     });
     es.addEventListener('status', (e) => {

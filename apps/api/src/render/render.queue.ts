@@ -1,8 +1,8 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue, QueueEvents } from 'bullmq';
-import { createHash } from 'node:crypto';
 import type { ModelId, RenderIR } from '@comicai/types';
+import { sha256Hex } from '../common/tokens';
 
 export const RENDER_QUEUE_NAME = 'render';
 
@@ -54,8 +54,5 @@ export function parseRedis(url: string) {
 }
 
 export function idempotencyKey(ir: RenderIR, userId: string, model: ModelId): string {
-  return (
-    'job_' +
-    createHash('sha256').update(JSON.stringify({ ir, userId, model })).digest('hex').slice(0, 32)
-  );
+  return 'job_' + sha256Hex(JSON.stringify({ ir, userId, model })).slice(0, 32);
 }

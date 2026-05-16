@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
-import { randomBytes } from 'node:crypto';
+import { urlSafeToken } from '../common/tokens';
 
 const SESSION_TTL_SECONDS = 14 * 24 * 60 * 60; // 14일
 const KEY_PREFIX = 'session:';
@@ -35,7 +35,7 @@ export class SessionService implements OnModuleDestroy {
   }
 
   async create(payload: SessionPayload, meta: SessionMeta = {}): Promise<string> {
-    const sid = randomBytes(32).toString('base64url');
+    const sid = urlSafeToken();
     const now = new Date().toISOString();
     const record: SessionRecord = {
       ...payload,
@@ -59,6 +59,10 @@ export class SessionService implements OnModuleDestroy {
     record.lastUsedAt = new Date().toISOString();
     await this.redis.set(KEY_PREFIX + sid, JSON.stringify(record), 'EX', SESSION_TTL_SECONDS);
     return { userId: record.userId, email: record.email };
+  }
+
+  async belongsTo(userId: string, sid: string): Promise<boolean> {
+    return (await this.redis.sismember(USER_KEY_PREFIX + userId, sid)) === 1;
   }
 
   async destroy(sid: string): Promise<void> {
@@ -106,6 +110,16 @@ export class SessionService implements OnModuleDestroy {
     pipeline.srem(USER_KEY_PREFIX + userId, ...targets);
     await pipeline.exec();
     return targets.length;
+  }
+
+  async destroyAllForUser(userId: string): Promise<number> {
+    const sids = await this.redis.smembers(USER_KEY_PREFIX + userId);
+    if (sids.length === 0) return 0;
+    const pipeline = this.redis.multi();
+    for (const sid of sids) pipeline.del(KEY_PREFIX + sid);
+    pipeline.del(USER_KEY_PREFIX + userId);
+    await pipeline.exec();
+    return sids.length;
   }
 }
 

@@ -88,7 +88,6 @@ export function EntityCard({ entity, onUpdated, onEdit, onRemove }: Props) {
 }
 
 function ImageGrid({ entity }: { entity: ConsistencyEntityDTO }) {
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
   if (entity.refImages.length === 0) {
     return (
       <div className="flex h-24 items-center justify-center rounded-md border border-dashed border-border text-caption text-muted-foreground">

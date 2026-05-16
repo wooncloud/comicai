@@ -1,33 +1,23 @@
 'use client';
-import { useEffect, useState } from 'react';
-import type { Editor } from 'tldraw';
+import { useEffect } from 'react';
+import { useValue, type Editor } from 'tldraw';
 import { cn } from '@/lib/cn';
 
 const TOOLS = [
-  { id: 'select', label: 'V', title: '선택 (V)' },
-  { id: 'comic-panel', label: 'P', title: '패널 (P)' },
-  { id: 'draw', label: 'D', title: '콘티 / 자유선 (D)' },
-  { id: 'text', label: 'T', title: '텍스트 (T)' },
+  { id: 'select', kbd: 'v', label: 'V', title: '선택 (V)' },
+  { id: 'comic-panel', kbd: 'p', label: 'P', title: '패널 (P)' },
+  { id: 'draw', kbd: 'd', label: 'D', title: '콘티 / 자유선 (D)' },
+  { id: 'text', kbd: 't', label: 'T', title: '텍스트 (T)' },
 ] as const;
+
+const KBD_MAP: Record<string, string> = Object.fromEntries(TOOLS.map((t) => [t.kbd, t.id]));
 
 interface Props {
   editor: Editor | null;
 }
 
 export function ToolToggle({ editor }: Props) {
-  const [current, setCurrent] = useState('select');
-
-  useEffect(() => {
-    if (!editor) return;
-    const unsub = editor.store.listen(
-      () => {
-        setCurrent(editor.getCurrentToolId());
-      },
-      { source: 'user' },
-    );
-    setCurrent(editor.getCurrentToolId());
-    return () => unsub();
-  }, [editor]);
+  const current = useValue('current-tool', () => editor?.getCurrentToolId() ?? 'select', [editor]);
 
   useEffect(() => {
     if (!editor) return;
@@ -41,13 +31,7 @@ export function ToolToggle({ editor }: Props) {
       ) {
         return;
       }
-      const map: Record<string, string> = {
-        v: 'select',
-        p: 'comic-panel',
-        d: 'draw',
-        t: 'text',
-      };
-      const next = map[e.key.toLowerCase()];
+      const next = KBD_MAP[e.key.toLowerCase()];
       if (next) {
         e.preventDefault();
         editor.setCurrentTool(next);

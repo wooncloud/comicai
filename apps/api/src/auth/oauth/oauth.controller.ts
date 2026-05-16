@@ -1,13 +1,11 @@
 import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
-import type { OAuthProvider } from '@comicai/types';
+import { OAUTH_PROVIDERS, type OAuthProvider } from '@comicai/types';
 import { OAuthService } from './oauth.service';
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS, SessionService } from '../session.service';
 import { sessionMetaFromRequest } from '../session.helpers';
 import { issueCsrfToken } from '../../common/csrf.middleware';
-
-const SUPPORTED: OAuthProvider[] = ['google', 'github'];
 
 @Controller('auth/oauth')
 export class OAuthController {
@@ -58,16 +56,16 @@ export class OAuthController {
       const dest = result.returnTo && safeReturnTo(result.returnTo) ? result.returnTo : '/projects';
       res.redirect(302, `${webOrigin}${dest}`);
     } catch (err) {
-      const code = (
+      const errCode = (
         (err as { response?: { code?: string } }).response?.code ?? 'oauth_failed'
       ).toLowerCase();
-      res.redirect(302, `${webOrigin}/login?error=${encodeURIComponent(code)}`);
+      res.redirect(302, `${webOrigin}/login?error=${encodeURIComponent(errCode)}`);
     }
   }
 }
 
 function ensureSupported(provider: string): OAuthProvider {
-  if (!SUPPORTED.includes(provider as OAuthProvider)) {
+  if (!OAUTH_PROVIDERS.includes(provider as OAuthProvider)) {
     throw new Error('UNSUPPORTED_OAUTH_PROVIDER');
   }
   return provider as OAuthProvider;

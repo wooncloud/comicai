@@ -1,15 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { randomBytes, createHash } from 'node:crypto';
 import { newId, prisma } from '@comicai/db';
+import { sha256Hex, urlSafeToken } from '../common/tokens';
 
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
 const RESET_TTL_MS = 30 * 60 * 1000;
 
 type TokenKind = 'verify' | 'reset';
-
-function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
 
 @Injectable()
 export class AuthTokensService {
@@ -30,8 +26,8 @@ export class AuthTokensService {
   }
 
   private async issue(kind: TokenKind, userId: string, ttlMs: number): Promise<string> {
-    const token = randomBytes(32).toString('base64url');
-    const tokenHash = hashToken(token);
+    const token = urlSafeToken();
+    const tokenHash = sha256Hex(token);
     const expiresAt = new Date(Date.now() + ttlMs);
     const data = { id: newId(kind === 'verify' ? 'evf' : 'prt'), userId, tokenHash, expiresAt };
     if (kind === 'verify') {
@@ -43,7 +39,7 @@ export class AuthTokensService {
   }
 
   private async consume(kind: TokenKind, token: string): Promise<{ userId: string }> {
-    const tokenHash = hashToken(token);
+    const tokenHash = sha256Hex(token);
     const row =
       kind === 'verify'
         ? await prisma.emailVerification.findUnique({ where: { tokenHash } })

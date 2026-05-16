@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
-import { randomBytes } from 'node:crypto';
 import { newId, prisma } from '@comicai/db';
 import type { OAuthProvider } from '@comicai/types';
+import { urlSafeToken } from '../../common/tokens';
 import { ADAPTERS, type OAuthProfile } from './oauth.providers';
 
 const STATE_TTL_SECONDS = 10 * 60;
@@ -37,7 +37,7 @@ export class OAuthService implements OnModuleDestroy {
 
   async startAuth(provider: OAuthProvider, returnTo?: string): Promise<string> {
     const cfg = this.requireProvider(provider);
-    const state = randomBytes(32).toString('base64url');
+    const state = urlSafeToken();
     await this.redis.set(
       STATE_PREFIX + state,
       JSON.stringify({ provider, returnTo: returnTo ?? null }),

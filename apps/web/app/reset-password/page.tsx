@@ -3,7 +3,7 @@ import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api, ApiError } from '@/lib/api';
-import { ApiPaths } from '@comicai/types';
+import { ApiPaths, PASSWORD_MIN_LENGTH, PASSWORD_PATTERN } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -49,8 +49,8 @@ function ResetPasswordForm() {
         <Input
           type="password"
           required
-          minLength={10}
-          pattern="(?=.*[A-Za-z])(?=.*\d).{10,}"
+          minLength={PASSWORD_MIN_LENGTH}
+          pattern={PASSWORD_PATTERN}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="mt-1"

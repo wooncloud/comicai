@@ -7,7 +7,17 @@ export * from './paths';
 export type ModelProvider = 'gemini' | 'openai' | 'mock';
 export type ModelId = 'gemini-nano-banana' | 'gpt-image-1' | 'mock';
 
-export type OAuthProvider = 'google' | 'github';
+export const OAUTH_PROVIDERS = ['google', 'github'] as const;
+export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
+
+export const RENDER_STATUSES = [
+  'queued',
+  'running',
+  'succeeded',
+  'failed',
+  'timeout',
+  'canceled',
+] as const;
 
 export interface SessionInfo {
   id: string;
@@ -130,7 +140,29 @@ export interface ProjectDTO {
 }
 
 // ─── 렌더 ──────────────────────────────────────
-export type RenderStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'canceled';
+export type RenderStatus = (typeof RENDER_STATUSES)[number];
+
+export interface BoundingBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export function shapeBoundingBox(shape: PanelShape): BoundingBox {
+  if (!shape.points.length) return { x: 0, y: 0, w: 1, h: 1 };
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of shape.points) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
 
 export type RenderErrorCategory = 'transient' | 'auth' | 'quota' | 'safety' | 'invalid' | 'timeout';
 

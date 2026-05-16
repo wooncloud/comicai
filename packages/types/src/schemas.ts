@@ -3,10 +3,14 @@ import { z } from 'zod';
 
 // ─── 인증 ─────────────────────────────────────
 // 10자 이상, 영문+숫자 (spec docs/20-ux/screens/02-auth-signup.md §3)
+export const PASSWORD_MIN_LENGTH = 10;
+export const PASSWORD_MAX_LENGTH = 200;
+export const PASSWORD_PATTERN = '(?=.*[A-Za-z])(?=.*\\d).{10,}';
+
 const PasswordSchema = z
   .string()
-  .min(10)
-  .max(200)
+  .min(PASSWORD_MIN_LENGTH)
+  .max(PASSWORD_MAX_LENGTH)
   .regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, '영문과 숫자를 각각 1자 이상 포함해야 합니다.');
 
 export const CredentialsSchema = z.object({
