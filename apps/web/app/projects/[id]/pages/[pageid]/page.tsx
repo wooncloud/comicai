@@ -1,14 +1,33 @@
 'use client';
-import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
+import type { Editor, TLShapeId } from 'tldraw';
 import { api } from '@/lib/api';
 import { useProject } from '@/lib/use-project';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
-import { ApiPaths, type PageDTO, type PanelDTO, type PanelShape } from '@comicai/types';
-import { PageCanvas } from '@/components/editor/page-canvas';
+import { ApiPaths, type PageDTO, type PanelDTO } from '@comicai/types';
 import { PanelInspector } from '@/components/editor/panel-inspector';
+import { PageSidebar } from '@/components/editor/page-sidebar';
+import { ToolToggle } from '@/components/editor/tool-toggle';
+import { SaveStatus } from '@/components/editor/save-status';
 import { ExportDialog } from '@/components/editor/export-dialog';
+import { usePanelSync } from '@/components/editor/tldraw/use-panel-sync';
+import type { ComicPanelShape } from '@/components/editor/tldraw/comic-panel-shape';
+
+const ComicEditor = dynamic(
+  () => import('@/components/editor/tldraw/comic-editor').then((m) => m.ComicEditor),
+  { ssr: false, loading: () => <CanvasFallback /> },
+);
+
+function CanvasFallback() {
+  return (
+    <div className="flex h-full items-center justify-center text-body-sm text-muted-foreground">
+      에디터 로딩…
+    </div>
+  );
+}
 
 export default function PageEditor() {
   const params = useParams<{ id: string; pageid: string }>();
@@ -16,8 +35,11 @@ export default function PageEditor() {
   const project = useProject(projectId);
   const [page, setPage] = useState<PageDTO | null>(null);
   const [panels, setPanels] = useState<PanelDTO[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
+  const [editor, setEditor] = useState<Editor | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 
   useEffect(() => {
     if (!pageId) return;
@@ -31,56 +53,76 @@ export default function PageEditor() {
     })();
   }, [pageId]);
 
-  async function createPanel(shape: PanelShape) {
-    const created = await api<PanelDTO>(ApiPaths.pagePanels(pageId), {
-      method: 'POST',
-      body: JSON.stringify({ shape }),
-    });
-    setPanels((prev) => [...prev, created]);
-    setSelectedId(created.id);
-  }
+  const onSavingChange = useCallback((v: boolean) => {
+    setSaving(v);
+    if (!v) setLastSavedAt(Date.now());
+  }, []);
 
-  const selected = panels.find((p) => p.id === selectedId) ?? null;
+  usePanelSync({
+    editor,
+    pageId,
+    panels,
+    onPanelsChanged: setPanels,
+    onSavingChange,
+  });
+
+  // tldraw selection ↔ selectedPanelId
+  useEffect(() => {
+    if (!editor) return;
+    const unsub = editor.store.listen(
+      () => {
+        const ids = editor.getSelectedShapeIds();
+        if (ids.length === 0) {
+          setSelectedPanelId(null);
+          return;
+        }
+        const shape = editor.getShape(ids[0] as TLShapeId);
+        if (shape?.type === 'comic-panel') {
+          setSelectedPanelId((shape as ComicPanelShape).props.panelId);
+        }
+      },
+      { source: 'user' },
+    );
+    return () => unsub();
+  }, [editor]);
+
+  const selected = useMemo(
+    () => panels.find((p) => p.id === selectedPanelId) ?? null,
+    [panels, selectedPanelId],
+  );
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-border bg-background px-6 py-3">
-        <Breadcrumb
-          items={[
-            { label: '대시보드', href: '/dashboard' },
-            { label: project?.name ?? '…', href: `/projects/${projectId}` },
-            { label: `페이지 ${page ? page.order + 1 : '…'}` },
-          ]}
-        />
+      <header className="flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-2">
         <div className="flex items-center gap-3">
-          <span className="text-caption text-muted-foreground">
-            패널 {panels.length}개 · 드래그로 새 패널 생성
-          </span>
+          <Breadcrumb
+            items={[
+              { label: '대시보드', href: '/dashboard' },
+              { label: project?.name ?? '…', href: `/projects/${projectId}` },
+              { label: `p${page ? page.order + 1 : '…'}` },
+            ]}
+          />
+          <ToolToggle editor={editor} />
+        </div>
+        <div className="flex items-center gap-3">
+          <SaveStatus state={saving ? 'saving' : 'idle'} lastSavedAt={lastSavedAt} />
           <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
             내보내기
           </Button>
         </div>
       </header>
+
       <ExportDialog
         open={exportOpen}
         onOpenChange={setExportOpen}
         pageId={pageId}
         panels={panels}
       />
+
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-auto bg-neutral-100 p-6 dark:bg-neutral-900">
-          <div className="mx-auto" style={{ width: 'fit-content' }}>
-            {page && (
-              <PageCanvas
-                width={page.size.w}
-                height={page.size.h}
-                panels={panels}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                onCreate={createPanel}
-              />
-            )}
-          </div>
+        <PageSidebar projectId={projectId} currentPageId={pageId} />
+        <div className="relative flex-1 bg-muted/40">
+          <ComicEditor onMount={setEditor} />
         </div>
         {selected ? (
           <PanelInspector
@@ -88,17 +130,16 @@ export default function PageEditor() {
             panel={selected}
             onPanelUpdated={(p) => setPanels((prev) => prev.map((x) => (x.id === p.id ? p : x)))}
             onPanelDeleted={() => {
-              setPanels((prev) => prev.filter((x) => x.id !== selectedId));
-              setSelectedId(null);
+              setPanels((prev) => prev.filter((x) => x.id !== selectedPanelId));
+              setSelectedPanelId(null);
             }}
           />
         ) : (
-          <aside className="flex w-64 flex-col items-center justify-center border-l border-neutral-200 bg-neutral-50 p-6 text-center text-xs text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900">
-            <div className="text-2xl text-neutral-300 dark:text-neutral-700">◯</div>
+          <aside className="flex w-72 flex-col items-center justify-center border-l border-border bg-card p-6 text-center text-body-sm text-muted-foreground">
+            <div className="text-display-md text-muted-foreground/30">◯</div>
             <p className="mt-3">
               패널을 선택하거나
-              <br />
-              캔버스에서 드래그해 만드세요.
+              <br />P 도구로 새 패널을 그려보세요.
             </p>
           </aside>
         )}
