@@ -44,8 +44,7 @@ export class RenderQueue implements OnModuleDestroy {
   }
 }
 
-function parseRedis(url: string) {
-  // bullmq accepts { host, port } or a connection options object
+export function parseRedis(url: string) {
   const u = new URL(url);
   return {
     host: u.hostname,
@@ -57,9 +56,6 @@ function parseRedis(url: string) {
 export function idempotencyKey(ir: RenderIR, userId: string, model: ModelId): string {
   return (
     'job_' +
-    createHash('sha256')
-      .update(JSON.stringify({ ir, userId, model }))
-      .digest('hex')
-      .slice(0, 32)
+    createHash('sha256').update(JSON.stringify({ ir, userId, model })).digest('hex').slice(0, 32)
   );
 }

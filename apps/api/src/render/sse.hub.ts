@@ -8,19 +8,16 @@ interface BufferedEvent {
 }
 
 const BUFFER_LIMIT = 64;
+// 완료/실패 후 재연결 클라이언트의 마지막 replay를 위해 5분간 유지.
+const TERMINAL_RETENTION_MS = 5 * 60_000;
+const TERMINAL_STATUSES = new Set(['succeeded', 'failed', 'timeout', 'canceled']);
 
-/**
- * jobId 별 SSE 구독자 집합. 메모리 단일 인스턴스 가정.
- * (멀티 워커 환경에선 Redis pub/sub로 확장)
- *
- * 각 이벤트에 단조 증가 seq id를 부여하고 마지막 BUFFER_LIMIT개를 보관.
- * 클라이언트는 Last-Event-ID 헤더로 누락분만 받아간다 (spec 07-error-reliability).
- */
 @Injectable()
 export class SseHub {
   private readonly subs = new Map<string, Set<Response>>();
   private readonly buffers = new Map<string, BufferedEvent[]>();
   private readonly counters = new Map<string, number>();
+  private readonly cleanupTimers = new Map<string, NodeJS.Timeout>();
 
   subscribe(jobId: string, res: Response, lastEventId?: string) {
     let set = this.subs.get(jobId);
@@ -49,13 +46,29 @@ export class SseHub {
     if (buf.length > BUFFER_LIMIT) buf.shift();
     this.buffers.set(jobId, buf);
     const subs = this.subs.get(jobId);
-    if (!subs) return;
-    const wire = formatSseEvent(evt, seq);
-    for (const res of subs) res.write(wire);
+    if (subs) {
+      const wire = formatSseEvent(evt, seq);
+      for (const res of subs) res.write(wire);
+    }
+    if (evt.type === 'status' && TERMINAL_STATUSES.has(evt.status)) {
+      this.scheduleCleanup(jobId);
+    }
   }
 
   ping(jobId: string) {
     this.publish(jobId, { type: 'ping', at: new Date().toISOString() });
+  }
+
+  private scheduleCleanup(jobId: string) {
+    const existing = this.cleanupTimers.get(jobId);
+    if (existing) clearTimeout(existing);
+    const t = setTimeout(() => {
+      this.buffers.delete(jobId);
+      this.counters.delete(jobId);
+      this.cleanupTimers.delete(jobId);
+    }, TERMINAL_RETENTION_MS);
+    t.unref?.();
+    this.cleanupTimers.set(jobId, t);
   }
 }
 

@@ -1,16 +1,13 @@
-// 클라이언트에서 백엔드 API 호출용 래퍼.
-// 세션 쿠키 전송을 위해 항상 credentials: 'include'.
-// 응답은 spec 03-api-contracts §0 envelope: { data } / { error: { code, message, details } }.
-import { API_PREFIX, type ErrorCode } from '@comicai/types';
+// 백엔드 API 호출 래퍼. credentials: 'include' + envelope unwrap.
+import { API_PREFIX, CSRF_COOKIE_NAME, CSRF_HEADER_NAME, type ErrorCode } from '@comicai/types';
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000') + API_PREFIX;
-const CSRF_COOKIE = 'comicai_csrf';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export class ApiError extends Error {
   constructor(
     public status: number,
-    public code: ErrorCode | (string & {}),
+    public code: ErrorCode | 'HTTP_ERROR',
     message: string,
     public details?: unknown,
   ) {
@@ -20,8 +17,8 @@ export class ApiError extends Error {
 
 function readCsrfToken(): string | undefined {
   if (typeof document === 'undefined') return undefined;
-  const match = document.cookie.split('; ').find((c) => c.startsWith(`${CSRF_COOKIE}=`));
-  return match ? decodeURIComponent(match.slice(CSRF_COOKIE.length + 1)) : undefined;
+  const match = document.cookie.split('; ').find((c) => c.startsWith(`${CSRF_COOKIE_NAME}=`));
+  return match ? decodeURIComponent(match.slice(CSRF_COOKIE_NAME.length + 1)) : undefined;
 }
 
 export async function api<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
@@ -32,7 +29,7 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}): Pr
   };
   if (!SAFE_METHODS.has(method)) {
     const csrf = readCsrfToken();
-    if (csrf) headers['x-csrf-token'] = csrf;
+    if (csrf) headers[CSRF_HEADER_NAME] = csrf;
   }
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
@@ -40,19 +37,19 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}): Pr
     headers,
   });
   if (!res.ok) {
-    let code = 'HTTP_ERROR';
+    let code: ErrorCode | 'HTTP_ERROR' = 'HTTP_ERROR';
     let message = res.statusText;
     let details: unknown;
     try {
       const body = await res.json();
       const err = body?.error;
       if (err && typeof err === 'object') {
-        code = typeof err.code === 'string' ? err.code : code;
-        message = typeof err.message === 'string' ? err.message : message;
+        if (typeof err.code === 'string') code = err.code as ErrorCode | 'HTTP_ERROR';
+        if (typeof err.message === 'string') message = err.message;
         details = err.details;
       } else {
-        code = body?.code ?? code;
-        message = body?.message ?? message;
+        if (typeof body?.code === 'string') code = body.code as ErrorCode | 'HTTP_ERROR';
+        if (typeof body?.message === 'string') message = body.message;
       }
     } catch {
       // ignore

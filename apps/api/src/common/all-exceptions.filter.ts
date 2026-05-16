@@ -17,9 +17,24 @@ interface ErrorEnvelope {
   };
 }
 
-/**
- * 모든 예외를 spec 03-api-contracts §0의 `{ error: { code, message, details } }` 형태로 직렬화.
- */
+const STATUS_TO_CODE: Record<number, string> = {
+  400: 'BAD_REQUEST',
+  401: 'UNAUTHORIZED',
+  403: 'FORBIDDEN',
+  404: 'NOT_FOUND',
+  409: 'CONFLICT',
+  429: 'RATE_LIMITED',
+};
+
+// 서비스 레이어는 message 없이 { code }만 throw하는 컨벤션 — 사용자-노출용 한국어 텍스트 매핑.
+const CODE_TO_MESSAGE: Record<string, string> = {
+  NO_SESSION: '인증이 필요합니다.',
+  SESSION_EXPIRED: '인증이 필요합니다.',
+  INVALID_CREDENTIALS: '이메일 또는 비밀번호가 올바르지 않습니다.',
+  EMAIL_TAKEN: '이미 사용 중인 이메일입니다.',
+  VALIDATION_ERROR: '입력 검증 실패',
+};
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -49,8 +64,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
-      const resp = exception.getResponse();
-      return { status, body: this.fromHttpException(status, resp) };
+      return { status, body: fromHttpException(status, exception) };
     }
 
     return {
@@ -58,47 +72,26 @@ export class AllExceptionsFilter implements ExceptionFilter {
       body: { error: { code: 'INTERNAL_ERROR', message: '서버 내부 오류' } },
     };
   }
-
-  private fromHttpException(status: number, resp: unknown): ErrorEnvelope {
-    if (typeof resp === 'string') {
-      return { error: { code: defaultCode(status), message: resp } };
-    }
-    if (resp && typeof resp === 'object') {
-      const r = resp as Record<string, unknown>;
-      const code = typeof r.code === 'string' ? r.code : defaultCode(status);
-      const message = typeof r.message === 'string' ? r.message : codeToMessage(code, status);
-      const { code: _c, message: _m, statusCode: _s, error: _e, ...rest } = r;
-      const details = Object.keys(rest).length > 0 ? rest : undefined;
-      return { error: { code, message, ...(details !== undefined ? { details } : {}) } };
-    }
-    return {
-      error: { code: defaultCode(status), message: codeToMessage(defaultCode(status), status) },
-    };
-  }
 }
 
 function defaultCode(status: number): string {
-  if (status === 400) return 'BAD_REQUEST';
-  if (status === 401) return 'UNAUTHORIZED';
-  if (status === 403) return 'FORBIDDEN';
-  if (status === 404) return 'NOT_FOUND';
-  if (status === 409) return 'CONFLICT';
-  if (status === 429) return 'RATE_LIMITED';
-  return 'INTERNAL_ERROR';
+  return STATUS_TO_CODE[status] ?? 'INTERNAL_ERROR';
 }
 
-function codeToMessage(code: string, status: number): string {
-  switch (code) {
-    case 'NO_SESSION':
-    case 'SESSION_EXPIRED':
-      return '인증이 필요합니다.';
-    case 'INVALID_CREDENTIALS':
-      return '이메일 또는 비밀번호가 올바르지 않습니다.';
-    case 'EMAIL_TAKEN':
-      return '이미 사용 중인 이메일입니다.';
-    case 'VALIDATION_ERROR':
-      return '입력 검증 실패';
-    default:
-      return `HTTP ${status}`;
+function fromHttpException(status: number, exception: HttpException): ErrorEnvelope {
+  const resp = exception.getResponse();
+  if (typeof resp === 'string') {
+    return { error: { code: defaultCode(status), message: resp } };
   }
+  if (resp && typeof resp === 'object') {
+    const r = resp as Record<string, unknown>;
+    const code = typeof r.code === 'string' ? r.code : defaultCode(status);
+    const message =
+      typeof r.message === 'string' ? r.message : (CODE_TO_MESSAGE[code] ?? exception.message);
+    const { code: _c, message: _m, statusCode: _s, error: _e, ...rest } = r;
+    const details = Object.keys(rest).length > 0 ? rest : undefined;
+    return { error: { code, message, ...(details !== undefined ? { details } : {}) } };
+  }
+  const code = defaultCode(status);
+  return { error: { code, message: CODE_TO_MESSAGE[code] ?? exception.message } };
 }

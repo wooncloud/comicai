@@ -2,10 +2,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
-import type { ApiKeySummary, ModelProvider } from '@comicai/types';
+import { ApiPaths, type ApiKeySummary, type ModelProvider } from '@comicai/types';
 import { ApiKeyList } from '@/components/api-key-list';
 import { ApiKeyForm } from '@/components/api-key-form';
 import { AppShell } from '@/components/shell/app-shell';
+import { Button } from '@/components/ui/button';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function SettingsPage() {
 
   async function refresh() {
     try {
-      const list = await api<ApiKeySummary[]>('/api-keys');
+      const list = await api<ApiKeySummary[]>(ApiPaths.apiKeys);
       setKeys(list);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
@@ -30,7 +31,7 @@ export default function SettingsPage() {
   }, []);
 
   async function onCreate(provider: ModelProvider, label: string, key: string) {
-    await api('/api-keys', {
+    await api(ApiPaths.apiKeys, {
       method: 'POST',
       body: JSON.stringify({ provider, label, key }),
     });
@@ -38,17 +39,17 @@ export default function SettingsPage() {
   }
 
   async function onDelete(id: string) {
-    await api(`/api-keys/${id}`, { method: 'DELETE' });
+    await api(ApiPaths.apiKey(id), { method: 'DELETE' });
     await refresh();
   }
 
   async function onVerify(id: string) {
-    await api(`/api-keys/${id}/verify`, { method: 'POST' });
+    await api(ApiPaths.apiKeyVerify(id), { method: 'POST' });
     await refresh();
   }
 
   async function onLogout() {
-    await api('/auth/logout', { method: 'POST' });
+    await api(ApiPaths.logout, { method: 'POST' });
     router.push('/');
   }
 
@@ -57,12 +58,9 @@ export default function SettingsPage() {
       <main className="mx-auto max-w-2xl px-6 py-16">
         <div className="flex items-baseline justify-between">
           <h1 className="text-2xl font-semibold">설정</h1>
-          <button
-            onClick={onLogout}
-            className="text-sm text-neutral-600 underline hover:text-neutral-900"
-          >
+          <Button variant="link" size="sm" onClick={onLogout}>
             로그아웃
-          </button>
+          </Button>
         </div>
 
         <section className="mt-12">

@@ -60,10 +60,6 @@ export class StorageService implements OnModuleInit {
     }
   }
 
-  /**
-   * 이미지 바이트를 spec 09-storage 키 규칙에 맞춰 업로드하고 ImageRef 반환.
-   * width/height가 0이면 sharp로 자동 계측.
-   */
   async putImage(
     scope: ImageScope,
     bytes: Uint8Array,
@@ -79,7 +75,7 @@ export class StorageService implements OnModuleInit {
         w = meta.width ?? 0;
         h = meta.height ?? 0;
       } catch {
-        // 메타데이터 추출 실패 — 일단 진행
+        // sharp는 잘린 이미지에서 throw — caller가 이미 크기 검증을 했으면 0으로 통과.
       }
     }
     const key = buildKey(scope, mimeType);
@@ -87,9 +83,6 @@ export class StorageService implements OnModuleInit {
     return { storageKey: key, width: w, height: h, mimeType };
   }
 
-  /**
-   * 256px 썸네일을 `{key}.thumb.webp`로 생성.
-   */
   async putThumbnail(originalKey: string, bytes: Uint8Array): Promise<string> {
     const thumbKey = `${originalKey}.thumb.webp`;
     const thumb = await sharp(Buffer.from(bytes))
@@ -100,10 +93,6 @@ export class StorageService implements OnModuleInit {
     return thumbKey;
   }
 
-  /**
-   * 업로드 버퍼를 검증/리사이즈한 뒤 본 이미지+썸네일을 저장하고 ImageRef를 반환.
-   * consistency/panel 업로드 두 곳에서 공유.
-   */
   async storeUploadedImage(scope: ImageScope, fileBuffer: Buffer): Promise<ImageRef> {
     const validated = await validateAndNormalizeImage(fileBuffer);
     const ref = await this.putImage(
@@ -121,7 +110,6 @@ export class StorageService implements OnModuleInit {
     return ref;
   }
 
-  /** 다운로드용 pre-signed URL (15분 TTL). */
   async presignDownload(key: string): Promise<{ url: string; expiresAt: string }> {
     const cmd = new GetObjectCommand({ Bucket: this.bucket, Key: key });
     const url = await getSignedUrl(this.client, cmd, { expiresIn: PRESIGN_TTL_SECONDS });

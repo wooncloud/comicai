@@ -2,8 +2,15 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { useDebounced } from '@/lib/use-debounced';
-import type { PanelDTO, RenderJobDTO, RenderStatus, TipTapDoc, ModelId } from '@comicai/types';
-import { emptyDoc } from '@comicai/types';
+import {
+  ApiPaths,
+  emptyDoc,
+  type PanelDTO,
+  type RenderJobDTO,
+  type RenderStatus,
+  type TipTapDoc,
+  type ModelId,
+} from '@comicai/types';
 import { PanelTextEditor } from './panel-editor';
 import { PanelStatusBadge } from './panel-status-badge';
 import { HistoryTray } from './history-tray';
@@ -36,7 +43,7 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
     setDoc(panel.text ?? emptyDoc());
     setError(null);
     if (panel.currentRenderId) {
-      api<RenderJobDTO>(`/render-jobs/${panel.currentRenderId}`)
+      api<RenderJobDTO>(ApiPaths.renderJob(panel.currentRenderId))
         .then((j) => {
           setStatus(j.status);
           setResultImage(j.resultImage?.storageKey ?? null);
@@ -51,7 +58,7 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
   // 자동저장: doc 변경 후 800ms 후 PATCH
   useDebounced(doc, 800, async (next) => {
     try {
-      const updated = await api<PanelDTO>(`/panels/${panel.id}`, {
+      const updated = await api<PanelDTO>(ApiPaths.panel(panel.id), {
         method: 'PATCH',
         body: JSON.stringify({ text: next }),
       });
@@ -68,7 +75,7 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
     setError(null);
     setResultImage(null);
     try {
-      const { jobId } = await api<{ jobId: string }>(`/panels/${panel.id}/render`, {
+      const { jobId } = await api<{ jobId: string }>(ApiPaths.panelRender(panel.id), {
         method: 'POST',
         body: JSON.stringify({ model }),
       });
@@ -81,10 +88,15 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
 
   function subscribeJob(jobId: string) {
     const base = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000') + '/v1';
-    const es = new EventSource(`${base}/render-jobs/${jobId}/events`, { withCredentials: true });
+    const es = new EventSource(`${base}${ApiPaths.renderJobEvents(jobId)}`, {
+      withCredentials: true,
+    });
     es.addEventListener('status', (e) => {
       try {
-        const payload = JSON.parse((e as MessageEvent).data) as { status: RenderStatus; resultImage?: { storageKey: string } };
+        const payload = JSON.parse((e as MessageEvent).data) as {
+          status: RenderStatus;
+          resultImage?: { storageKey: string };
+        };
         setStatus(payload.status);
         if (payload.resultImage) setResultImage(payload.resultImage.storageKey);
         if (payload.status === 'succeeded') {
@@ -108,7 +120,7 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
 
   async function onDelete() {
     if (!confirm('패널을 삭제하시겠습니까?')) return;
-    await api(`/panels/${panel.id}`, { method: 'DELETE' });
+    await api(ApiPaths.panel(panel.id), { method: 'DELETE' });
     onPanelDeleted();
   }
 
@@ -142,7 +154,9 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
           className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
         >
           {MODEL_OPTIONS.map((m) => (
-            <option key={m.id} value={m.id}>{m.label}</option>
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
           ))}
         </select>
         <button
@@ -154,7 +168,11 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
         </button>
       </div>
 
-      <HistoryTray panelId={panel.id} currentRenderId={panel.currentRenderId} refreshKey={historyKey} />
+      <HistoryTray
+        panelId={panel.id}
+        currentRenderId={panel.currentRenderId}
+        refreshKey={historyKey}
+      />
 
       <div className="mt-auto">
         <button onClick={onDelete} className="text-xs text-red-600 underline">

@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -15,33 +14,26 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { z } from 'zod';
+import {
+  ConsistencyCreateSchema,
+  ConsistencyPatchSchema,
+  EntityTypeSchema,
+  type EntityType,
+} from '@comicai/types';
 import { ConsistencyService } from './consistency.service';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
-
-const EntityTypeSchema = z.enum(['style', 'character', 'background', 'worldview']);
-const CreateSchema = z.object({
-  type: EntityTypeSchema,
-  name: z.string().min(1).max(120),
-  aliases: z.array(z.string().min(1)).max(20).default([]),
-  description: z.string().max(4000).default(''),
-});
-const PatchSchema = z.object({
-  name: z.string().min(1).max(120).optional(),
-  aliases: z.array(z.string().min(1)).max(20).optional(),
-  description: z.string().max(4000).optional(),
-});
+import { requireUploadedFile } from '../common/upload';
 
 class CreateDto {
-  static zodSchema = CreateSchema;
-  type!: 'style' | 'character' | 'background' | 'worldview';
+  static zodSchema = ConsistencyCreateSchema;
+  type!: EntityType;
   name!: string;
   aliases!: string[];
   description!: string;
 }
 class PatchDto {
-  static zodSchema = PatchSchema;
+  static zodSchema = ConsistencyPatchSchema;
   name?: string;
   aliases?: string[];
   description?: string;
@@ -82,12 +74,6 @@ export class ConsistencyController {
     @Param('id') id: string,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    if (!file) {
-      throw new BadRequestException({
-        code: 'VALIDATION_ERROR',
-        message: 'multipart field "file"이 필요합니다.',
-      });
-    }
-    return this.svc.appendImage(req.user.id, id, file.buffer);
+    return this.svc.appendImage(req.user.id, id, requireUploadedFile(file).buffer);
   }
 }

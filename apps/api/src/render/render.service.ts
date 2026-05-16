@@ -5,8 +5,6 @@ import { PanelsService } from '../panels/panels.service';
 import { buildRenderIR } from './ir.builder';
 import { RenderQueue, idempotencyKey } from './render.queue';
 
-const PANEL_HISTORY_MAX = 20;
-
 @Injectable()
 export class RenderService {
   constructor(
@@ -29,8 +27,6 @@ export class RenderService {
       });
     }
 
-    // jobId = sha256(ir + user + model) — spec 07-error-reliability §3.
-    // 동일 입력에 대한 중복 요청을 멱등 처리: 기존 작업이 있으면 그대로 반환.
     const jobId = idempotencyKey(ir, userId, model);
     const existing = await prisma.renderJob.findUnique({ where: { id: jobId } });
     if (existing) {
@@ -49,14 +45,9 @@ export class RenderService {
     });
     await this.queue.enqueue({ renderJobId: jobId, userId, model }, ir);
 
-    const fresh = await prisma.panel.findUnique({
-      where: { id: panel.id },
-      select: { history: true },
-    });
-    const next = trimHistory([...(fresh?.history ?? []), jobId]);
     await prisma.panel.update({
       where: { id: panel.id },
-      data: { currentRenderId: jobId, history: { set: next } },
+      data: { currentRenderId: jobId, history: { push: jobId } },
     });
     return { jobId };
   }
@@ -90,9 +81,4 @@ export class RenderService {
       data: { status: 'canceled', finishedAt: new Date() },
     });
   }
-}
-
-function trimHistory(ids: string[]): string[] {
-  if (ids.length <= PANEL_HISTORY_MAX) return ids;
-  return ids.slice(ids.length - PANEL_HISTORY_MAX);
 }

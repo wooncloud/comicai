@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/shell/app-shell';
 import { api } from '@/lib/api';
-import { btnSecondary } from '@/lib/ui-classes';
-import type { PageDTO, ProjectDTO } from '@comicai/types';
+import { ApiPaths, type PageDTO, type ProjectDTO } from '@comicai/types';
+import { Button } from '@/components/ui/button';
 
 export default function ProjectDetail() {
   const params = useParams<{ id: string }>();
@@ -13,25 +13,25 @@ export default function ProjectDetail() {
   const [project, setProject] = useState<ProjectDTO | null>(null);
   const [pages, setPages] = useState<PageDTO[]>([]);
 
-  async function refresh() {
-    const [p, pg] = await Promise.all([
-      api<ProjectDTO>(`/projects/${projectId}`),
-      api<PageDTO[]>(`/projects/${projectId}/pages`),
-    ]);
-    setProject(p);
-    setPages(pg);
+  async function loadProject() {
+    setProject(await api<ProjectDTO>(ApiPaths.project(projectId)));
+  }
+  async function loadPages() {
+    setPages(await api<PageDTO[]>(ApiPaths.projectPages(projectId)));
   }
 
   useEffect(() => {
-    if (projectId) refresh();
+    if (!projectId) return;
+    void loadProject();
+    void loadPages();
   }, [projectId]);
 
   async function addPage() {
-    await api(`/projects/${projectId}/pages`, {
+    await api(ApiPaths.projectPages(projectId), {
       method: 'POST',
       body: JSON.stringify({ size: { w: 800, h: 1200 } }),
     });
-    await refresh();
+    await loadPages();
   }
 
   return (
@@ -39,43 +39,29 @@ export default function ProjectDetail() {
       <div className="mx-auto max-w-3xl px-6 py-12">
         <div className="flex items-baseline justify-between">
           <h1 className="text-2xl font-semibold">{project?.name ?? '로딩…'}</h1>
-          <Link
-            href={`/projects/${projectId}/consistency`}
-            className={btnSecondary}
-          >
-            일관성 관리
-          </Link>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/projects/${projectId}/consistency`}>일관성 관리</Link>
+          </Button>
         </div>
 
         <section className="mt-10">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium">페이지</h2>
-            <button
-              onClick={addPage}
-              className={btnSecondary}
-            >
+            <Button onClick={addPage} variant="outline" size="sm">
               + 페이지 추가
-            </button>
+            </Button>
           </div>
           {pages.length === 0 ? (
             <div className="mt-4 rounded-md border border-dashed border-neutral-300 p-12 text-center text-sm text-neutral-500 dark:border-neutral-700">
               아직 페이지가 없습니다.
-              <button
-                onClick={addPage}
-                className="ml-2 text-neutral-900 underline dark:text-white"
-              >
+              <button onClick={addPage} className="ml-2 text-neutral-900 underline dark:text-white">
                 첫 페이지 만들기
               </button>
             </div>
           ) : (
             <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {pages.map((p) => (
-                <PageCard
-                  key={p.id}
-                  projectId={projectId}
-                  page={p}
-                  onChanged={refresh}
-                />
+                <PageCard key={p.id} projectId={projectId} page={p} onChanged={loadPages} />
               ))}
             </ul>
           )}
@@ -98,7 +84,7 @@ function PageCard({
     e.preventDefault();
     e.stopPropagation();
     if (!confirm(`페이지 ${page.order + 1}을(를) 삭제하시겠습니까?`)) return;
-    await api(`/pages/${page.id}`, { method: 'DELETE' });
+    await api(ApiPaths.page(page.id), { method: 'DELETE' });
     await onChanged();
   }
   return (

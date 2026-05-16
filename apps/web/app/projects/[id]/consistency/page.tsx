@@ -5,7 +5,9 @@ import { AppShell } from '@/components/shell/app-shell';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { api } from '@/lib/api';
 import { useProject } from '@/lib/use-project';
-import type { ConsistencyEntityDTO, EntityType } from '@comicai/types';
+import { ApiPaths, type ConsistencyEntityDTO, type EntityType } from '@comicai/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 const TABS: { key: EntityType; label: string }[] = [
   { key: 'style', label: '그림체' },
@@ -25,7 +27,7 @@ export default function ConsistencyPage() {
 
   async function refresh() {
     const list = await api<ConsistencyEntityDTO[]>(
-      `/projects/${projectId}/consistency?type=${tab}`,
+      `${ApiPaths.projectConsistency(projectId)}?type=${tab}`,
     );
     setItems(list);
   }
@@ -38,13 +40,19 @@ export default function ConsistencyPage() {
     e.preventDefault();
     const payload = {
       name: form.name,
-      aliases: form.aliases.split(',').map((s) => s.trim()).filter(Boolean),
+      aliases: form.aliases
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
       description: form.description,
     };
     if (editing) {
-      await api(`/consistency/${editing.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      await api(ApiPaths.consistency(editing.id), {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
     } else {
-      await api(`/projects/${projectId}/consistency`, {
+      await api(ApiPaths.projectConsistency(projectId), {
         method: 'POST',
         body: JSON.stringify({ type: tab, ...payload }),
       });
@@ -56,7 +64,7 @@ export default function ConsistencyPage() {
 
   async function remove(id: string) {
     if (!confirm('삭제하시겠습니까?')) return;
-    await api(`/consistency/${id}`, { method: 'DELETE' });
+    await api(ApiPaths.consistency(id), { method: 'DELETE' });
     await refresh();
   }
 
@@ -85,7 +93,11 @@ export default function ConsistencyPage() {
           {TABS.map((t) => (
             <button
               key={t.key}
-              onClick={() => { setTab(t.key); setEditing(null); setForm({ name: '', aliases: '', description: '' }); }}
+              onClick={() => {
+                setTab(t.key);
+                setEditing(null);
+                setForm({ name: '', aliases: '', description: '' });
+              }}
               className={`-mb-px border-b-2 px-3 py-2 text-sm ${
                 tab === t.key
                   ? 'border-neutral-900 font-medium dark:border-white'
@@ -137,41 +149,40 @@ export default function ConsistencyPage() {
             className="space-y-3 rounded-md border border-neutral-200 p-4 text-sm dark:border-neutral-800"
           >
             <div className="font-medium">{editing ? `${editing.name} 수정` : '새 항목'}</div>
-            <input
+            <Input
               required
               placeholder="이름"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
             />
-            <input
+            <Input
               placeholder="별칭 (쉼표 구분)"
               value={form.aliases}
               onChange={(e) => setForm({ ...form, aliases: e.target.value })}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
             />
             <textarea
               placeholder="설명"
               rows={5}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
             <div className="flex gap-2">
-              <button
-                type="submit"
-                className="rounded-md bg-neutral-900 px-3 py-1.5 text-white dark:bg-white dark:text-neutral-900"
-              >
+              <Button type="submit" size="sm">
                 {editing ? '저장' : '추가'}
-              </button>
+              </Button>
               {editing && (
-                <button
+                <Button
                   type="button"
-                  onClick={() => { setEditing(null); setForm({ name: '', aliases: '', description: '' }); }}
-                  className="rounded-md border border-neutral-300 px-3 py-1.5 dark:border-neutral-700"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setEditing(null);
+                    setForm({ name: '', aliases: '', description: '' });
+                  }}
                 >
                   취소
-                </button>
+                </Button>
               )}
             </div>
           </form>

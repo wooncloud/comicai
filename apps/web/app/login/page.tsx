@@ -3,6 +3,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, ApiError } from '@/lib/api';
+import { ApiPaths } from '@comicai/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,7 +19,7 @@ export default function LoginPage() {
     setError(null);
     setPending(true);
     try {
-      await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+      await api(ApiPaths.login, { method: 'POST', body: JSON.stringify({ email, password }) });
       router.push('/settings');
     } catch (err) {
       if (err instanceof ApiError && err.code === 'INVALID_CREDENTIALS') {
@@ -35,33 +38,29 @@ export default function LoginPage() {
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <label className="block">
           <span className="text-sm">이메일</span>
-          <input
+          <Input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1"
           />
         </label>
         <label className="block">
           <span className="text-sm">비밀번호</span>
-          <input
+          <Input
             type="password"
             required
             minLength={10}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1"
           />
         </label>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={pending}
-          className="w-full rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-        >
+        <Button type="submit" disabled={pending} className="w-full">
           {pending ? '로그인 중…' : '로그인'}
-        </button>
+        </Button>
       </form>
       <p className="mt-6 text-sm text-neutral-600">
         계정이 없나요?{' '}

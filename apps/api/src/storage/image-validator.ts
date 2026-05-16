@@ -55,16 +55,17 @@ export async function validateAndNormalizeImage(buf: Buffer): Promise<ValidatedI
   let outW = meta.width;
   let outH = meta.height;
   if (needsResize) {
-    const pipeline = sharp(buf).resize({
-      width: MAX_DIMENSION,
-      height: MAX_DIMENSION,
-      fit: 'inside',
-      withoutEnlargement: true,
-    });
-    outBuf = await pipeline.toBuffer();
-    const resized = await sharp(outBuf).metadata();
-    outW = resized.width ?? outW;
-    outH = resized.height ?? outH;
+    const { data, info } = await sharp(buf)
+      .resize({
+        width: MAX_DIMENSION,
+        height: MAX_DIMENSION,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .toBuffer({ resolveWithObject: true });
+    outBuf = data;
+    outW = info.width;
+    outH = info.height;
   }
 
   return {

@@ -51,19 +51,24 @@ export class ExportService {
       : [];
     const jobById = new Map(jobs.map((j) => [j.id, j]));
 
-    const composites: sharp.OverlayOptions[] = [];
-    for (const panel of page.panels) {
-      if (!panel.currentRenderId) continue;
-      const job = jobById.get(panel.currentRenderId);
-      if (!job?.resultImage) continue;
-      const ref = job.resultImage as unknown as ImageRef;
-      const box = shapeBoundingBox(panel.shape as unknown as PanelShape);
-      const { bytes } = await this.storage.getBytes(ref.storageKey);
-      const resized = await sharp(Buffer.from(bytes))
-        .resize({ width: Math.round(box.w), height: Math.round(box.h), fit: 'cover' })
-        .toBuffer();
-      composites.push({ input: resized, left: Math.round(box.x), top: Math.round(box.y) });
-    }
+    const composites = await Promise.all(
+      page.panels
+        .filter((p) => p.currentRenderId && jobById.get(p.currentRenderId)?.resultImage)
+        .map(async (panel) => {
+          const job = jobById.get(panel.currentRenderId!)!;
+          const ref = job.resultImage as unknown as ImageRef;
+          const box = shapeBoundingBox(panel.shape as unknown as PanelShape);
+          const { bytes } = await this.storage.getBytes(ref.storageKey);
+          const resized = await sharp(Buffer.from(bytes))
+            .resize({ width: Math.round(box.w), height: Math.round(box.h), fit: 'cover' })
+            .toBuffer();
+          return {
+            input: resized,
+            left: Math.round(box.x),
+            top: Math.round(box.y),
+          } satisfies sharp.OverlayOptions;
+        }),
+    );
 
     let canvas = sharp({
       create: {

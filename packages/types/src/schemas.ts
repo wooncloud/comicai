@@ -67,3 +67,32 @@ export const ExportRequestSchema = z.object({
   dpi: z.number().int().min(72).max(600).default(150).optional(),
 });
 export type ExportRequest = z.infer<typeof ExportRequestSchema>;
+
+// ─── 패널 ─────────────────────────────────────
+export const PanelPointSchema = z.object({ x: z.number(), y: z.number() });
+export const PanelShapeSchema = z.object({
+  type: z.enum(['rect', 'polygon']),
+  points: z.array(PanelPointSchema).min(3).max(64),
+  strokeColor: z.string().max(32).default('#000000'),
+  strokeWidth: z.number().nonnegative().default(2),
+});
+export type PanelShapeInput = z.infer<typeof PanelShapeSchema>;
+export const PanelCreateSchema = z.object({ shape: PanelShapeSchema });
+export const PanelPatchSchema = z.object({
+  shape: PanelShapeSchema.optional(),
+  text: z.any().optional(),
+});
+
+// ─── 일관성 ───────────────────────────────────
+export const EntityTypeSchema = z.enum(['style', 'character', 'background', 'worldview']);
+export const ConsistencyCreateSchema = z.object({
+  type: EntityTypeSchema,
+  name: z.string().min(1).max(120),
+  aliases: z.array(z.string().min(1)).max(20).default([]),
+  description: z.string().max(4000).default(''),
+});
+export const ConsistencyPatchSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  aliases: z.array(z.string().min(1)).max(20).optional(),
+  description: z.string().max(4000).optional(),
+});

@@ -98,11 +98,7 @@ export class ConsistencyService {
       { kind: 'consistency-ref', projectId: owned.projectId, entityId: owned.id },
       fileBuffer,
     );
-    const current = await prisma.consistencyEntity.findUniqueOrThrow({
-      where: { id: owned.id },
-      select: { refImages: true },
-    });
-    const refs = (current.refImages as unknown as ImageRef[]) ?? [];
+    const refs = (owned.refImages as unknown as ImageRef[]) ?? [];
     const row = await prisma.consistencyEntity.update({
       where: { id: owned.id },
       data: {
@@ -116,7 +112,12 @@ export class ConsistencyService {
   private async findOwned(userId: string, id: string) {
     const row = await prisma.consistencyEntity.findUnique({
       where: { id },
-      select: { id: true, projectId: true, project: { select: { userId: true } } },
+      select: {
+        id: true,
+        projectId: true,
+        refImages: true,
+        project: { select: { userId: true } },
+      },
     });
     if (!row) throw new NotFoundException({ code: 'CONSISTENCY_NOT_FOUND' });
     if (row.project.userId !== userId) throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });

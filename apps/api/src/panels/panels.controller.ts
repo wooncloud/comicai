@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -14,31 +13,19 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { z } from 'zod';
+import { PanelCreateSchema, PanelPatchSchema, type PanelShapeInput } from '@comicai/types';
 import { PanelsService } from './panels.service';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
-
-const PointSchema = z.object({ x: z.number(), y: z.number() });
-const ShapeSchema = z.object({
-  type: z.enum(['rect', 'polygon']),
-  points: z.array(PointSchema).min(3).max(64),
-  strokeColor: z.string().max(32).default('#000000'),
-  strokeWidth: z.number().nonnegative().default(2),
-});
-const CreateSchema = z.object({ shape: ShapeSchema });
-const PatchSchema = z.object({
-  shape: ShapeSchema.optional(),
-  text: z.any().optional(),
-});
+import { requireUploadedFile } from '../common/upload';
 
 class CreateDto {
-  static zodSchema = CreateSchema;
-  shape!: z.infer<typeof ShapeSchema>;
+  static zodSchema = PanelCreateSchema;
+  shape!: PanelShapeInput;
 }
 class PatchDto {
-  static zodSchema = PatchSchema;
-  shape?: z.infer<typeof ShapeSchema>;
+  static zodSchema = PanelPatchSchema;
+  shape?: PanelShapeInput;
   text?: unknown;
 }
 
@@ -81,12 +68,6 @@ export class PanelsController {
     @Param('id') id: string,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    if (!file) {
-      throw new BadRequestException({
-        code: 'VALIDATION_ERROR',
-        message: 'multipart field "file"이 필요합니다.',
-      });
-    }
-    return this.svc.appendUpload(req.user.id, id, file.buffer);
+    return this.svc.appendUpload(req.user.id, id, requireUploadedFile(file).buffer);
   }
 }

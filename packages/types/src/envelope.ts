@@ -10,6 +10,7 @@ export type ErrorCode =
   | 'BAD_REQUEST'
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR'
+  | 'CSRF_INVALID'
   // 인증
   | 'NO_SESSION'
   | 'SESSION_EXPIRED'
@@ -22,6 +23,7 @@ export type ErrorCode =
   | 'PANEL_NOT_FOUND'
   | 'PAGE_NOT_FOUND'
   | 'API_KEY_NOT_FOUND'
+  | 'API_KEY_VERIFY_FAILED'
   | 'CONSISTENCY_NOT_FOUND'
   // 렌더
   | 'RENDER_QUOTA_EXCEEDED'
@@ -35,7 +37,7 @@ export type ErrorCode =
   | 'UPLOAD_DIMENSIONS_INVALID';
 
 export interface ApiErrorPayload {
-  code: ErrorCode | (string & {});
+  code: ErrorCode;
   message: string;
   details?: unknown;
 }

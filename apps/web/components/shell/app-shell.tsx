@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
-import type { SessionUser } from '@comicai/types';
+import { ApiPaths, type SessionUser } from '@comicai/types';
 
 const NAV = [
   { href: '/projects', label: '프로젝트' },
@@ -15,20 +15,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [me, setMe] = useState<SessionUser | null>(null);
 
   useEffect(() => {
-    api<SessionUser>('/me')
+    api<SessionUser>(ApiPaths.me)
       .then(setMe)
       .catch((err) => {
         if (err instanceof ApiError && err.status === 401) {
           if (
             typeof window !== 'undefined' &&
-            !path?.startsWith('/login') &&
-            !path?.startsWith('/signup')
+            !window.location.pathname.startsWith('/login') &&
+            !window.location.pathname.startsWith('/signup')
           ) {
             window.location.href = '/login';
           }
         }
       });
-  }, [path]);
+  }, []);
 
   return (
     <div className="flex min-h-screen">

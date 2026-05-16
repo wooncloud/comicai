@@ -1,10 +1,11 @@
 import { ForbiddenException, Injectable, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import { randomBytes } from 'node:crypto';
+import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@comicai/types';
 import { SESSION_COOKIE } from '../auth/session.service';
 
-export const CSRF_COOKIE = 'comicai_csrf';
-const CSRF_HEADER = 'x-csrf-token';
+export const CSRF_COOKIE = CSRF_COOKIE_NAME;
+const SKIP_PATHS = new Set(['/healthz', '/metrics']);
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
@@ -16,14 +17,18 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 @Injectable()
 export class CsrfMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
+    if (SKIP_PATHS.has(req.path)) return next();
+    const sessionCookie = req.cookies?.[SESSION_COOKIE];
     if (SAFE_METHODS.has(req.method)) {
-      ensureCsrfCookie(req, res);
+      if (sessionCookie && !req.cookies?.[CSRF_COOKIE]) {
+        const secure = (req as Request & { secure?: boolean }).secure ?? false;
+        issueCsrfToken(res, secure);
+      }
       return next();
     }
-    const hasSession = Boolean(req.cookies?.[SESSION_COOKIE]);
-    if (!hasSession) return next(); // 인증되지 않은 요청은 가드에서 처리.
+    if (!sessionCookie) return next(); // 인증되지 않은 요청은 가드에서 처리.
 
-    const headerToken = req.headers[CSRF_HEADER];
+    const headerToken = req.headers[CSRF_HEADER_NAME];
     const cookieToken = req.cookies?.[CSRF_COOKIE];
     if (
       typeof headerToken !== 'string' ||
@@ -48,11 +53,4 @@ export function issueCsrfToken(res: Response, secure: boolean): string {
     path: '/',
   });
   return token;
-}
-
-function ensureCsrfCookie(req: Request, res: Response) {
-  if (req.cookies?.[CSRF_COOKIE]) return;
-  if (!req.cookies?.[SESSION_COOKIE]) return; // 세션 없으면 토큰도 의미 없음.
-  const secure = (req as Request & { secure?: boolean }).secure ?? false;
-  issueCsrfToken(res, secure);
 }

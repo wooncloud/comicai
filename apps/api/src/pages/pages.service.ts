@@ -4,8 +4,12 @@ import type { PageDTO, ImageRef } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
 
 function toDto(row: {
-  id: string; projectId: string; order: number; size: unknown;
-  background: unknown; createdAt: Date;
+  id: string;
+  projectId: string;
+  order: number;
+  size: unknown;
+  background: unknown;
+  createdAt: Date;
 }): PageDTO {
   return {
     id: row.id,
@@ -30,7 +34,11 @@ export class PagesService {
     return rows.map(toDto);
   }
 
-  async create(userId: string, projectId: string, size: { w: number; h: number }): Promise<PageDTO> {
+  async create(
+    userId: string,
+    projectId: string,
+    size: { w: number; h: number },
+  ): Promise<PageDTO> {
     await this.projects.assertOwned(userId, projectId);
     const last = await prisma.page.findFirst({
       where: { projectId },
@@ -38,7 +46,12 @@ export class PagesService {
       select: { order: true },
     });
     const row = await prisma.page.create({
-      data: { id: newId('page'), projectId, order: (last?.order ?? -1) + 1, size: size as unknown as object },
+      data: {
+        id: newId('page'),
+        projectId,
+        order: (last?.order ?? -1) + 1,
+        size: size as unknown as object,
+      },
     });
     return toDto(row);
   }
@@ -49,7 +62,11 @@ export class PagesService {
     return toDto(row);
   }
 
-  async patch(userId: string, id: string, patch: { order?: number; size?: { w: number; h: number } }) {
+  async patch(
+    userId: string,
+    id: string,
+    patch: { order?: number; size?: { w: number; h: number } },
+  ) {
     await this.findOwned(userId, id);
     const row = await prisma.page.update({
       where: { id },
@@ -68,8 +85,8 @@ export class PagesService {
       where: { id },
       select: { id: true, projectId: true, project: { select: { userId: true } } },
     });
-    if (!row) throw new NotFoundException({ code: 'resource/not_found' });
-    if (row.project.userId !== userId) throw new ForbiddenException({ code: 'auth/forbidden' });
+    if (!row) throw new NotFoundException({ code: 'PAGE_NOT_FOUND' });
+    if (row.project.userId !== userId) throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
     return row;
   }
 }

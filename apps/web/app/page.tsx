@@ -3,13 +3,14 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { ApiPaths } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 
 export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    api('/me')
+    api(ApiPaths.me)
       .then(() => router.replace('/projects'))
       .catch(() => {});
   }, [router]);

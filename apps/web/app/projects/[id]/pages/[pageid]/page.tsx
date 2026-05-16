@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useProject } from '@/lib/use-project';
-import { btnSecondaryXs } from '@/lib/ui-classes';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
-import type { PageDTO, PanelDTO, PanelShape } from '@comicai/types';
+import { Button } from '@/components/ui/button';
+import { ApiPaths, type PageDTO, type PanelDTO, type PanelShape } from '@comicai/types';
 import { PageCanvas } from '@/components/editor/page-canvas';
 import { PanelInspector } from '@/components/editor/panel-inspector';
 import { useToast } from '@/components/ui/toast';
@@ -23,7 +23,7 @@ export default function PageEditor() {
   async function exportPage(format: 'png' | 'jpg') {
     setExporting(true);
     try {
-      const result = await api<{ storageKey: string }>(`/pages/${pageId}/export`, {
+      const result = await api<{ storageKey: string }>(ApiPaths.pageExport(pageId), {
         method: 'POST',
         body: JSON.stringify({ format }),
       });
@@ -39,8 +39,8 @@ export default function PageEditor() {
     if (!pageId) return;
     (async () => {
       const [p, list] = await Promise.all([
-        api<PageDTO>(`/pages/${pageId}`),
-        api<PanelDTO[]>(`/pages/${pageId}/panels`),
+        api<PageDTO>(ApiPaths.page(pageId)),
+        api<PanelDTO[]>(ApiPaths.pagePanels(pageId)),
       ]);
       setPage(p);
       setPanels(list);
@@ -48,7 +48,7 @@ export default function PageEditor() {
   }, [pageId]);
 
   async function createPanel(shape: PanelShape) {
-    const created = await api<PanelDTO>(`/pages/${pageId}/panels`, {
+    const created = await api<PanelDTO>(ApiPaths.pagePanels(pageId), {
       method: 'POST',
       body: JSON.stringify({ shape }),
     });
@@ -72,12 +72,22 @@ export default function PageEditor() {
           <span className="text-xs text-neutral-500">
             패널 {panels.length}개 · 드래그로 새 패널 생성
           </span>
-          <button onClick={() => exportPage('png')} disabled={exporting} className={btnSecondaryXs}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportPage('png')}
+            disabled={exporting}
+          >
             PNG 내보내기
-          </button>
-          <button onClick={() => exportPage('jpg')} disabled={exporting} className={btnSecondaryXs}>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportPage('jpg')}
+            disabled={exporting}
+          >
             JPG 내보내기
-          </button>
+          </Button>
         </div>
       </header>
       <div className="flex flex-1 overflow-hidden">
@@ -99,9 +109,7 @@ export default function PageEditor() {
           <PanelInspector
             projectId={projectId}
             panel={selected}
-            onPanelUpdated={(p) =>
-              setPanels((prev) => prev.map((x) => (x.id === p.id ? p : x)))
-            }
+            onPanelUpdated={(p) => setPanels((prev) => prev.map((x) => (x.id === p.id ? p : x)))}
             onPanelDeleted={() => {
               setPanels((prev) => prev.filter((x) => x.id !== selectedId));
               setSelectedId(null);

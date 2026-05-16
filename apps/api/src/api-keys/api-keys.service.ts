@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { newId, prisma } from '@comicai/db';
 import { open, seal } from './crypto';
 import { verifyApiKey } from './api-keys.verifier';
@@ -54,12 +59,10 @@ export class ApiKeysService {
   }
 
   async remove(userId: string, id: string) {
-    const row = await prisma.apiKey.findFirst({ where: { id, userId } });
-    if (!row) throw new NotFoundException({ code: 'API_KEY_NOT_FOUND' });
-    await prisma.apiKey.delete({ where: { id } });
+    const res = await prisma.apiKey.deleteMany({ where: { id, userId } });
+    if (res.count === 0) throw new NotFoundException({ code: 'API_KEY_NOT_FOUND' });
   }
 
-  /** spec 03-api-contracts.md POST /api-keys/:id/verify */
   async verify(userId: string, id: string) {
     const row = await prisma.apiKey.findFirst({ where: { id, userId } });
     if (!row) throw new NotFoundException({ code: 'API_KEY_NOT_FOUND' });
@@ -76,14 +79,14 @@ export class ApiKeysService {
     }
     if (result.category === 'auth') {
       await prisma.apiKey.update({ where: { id }, data: { isActive: false } });
-      throw new BadRequestException({
-        code: 'RENDER_AUTH_FAILED',
+      throw new UnauthorizedException({
+        code: 'API_KEY_VERIFY_FAILED',
         message: '키 인증에 실패했습니다. 비활성화되었습니다.',
-        details: { status: result.status },
+        details: { status: result.status, category: 'auth' },
       });
     }
-    throw new BadRequestException({
-      code: 'BAD_REQUEST',
+    throw new BadGatewayException({
+      code: 'API_KEY_VERIFY_FAILED',
       message: `검증 실패: ${result.message}`,
       details: { status: result.status, category: result.category },
     });

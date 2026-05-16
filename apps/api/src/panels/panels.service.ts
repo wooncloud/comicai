@@ -81,11 +81,7 @@ export class PanelsService {
       { kind: 'panel-upload', projectId: owned.projectId, panelId: owned.id },
       fileBuffer,
     );
-    const current = await prisma.panel.findUniqueOrThrow({
-      where: { id: owned.id },
-      select: { refImages: true },
-    });
-    const refs = (current.refImages as unknown as ImageRef[]) ?? [];
+    const refs = (owned.refImages as unknown as ImageRef[]) ?? [];
     const row = await prisma.panel.update({
       where: { id: owned.id },
       data: { refImages: [...refs, ref] as unknown as object },
@@ -114,18 +110,27 @@ export class PanelsService {
     }));
   }
 
-  async assertOwned(userId: string, id: string) {
+  async assertOwned(
+    userId: string,
+    id: string,
+  ): Promise<{ id: string; pageId: string; projectId: string; refImages: unknown }> {
     const row = await prisma.panel.findUnique({
       where: { id },
       select: {
         id: true,
         pageId: true,
+        refImages: true,
         page: { select: { project: { select: { userId: true, id: true } } } },
       },
     });
     if (!row) throw new NotFoundException({ code: 'PANEL_NOT_FOUND' });
     if (row.page.project.userId !== userId)
       throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
-    return { id: row.id, pageId: row.pageId, projectId: row.page.project.id };
+    return {
+      id: row.id,
+      pageId: row.pageId,
+      projectId: row.page.project.id,
+      refImages: row.refImages,
+    };
   }
 }
