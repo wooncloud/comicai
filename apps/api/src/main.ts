@@ -22,4 +22,4 @@ async function bootstrap() {
   app.get(Logger).log(`api listening on :${port}`);
 }
 
-bootstrap();
+void bootstrap();

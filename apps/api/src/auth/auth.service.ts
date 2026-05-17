@@ -14,7 +14,7 @@ export class AuthService {
 
   async verify(email: string, password: string) {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.passwordHash) throw new UnauthorizedException({ code: 'INVALID_CREDENTIALS' });
+    if (!user?.passwordHash) throw new UnauthorizedException({ code: 'INVALID_CREDENTIALS' });
     const ok = await argon2.verify(user.passwordHash, password);
     if (!ok) throw new UnauthorizedException({ code: 'INVALID_CREDENTIALS' });
     return { id: user.id, email: user.email };

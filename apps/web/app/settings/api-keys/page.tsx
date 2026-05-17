@@ -25,7 +25,7 @@ export default function ApiKeysSettingsPage() {
   }
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   async function onCreate(provider: ModelProvider, label: string, key: string) {

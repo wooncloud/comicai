@@ -84,7 +84,7 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
         where: { id: renderJobId },
         data: {
           status: 'succeeded',
-          resultImage: stored as unknown as object,
+          resultImage: stored,
           finishedAt: new Date(),
         },
       });
@@ -111,7 +111,7 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
         where: { id: renderJobId },
         data: {
           status: finalStatus,
-          error: classified as unknown as object,
+          error: classified,
           finishedAt: new Date(),
         },
       });

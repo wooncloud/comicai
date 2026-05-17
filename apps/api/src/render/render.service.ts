@@ -41,7 +41,7 @@ export class RenderService {
         panelId: panel.id,
         userId,
         model,
-        ir: ir as unknown as object,
+        ir: ir,
         status: 'queued',
       },
     });
@@ -56,7 +56,7 @@ export class RenderService {
 
   async getJob(userId: string, id: string): Promise<RenderJobDTO> {
     const row = await prisma.renderJob.findUnique({ where: { id } });
-    if (!row || row.userId !== userId) {
+    if (row?.userId !== userId) {
       throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
     }
     const resultImage = (row.resultImage as unknown as ImageRef) ?? null;
@@ -81,7 +81,7 @@ export class RenderService {
       where: { id },
       select: { userId: true, status: true },
     });
-    if (!row || row.userId !== userId) {
+    if (row?.userId !== userId) {
       throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
     }
     if (row.status === 'succeeded' || row.status === 'failed') {

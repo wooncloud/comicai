@@ -126,7 +126,7 @@ export class OAuthService implements OnModuleDestroy {
         await prisma.user.update({
           where: { id: existing.id },
           data: {
-            oauthProviders: Array.from(providers) as unknown as object,
+            oauthProviders: Array.from(providers),
             emailVerifiedAt: needsVerify ? new Date() : undefined,
           },
         });
@@ -139,7 +139,7 @@ export class OAuthService implements OnModuleDestroy {
         email: profile.email,
         displayName: profile.displayName,
         avatarUrl: profile.avatarUrl,
-        oauthProviders: [provider] as unknown as object,
+        oauthProviders: [provider],
         emailVerifiedAt: profile.emailVerified ? new Date() : null,
       },
       select: { id: true, email: true },

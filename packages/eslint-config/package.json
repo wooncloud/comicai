@@ -1,0 +1,14 @@
+{
+  "name": "@comicai/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./base.js",
+  "exports": {
+    "./base": "./base.js",
+    "./web": "./web.js"
+  },
+  "peerDependencies": {
+    "eslint": "^9"
+  }
+}

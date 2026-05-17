@@ -69,7 +69,7 @@ export function ProjectCard({ project, onPatched, onRemoved }: Props) {
             value={draft ?? ''}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') save();
+              if (e.key === 'Enter') void save();
               if (e.key === 'Escape') setDraft(null);
             }}
             className="flex-1"

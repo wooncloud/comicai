@@ -22,7 +22,7 @@ export function HistoryTray({ panelId, currentRenderId, onRestored }: Props) {
       api<PanelDTO>(ApiPaths.renderJobRestore(jobId), { method: 'POST' }),
     onSuccess: (panel) => {
       onRestored?.(panel);
-      queryClient.invalidateQueries({ queryKey: ['panel-history', panelId] });
+      void queryClient.invalidateQueries({ queryKey: ['panel-history', panelId] });
     },
   });
 

@@ -130,7 +130,7 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') commit();
+            if (e.key === 'Enter') void commit();
             else if (e.key === 'Escape') {
               setDraft(page.name ?? '');
               setEditing(false);
@@ -142,7 +142,7 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
         />
         <button
           type="button"
-          onClick={commit}
+          onClick={() => void commit()}
           disabled={busy}
           title="저장"
           className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-50"

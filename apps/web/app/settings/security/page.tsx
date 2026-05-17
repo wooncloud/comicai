@@ -179,7 +179,7 @@ function SessionsSection({
   async function revoke(sid: string) {
     if (!confirm('이 세션을 종료하시겠습니까?')) return;
     await api(ApiPaths.meSession(sid), { method: 'DELETE' });
-    await onChanged();
+    onChanged();
   }
 
   if (!sessions) return null;

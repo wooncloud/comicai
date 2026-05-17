@@ -85,7 +85,7 @@ function PageCard({
     e.stopPropagation();
     if (!confirm(`페이지 ${page.order + 1}을(를) 삭제하시겠습니까?`)) return;
     await api(ApiPaths.page(page.id), { method: 'DELETE' });
-    await onChanged();
+    onChanged();
   }
   return (
     <li className="group relative">

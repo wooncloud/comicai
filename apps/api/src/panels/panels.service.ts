@@ -34,10 +34,10 @@ function panelDto(
   return {
     id: row.id,
     pageId: row.pageId,
-    shape: row.shape as unknown as PanelShape,
-    conti: (row.conti as unknown as ImageRef) ?? null,
-    text: (row.text as unknown as TipTapDoc) ?? emptyDoc(),
-    refImages: (row.refImages as unknown as ImageRef[]) ?? [],
+    shape: row.shape as PanelShape,
+    conti: (row.conti as ImageRef) ?? null,
+    text: (row.text as TipTapDoc) ?? emptyDoc(),
+    refImages: (row.refImages as ImageRef[]) ?? [],
     currentRenderId: row.currentRenderId,
     currentRenderStatus: render.status,
     currentRenderImageUrl: render.imageUrl,
@@ -90,8 +90,8 @@ export class PanelsService {
       data: {
         id: newId('panel'),
         pageId,
-        shape: shape as unknown as object,
-        text: emptyDoc() as unknown as object,
+        shape: shape,
+        text: emptyDoc(),
       },
     });
     return panelDto(row);
@@ -100,8 +100,8 @@ export class PanelsService {
   async patch(userId: string, id: string, patch: { shape?: PanelShape; text?: unknown }) {
     await this.assertOwned(userId, id);
     const data: Record<string, unknown> = {};
-    if (patch.shape) data.shape = patch.shape as unknown as object;
-    if (patch.text) data.text = patch.text as unknown as object;
+    if (patch.shape) data.shape = patch.shape;
+    if (patch.text) data.text = patch.text;
     const row = await prisma.panel.update({ where: { id }, data: data as never });
     // 응답에 항상 현재 render 정보까지 채워 보냄 — 누락 시 클라이언트가 panels state를
     // 덮으며 imageUrl을 null로 잃는 회귀 위험(efac8df 사례).
@@ -119,10 +119,10 @@ export class PanelsService {
       { kind: 'panel-upload', projectId: owned.projectId, panelId: owned.id },
       fileBuffer,
     );
-    const refs = (owned.refImages as unknown as ImageRef[]) ?? [];
+    const refs = (owned.refImages as ImageRef[]) ?? [];
     const row = await prisma.panel.update({
       where: { id: owned.id },
-      data: { refImages: [...refs, ref] as unknown as object },
+      data: { refImages: [...refs, ref] },
     });
     return panelDto(row, await this.loadRender(row.currentRenderId));
   }
@@ -180,7 +180,7 @@ export class PanelsService {
       where: { id: jobId },
       select: { id: true, panelId: true, userId: true, status: true, resultImage: true },
     });
-    if (!job || job.userId !== userId) {
+    if (job?.userId !== userId) {
       throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
     }
     if (job.status !== 'succeeded') {

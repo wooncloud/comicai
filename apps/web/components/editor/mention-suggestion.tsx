@@ -82,9 +82,7 @@ export function createMentionSuggestion(
     char: '@',
     items: async ({ query }) => {
       try {
-        const list = await api<ConsistencyEntityDTO[]>(
-          `/projects/${projectId}/consistency`,
-        );
+        const list = await api<ConsistencyEntityDTO[]>(`/projects/${projectId}/consistency`);
         const lower = query.toLowerCase();
         const filtered = list.filter((e) => {
           const hay = [e.name, ...e.aliases].join(' ').toLowerCase();
@@ -104,45 +102,47 @@ export function createMentionSuggestion(
       let popup: HTMLDivElement | null = null;
       let component: { destroy: () => void; updateProps: (p: ListProps) => void } | null = null;
       return {
-        onStart: async (props) => {
-          const { createRoot } = await import('react-dom/client');
-          const { default: React } = await import('react');
-          popup = document.createElement('div');
-          popup.style.position = 'absolute';
-          popup.style.zIndex = '50';
-          document.body.appendChild(popup);
-          const root = createRoot(popup);
-          let currentProps: ListProps = {
-            items: props.items,
-            command: (item) => props.command(item as never),
-          };
-          const ref: { current: unknown } = { current: null };
-          const render = (p: ListProps) =>
-            root.render(React.createElement(MentionList as never, { ...p, ref } as never));
-          render(currentProps);
-          const rect = props.clientRect?.();
-          if (rect) {
-            popup.style.left = `${rect.left}px`;
-            popup.style.top = `${rect.bottom + 4}px`;
-          }
-          component = {
-            destroy: () => {
-              root.unmount();
-              popup?.remove();
-              popup = null;
-            },
-            updateProps: (p) => {
-              currentProps = p;
-              render(p);
-            },
-          };
-          (component as unknown as { ref: typeof ref }).ref = ref;
+        onStart: (props) => {
+          void (async () => {
+            const { createRoot } = await import('react-dom/client');
+            const { default: React } = await import('react');
+            popup = document.createElement('div');
+            popup.style.position = 'absolute';
+            popup.style.zIndex = '50';
+            document.body.appendChild(popup);
+            const root = createRoot(popup);
+            let currentProps: ListProps = {
+              items: props.items,
+              command: (item) => props.command(item),
+            };
+            const ref: { current: unknown } = { current: null };
+            const render = (p: ListProps) =>
+              root.render(React.createElement(MentionList as never, { ...p, ref } as never));
+            render(currentProps);
+            const rect = props.clientRect?.();
+            if (rect) {
+              popup.style.left = `${rect.left}px`;
+              popup.style.top = `${rect.bottom + 4}px`;
+            }
+            component = {
+              destroy: () => {
+                root.unmount();
+                popup?.remove();
+                popup = null;
+              },
+              updateProps: (p) => {
+                currentProps = p;
+                render(p);
+              },
+            };
+            (component as unknown as { ref: typeof ref }).ref = ref;
+          })();
         },
         onUpdate: (props) => {
           if (!component || !popup) return;
           component.updateProps({
             items: props.items,
-            command: (item) => props.command(item as never),
+            command: (item) => props.command(item),
           });
           const rect = props.clientRect?.();
           if (rect) {
@@ -151,7 +151,11 @@ export function createMentionSuggestion(
           }
         },
         onKeyDown: (props) => {
-          const ref = (component as unknown as { ref?: { current?: { onKeyDown: (p: { event: KeyboardEvent }) => boolean } } })?.ref;
+          const ref = (
+            component as unknown as {
+              ref?: { current?: { onKeyDown: (p: { event: KeyboardEvent }) => boolean } };
+            }
+          )?.ref;
           return ref?.current?.onKeyDown({ event: props.event }) ?? false;
         },
         onExit: () => {

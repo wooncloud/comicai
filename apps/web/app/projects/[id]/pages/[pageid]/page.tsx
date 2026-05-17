@@ -45,7 +45,7 @@ export default function PageEditor() {
 
   useEffect(() => {
     if (!pageId) return;
-    (async () => {
+    void (async () => {
       const [p, list] = await Promise.all([
         api<PageDTO>(ApiPaths.page(pageId)),
         api<PanelDTO[]>(ApiPaths.pagePanels(pageId)),
@@ -123,7 +123,7 @@ export default function PageEditor() {
               onChange={(size) => {
                 // 옵티미스틱: 프레임이 즉시 새 크기로 갱신되도록 로컬 먼저 갱신.
                 setPage((prev) => (prev ? { ...prev, size } : prev));
-                api<PageDTO>(ApiPaths.page(pageId), {
+                void api<PageDTO>(ApiPaths.page(pageId), {
                   method: 'PATCH',
                   body: JSON.stringify({ size }),
                 }).then(setPage);

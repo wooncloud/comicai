@@ -18,7 +18,7 @@ function toDto(row: {
     order: row.order,
     name: row.name,
     size: row.size as { w: number; h: number },
-    background: (row.background as unknown as ImageRef) ?? null,
+    background: (row.background as ImageRef) ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -52,7 +52,7 @@ export class PagesService {
         id: newId('page'),
         projectId,
         order: (last?.order ?? -1) + 1,
-        size: size as unknown as object,
+        size: size,
       },
     });
     return toDto(row);
@@ -72,7 +72,7 @@ export class PagesService {
     await this.findOwned(userId, id);
     const row = await prisma.page.update({
       where: { id },
-      data: { ...patch, size: patch.size as unknown as object | undefined },
+      data: { ...patch, size: patch.size },
     });
     return toDto(row);
   }

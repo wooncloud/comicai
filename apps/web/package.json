@@ -6,7 +6,7 @@
     "dev": "next dev -p ${WEB_PORT:-3000}",
     "build": "next build",
     "start": "next start -p ${WEB_PORT:-3000}",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium"
@@ -37,6 +37,7 @@
     "tldraw": "^3.15.6"
   },
   "devDependencies": {
+    "@comicai/eslint-config": "workspace:^",
     "@playwright/test": "^1.60.0",
     "@types/node": "^22.7.4",
     "@types/react": "^18.3.11",

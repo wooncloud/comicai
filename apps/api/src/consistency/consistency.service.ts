@@ -26,7 +26,7 @@ function toDto(
     name: row.name,
     aliases: row.aliases,
     description: row.description,
-    refImages: (row.refImages as unknown as ImageRef[]) ?? [],
+    refImages: (row.refImages as ImageRef[]) ?? [],
     refImageUrls,
     version: row.version,
     createdAt: row.createdAt.toISOString(),
@@ -55,7 +55,7 @@ export class ConsistencyService {
   }
 
   private async dtoWithUrls(row: Parameters<typeof toDto>[0]): Promise<ConsistencyEntityDTO> {
-    const refs = (row.refImages as unknown as ImageRef[]) ?? [];
+    const refs = (row.refImages as ImageRef[]) ?? [];
     const urls = await Promise.all(
       refs.map(async (ref) => (await this.storage.presignDownload(ref.storageKey)).url),
     );
@@ -118,7 +118,7 @@ export class ConsistencyService {
     const row = await prisma.consistencyEntity.update({
       where: { id: owned.id },
       data: {
-        refImages: [...existing, ...newRefs] as unknown as object,
+        refImages: [...existing, ...newRefs],
         version: { increment: 1 },
       },
     });

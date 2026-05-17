@@ -117,7 +117,7 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
     esRef.current = es;
     es.addEventListener('status', (e) => {
       try {
-        const { status: next } = JSON.parse((e as MessageEvent).data) as { status: RenderStatus };
+        const { status: next } = JSON.parse(e.data) as { status: RenderStatus };
         queryClient.setQueryData<RenderJobDTO>(['render-job', jobId], (prev) =>
           prev ? { ...prev, status: next } : ({ id: jobId, status: next } as RenderJobDTO),
         );
@@ -132,13 +132,13 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
             })
             .catch(() => {});
           toast.push('success', '렌더 완료');
-          queryClient.invalidateQueries({ queryKey: ['panel-history', panel.id] });
+          void queryClient.invalidateQueries({ queryKey: ['panel-history', panel.id] });
           es.close();
           esRef.current = null;
         } else if (next === 'failed' || next === 'canceled') {
           patchRender({ currentRenderStatus: next });
           toast.push('error', next === 'failed' ? '렌더 실패' : '렌더 취소됨');
-          queryClient.invalidateQueries({ queryKey: ['panel-history', panel.id] });
+          void queryClient.invalidateQueries({ queryKey: ['panel-history', panel.id] });
           es.close();
           esRef.current = null;
         } else {
@@ -170,7 +170,7 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
       <PanelTextEditor projectId={projectId} initial={doc} onChange={setDoc} />
 
       <PanelShapePicker
-        value={(panel.shape.type ?? 'rect') as PanelShapeType}
+        value={panel.shape.type ?? 'rect'}
         onChange={async (variant) => {
           if (variant === panel.shape.type) return;
           try {

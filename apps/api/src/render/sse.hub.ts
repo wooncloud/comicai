@@ -87,8 +87,8 @@ export class SseHub implements OnModuleInit, OnModuleDestroy {
       }
     }
     res.on('close', () => {
-      set!.delete(res);
-      if (set!.size === 0) this.subs.delete(jobId);
+      set.delete(res);
+      if (set.size === 0) this.subs.delete(jobId);
     });
   }
 

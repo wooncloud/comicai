@@ -40,7 +40,7 @@ export default function ConsistencyPage() {
   }
 
   useEffect(() => {
-    if (projectId) refresh();
+    if (projectId) void refresh();
   }, [projectId, tab]);
 
   async function save(e: React.FormEvent) {

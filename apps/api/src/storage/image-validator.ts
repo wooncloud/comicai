@@ -37,7 +37,7 @@ export async function validateAndNormalizeImage(buf: Buffer): Promise<ValidatedI
   const meta = await sharp(buf)
     .metadata()
     .catch(() => null);
-  if (!meta || !meta.format || !ALLOWED_FORMATS.has(meta.format)) {
+  if (!meta?.format || !ALLOWED_FORMATS.has(meta.format)) {
     throw new BadRequestException({
       code: 'UPLOAD_TYPE_NOT_ALLOWED',
       message: 'PNG/JPEG/WebP만 허용됩니다.',

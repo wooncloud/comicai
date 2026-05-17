@@ -68,7 +68,7 @@ function ApiKeyRow({
           size="sm"
           className="text-destructive hover:text-destructive"
           onClick={() => {
-            if (confirm(`"${item.label}" 키를 삭제하시겠습니까?`)) onDelete(item.id);
+            if (confirm(`"${item.label}" 키를 삭제하시겠습니까?`)) void onDelete(item.id);
           }}
         >
           삭제

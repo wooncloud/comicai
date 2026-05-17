@@ -7,12 +7,14 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint ."
   },
   "dependencies": {
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@comicai/eslint-config": "workspace:^",
     "typescript": "^5.6.2",
     "vitest": "^2.1.2"
   }
