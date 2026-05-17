@@ -119,10 +119,10 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | panelId     | String                | no       | **FK 없음**, 인덱스만                      |
 | userId      | String                | no       | FK→users (cascade)                         |
 | model       | String                | no       | `RenderModelSchema` enum (`schemas.ts:78`) |
-| ir          | Json                  | no       | `RenderIR` (`index.ts:235`)                |
+| ir          | Json                  | no       | `RenderIR` (`index.ts:244`)                |
 | status      | String                | no       | `RENDER_STATUSES` (`index.ts:13`)          |
 | resultImage | Json (`result_image`) | yes      | `ImageRef`                                 |
-| error       | Json                  | yes      | `RenderError` (`index.ts:213`)             |
+| error       | Json                  | yes      | `RenderError` (`index.ts:222`)             |
 | attempts    | Int                   | no       | `0`                                        |
 | createdAt   | DateTime              | no       | `now()`                                    |
 | finishedAt  | DateTime              | yes      | —                                          |
@@ -165,15 +165,15 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 
 ### Zod 입력 스키마 (생성/수정 페이로드)
 
-- 인증: `CredentialsSchema`, `PasswordResetRequestSchema`, `PasswordResetConfirmSchema`, `PasswordChangeSchema` (`schemas.ts:16`–35).
+- 인증: `CredentialsSchema`, `PasswordResetRequestSchema`, `PasswordResetConfirmSchema`, `PasswordChangeSchema` (`schemas.ts:16-35`).
 - 프로필: `MePatchSchema` (`schemas.ts:39`).
 - API Key 생성: `ApiKeyCreateSchema` (`schemas.ts:47`).
-- 프로젝트: `ProjectCreateSchema`, `ProjectPatchSchema` (`schemas.ts:55`).
-- 페이지: `PageCreateSchema`, `PagePatchSchema`, `PageSizeSchema` (`schemas.ts:64`–75).
-- 패널: `PanelShapeSchema`(points 3–64), `PanelCreateSchema`, `PanelPatchSchema` (`schemas.ts:94`–106).
-- 렌더: `RenderModelSchema`, `RenderStartSchema` (`schemas.ts:78`–82).
-- 내보내기: `ExportFormatSchema`, `ExportRequestSchema` (`schemas.ts:86`–90).
-- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema` (`schemas.ts:109`–120).
+- 프로젝트: `ProjectCreateSchema`, `ProjectPatchSchema` (`schemas.ts:55-62`).
+- 페이지: `PageCreateSchema`, `PagePatchSchema`, `PageSizeSchema` (`schemas.ts:64-76`).
+- 패널: `PanelShapeSchema`(points 3–64), `PanelCreateSchema`, `PanelPatchSchema` (`schemas.ts:94-107`).
+- 렌더: `RenderModelSchema`, `RenderStartSchema` (`schemas.ts:78-83`).
+- 내보내기: `ExportFormatSchema`, `ExportRequestSchema` (`schemas.ts:86-91`).
+- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema` (`schemas.ts:109-120`).
 
 ### 미디어 공통
 

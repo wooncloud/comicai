@@ -304,15 +304,18 @@ function verify(): { failures: Failure[]; warnings: Failure[]; total: number } {
 
         const ident = extractIdentifier(line, match.index, match.index + match[0].length);
         if (ident && ident.length >= 3) {
-          const lo = Math.max(0, first - 1 - 3);
-          const hi = Math.min(fileLineCount, first - 1 + 3 + 1);
+          // 범위 인용이면 범위 전체 ±3, 단일 라인이면 ±3
+          const rangeMin = Math.min(...lineNums);
+          const rangeMax = Math.max(...lineNums);
+          const lo = Math.max(0, rangeMin - 1 - 3);
+          const hi = Math.min(fileLineCount, rangeMax - 1 + 3 + 1);
           const window = fileLines.slice(lo, hi).join('\n');
           if (!window.includes(ident)) {
             warnings.push({
               doc: docRel,
               docLine: i + 1,
               raw,
-              reason: `식별자 '${ident}' 가 ${rawPath}:${first}±3 안에 없음 (실제 파일: ${relative(REPO_ROOT, target)})`,
+              reason: `식별자 '${ident}' 가 ${rawPath}:${rangeMin}-${rangeMax}±3 안에 없음 (실제 파일: ${relative(REPO_ROOT, target)})`,
               kind: 'identifier-drift',
             });
           }
