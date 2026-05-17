@@ -2,8 +2,9 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { newId, prisma } from '@comicai/db';
 import type { PageDTO, ImageRef } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
+import { StorageService } from '../storage/storage.service';
 
-function toDto(row: {
+interface PageRow {
   id: string;
   projectId: string;
   order: number;
@@ -11,7 +12,9 @@ function toDto(row: {
   size: unknown;
   background: unknown;
   createdAt: Date;
-}): PageDTO {
+}
+
+function toDtoBase(row: PageRow): PageDTO {
   return {
     id: row.id,
     projectId: row.projectId,
@@ -25,7 +28,10 @@ function toDto(row: {
 
 @Injectable()
 export class PagesService {
-  constructor(private readonly projects: ProjectsService) {}
+  constructor(
+    private readonly projects: ProjectsService,
+    private readonly storage: StorageService,
+  ) {}
 
   async list(userId: string, projectId: string): Promise<PageDTO[]> {
     await this.projects.assertOwned(userId, projectId);
@@ -33,7 +39,7 @@ export class PagesService {
       where: { projectId },
       orderBy: { order: 'asc' },
     });
-    return rows.map(toDto);
+    return Promise.all(rows.map((r) => this.withBackgroundUrl(r)));
   }
 
   async create(
@@ -55,13 +61,13 @@ export class PagesService {
         size: size,
       },
     });
-    return toDto(row);
+    return this.withBackgroundUrl(row);
   }
 
   async get(userId: string, id: string): Promise<PageDTO> {
     await this.findOwned(userId, id);
     const row = await prisma.page.findUniqueOrThrow({ where: { id } });
-    return toDto(row);
+    return this.withBackgroundUrl(row);
   }
 
   async patch(
@@ -74,7 +80,7 @@ export class PagesService {
       where: { id },
       data: { ...patch, size: patch.size },
     });
-    return toDto(row);
+    return this.withBackgroundUrl(row);
   }
 
   async remove(userId: string, id: string) {
@@ -90,5 +96,14 @@ export class PagesService {
     if (!row) throw new NotFoundException({ code: 'PAGE_NOT_FOUND' });
     if (row.project.userId !== userId) throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
     return row;
+  }
+
+  private async withBackgroundUrl(row: PageRow): Promise<PageDTO> {
+    const dto = toDtoBase(row);
+    const bg = (row.background as ImageRef | null) ?? null;
+    dto.backgroundUrl = bg?.storageKey
+      ? (await this.storage.presignDownload(bg.storageKey)).url
+      : null;
+    return dto;
   }
 }

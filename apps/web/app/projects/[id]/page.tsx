@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/shell/app-shell';
 import { api } from '@/lib/api';
-import { ApiPaths, type PageDTO, type ProjectDTO } from '@comicai/types';
+import { ApiPaths, pageLabel, type PageDTO, type ProjectDTO } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 
 export default function ProjectDetail() {
@@ -87,17 +87,37 @@ function PageCard({
     await api(ApiPaths.page(page.id), { method: 'DELETE' });
     onChanged();
   }
+  const thumb = page.backgroundUrl ?? null;
+  const label = pageLabel(page);
   return (
     <li className="group relative">
       <Link
         href={`/projects/${projectId}/pages/${page.id}`}
-        className="block aspect-[2/3] overflow-hidden rounded-md border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-400 hover:shadow-md dark:border-neutral-700"
+        className="relative block aspect-[2/3] overflow-hidden rounded-md border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-400 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-900"
       >
-        <div className="flex h-full flex-col items-center justify-center text-neutral-700">
-          <div className="text-3xl font-semibold">{page.order + 1}</div>
-          <div className="mt-1 text-[10px] text-neutral-500">
-            {page.size.w}×{page.size.h}
+        {thumb ? (
+          <>
+            <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+              <div className="truncate text-sm font-medium text-white">{label}</div>
+              <div className="text-[10px] text-white/70">
+                {page.size.w}×{page.size.h}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center text-neutral-700 dark:text-neutral-300">
+            <div className="text-3xl font-semibold">{page.order + 1}</div>
+            <div className="mt-1 truncate px-2 text-xs text-neutral-600 dark:text-neutral-400">
+              {label}
+            </div>
+            <div className="mt-1 text-[10px] text-neutral-500">
+              {page.size.w}×{page.size.h}
+            </div>
           </div>
+        )}
+        <div className="absolute left-1.5 top-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+          #{page.order + 1}
         </div>
       </Link>
       <button

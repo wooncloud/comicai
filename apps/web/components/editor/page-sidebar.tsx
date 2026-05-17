@@ -164,6 +164,7 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
     );
   }
 
+  const thumb = page.backgroundUrl ?? null;
   return (
     <li className="group">
       <Link
@@ -175,9 +176,22 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
             : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
         )}
       >
-        <span
-          className={cn('flex h-2 w-2 rounded-full', active ? 'bg-foreground' : 'bg-transparent')}
-        />
+        {thumb ? (
+          <img
+            src={thumb}
+            alt=""
+            className="h-8 w-6 flex-none rounded-sm border border-border object-cover"
+          />
+        ) : (
+          <span
+            className={cn(
+              'flex h-8 w-6 flex-none items-center justify-center rounded-sm border border-border text-[10px] font-medium',
+              active ? 'bg-background text-foreground' : 'bg-muted/40',
+            )}
+          >
+            {page.order + 1}
+          </span>
+        )}
         <span className="min-w-0 flex-1 truncate" title={pageLabel(page)}>
           {pageLabel(page)}
         </span>
