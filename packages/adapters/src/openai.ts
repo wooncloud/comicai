@@ -5,7 +5,9 @@ import { selectReferences } from './priority';
 const OPENAI_GEN_URL = 'https://api.openai.com/v1/images/generations';
 const OPENAI_EDIT_URL = 'https://api.openai.com/v1/images/edits';
 const OPENAI_MODEL = 'gpt-image-2';
-const MAX_REF_IMAGES = 4; // gpt-image-2 보수적 상한
+// docs 에 gpt-image-2 명시 상한 없음 — Gemini 와 동일하게 16 으로 통일.
+// 초과/거부 응답이 오면 classifyError 가 category:'invalid' 로 분류.
+const MAX_REF_IMAGES = 16;
 
 interface OpenAIRequest {
   apiKey: string;
