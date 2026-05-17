@@ -12,6 +12,8 @@ interface OpenAIRequest {
   prompt: string;
   size: string;
   referenceKeys: string[];
+  /** gpt-image-2 quality: low/medium/high/auto. 미지정 시 모델이 auto. */
+  quality?: 'low' | 'medium' | 'high' | 'auto';
 }
 
 class OpenAIHttpError extends Error {
@@ -34,6 +36,9 @@ export const OpenAIAdapter: ModelAdapter = {
       prompt: buildPrompt(ir),
       size: aspectToSize(ir.aspectRatio),
       referenceKeys: refs.map((r) => r.storageKey),
+      // 엔티티(캐릭터·배경·세계관) 참조 시트는 일관성의 근거가 되므로 항상 high.
+      // 패널 렌더는 비용·속도 균형 위해 모델 auto.
+      quality: ir.outputMode === 'entity' ? 'high' : undefined,
     };
   },
 
@@ -50,6 +55,7 @@ export const OpenAIAdapter: ModelAdapter = {
       form.append('prompt', req.prompt);
       form.append('size', req.size);
       form.append('n', '1');
+      if (req.quality) form.append('quality', req.quality);
       for (const r of refs) {
         const blob = new Blob([Buffer.from(r.bytes)], { type: r.mimeType });
         form.append('image[]', blob, fileName(r.key, r.mimeType));
@@ -69,7 +75,13 @@ export const OpenAIAdapter: ModelAdapter = {
         authorization: `Bearer ${req.apiKey}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ model: OPENAI_MODEL, prompt: req.prompt, n: 1, size: req.size }),
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        prompt: req.prompt,
+        n: 1,
+        size: req.size,
+        ...(req.quality ? { quality: req.quality } : {}),
+      }),
       signal,
     });
     return parseOpenAIImageResponse(res);

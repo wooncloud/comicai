@@ -14,12 +14,30 @@ import { open } from '../api-keys/crypto';
 
 const GENERATE_TIMEOUT_MS = 120_000;
 
+type GenerableEntityType = 'character' | 'background' | 'worldview';
+
+/**
+ * 엔티티 타입별 출력 비율/사이즈. gpt-image-2 의 권장 비표준 사이즈는 비용 두 배.
+ * 1024 라인은 안정 가격(고품질 기준 ~$0.165~0.211). 2K 는 docs 가 experimental 로 분류.
+ *  - character: 전신·인체 구도라 portrait(2:3) 가 자연스러움
+ *  - background: 와이드 환경 콘셉트라 landscape(3:2)
+ *  - worldview: 무드 보드 톤이라 square(1:1)
+ */
+const ENTITY_OUTPUT_SHAPE: Record<
+  GenerableEntityType,
+  { aspectRatio: string; panelSize: { w: number; h: number } }
+> = {
+  character: { aspectRatio: '2:3', panelSize: { w: 1024, h: 1536 } },
+  background: { aspectRatio: '3:2', panelSize: { w: 1536, h: 1024 } },
+  worldview: { aspectRatio: '1:1', panelSize: { w: 1024, h: 1024 } },
+};
+
 /**
  * 일관성 엔티티 타입별 system prompt. AI 생성 시 패널-룰 대신 적용되어
  * 캐릭터 시트·환경 콘셉트 아트·세계관 무드 보드 톤을 강제한다.
  * style 은 텍스트→이미지 생성 의미가 다르므로 generate 자체를 거부한다.
  */
-const ENTITY_SYSTEM_PROMPTS: Record<'character' | 'background' | 'worldview', string> = {
+const ENTITY_SYSTEM_PROMPTS: Record<GenerableEntityType, string> = {
   character:
     '이 출력은 만화의 캐릭터 설정 이미지(character reference sheet)다. 단일 캐릭터를, 중립 배경(흰색 또는 옅은 단색)에서, 전신 또는 상반신, 정면 또는 3/4 각도, 정적인 포즈로 또렷하게 그릴 것. 의상·헤어·체형·표정 같은 시각적 식별 요소가 분명하게 보이도록 그리고, 만화의 한 장면이 아닌 캐릭터 시트 톤으로 출력한다. 말풍선·격자·여러 컷 분할 금지.',
   background:
@@ -181,6 +199,8 @@ export class ConsistencyService {
     }
     const apiKey = await this.resolveApiKey(userId, model);
     const adapter = getAdapter(model);
+    const entityType = owned.type as GenerableEntityType;
+    const shape = ENTITY_OUTPUT_SHAPE[entityType];
     const ir: RenderIR = {
       panelId: `entity-${owned.id}`,
       projectId: owned.projectId,
@@ -191,10 +211,10 @@ export class ConsistencyService {
       contiSketch: null,
       userImages: [],
       userPrompt: prompt,
-      aspectRatio: '1:1',
-      panelSize: { w: 1024, h: 1024 },
+      aspectRatio: shape.aspectRatio,
+      panelSize: shape.panelSize,
       outputMode: 'entity',
-      systemPrompt: ENTITY_SYSTEM_PROMPTS[owned.type as keyof typeof ENTITY_SYSTEM_PROMPTS],
+      systemPrompt: ENTITY_SYSTEM_PROMPTS[entityType],
     };
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), GENERATE_TIMEOUT_MS);
