@@ -14,6 +14,7 @@ import { ToolToggle } from '@/components/editor/tool-toggle';
 import { SaveStatus } from '@/components/editor/save-status';
 import { ExportDialog } from '@/components/editor/export-dialog';
 import { PageInspector } from '@/components/editor/page-inspector';
+import { CollapseRail } from '@/components/editor/collapse-rail';
 import { usePanelSync } from '@/components/editor/tldraw/use-panel-sync';
 import { usePageFrame } from '@/components/editor/tldraw/use-page-frame';
 import type { ComicPanelShape } from '@/components/editor/tldraw/comic-panel-shape';
@@ -42,6 +43,23 @@ export default function PageEditor() {
   const [exportOpen, setExportOpen] = useState(false);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  // 사이드/인스펙터 접힘 상태. localStorage에 저장해 페이지 전환 후에도 유지.
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setLeftCollapsed(window.localStorage.getItem('editor.leftCollapsed') === '1');
+    setRightCollapsed(window.localStorage.getItem('editor.rightCollapsed') === '1');
+  }, []);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('editor.leftCollapsed', leftCollapsed ? '1' : '0');
+  }, [leftCollapsed]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('editor.rightCollapsed', rightCollapsed ? '1' : '0');
+  }, [rightCollapsed]);
 
   useEffect(() => {
     if (!pageId) return;
@@ -132,11 +150,26 @@ export default function PageEditor() {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        <PageSidebar projectId={projectId} currentPageId={pageId} currentPage={page} />
+        {leftCollapsed ? (
+          <CollapseRail side="left" label="페이지" onExpand={() => setLeftCollapsed(false)} />
+        ) : (
+          <PageSidebar
+            projectId={projectId}
+            currentPageId={pageId}
+            currentPage={page}
+            onCollapse={() => setLeftCollapsed(true)}
+          />
+        )}
         <div className="relative flex-1 bg-muted/40">
           <ComicEditor onMount={setEditor} />
         </div>
-        {selected ? (
+        {rightCollapsed ? (
+          <CollapseRail
+            side="right"
+            label={selected ? '패널' : '페이지'}
+            onExpand={() => setRightCollapsed(false)}
+          />
+        ) : selected ? (
           <PanelInspector
             key={selected.id}
             projectId={projectId}
@@ -146,9 +179,14 @@ export default function PageEditor() {
               setPanels((prev) => prev.filter((x) => x.id !== selectedPanelId));
               setSelectedPanelId(null);
             }}
+            onCollapse={() => setRightCollapsed(true)}
           />
         ) : page ? (
-          <PageInspector page={page} onPageUpdated={setPage} />
+          <PageInspector
+            page={page}
+            onPageUpdated={setPage}
+            onCollapse={() => setRightCollapsed(true)}
+          />
         ) : (
           <aside className="w-72 border-l border-border bg-card" />
         )}

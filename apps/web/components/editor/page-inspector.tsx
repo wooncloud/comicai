@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { ApiPaths, type PageDTO } from '@comicai/types';
 import { PageSizeSelect } from './page-size-select';
@@ -8,13 +9,15 @@ import { useToast } from '@/components/ui/toast';
 interface Props {
   page: PageDTO;
   onPageUpdated: (page: PageDTO) => void;
+  /** 호출 시 인스펙터를 접는다. */
+  onCollapse?: () => void;
 }
 
 /**
  * 패널이 선택되지 않았을 때 우측에 노출되는 페이지 단위 인스펙터.
  * 페이지 크기와 배경색을 편집한다.
  */
-export function PageInspector({ page, onPageUpdated }: Props) {
+export function PageInspector({ page, onPageUpdated, onCollapse }: Props) {
   const toast = useToast();
   const [color, setColor] = useState<string>(page.backgroundColor ?? '#ffffff');
   const hasColor = !!page.backgroundColor;
@@ -50,7 +53,20 @@ export function PageInspector({ page, onPageUpdated }: Props) {
 
   return (
     <aside className="flex w-72 flex-col gap-4 overflow-y-auto border-l border-border bg-card p-4">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">페이지</div>
+      <div className="flex items-center justify-between gap-2">
+        {onCollapse && (
+          <button
+            type="button"
+            onClick={onCollapse}
+            title="인스펙터 접기"
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronRight className="h-4 w-4" />
+            <span className="sr-only">인스펙터 접기</span>
+          </button>
+        )}
+        <div className="flex-1 text-xs uppercase tracking-wide text-muted-foreground">페이지</div>
+      </div>
 
       <div className="space-y-2">
         <label className="block text-caption text-muted-foreground">페이지 크기</label>

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Pencil, Check, X, GripVertical } from 'lucide-react';
+import { Plus, Pencil, Check, X, GripVertical, ChevronLeft } from 'lucide-react';
 import {
   DndContext,
   KeyboardSensor,
@@ -30,9 +30,11 @@ interface Props {
   currentPageId: string;
   /** 부모(에디터)가 현재 페이지를 변경했을 때 사이드바도 즉시 반영하기 위함. */
   currentPage?: PageDTO | null;
+  /** 호출 시 사이드바를 접는다. 부재 시 토글 버튼 미노출. */
+  onCollapse?: () => void;
 }
 
-export function PageSidebar({ projectId, currentPageId, currentPage }: Props) {
+export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse }: Props) {
   const [pages, setPages] = useState<PageDTO[] | null>(null);
   const [adding, setAdding] = useState(false);
   const toast = useToast();
@@ -100,16 +102,29 @@ export function PageSidebar({ projectId, currentPageId, currentPage }: Props) {
     <aside className="flex w-44 flex-col border-r border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-2 py-1.5">
         <span className="text-caption font-medium text-muted-foreground">페이지</span>
-        <button
-          type="button"
-          onClick={addPage}
-          disabled={adding}
-          title="페이지 추가"
-          className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-        >
-          <Plus className="h-4 w-4" />
-          <span className="sr-only">페이지 추가</span>
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={addPage}
+            disabled={adding}
+            title="페이지 추가"
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="sr-only">페이지 추가</span>
+          </button>
+          {onCollapse && (
+            <button
+              type="button"
+              onClick={onCollapse}
+              title="사이드바 접기"
+              className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="sr-only">사이드바 접기</span>
+            </button>
+          )}
+        </div>
       </div>
       <ul className="flex-1 overflow-auto p-2">
         {pages === null && <li className="text-caption text-muted-foreground">로딩…</li>}

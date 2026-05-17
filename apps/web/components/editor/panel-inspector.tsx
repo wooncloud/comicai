@@ -15,6 +15,7 @@ import {
   type TipTapDoc,
   type ModelId,
 } from '@comicai/types';
+import { ChevronRight } from 'lucide-react';
 import { PanelTextEditor } from './panel-editor';
 import { PanelStatusBadge } from './panel-status-badge';
 import { HistoryTray } from './history-tray';
@@ -35,6 +36,8 @@ interface Props {
   panel: PanelDTO;
   onPanelUpdated: (p: PanelDTO) => void;
   onPanelDeleted: () => void;
+  /** 호출 시 인스펙터를 접는다. 부재 시 토글 버튼 미노출. */
+  onCollapse?: () => void;
 }
 
 const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
@@ -42,7 +45,13 @@ const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
   { id: 'gpt-image-2', label: 'OpenAI' },
 ];
 
-export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDeleted }: Props) {
+export function PanelInspector({
+  projectId,
+  panel,
+  onPanelUpdated,
+  onPanelDeleted,
+  onCollapse,
+}: Props) {
   // 부모(page editor)가 key={panel.id}로 마운트해 panel.id는 한 인스턴스 안에서 불변.
   const [doc, setDoc] = useState<TipTapDoc>(panel.text ?? emptyDoc());
   // 사용자가 직접 고른 모델. null이면 프로젝트 대표 모델(없으면 Gemini)을 사용.
@@ -182,8 +191,19 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
 
   return (
     <aside className="flex w-96 min-h-0 flex-col gap-4 overflow-y-auto border-l border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="flex items-center justify-between">
-        <div className="text-xs text-neutral-500">패널 {panel.id.slice(-8)}</div>
+      <div className="flex items-center justify-between gap-2">
+        {onCollapse && (
+          <button
+            type="button"
+            onClick={onCollapse}
+            title="인스펙터 접기"
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronRight className="h-4 w-4" />
+            <span className="sr-only">인스펙터 접기</span>
+          </button>
+        )}
+        <div className="flex-1 truncate text-xs text-neutral-500">패널 {panel.id.slice(-8)}</div>
         <PanelStatusBadge status={status} />
       </div>
 
