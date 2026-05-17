@@ -13,6 +13,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "knip": "knip",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "husky": "^9.1.7",
+    "knip": "^6.14.1",
     "lint-staged": "^17.0.4",
     "prettier": "^3.3.3",
     "turbo": "^2.1.3",

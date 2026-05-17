@@ -1,0 +1,19 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    "apps/web": {
+      "entry": [
+        "app/**/{page,layout,loading,error,not-found,template,default,route}.{ts,tsx}",
+        "e2e/**/*.{ts,tsx}"
+      ],
+      "project": ["**/*.{ts,tsx}"]
+    },
+    "apps/api": {
+      "entry": ["src/main.ts", "src/worker.ts", "test/**/*.{ts,tsx}"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/*": {
+      "project": ["src/**/*.ts"]
+    }
+  }
+}
