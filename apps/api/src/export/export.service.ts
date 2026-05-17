@@ -14,7 +14,7 @@ import { PagesService } from '../pages/pages.service';
 import { StorageService } from '../storage/storage.service';
 import { shapeBoundingBox } from '../common/bbox';
 import { buildPanelMaskSvg, buildPanelStrokeSvg } from './panel-mask';
-import { renderSpeechBubbleSvg } from './speech-bubble.render';
+import { renderSpeechBubbleLayer } from './speech-bubble.render';
 
 export interface ExportResult {
   storageKey: string;
@@ -120,19 +120,20 @@ export class ExportService {
     ).flat();
 
     // 3) 말풍선 — 패널 합성 직후, 항상 가장 위 레이어로.
-    // Prisma JSON 컬럼은 JsonValue 로 추론되므로 도메인 타입으로 좁힌다.
-    for (const bubble of page.speechBubbles) {
-      const shape = bubble.shape as unknown as SpeechBubbleShape;
-      const style = bubble.style as unknown as SpeechBubbleStyle;
-      const text = bubble.text as unknown as TipTapDoc;
-      const { svg, left, top } = renderSpeechBubbleSvg({
-        variant: bubble.variant as SpeechBubbleVariant,
-        shape,
-        style,
-        text,
-      });
-      composites.push({ input: svg, left, top });
-    }
+    // 페이지 사이즈와 동일한 단일 SVG 로 모아 합성한다 (sharp 는 input 이 canvas 보다 크면 거부 —
+    // 사용자가 풍선을 페이지 밖으로 끌거나 페이지보다 크게 늘린 경우 발생). Prisma JSON 컬럼은
+    // JsonValue 로 추론되므로 도메인 타입으로 좁힌다.
+    const bubbleLayer = renderSpeechBubbleLayer(
+      page.speechBubbles.map((b) => ({
+        variant: b.variant as SpeechBubbleVariant,
+        shape: b.shape as unknown as SpeechBubbleShape,
+        style: b.style as unknown as SpeechBubbleStyle,
+        text: b.text as unknown as TipTapDoc,
+      })),
+      Math.round(size.w),
+      Math.round(size.h),
+    );
+    if (bubbleLayer) composites.push({ input: bubbleLayer, left: 0, top: 0 });
 
     let canvas = sharp({
       create: {
