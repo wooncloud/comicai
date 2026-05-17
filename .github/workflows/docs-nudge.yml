@@ -1,0 +1,102 @@
+name: docs-nudge
+
+# 코드 영역이 N줄 이상 바뀌었는데 짝이 되는 docs/*.md 가 그대로면 PR 에 코멘트로 nudge.
+# 절대 fail 하지 않음. 단순 알림.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+concurrency:
+  group: docs-nudge-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nudge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check docs nudge
+        uses: actions/github-script@v7
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          THRESHOLD: '50'
+        with:
+          script: |
+            const { execSync } = require('node:child_process');
+            const base = process.env.BASE_SHA;
+            const head = process.env.HEAD_SHA;
+            const threshold = parseInt(process.env.THRESHOLD, 10);
+
+            // 영역 → (코드 매칭 정규식, 대응 docs 경로, 라벨)
+            const MAP = [
+              { area: 'frontend',  re: /^apps\/web\//,                              doc: 'docs/03-frontend.md' },
+              { area: 'backend',   re: /^apps\/api\//,                              doc: 'docs/02-backend.md' },
+              { area: 'packages',  re: /^packages\/(?!db\/prisma\/migrations\/)/,   doc: 'docs/04-shared-packages.md' },
+              { area: 'infra',     re: /^(infra|compose)\//,                        doc: 'docs/05-infra-ops.md' },
+              { area: 'data',      re: /^packages\/db\/prisma\/(migrations|schema)/,doc: 'docs/07-data-model.md' },
+            ];
+
+            const numstat = execSync(`git diff --numstat ${base}...${head}`, { encoding: 'utf8' });
+            const rows = numstat.split('\n').filter(Boolean).map((l) => {
+              const [add, del, ...path] = l.split('\t');
+              return {
+                add: parseInt(add, 10) || 0,
+                del: parseInt(del, 10) || 0,
+                path: path.join('\t'),
+              };
+            });
+
+            const touched = new Set(rows.map((r) => r.path));
+            const messages = [];
+            for (const m of MAP) {
+              const changed = rows.filter((r) => m.re.test(r.path));
+              const lines = changed.reduce((s, r) => s + r.add + r.del, 0);
+              if (lines < threshold) continue;
+              if (touched.has(m.doc)) continue;
+              messages.push(
+                `- **${m.area}** 코드가 ${lines}줄 바뀌었는데 \`${m.doc}\` 는 그대로입니다. ` +
+                `\`/sync-docs ${m.area}\` 로 점검을 권장합니다.`
+              );
+            }
+
+            if (messages.length === 0) {
+              core.info('No docs nudge needed.');
+              return;
+            }
+
+            const marker = '<!-- docs-nudge-bot -->';
+            const body = [
+              marker,
+              '### 📝 docs 동기화 점검 권장',
+              '',
+              ...messages,
+              '',
+              '_이 코멘트는 CI 를 막지 않습니다. `pnpm verify:docs` 로 인용 정합성 확인 가능._',
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner, repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find((c) => (c.body || '').includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number, body,
+              });
+            }
