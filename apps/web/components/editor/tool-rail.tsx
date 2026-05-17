@@ -24,8 +24,6 @@ interface Tool {
   icon: LucideIcon;
   /** 활성 표시 시 함께 켜진 것으로 간주할 동기 도구들(예: 패널의 다각형 sub-mode). */
   aliases?: readonly string[];
-  /** true면 disabled — 자리만 표시(예: 말풍선은 추후 구현). */
-  disabled?: boolean;
 }
 
 const TOOLS: readonly Tool[] = [
@@ -76,9 +74,9 @@ const BUBBLE_SUB_MODES: readonly BubbleSubMode[] = [
   { id: 'bubble-polygon', kbd: 'n', label: '다각형', icon: Pentagon },
 ] as const;
 
+// TOOLS의 primary kbd 중 sub-mode와 겹치는 'b' 같은 키는 sub-mode가 덮어쓰도록 뒤에 둔다.
 const KBD_MAP: Record<string, string> = {
-  // TOOLS의 primary kbd 중 sub-mode와 겹치는 'b' 같은 키는 BUBBLE_SUB_MODES가 덮어쓰도록 뒤에 둔다.
-  ...Object.fromEntries(TOOLS.filter((t) => !t.disabled).map((t) => [t.kbd, t.id])),
+  ...Object.fromEntries(TOOLS.map((t) => [t.kbd, t.id])),
   ...Object.fromEntries(PANEL_SUB_MODES.map((s) => [s.kbd, s.id])),
   ...Object.fromEntries(BUBBLE_SUB_MODES.map((s) => [s.kbd, s.id])),
 };
@@ -120,22 +118,18 @@ export function ToolRail({ editor }: Props) {
       <nav className="flex w-12 flex-none flex-col items-center gap-1 border-r border-border bg-card py-2">
         {TOOLS.map((t) => {
           const Icon = t.icon;
-          const active =
-            !t.disabled && (current === t.id || (t.aliases?.includes(current) ?? false));
+          const active = current === t.id || (t.aliases?.includes(current) ?? false);
           return (
             <Tooltip key={t.id}>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  disabled={t.disabled}
-                  onClick={() => !t.disabled && editor?.setCurrentTool(t.id)}
+                  onClick={() => editor?.setCurrentTool(t.id)}
                   className={cn(
                     'flex h-9 w-9 items-center justify-center rounded-md transition-colors',
-                    t.disabled
-                      ? 'cursor-not-allowed text-muted-foreground/40'
-                      : active
-                        ? 'bg-foreground text-background'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    active
+                      ? 'bg-foreground text-background'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -144,11 +138,7 @@ export function ToolRail({ editor }: Props) {
               </TooltipTrigger>
               <TooltipContent side="right">
                 {t.label}
-                {t.disabled ? (
-                  <span className="ml-1 opacity-60">(준비 중)</span>
-                ) : (
-                  <span className="ml-1 opacity-60">{t.kbd.toUpperCase()}</span>
-                )}
+                <span className="ml-1 opacity-60">{t.kbd.toUpperCase()}</span>
               </TooltipContent>
             </Tooltip>
           );

@@ -79,7 +79,7 @@ export class SpeechBubblesService {
         variant: input.variant,
         shape: input.shape as unknown as Prisma.InputJsonValue,
         text: (input.text ?? emptyDoc()) as unknown as Prisma.InputJsonValue,
-        style: style as unknown as Prisma.InputJsonValue,
+        style: style,
         order,
       },
     });
@@ -88,15 +88,15 @@ export class SpeechBubblesService {
 
   async patch(userId: string, id: string, input: PatchInput): Promise<SpeechBubbleDTO> {
     const owned = await this.assertOwned(userId, id);
-    const data: Record<string, unknown> = {};
+    const data: Prisma.SpeechBubbleUpdateInput = {};
     if (input.variant) data.variant = input.variant;
-    if (input.shape) data.shape = input.shape;
-    if (input.text !== undefined) data.text = input.text;
+    if (input.shape) data.shape = input.shape as unknown as Prisma.InputJsonValue;
+    if (input.text !== undefined) data.text = input.text as unknown as Prisma.InputJsonValue;
     if (input.style) {
       const merged = { ...defaultSpeechBubbleStyle(), ...input.style };
       data.style = merged;
     }
-    const row = await prisma.speechBubble.update({ where: { id: owned.id }, data: data as never });
+    const row = await prisma.speechBubble.update({ where: { id: owned.id }, data });
     return toDto(row);
   }
 

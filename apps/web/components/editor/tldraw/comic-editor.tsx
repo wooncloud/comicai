@@ -1,6 +1,6 @@
 'use client';
 import { useCallback } from 'react';
-import { Tldraw, type Editor, type TLComponents, type TLUiOverrides } from 'tldraw';
+import { Tldraw, type Editor, type TLComponents, type TLShapeId, type TLUiOverrides } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { ComicPanelShapeUtil } from './comic-panel-shape';
 import { ComicPanelTool } from './comic-panel-tool';
@@ -53,21 +53,32 @@ export function ComicEditor({ onMount }: Props) {
       // 그리드 보기를 기본 ON. 페이지 프레임 안에 패널을 정렬할 때 유용.
       editor.updateInstanceState({ isGridMode: true });
       // 말풍선은 항상 패널 위에. user-sourced shape 변경이 있을 때 모든 speech-bubble을 맨 위로.
-      // remote source는 우리 자신의 mergeRemoteChanges 호출도 포함되므로 source='user'로 한정해 루프 방지.
+      // 우리 mergeRemoteChanges 호출은 source='remote'로 분류되므로 source='user'로 한정해 루프 방지.
+      const bubbleIds = new Set<TLShapeId>();
+      for (const s of editor.getCurrentPageShapes()) {
+        if (s.type === 'speech-bubble') bubbleIds.add(s.id);
+      }
       let scheduled = false;
       editor.store.listen(
-        () => {
-          if (scheduled) return;
+        (entry) => {
+          let touched = false;
+          for (const r of Object.values(entry.changes.added)) {
+            if (r.typeName !== 'shape') continue;
+            touched = true;
+            if (r.type === 'speech-bubble') bubbleIds.add(r.id);
+          }
+          for (const [, after] of Object.values(entry.changes.updated)) {
+            if (after.typeName === 'shape') touched = true;
+          }
+          for (const r of Object.values(entry.changes.removed)) {
+            if (r.typeName === 'shape' && r.type === 'speech-bubble') bubbleIds.delete(r.id);
+          }
+          if (!touched || bubbleIds.size === 0 || scheduled) return;
           scheduled = true;
           queueMicrotask(() => {
             scheduled = false;
-            const bubbles = editor
-              .getCurrentPageShapes()
-              .filter((s) => s.type === 'speech-bubble')
-              .map((s) => s.id);
-            if (bubbles.length === 0) return;
             editor.store.mergeRemoteChanges(() => {
-              editor.bringToFront(bubbles);
+              editor.bringToFront([...bubbleIds]);
             });
           });
         },

@@ -5,11 +5,13 @@ import { api } from '@/lib/api';
 import {
   ApiPaths,
   defaultSpeechBubbleStyle,
+  flattenTipTapToText,
+  textToTipTapDoc,
+  type NormalizedPoint,
   type SpeechBubbleDTO,
   type SpeechBubbleShape as ApiBubbleShape,
   type SpeechBubbleStyle,
   type TipTapDoc,
-  type TipTapNode,
 } from '@comicai/types';
 import type { SpeechBubbleShape } from './speech-bubble-shape';
 
@@ -24,8 +26,7 @@ interface Args {
   onSaveError?: (err: unknown) => void;
 }
 
-/** DTO → canvas shape props로 평탄화. */
-function flatten(b: SpeechBubbleDTO) {
+function flatten(b: SpeechBubbleDTO): SpeechBubbleShape['props'] {
   const style = { ...defaultSpeechBubbleStyle(), ...(b.style ?? {}) };
   return {
     w: Math.max(1, b.shape.w),
@@ -35,40 +36,12 @@ function flatten(b: SpeechBubbleDTO) {
     polygonPoints: b.shape.points ?? null,
     tailX: b.shape.tail?.x ?? null,
     tailY: b.shape.tail?.y ?? null,
-    text: docToText(b.text),
+    text: flattenTipTapToText(b.text),
     fontSize: style.fontSize,
     strokeWidth: style.strokeWidth,
     strokeColor: style.strokeColor,
     fillColor: style.fillColor,
     textAlign: style.textAlign,
-  } satisfies SpeechBubbleShape['props'];
-}
-
-function docToText(doc: TipTapDoc | null | undefined): string {
-  if (!doc) return '';
-  const out: string[] = [];
-  for (const para of doc.content ?? []) {
-    out.push(extractText(para));
-  }
-  return out.join('\n');
-}
-function extractText(node: TipTapNode): string {
-  if (node.type === 'text') return node.text;
-  if (node.type === 'mention') return node.attrs.label;
-  if (node.type === 'hardBreak') return '\n';
-  if ('content' in node && Array.isArray(node.content)) {
-    return node.content.map(extractText).join('');
-  }
-  return '';
-}
-
-function textToDoc(text: string): TipTapDoc {
-  const lines = text.split('\n');
-  return {
-    type: 'doc',
-    content: lines.map((l) =>
-      l ? { type: 'paragraph', content: [{ type: 'text', text: l }] } : { type: 'paragraph' },
-    ),
   };
 }
 
@@ -106,7 +79,7 @@ function toApi(shape: SpeechBubbleShape): {
           : undefined,
       tail: tailX !== null && tailY !== null ? { x: tailX, y: tailY } : null,
     },
-    text: textToDoc(text),
+    text: textToTipTapDoc(text),
     style: { fontSize, strokeWidth, strokeColor, fillColor, textAlign },
   };
 }
@@ -134,10 +107,7 @@ function samePropsAsDto(shape: SpeechBubbleShape, dto: SpeechBubbleDTO): boolean
   return samePolygon(cur.polygonPoints, next.polygonPoints);
 }
 
-function samePolygon(
-  a: { x: number; y: number }[] | null,
-  b: { x: number; y: number }[] | null,
-): boolean {
+function samePolygon(a: NormalizedPoint[] | null, b: NormalizedPoint[] | null): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
   if (a.length !== b.length) return false;
@@ -242,13 +212,13 @@ export function useSpeechBubbleSync({
         method: 'POST',
         body: JSON.stringify(toApi(shape)),
       });
-      const live = editor!.getShape(shape.id);
+      const live = editor!.getShape<SpeechBubbleShape>(shape.id);
       if (!live) return;
       editor!.store.mergeRemoteChanges(() => {
         editor!.updateShape<SpeechBubbleShape>({
           id: shape.id,
           type: 'speech-bubble',
-          props: { ...(live as SpeechBubbleShape).props, bubbleId: created.id },
+          props: { ...live.props, bubbleId: created.id },
         });
       });
     }

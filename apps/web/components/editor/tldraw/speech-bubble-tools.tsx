@@ -1,22 +1,20 @@
 'use client';
-import { BaseBoxShapeTool, StateNode, createShapeId, type TLKeyboardEventInfo } from 'tldraw';
-import { pointsBoundingBox, type SpeechBubbleVariant } from '@comicai/types';
+import { BaseBoxShapeTool, createShapeId } from 'tldraw';
+import type { SpeechBubbleVariant } from '@comicai/types';
 import type { SpeechBubbleShape } from './speech-bubble-shape';
-import {
-  polygonHoverAtom,
-  polygonPointsAtom,
-  resetPolygonState,
-  type Point,
-} from './polygon-state';
+import { PolygonDrawingTool, type PolygonCommitArgs } from './polygon-tool-base';
+
+type BoxVariant = Exclude<SpeechBubbleVariant, 'polygon'>;
 
 /**
- * variant별 box drag 도구. tldraw가 BaseBoxShapeTool.shapeType으로 새 shape를 만들 때
- * getDefaultProps를 사용하므로, 각 도구는 onCreate에서 variant만 덮어쓴다.
+ * variant별 box drag 도구의 공통 베이스.
+ * tldraw가 BaseBoxShapeTool.shapeType으로 새 shape를 만들 때 getDefaultProps를 사용하므로,
+ * 각 도구는 onCreate에서 variant만 덮어쓰면 된다.
  */
-abstract class BaseBubbleBoxTool extends BaseBoxShapeTool {
+abstract class BubbleBoxToolBase extends BaseBoxShapeTool {
   static override initial = 'idle';
   override shapeType = 'speech-bubble';
-  protected abstract variant: SpeechBubbleVariant;
+  protected abstract readonly variant: BoxVariant;
 
   override onCreate(shape: SpeechBubbleShape | null): void {
     if (!shape) return;
@@ -29,101 +27,40 @@ abstract class BaseBubbleBoxTool extends BaseBoxShapeTool {
   }
 }
 
-export class BubbleEllipseTool extends BaseBubbleBoxTool {
+export class BubbleEllipseTool extends BubbleBoxToolBase {
   static override id = 'bubble-ellipse';
-  protected variant: SpeechBubbleVariant = 'ellipse';
+  protected readonly variant = 'ellipse' as const;
 }
-export class BubbleRectTool extends BaseBubbleBoxTool {
+export class BubbleRectTool extends BubbleBoxToolBase {
   static override id = 'bubble-rect';
-  protected variant: SpeechBubbleVariant = 'rect';
+  protected readonly variant = 'rect' as const;
 }
-export class BubbleCloudTool extends BaseBubbleBoxTool {
+export class BubbleCloudTool extends BubbleBoxToolBase {
   static override id = 'bubble-cloud';
-  protected variant: SpeechBubbleVariant = 'cloud';
+  protected readonly variant = 'cloud' as const;
 }
-export class BubbleSpikeTool extends BaseBubbleBoxTool {
+export class BubbleSpikeTool extends BubbleBoxToolBase {
   static override id = 'bubble-spike';
-  protected variant: SpeechBubbleVariant = 'spike';
+  protected readonly variant = 'spike' as const;
 }
-export class BubbleThoughtTool extends BaseBubbleBoxTool {
+export class BubbleThoughtTool extends BubbleBoxToolBase {
   static override id = 'bubble-thought';
-  protected variant: SpeechBubbleVariant = 'thought';
+  protected readonly variant = 'thought' as const;
 }
 
-/** polygon-panel-tool과 동일한 인터랙션. 점 누적 → 닫기. */
-const CLOSE_HIT_SCREEN_PX = 12;
-const MIN_VERTICES = 3;
-
-export class BubblePolygonTool extends StateNode {
+export class BubblePolygonTool extends PolygonDrawingTool {
   static override id = 'bubble-polygon';
   static override initial = 'bubble-polygon';
 
-  override onEnter(): void {
-    this.editor.setCursor({ type: 'cross', rotation: 0 });
-    resetPolygonState();
-  }
-
-  override onExit(): void {
-    resetPolygonState();
-  }
-
-  override onPointerMove(): void {
-    const p = this.editor.inputs.currentPagePoint;
-    polygonHoverAtom.set({ x: p.x, y: p.y });
-  }
-
-  override onPointerDown(): void {
-    const p = this.editor.inputs.currentPagePoint;
-    const next: Point = { x: p.x, y: p.y };
-    const points = polygonPointsAtom.get();
-    const first = points[0];
-    if (first && points.length >= MIN_VERTICES) {
-      const zoom = this.editor.getZoomLevel();
-      const distScreen = Math.hypot(next.x - first.x, next.y - first.y) * zoom;
-      if (distScreen <= CLOSE_HIT_SCREEN_PX) {
-        this.commit(points);
-        return;
-      }
-    }
-    polygonPointsAtom.set([...points, next]);
-  }
-
-  override onDoubleClick(): void {
-    this.commit(polygonPointsAtom.get());
-  }
-
-  override onKeyDown(info: TLKeyboardEventInfo): void {
-    if (info.key === 'Escape') {
-      this.editor.setCurrentTool('select');
-    } else if (info.key === 'Enter') {
-      this.commit(polygonPointsAtom.get());
-    } else if (info.key === 'Backspace' || info.key === 'Delete') {
-      const points = polygonPointsAtom.get();
-      if (points.length > 0) polygonPointsAtom.set(points.slice(0, -1));
-    }
-  }
-
-  override onCancel(): void {
-    this.editor.setCurrentTool('select');
-  }
-
-  private commit(points: Point[]): void {
-    if (points.length < MIN_VERTICES) {
-      this.editor.setCurrentTool('select');
-      return;
-    }
-    const bbox = pointsBoundingBox(points);
-    const w = Math.max(1, bbox.w);
-    const h = Math.max(1, bbox.h);
-    const normalized = points.map((p) => ({ x: (p.x - bbox.x) / w, y: (p.y - bbox.y) / h }));
+  protected commitPolygon({ bbox, normalized }: PolygonCommitArgs): void {
     this.editor.createShape<SpeechBubbleShape>({
       id: createShapeId(),
       type: 'speech-bubble',
       x: bbox.x,
       y: bbox.y,
       props: {
-        w,
-        h,
+        w: bbox.w,
+        h: bbox.h,
         bubbleId: null,
         variant: 'polygon',
         polygonPoints: normalized,
@@ -137,7 +74,6 @@ export class BubblePolygonTool extends StateNode {
         textAlign: 'center',
       },
     });
-    this.editor.setCurrentTool('select');
   }
 }
 

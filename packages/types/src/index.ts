@@ -107,6 +107,7 @@ export const PANEL_SHAPE_PRESETS = ['rect', 'rounded', 'oval', 'diamond', 'paral
 export type PanelShapePreset = (typeof PANEL_SHAPE_PRESETS)[number];
 
 export * from './panel-path';
+export * from './bubble-path';
 
 export interface PanelShape {
   type: PanelShapeType;
@@ -207,6 +208,41 @@ export type TipTapDoc = Extract<TipTapNode, { type: 'doc' }>;
 
 export function emptyDoc(): TipTapDoc {
   return { type: 'doc', content: [{ type: 'paragraph' }] };
+}
+
+/**
+ * TipTapDoc → 단순 텍스트(줄바꿈 보존). 멘션은 label 그대로(이름 조회 없음).
+ * 멘션 이름 치환이 필요하면 `@comicai/events`의 `serializeTextWithNameReplacement` 사용.
+ */
+export function flattenTipTapToText(doc: TipTapDoc | null | undefined): string {
+  if (!doc) return '';
+  const lines: string[] = [];
+  for (const para of doc.content ?? []) {
+    lines.push(extractInline(para));
+  }
+  return lines.join('\n');
+}
+
+function extractInline(node: TipTapNode): string {
+  if (node.type === 'text') return node.text;
+  if (node.type === 'mention') return node.attrs.label;
+  if (node.type === 'hardBreak') return '\n';
+  if ('content' in node && Array.isArray(node.content)) {
+    return node.content.map(extractInline).join('');
+  }
+  return '';
+}
+
+/** 단일 라인 텍스트(`\n` 구분) → TipTapDoc. 빈 줄은 빈 paragraph로. */
+export function textToTipTapDoc(text: string): TipTapDoc {
+  return {
+    type: 'doc',
+    content: text
+      .split('\n')
+      .map((l) =>
+        l ? { type: 'paragraph', content: [{ type: 'text', text: l }] } : { type: 'paragraph' },
+      ),
+  };
 }
 
 // ─── 페이지 ─────────────────────────────────────
