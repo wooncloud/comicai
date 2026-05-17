@@ -124,6 +124,9 @@ export class SessionService implements OnModuleDestroy {
 }
 
 export const SESSION_COOKIE = 'comicai_sid';
+// 운영에서 web/api 가 서로 다른 서브도메인일 때 (예: comic.* / comic-api.*)
+// JS 가 CSRF 쿠키를 읽으려면 부모 도메인으로 스코프해야 함. 로컬은 undefined.
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
 export const SESSION_COOKIE_OPTIONS = {
   httpOnly: true,
   secure:
@@ -133,4 +136,5 @@ export const SESSION_COOKIE_OPTIONS = {
   sameSite: 'lax' as const,
   maxAge: SESSION_TTL_SECONDS * 1000,
   path: '/',
+  ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
 };

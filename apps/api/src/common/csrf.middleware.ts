@@ -45,11 +45,13 @@ export class CsrfMiddleware implements NestMiddleware {
 
 export function issueCsrfToken(res: Response, secure: boolean): string {
   const token = hexToken();
+  const domain = process.env.COOKIE_DOMAIN || undefined;
   res.cookie(CSRF_COOKIE, token, {
     httpOnly: false,
     secure,
     sameSite: 'lax',
     path: '/',
+    ...(domain ? { domain } : {}),
   });
   return token;
 }
