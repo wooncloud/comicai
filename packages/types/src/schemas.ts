@@ -130,6 +130,54 @@ export const PanelPatchSchema = z.object({
   styleId: z.string().min(1).nullable().optional(),
 });
 
+// ─── 말풍선 ───────────────────────────────────
+export const SpeechBubbleVariantSchema = z.enum([
+  'ellipse',
+  'rect',
+  'cloud',
+  'spike',
+  'thought',
+  'polygon',
+]);
+
+const PointSchema = z.object({ x: z.number(), y: z.number() });
+
+export const SpeechBubbleShapeSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  w: z.number().positive(),
+  h: z.number().positive(),
+  points: z.array(PointSchema).min(3).max(64).optional(),
+  tail: PointSchema.nullable().optional(),
+});
+
+export const SpeechBubbleStyleSchema = z.object({
+  fontSize: z.number().min(6).max(96).default(14),
+  fontFamily: z.string().max(100).nullable().optional(),
+  strokeWidth: z.number().nonnegative().max(20).default(2),
+  strokeColor: z.string().max(32).default('#000000'),
+  fillColor: z.string().max(32).default('#ffffff'),
+  textAlign: z.enum(['left', 'center', 'right']).default('center'),
+});
+
+export const SpeechBubbleCreateSchema = z.object({
+  variant: SpeechBubbleVariantSchema,
+  shape: SpeechBubbleShapeSchema,
+  text: z.any().optional(),
+  style: SpeechBubbleStyleSchema.partial().optional(),
+});
+
+export const SpeechBubblePatchSchema = z.object({
+  variant: SpeechBubbleVariantSchema.optional(),
+  shape: SpeechBubbleShapeSchema.optional(),
+  text: z.any().optional(),
+  style: SpeechBubbleStyleSchema.partial().optional(),
+});
+
+export const SpeechBubbleReorderSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(500),
+});
+
 // ─── 일관성 ───────────────────────────────────
 export const EntityTypeSchema = z.enum(['style', 'character', 'background', 'worldview']);
 export const ConsistencyCreateSchema = z.object({
@@ -142,4 +190,11 @@ export const ConsistencyPatchSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   aliases: z.array(z.string().min(1)).max(20).optional(),
   description: z.string().max(4000).optional(),
+});
+export const ConsistencyGenerateSchema = z.object({
+  prompt: z.string().trim().min(1).max(2000),
+  model: RenderModelSchema,
+});
+export const ConsistencyAttachSchema = z.object({
+  storageKey: z.string().min(1).max(500),
 });

@@ -16,10 +16,13 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import {
+  ConsistencyAttachSchema,
   ConsistencyCreateSchema,
+  ConsistencyGenerateSchema,
   ConsistencyPatchSchema,
   EntityTypeSchema,
   type EntityType,
+  type ModelId,
 } from '@comicai/types';
 import { ConsistencyService } from './consistency.service';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
@@ -37,6 +40,15 @@ class PatchDto {
   name?: string;
   aliases?: string[];
   description?: string;
+}
+class GenerateDto {
+  static zodSchema = ConsistencyGenerateSchema;
+  prompt!: string;
+  model!: ModelId;
+}
+class AttachDto {
+  static zodSchema = ConsistencyAttachSchema;
+  storageKey!: string;
 }
 
 @Controller()
@@ -86,5 +98,17 @@ export class ConsistencyController {
       id,
       files.map((f) => f.buffer),
     );
+  }
+
+  /** AI 모델로 참조 이미지 1장 생성. entity.refImages 에는 등록하지 않음. */
+  @Post('consistency/:id/generate')
+  generate(@Req() req: AuthedRequest, @Param('id') id: string, @Body() body: GenerateDto) {
+    return this.svc.generateImage(req.user.id, id, body.prompt, body.model);
+  }
+
+  /** generate 결과의 storageKey 를 entity.refImages 에 부착. */
+  @Post('consistency/:id/images/attach')
+  attach(@Req() req: AuthedRequest, @Param('id') id: string, @Body() body: AttachDto) {
+    return this.svc.attachImage(req.user.id, id, body.storageKey);
   }
 }

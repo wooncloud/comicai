@@ -1,8 +1,8 @@
 'use client';
-import { useRef, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
-import { ApiPaths, type ConsistencyEntityDTO } from '@comicai/types';
+import { useState } from 'react';
+import { type ConsistencyEntityDTO } from '@comicai/types';
 import { Button } from '@/components/ui/button';
+import { EntityImageDialog } from './entity-image-dialog';
 
 interface Props {
   entity: ConsistencyEntityDTO;
@@ -23,30 +23,7 @@ export function EntityCard({
   isDefault,
   onSetDefault,
 }: Props) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
-    setError(null);
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      for (const f of files) fd.append('files', f);
-      const updated = await api<ConsistencyEntityDTO>(ApiPaths.consistencyImages(entity.id), {
-        method: 'POST',
-        body: fd,
-      });
-      onUpdated(updated);
-    } catch (err) {
-      setError(err instanceof ApiError ? `업로드 실패: ${err.code}` : '업로드 실패');
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
-    }
-  }
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
     <article className="space-y-3 rounded-lg border border-border bg-card p-4">
@@ -75,8 +52,6 @@ export function EntityCard({
 
       <ImageGrid entity={entity} />
 
-      {error && <p className="text-caption text-destructive">{error}</p>}
-
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           <Button size="sm" variant="ghost" onClick={onEdit}>
@@ -91,21 +66,18 @@ export function EntityCard({
             삭제
           </Button>
         </div>
-        <label className="cursor-pointer">
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            multiple
-            className="hidden"
-            onChange={onUpload}
-            disabled={uploading}
-          />
-          <span className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3 text-body-sm hover:bg-accent">
-            {uploading ? '업로드 중…' : '+ 이미지'}
-          </span>
-        </label>
+        <Button size="sm" variant="outline" onClick={() => setDialogOpen(true)}>
+          + 이미지
+        </Button>
       </div>
+
+      <EntityImageDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        entityId={entity.id}
+        entityType={entity.type}
+        onUpdated={onUpdated}
+      />
     </article>
   );
 }

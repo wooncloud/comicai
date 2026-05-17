@@ -32,6 +32,9 @@ export const ApiPaths = {
   page: (id: string) => `/pages/${id}`,
   pageExport: (id: string) => `/pages/${id}/export`,
   pagePanels: (id: string) => `/pages/${id}/panels`,
+  pageSpeechBubbles: (id: string) => `/pages/${id}/speech-bubbles`,
+  pageSpeechBubblesReorder: (id: string) => `/pages/${id}/speech-bubbles/reorder`,
+  speechBubble: (id: string) => `/speech-bubbles/${id}`,
 
   panel: (id: string) => `/panels/${id}`,
   panelUpload: (id: string) => `/panels/${id}/upload`,
@@ -41,6 +44,8 @@ export const ApiPaths = {
   projectConsistency: (pid: string) => `/projects/${pid}/consistency`,
   consistency: (id: string) => `/consistency/${id}`,
   consistencyImages: (id: string) => `/consistency/${id}/images`,
+  consistencyGenerate: (id: string) => `/consistency/${id}/generate`,
+  consistencyAttach: (id: string) => `/consistency/${id}/images/attach`,
 
   renderJob: (id: string) => `/render-jobs/${id}`,
   renderJobCancel: (id: string) => `/render-jobs/${id}/cancel`,
