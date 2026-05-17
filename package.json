@@ -15,6 +15,10 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "knip": "knip",
     "verify:docs": "tsx scripts/verify-doc-refs.ts",
+    "docker:up": "docker compose -f infra/compose/full.yml --env-file .env up -d --build migrate api worker web",
+    "docker:up:app": "docker compose -f infra/compose/full.yml --env-file .env up -d --build api worker web",
+    "docker:down": "docker compose -f infra/compose/full.yml --env-file .env down",
+    "docker:logs": "docker compose -f infra/compose/full.yml --env-file .env logs -f --tail=100 api worker web",
     "prepare": "husky"
   },
   "lint-staged": {
