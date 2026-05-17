@@ -16,6 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EntityCard } from '@/components/consistency/entity-card';
+import { useToast } from '@/components/ui/toast';
 
 const TABS: { key: EntityType; label: string }[] = [
   { key: 'style', label: '그림체' },
@@ -39,13 +40,19 @@ export default function ConsistencyPage() {
   const project = useProject(projectId);
   const queryClient = useQueryClient();
   const defaultStyleId = project?.defaultStyleId ?? null;
+  const toast = useToast();
 
   async function setDefaultStyle(id: string) {
-    const updated = await api<ProjectDTO>(ApiPaths.project(projectId), {
-      method: 'PATCH',
-      body: JSON.stringify({ defaultStyleId: id }),
-    });
-    queryClient.setQueryData(['project', projectId], updated);
+    try {
+      const updated = await api<ProjectDTO>(ApiPaths.project(projectId), {
+        method: 'PATCH',
+        body: JSON.stringify({ defaultStyleId: id }),
+      });
+      queryClient.setQueryData(['project', projectId], updated);
+      toast.push('success', '대표 그림체로 지정했습니다.');
+    } catch (err) {
+      toast.push('error', (err as Error).message || '저장에 실패했습니다.');
+    }
   }
 
   async function refresh() {
@@ -77,6 +84,7 @@ export default function ConsistencyPage() {
           body: JSON.stringify(payload),
         });
         setItems((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        toast.push('success', `'${updated.name}' 항목을 수정했습니다.`);
       } else {
         const created = await api<ConsistencyEntityDTO>(ApiPaths.projectConsistency(projectId), {
           method: 'POST',
@@ -93,8 +101,11 @@ export default function ConsistencyPage() {
           });
         }
         setItems((prev) => [final, ...prev]);
+        toast.push('success', `'${final.name}' 항목이 추가되었습니다.`);
       }
       resetForm();
+    } catch (err) {
+      toast.push('error', (err as Error).message || '저장에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -109,8 +120,13 @@ export default function ConsistencyPage() {
 
   async function remove(id: string) {
     if (!confirm('삭제하시겠습니까?')) return;
-    await api(ApiPaths.consistency(id), { method: 'DELETE' });
-    setItems((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await api(ApiPaths.consistency(id), { method: 'DELETE' });
+      setItems((prev) => prev.filter((p) => p.id !== id));
+      toast.push('success', '항목이 삭제되었습니다.');
+    } catch (err) {
+      toast.push('error', (err as Error).message || '삭제에 실패했습니다.');
+    }
   }
 
   function beginEdit(item: ConsistencyEntityDTO) {

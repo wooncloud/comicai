@@ -35,6 +35,9 @@ export function ProjectCard({ project, onPatched, onRemoved }: Props) {
       });
       onPatched(updated);
       setDraft(null);
+      toast.push('success', '프로젝트 이름을 변경했습니다.');
+    } catch (err) {
+      toast.push('error', (err as Error).message || '이름 변경에 실패했습니다.');
     } finally {
       setBusy(false);
     }
@@ -46,6 +49,9 @@ export function ProjectCard({ project, onPatched, onRemoved }: Props) {
     try {
       await api(ApiPaths.project(project.id), { method: 'DELETE' });
       onRemoved(project.id);
+      toast.push('success', '프로젝트가 삭제되었습니다.');
+    } catch (err) {
+      toast.push('error', (err as Error).message || '삭제에 실패했습니다.');
     } finally {
       setBusy(false);
     }

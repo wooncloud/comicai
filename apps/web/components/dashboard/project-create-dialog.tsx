@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/toast';
 
 interface Props {
   open: boolean;
@@ -24,6 +25,7 @@ export function ProjectCreateDialog({ open, onOpenChange, onCreated }: Props) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [pending, setPending] = useState(false);
+  const toast = useToast();
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,7 +38,10 @@ export function ProjectCreateDialog({ open, onOpenChange, onCreated }: Props) {
       setName('');
       onCreated(created);
       onOpenChange(false);
+      toast.push('success', `'${created.name}' 프로젝트가 생성되었습니다.`);
       router.push(`/projects/${created.id}`);
+    } catch (err) {
+      toast.push('error', (err as Error).message || '프로젝트 생성에 실패했습니다.');
     } finally {
       setPending(false);
     }

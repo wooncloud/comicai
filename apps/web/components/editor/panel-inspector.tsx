@@ -184,8 +184,13 @@ export function PanelInspector({
 
   async function onDelete() {
     if (!confirm('패널을 삭제하시겠습니까?')) return;
-    await api(ApiPaths.panel(panel.id), { method: 'DELETE' });
-    onPanelDeleted();
+    try {
+      await api(ApiPaths.panel(panel.id), { method: 'DELETE' });
+      onPanelDeleted();
+      toast.push('success', '패널이 삭제되었습니다.');
+    } catch (err) {
+      toast.push('error', (err as Error).message || '삭제에 실패했습니다.');
+    }
   }
 
   return (

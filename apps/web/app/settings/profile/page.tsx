@@ -5,6 +5,7 @@ import { ApiPaths, type SessionUser } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useToast } from '@/components/ui/toast';
 
 export default function ProfileSettingsPage() {
   const [me, setMe] = useState<SessionUser | null>(null);
@@ -12,12 +13,12 @@ export default function ProfileSettingsPage() {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [pending, setPending] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   // 사용자가 URL 입력을 직접 건드렸을 때만 PATCH에 avatarUrl 포함.
   // (업로드된 아바타의 presigned URL이 다시 PATCH로 흘러 들어가 storageKey가 지워지는 것을 방지)
   const [urlDirty, setUrlDirty] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   useEffect(() => {
     api<SessionUser>(ApiPaths.me)
@@ -26,13 +27,11 @@ export default function ProfileSettingsPage() {
         setDisplayName(u.displayName ?? '');
         setAvatarUrl(u.avatarUrl ?? '');
       })
-      .catch(() => setError('프로필을 불러오지 못했습니다.'));
+      .catch(() => setLoadError('프로필을 불러오지 못했습니다.'));
   }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    setSuccess(false);
     setPending(true);
     try {
       const updated = await api<SessionUser>(ApiPaths.me, {
@@ -45,10 +44,10 @@ export default function ProfileSettingsPage() {
       setMe(updated);
       setAvatarUrl(updated.avatarUrl ?? '');
       setUrlDirty(false);
-      setSuccess(true);
+      toast.push('success', '프로필이 저장되었습니다.');
     } catch (err) {
-      if (err instanceof ApiError) setError(`저장 실패: ${err.code}`);
-      else setError('저장에 실패했습니다.');
+      if (err instanceof ApiError) toast.push('error', `저장 실패: ${err.code}`);
+      else toast.push('error', '저장에 실패했습니다.');
     } finally {
       setPending(false);
     }
@@ -58,8 +57,6 @@ export default function ProfileSettingsPage() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    setError(null);
-    setSuccess(false);
     setUploading(true);
     try {
       const fd = new FormData();
@@ -71,35 +68,33 @@ export default function ProfileSettingsPage() {
       setMe(updated);
       setAvatarUrl(updated.avatarUrl ?? '');
       setUrlDirty(false);
-      setSuccess(true);
+      toast.push('success', '아바타가 업로드되었습니다.');
     } catch (err) {
-      if (err instanceof ApiError) setError(`업로드 실패: ${err.code}`);
-      else setError('업로드에 실패했습니다.');
+      if (err instanceof ApiError) toast.push('error', `업로드 실패: ${err.code}`);
+      else toast.push('error', '업로드에 실패했습니다.');
     } finally {
       setUploading(false);
     }
   }
 
   async function onRemoveAvatar() {
-    setError(null);
-    setSuccess(false);
     setUploading(true);
     try {
       const updated = await api<SessionUser>(ApiPaths.meAvatar, { method: 'DELETE' });
       setMe(updated);
       setAvatarUrl('');
       setUrlDirty(false);
-      setSuccess(true);
+      toast.push('success', '아바타가 제거되었습니다.');
     } catch (err) {
-      if (err instanceof ApiError) setError(`삭제 실패: ${err.code}`);
-      else setError('삭제에 실패했습니다.');
+      if (err instanceof ApiError) toast.push('error', `삭제 실패: ${err.code}`);
+      else toast.push('error', '삭제에 실패했습니다.');
     } finally {
       setUploading(false);
     }
   }
 
   if (!me) {
-    return <p className="text-body-sm text-muted-foreground">{error ?? '로딩…'}</p>;
+    return <p className="text-body-sm text-muted-foreground">{loadError ?? '로딩…'}</p>;
   }
 
   const initials = (me.displayName ?? me.email).slice(0, 2).toUpperCase();
@@ -176,10 +171,6 @@ export default function ProfileSettingsPage() {
         <span className="text-caption text-muted-foreground">이메일</span>
         <Input value={me.email} disabled />
       </label>
-      {error && <p className="text-body-sm text-destructive">{error}</p>}
-      {success && (
-        <p className="text-body-sm text-emerald-600 dark:text-emerald-400">저장되었습니다.</p>
-      )}
       <Button type="submit" disabled={pending}>
         {pending ? '저장 중…' : '저장'}
       </Button>

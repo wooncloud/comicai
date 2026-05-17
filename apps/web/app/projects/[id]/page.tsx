@@ -59,11 +59,16 @@ export default function ProjectDetail() {
   }, [projectId]);
 
   async function addPage() {
-    await api(ApiPaths.projectPages(projectId), {
-      method: 'POST',
-      body: JSON.stringify({ size: { w: 800, h: 1200 } }),
-    });
-    await loadPages();
+    try {
+      await api(ApiPaths.projectPages(projectId), {
+        method: 'POST',
+        body: JSON.stringify({ size: { w: 800, h: 1200 } }),
+      });
+      await loadPages();
+      toast.push('success', '페이지가 추가되었습니다.');
+    } catch (err) {
+      toast.push('error', (err as Error).message || '페이지 추가에 실패했습니다.');
+    }
   }
 
   const sensors = useSensors(
@@ -178,6 +183,7 @@ function SortablePageCard({
   page: PageDTO;
   onChanged: () => void;
 }) {
+  const toast = useToast();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: page.id,
   });
@@ -192,8 +198,13 @@ function SortablePageCard({
     e.preventDefault();
     e.stopPropagation();
     if (!confirm(`페이지 ${page.order + 1}을(를) 삭제하시겠습니까?`)) return;
-    await api(ApiPaths.page(page.id), { method: 'DELETE' });
-    onChanged();
+    try {
+      await api(ApiPaths.page(page.id), { method: 'DELETE' });
+      onChanged();
+      toast.push('success', '페이지가 삭제되었습니다.');
+    } catch (err) {
+      toast.push('error', (err as Error).message || '삭제에 실패했습니다.');
+    }
   }
   const thumb = page.backgroundUrl ?? null;
   const label = pageLabel(page);

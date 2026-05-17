@@ -60,17 +60,25 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
         body: JSON.stringify({ size: { w: 800, h: 1200 } }),
       });
       setPages((prev) => [...(prev ?? []), created]);
+      toast.push('success', '페이지가 추가되었습니다.');
+    } catch (err) {
+      toast.push('error', (err as Error).message || '페이지 추가에 실패했습니다.');
     } finally {
       setAdding(false);
     }
   }
 
   async function renamePage(id: string, name: string | null) {
-    const updated = await api<PageDTO>(ApiPaths.page(id), {
-      method: 'PATCH',
-      body: JSON.stringify({ name }),
-    });
-    setPages((prev) => prev?.map((p) => (p.id === id ? updated : p)) ?? prev);
+    try {
+      const updated = await api<PageDTO>(ApiPaths.page(id), {
+        method: 'PATCH',
+        body: JSON.stringify({ name }),
+      });
+      setPages((prev) => prev?.map((p) => (p.id === id ? updated : p)) ?? prev);
+      toast.push('success', '페이지 이름을 변경했습니다.');
+    } catch (err) {
+      toast.push('error', (err as Error).message || '이름 변경에 실패했습니다.');
+    }
   }
 
   const sensors = useSensors(

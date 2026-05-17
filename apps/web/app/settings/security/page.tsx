@@ -11,6 +11,7 @@ import {
 } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/toast';
 
 export default function SecurityPage() {
   const [me, setMe] = useState<SessionUser | null>(null);
@@ -42,12 +43,16 @@ export default function SecurityPage() {
 function EmailVerificationSection({ me }: { me: SessionUser | null }) {
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
+  const toast = useToast();
 
   async function resend() {
     setPending(true);
     try {
       await api(ApiPaths.verifyEmailRequest, { method: 'POST' });
       setDone(true);
+      toast.push('success', '인증 메일이 발송되었습니다.');
+    } catch (err) {
+      toast.push('error', (err as Error).message || '발송에 실패했습니다.');
     } finally {
       setPending(false);
     }
@@ -71,30 +76,27 @@ function PasswordSection({ me, onChanged }: { me: SessionUser | null; onChanged:
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const toast = useToast();
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    setSuccess(false);
     setPending(true);
     try {
       await api(ApiPaths.mePassword, {
         method: 'PATCH',
         body: JSON.stringify({ currentPassword: current, newPassword: next }),
       });
-      setSuccess(true);
       setCurrent('');
       setNext('');
       onChanged();
+      toast.push('success', '비밀번호가 변경되었습니다. 다른 세션은 모두 로그아웃됩니다.');
     } catch (err) {
       if (err instanceof ApiError && err.code === 'INVALID_PASSWORD') {
-        setError('현재 비밀번호가 올바르지 않습니다.');
+        toast.push('error', '현재 비밀번호가 올바르지 않습니다.');
       } else if (err instanceof ApiError && err.code === 'PASSWORD_REQUIRED') {
-        setError('OAuth 전용 계정입니다. 비밀번호 설정은 추후 지원.');
+        toast.push('error', 'OAuth 전용 계정입니다. 비밀번호 설정은 추후 지원.');
       } else {
-        setError('비밀번호 변경에 실패했습니다.');
+        toast.push('error', '비밀번호 변경에 실패했습니다.');
       }
     } finally {
       setPending(false);
@@ -124,12 +126,6 @@ function PasswordSection({ me, onChanged }: { me: SessionUser | null; onChanged:
           value={next}
           onChange={(e) => setNext(e.target.value)}
         />
-        {error && <p className="text-body-sm text-destructive">{error}</p>}
-        {success && (
-          <p className="text-body-sm text-emerald-600 dark:text-emerald-400">
-            변경되었습니다. 다른 세션은 모두 로그아웃됩니다.
-          </p>
-        )}
         <Button type="submit" size="sm" disabled={pending}>
           {pending ? '변경 중…' : '비밀번호 변경'}
         </Button>
@@ -176,10 +172,16 @@ function SessionsSection({
   sessions: SessionInfo[] | null;
   onChanged: () => void;
 }) {
+  const toast = useToast();
   async function revoke(sid: string) {
     if (!confirm('이 세션을 종료하시겠습니까?')) return;
-    await api(ApiPaths.meSession(sid), { method: 'DELETE' });
-    onChanged();
+    try {
+      await api(ApiPaths.meSession(sid), { method: 'DELETE' });
+      onChanged();
+      toast.push('success', '세션이 종료되었습니다.');
+    } catch (err) {
+      toast.push('error', (err as Error).message || '세션 종료에 실패했습니다.');
+    }
   }
 
   if (!sessions) return null;

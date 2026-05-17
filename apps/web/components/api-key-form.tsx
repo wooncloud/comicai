@@ -20,18 +20,16 @@ export function ApiKeyForm({ onSubmit }: Props) {
   const [label, setLabel] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handle(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     setPending(true);
     try {
       await onSubmit(provider, label, apiKey);
       setLabel('');
       setApiKey('');
     } catch {
-      setError('등록에 실패했습니다.');
+      // 부모(api-keys page)에서 토스트로 에러 처리.
     } finally {
       setPending(false);
     }
@@ -75,7 +73,6 @@ export function ApiKeyForm({ onSubmit }: Props) {
           className="font-mono"
         />
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" disabled={pending} size="sm">
         {pending ? '등록 중…' : '등록'}
       </Button>
