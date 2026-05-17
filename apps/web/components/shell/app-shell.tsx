@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -67,7 +68,11 @@ export function Topbar({ rightSlot }: { rightSlot?: React.ReactNode }) {
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-6 border-b border-border bg-background/95 px-6 backdrop-blur">
-      <Link href={me ? '/dashboard' : '/'} className="text-title-md font-semibold">
+      <Link
+        href={me ? '/dashboard' : '/'}
+        className="flex items-center gap-2 text-title-md font-semibold"
+      >
+        <Image src="/brush.svg" alt="" width={26} height={26} priority />
         ComicAI
       </Link>
       <nav className="flex flex-1 items-center gap-1 text-body-sm">

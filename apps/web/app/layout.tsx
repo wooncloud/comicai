@@ -22,6 +22,11 @@ const pretendard = localFont({
 export const metadata: Metadata = {
   title: 'ComicAI',
   description: 'AI 만화 제작 도구',
+  icons: {
+    icon: '/brush.svg',
+    shortcut: '/brush.svg',
+    apple: '/brush.svg',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
