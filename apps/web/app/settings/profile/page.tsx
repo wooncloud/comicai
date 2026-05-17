@@ -177,7 +177,9 @@ export default function ProfileSettingsPage() {
         <Input value={me.email} disabled />
       </label>
       {error && <p className="text-body-sm text-destructive">{error}</p>}
-      {success && <p className="text-body-sm text-emerald-600">저장되었습니다.</p>}
+      {success && (
+        <p className="text-body-sm text-emerald-600 dark:text-emerald-400">저장되었습니다.</p>
+      )}
       <Button type="submit" disabled={pending}>
         {pending ? '저장 중…' : '저장'}
       </Button>

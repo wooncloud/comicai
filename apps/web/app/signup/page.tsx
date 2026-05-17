@@ -37,20 +37,16 @@ export default function SignupPage() {
   return (
     <main className="mx-auto max-w-sm px-6 py-16">
       <AuthHeader />
-      <h1 className="text-2xl font-semibold">회원가입</h1>
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
-        <label className="block">
-          <span className="text-sm">이메일</span>
-          <Input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1"
-          />
+      <h1 className="text-display-md font-semibold">회원가입</h1>
+      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+        <label className="block space-y-1">
+          <span className="text-caption text-muted-foreground">이메일</span>
+          <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
-        <label className="block">
-          <span className="text-sm">비밀번호 (10자 이상, 영문+숫자)</span>
+        <label className="block space-y-1">
+          <span className="text-caption text-muted-foreground">
+            비밀번호 (10자 이상, 영문+숫자)
+          </span>
           <Input
             type="password"
             required
@@ -58,21 +54,20 @@ export default function SignupPage() {
             pattern="(?=.*[A-Za-z])(?=.*\d).{10,}"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1"
           />
         </label>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-body-sm text-destructive">{error}</p>}
         <Button type="submit" disabled={pending} className="w-full">
           {pending ? '가입 중…' : '회원가입'}
         </Button>
       </form>
-      <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="my-6 flex items-center gap-3 text-caption text-muted-foreground">
         <span className="h-px flex-1 bg-border" />
         또는
         <span className="h-px flex-1 bg-border" />
       </div>
       <OAuthButtons />
-      <p className="mt-6 text-sm text-muted-foreground">
+      <p className="mt-6 text-body-sm text-muted-foreground">
         이미 계정이 있나요?{' '}
         <Link href="/login" className="underline">
           로그인

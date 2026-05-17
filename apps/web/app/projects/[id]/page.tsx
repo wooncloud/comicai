@@ -95,9 +95,9 @@ export default function ProjectDetail() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-3xl px-6 py-12">
+      <div className="mx-auto max-w-6xl px-6 py-10">
         <div className="flex items-baseline justify-between gap-3">
-          <h1 className="text-2xl font-semibold">{project?.name ?? '로딩…'}</h1>
+          <h1 className="text-display-md font-semibold">{project?.name ?? '로딩…'}</h1>
           <div className="flex items-center gap-2">
             <label className="text-caption text-muted-foreground">대표 모델</label>
             <Select
@@ -135,15 +135,15 @@ export default function ProjectDetail() {
 
         <section className="mt-10">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium">페이지</h2>
+            <h2 className="text-title-lg font-semibold">페이지</h2>
             <Button onClick={addPage} variant="outline" size="sm">
               + 페이지 추가
             </Button>
           </div>
           {pages.length === 0 ? (
-            <div className="mt-4 rounded-md border border-dashed border-neutral-300 p-12 text-center text-sm text-neutral-500 dark:border-neutral-700">
+            <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-12 text-center text-body-sm text-muted-foreground">
               아직 페이지가 없습니다.
-              <button onClick={addPage} className="ml-2 text-neutral-900 underline dark:text-white">
+              <button onClick={addPage} className="ml-2 text-foreground underline">
                 첫 페이지 만들기
               </button>
             </div>
@@ -205,25 +205,23 @@ function SortablePageCard({
     >
       <Link
         href={`/projects/${projectId}/pages/${page.id}`}
-        className="relative block aspect-[2/3] overflow-hidden rounded-md border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-400 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-900"
+        className="relative block aspect-[2/3] overflow-hidden rounded-lg border border-border bg-card shadow-sm transition hover:border-foreground/30 hover:shadow-md"
       >
         {thumb ? (
           <>
             <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-              <div className="truncate text-sm font-medium text-white">{label}</div>
+              <div className="truncate text-body-sm font-medium text-white">{label}</div>
               <div className="text-[10px] text-white/70">
                 {page.size.w}×{page.size.h}
               </div>
             </div>
           </>
         ) : (
-          <div className="flex h-full flex-col items-center justify-center text-neutral-700 dark:text-neutral-300">
+          <div className="flex h-full flex-col items-center justify-center text-foreground">
             <div className="text-3xl font-semibold">{page.order + 1}</div>
-            <div className="mt-1 truncate px-2 text-xs text-neutral-600 dark:text-neutral-400">
-              {label}
-            </div>
-            <div className="mt-1 text-[10px] text-neutral-500">
+            <div className="mt-1 truncate px-2 text-caption text-muted-foreground">{label}</div>
+            <div className="mt-1 text-[10px] text-muted-foreground">
               {page.size.w}×{page.size.h}
             </div>
           </div>
@@ -237,14 +235,14 @@ function SortablePageCard({
         aria-label="드래그하여 순서 변경"
         {...attributes}
         {...listeners}
-        className="absolute left-1/2 top-1.5 -translate-x-1/2 cursor-grab rounded bg-white/80 p-1 text-neutral-700 opacity-0 shadow-sm transition active:cursor-grabbing group-hover:opacity-100 hover:bg-white dark:bg-neutral-900/80 dark:text-neutral-200 dark:hover:bg-neutral-900"
+        className="absolute left-1/2 top-1.5 -translate-x-1/2 cursor-grab rounded bg-background/80 p-1 text-foreground opacity-0 shadow-sm transition active:cursor-grabbing group-hover:opacity-100 hover:bg-background"
       >
         <GripVertical className="h-3.5 w-3.5" />
       </button>
       <button
         onClick={remove}
         title="삭제"
-        className="absolute right-1.5 top-1.5 rounded bg-white/80 px-1.5 py-0.5 text-xs text-red-600 opacity-0 shadow-sm transition group-hover:opacity-100 hover:bg-white dark:bg-neutral-900/80 dark:hover:bg-neutral-900"
+        className="absolute right-1.5 top-1.5 rounded bg-background/80 px-1.5 py-0.5 text-caption text-destructive opacity-0 shadow-sm transition group-hover:opacity-100 hover:bg-background"
       >
         삭제
       </button>

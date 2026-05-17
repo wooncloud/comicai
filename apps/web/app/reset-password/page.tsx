@@ -40,13 +40,15 @@ function ResetPasswordForm() {
   }
 
   if (!token) {
-    return <p className="text-sm text-destructive">유효하지 않은 링크입니다.</p>;
+    return <p className="mt-6 text-body-sm text-destructive">유효하지 않은 링크입니다.</p>;
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-8 space-y-4">
-      <label className="block">
-        <span className="text-sm">새 비밀번호 (10자 이상, 영문+숫자)</span>
+    <form onSubmit={onSubmit} className="mt-6 space-y-4">
+      <label className="block space-y-1">
+        <span className="text-caption text-muted-foreground">
+          새 비밀번호 (10자 이상, 영문+숫자)
+        </span>
         <Input
           type="password"
           required
@@ -54,10 +56,9 @@ function ResetPasswordForm() {
           pattern={PASSWORD_PATTERN}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-1"
         />
       </label>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-body-sm text-destructive">{error}</p>}
       <Button type="submit" disabled={pending} className="w-full">
         {pending ? '변경 중…' : '비밀번호 변경'}
       </Button>
@@ -69,11 +70,11 @@ export default function ResetPasswordPage() {
   return (
     <main className="mx-auto max-w-sm px-6 py-16">
       <AuthHeader />
-      <h1 className="text-2xl font-semibold">새 비밀번호 설정</h1>
-      <Suspense fallback={<p className="mt-8 text-sm">로딩…</p>}>
+      <h1 className="text-display-md font-semibold">새 비밀번호 설정</h1>
+      <Suspense fallback={<p className="mt-6 text-body-sm text-muted-foreground">로딩…</p>}>
         <ResetPasswordForm />
       </Suspense>
-      <p className="mt-6 text-sm text-muted-foreground">
+      <p className="mt-6 text-body-sm text-muted-foreground">
         <Link href="/login" className="underline">
           로그인으로 돌아가기
         </Link>

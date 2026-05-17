@@ -15,14 +15,14 @@ function LoginBanner() {
   const errorParam = params.get('error');
   if (reset === 'ok') {
     return (
-      <p className="mt-6 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+      <p className="mt-6 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-body-sm text-emerald-700 dark:text-emerald-300">
         비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.
       </p>
     );
   }
   if (errorParam) {
     return (
-      <p className="mt-6 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+      <p className="mt-6 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-body-sm text-destructive">
         {oauthErrorMessage(errorParam)}
       </p>
     );
@@ -71,44 +71,37 @@ export default function LoginPage() {
   return (
     <main className="mx-auto max-w-sm px-6 py-16">
       <AuthHeader />
-      <h1 className="text-2xl font-semibold">로그인</h1>
+      <h1 className="text-display-md font-semibold">로그인</h1>
       <Suspense>
         <LoginBanner />
       </Suspense>
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
-        <label className="block">
-          <span className="text-sm">이메일</span>
-          <Input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1"
-          />
+      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+        <label className="block space-y-1">
+          <span className="text-caption text-muted-foreground">이메일</span>
+          <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
-        <label className="block">
-          <span className="text-sm">비밀번호</span>
+        <label className="block space-y-1">
+          <span className="text-caption text-muted-foreground">비밀번호</span>
           <Input
             type="password"
             required
             minLength={10}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1"
           />
         </label>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-body-sm text-destructive">{error}</p>}
         <Button type="submit" disabled={pending} className="w-full">
           {pending ? '로그인 중…' : '로그인'}
         </Button>
       </form>
-      <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="my-6 flex items-center gap-3 text-caption text-muted-foreground">
         <span className="h-px flex-1 bg-border" />
         또는
         <span className="h-px flex-1 bg-border" />
       </div>
       <OAuthButtons />
-      <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground">
+      <div className="mt-6 flex items-center justify-between text-body-sm text-muted-foreground">
         <Link href="/signup" className="underline">
           회원가입
         </Link>

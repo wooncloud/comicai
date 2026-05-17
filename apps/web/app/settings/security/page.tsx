@@ -57,7 +57,7 @@ function EmailVerificationSection({ me }: { me: SessionUser | null }) {
   return (
     <section className="space-y-3">
       <h2 className="text-title-lg font-semibold">이메일</h2>
-      <div className="flex items-center gap-3 text-sm">
+      <div className="flex items-center gap-3 text-body-sm">
         <span>{me.email}</span>
         <Button variant="outline" size="sm" disabled={pending || done} onClick={resend}>
           {done ? '발송됨' : pending ? '발송 중…' : '인증 메일 재발송'}
@@ -124,9 +124,9 @@ function PasswordSection({ me, onChanged }: { me: SessionUser | null; onChanged:
           value={next}
           onChange={(e) => setNext(e.target.value)}
         />
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-body-sm text-destructive">{error}</p>}
         {success && (
-          <p className="text-sm text-emerald-600">
+          <p className="text-body-sm text-emerald-600 dark:text-emerald-400">
             변경되었습니다. 다른 세션은 모두 로그아웃됩니다.
           </p>
         )}
@@ -144,7 +144,7 @@ function OAuthSection({ me }: { me: SessionUser | null }) {
   return (
     <section className="space-y-3">
       <h2 className="text-title-lg font-semibold">외부 로그인</h2>
-      <ul className="space-y-2 text-sm">
+      <ul className="space-y-2 text-body-sm">
         {OAUTH_PROVIDERS.map((p) => (
           <li
             key={p}
@@ -152,7 +152,7 @@ function OAuthSection({ me }: { me: SessionUser | null }) {
           >
             <span className="capitalize">{p}</span>
             {linked.has(p) ? (
-              <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-700 dark:text-emerald-300">
+              <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-caption text-emerald-700 dark:text-emerald-300">
                 연결됨
               </span>
             ) : (
@@ -186,17 +186,17 @@ function SessionsSection({
   return (
     <section className="space-y-3">
       <h2 className="text-title-lg font-semibold">활성 세션</h2>
-      <ul className="divide-y divide-border rounded-md border border-border text-sm">
+      <ul className="divide-y divide-border rounded-md border border-border text-body-sm">
         {sessions.map((s) => (
           <li key={s.id} className="flex items-center justify-between gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="font-medium">{shortenUA(s.userAgent)}</span>
                 {s.current && (
-                  <span className="rounded bg-secondary px-1.5 py-0.5 text-xs">현재 세션</span>
+                  <span className="rounded bg-secondary px-1.5 py-0.5 text-caption">현재 세션</span>
                 )}
               </div>
-              <div className="mt-0.5 text-xs text-muted-foreground">
+              <div className="mt-0.5 text-caption text-muted-foreground">
                 {s.ip ?? 'unknown ip'} · 최근 활동 {new Date(s.lastUsedAt).toLocaleString('ko-KR')}
               </div>
             </div>

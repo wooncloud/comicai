@@ -28,10 +28,10 @@ export default function VerifyEmailPage() {
   }, [token]);
 
   return (
-    <main className="mx-auto max-w-sm px-6 py-24 text-center">
-      <h1 className="text-2xl font-semibold">이메일 인증</h1>
-      <div className="mt-8 text-sm">{statusText(status)}</div>
-      <Link href="/projects" className="mt-8 inline-block underline">
+    <main className="mx-auto max-w-sm px-6 py-16 text-center">
+      <h1 className="text-display-md font-semibold">이메일 인증</h1>
+      <div className="mt-6 text-body-sm text-muted-foreground">{statusText(status)}</div>
+      <Link href="/projects" className="mt-6 inline-block text-body-sm underline">
         프로젝트로 이동
       </Link>
     </main>

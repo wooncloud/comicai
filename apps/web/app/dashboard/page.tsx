@@ -38,7 +38,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-6xl px-6 py-10">
+      <div className="mx-auto max-w-6xl px-6 py-10">
         <header className="flex items-baseline justify-between">
           <h1 className="text-display-md font-semibold">내 프로젝트</h1>
           {!empty && <Button onClick={() => setCreateOpen(true)}>+ 새 프로젝트</Button>}
@@ -69,7 +69,7 @@ export default function DashboardPage() {
           onOpenChange={setCreateOpen}
           onCreated={appendItem}
         />
-      </main>
+      </div>
     </AppShell>
   );
 }
