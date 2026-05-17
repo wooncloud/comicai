@@ -122,7 +122,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 
 뮤테이션은 `useMutation`을 두 곳에서 사용한다.
 
-- `panel-inspector.tsx:87` `startRender` — `POST /panels/:id/render` 후 `setQueryData(['render-job', jobId], ...)`로 낙관적 'queued' 상태를 캐시에 시드하고 `subscribeJob(jobId)`로 SSE 연결
+- `panel-inspector.tsx:113-136` `startRender` — `POST /panels/:id/render` 후 `setQueryData(['render-job', jobId], ...)`로 낙관적 'queued' 상태를 캐시에 시드하고 `subscribeJob(jobId)`로 SSE 연결
 - `history-tray.tsx:20` `restore` — `POST /render-jobs/:id/restore` 후 부모 콜백 + `invalidateQueries`
 
 기타 뮤테이션 성격의 작업(`POST /projects`, `PATCH /projects/:id`, `DELETE /projects/:id`, `PATCH /panels/:id`, `POST /pages` 등)은 **`useMutation`을 쓰지 않고 직접 `api()`를 호출한 뒤 부모로 콜백**해 React Query 캐시는 부모가 `setQueryData`로 직접 갱신하는 패턴이다 (예: `app/dashboard/page.tsx:19-33`).
