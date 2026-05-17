@@ -96,7 +96,19 @@ export class ConsistencyService {
 
   async remove(userId: string, id: string) {
     const owned = await this.findOwned(userId, id);
-    await prisma.consistencyEntity.delete({ where: { id: owned.id } });
+    // style 엔티티 삭제 시 Project.defaultStyleId / Panel.styleId 참조를 함께 정리한다.
+    // FK가 없으므로 dangling reference로 인한 select 폴백 깨짐을 방지하기 위함.
+    await prisma.$transaction([
+      prisma.project.updateMany({
+        where: { id: owned.projectId, defaultStyleId: owned.id },
+        data: { defaultStyleId: null },
+      }),
+      prisma.panel.updateMany({
+        where: { styleId: owned.id },
+        data: { styleId: null },
+      }),
+      prisma.consistencyEntity.delete({ where: { id: owned.id } }),
+    ]);
   }
 
   /** 참조 이미지를 N개 업로드하고 엔티티에 추가. version +1. */

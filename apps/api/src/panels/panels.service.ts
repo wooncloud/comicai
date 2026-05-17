@@ -27,6 +27,7 @@ function panelDto(
     text: unknown;
     refImages: unknown;
     currentRenderId: string | null;
+    styleId: string | null;
     history: string[];
   },
   render: RenderRef = { status: null, imageUrl: null },
@@ -41,6 +42,7 @@ function panelDto(
     currentRenderId: row.currentRenderId,
     currentRenderStatus: render.status,
     currentRenderImageUrl: render.imageUrl,
+    styleId: row.styleId,
     history: row.history,
   };
 }
@@ -97,11 +99,16 @@ export class PanelsService {
     return panelDto(row);
   }
 
-  async patch(userId: string, id: string, patch: { shape?: PanelShape; text?: unknown }) {
+  async patch(
+    userId: string,
+    id: string,
+    patch: { shape?: PanelShape; text?: unknown; styleId?: string | null },
+  ) {
     await this.assertOwned(userId, id);
     const data: Record<string, unknown> = {};
     if (patch.shape) data.shape = patch.shape;
     if (patch.text) data.text = patch.text;
+    if ('styleId' in patch) data.styleId = patch.styleId ?? null;
     const row = await prisma.panel.update({ where: { id }, data: data as never });
     // 응답에 항상 현재 render 정보까지 채워 보냄 — 누락 시 클라이언트가 panels state를
     // 덮으며 imageUrl을 null로 잃는 회귀 위험(efac8df 사례).

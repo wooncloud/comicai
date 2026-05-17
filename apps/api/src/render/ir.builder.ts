@@ -15,7 +15,8 @@ import { shapeBoundingBox } from '../common/bbox';
 
 /**
  * Panel + Project 컨텍스트에서 RenderIR을 합성.
- * 멘션된 일관성 엔티티를 DB에서 조회해 IR 페이로드로 구성.
+ * - 캐릭터/배경/세계관: 본문 멘션(@)을 통해 주입
+ * - 그림체(style): `panel.styleId ?? project.defaultStyleId`로 자동 주입 (멘션 대상 아님)
  */
 export async function buildRenderIR(panelId: string, seed?: number): Promise<RenderIR> {
   const panel = await prisma.panel.findUnique({
@@ -30,11 +31,18 @@ export async function buildRenderIR(panelId: string, seed?: number): Promise<Ren
   const conti = (panel.conti as unknown as ImageRef) ?? null;
   const shape = panel.shape as unknown as PanelShape;
 
+  // 그림체 자동 주입: 패널 override → 프로젝트 대표 → 없음.
+  const effectiveStyleId = panel.styleId ?? panel.page.project.defaultStyleId ?? null;
+
   const mentionIds = resolveMentionIds(text);
-  const entities = mentionIds.length
-    ? await prisma.consistencyEntity.findMany({ where: { projectId, id: { in: mentionIds } } })
+  const loadIds = Array.from(
+    new Set([...mentionIds, ...(effectiveStyleId ? [effectiveStyleId] : [])]),
+  );
+  const entities = loadIds.length
+    ? await prisma.consistencyEntity.findMany({ where: { projectId, id: { in: loadIds } } })
     : [];
 
+  // 본문 멘션 이름 치환에 사용. 그림체는 멘션 대상이 아니므로 nameById에 포함되어 있어도 무해.
   const nameById = new Map(entities.map((e) => [e.id, e.name]));
   const userPrompt = serializeTextWithNameReplacement(text, nameById);
 
@@ -51,8 +59,10 @@ export async function buildRenderIR(panelId: string, seed?: number): Promise<Ren
       name: e.name,
       description: e.description,
     };
-    if (e.type === 'style') styles.push({ ...common, images: refs });
-    else if (e.type === 'character') characters.push({ ...common, images: refs });
+    if (e.type === 'style') {
+      // style은 멘션이 아니라 effectiveStyleId로만 주입. 그 외 멘션된 style은 무시.
+      if (e.id === effectiveStyleId) styles.push({ ...common, images: refs });
+    } else if (e.type === 'character') characters.push({ ...common, images: refs });
     else if (e.type === 'background') backgrounds.push({ ...common, images: refs });
     else if (e.type === 'worldview') worldviews.push(common);
   }

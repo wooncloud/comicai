@@ -9,9 +9,20 @@ interface Props {
   onUpdated: (e: ConsistencyEntityDTO) => void;
   onEdit: () => void;
   onRemove: () => void;
+  /** style 탭에서만 의미가 있음 — 현재 대표 그림체 여부. */
+  isDefault?: boolean;
+  /** style 탭에서만 의미가 있음 — 클릭 시 대표 그림체로 지정. */
+  onSetDefault?: () => void | Promise<void>;
 }
 
-export function EntityCard({ entity, onUpdated, onEdit, onRemove }: Props) {
+export function EntityCard({
+  entity,
+  onUpdated,
+  onEdit,
+  onRemove,
+  isDefault,
+  onSetDefault,
+}: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +52,14 @@ export function EntityCard({ entity, onUpdated, onEdit, onRemove }: Props) {
     <article className="space-y-3 rounded-lg border border-border bg-card p-4">
       <header className="flex items-baseline justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-body-lg font-medium">{entity.name}</h3>
+          <h3 className="flex items-center gap-2 truncate text-body-lg font-medium">
+            <span className="truncate">{entity.name}</span>
+            {isDefault && (
+              <span className="shrink-0 rounded-full bg-foreground px-2 py-0.5 text-caption font-medium text-background">
+                대표
+              </span>
+            )}
+          </h3>
           {entity.aliases.length > 0 && (
             <p className="text-caption text-muted-foreground">alias: {entity.aliases.join(', ')}</p>
           )}
@@ -64,6 +82,11 @@ export function EntityCard({ entity, onUpdated, onEdit, onRemove }: Props) {
           <Button size="sm" variant="ghost" onClick={onEdit}>
             수정
           </Button>
+          {onSetDefault && !isDefault && (
+            <Button size="sm" variant="ghost" onClick={() => void onSetDefault()}>
+              대표로 지정
+            </Button>
+          )}
           <Button size="sm" variant="ghost" className="text-destructive" onClick={onRemove}>
             삭제
           </Button>

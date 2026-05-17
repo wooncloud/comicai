@@ -84,7 +84,9 @@ export function createMentionSuggestion(
       try {
         const list = await api<ConsistencyEntityDTO[]>(`/projects/${projectId}/consistency`);
         const lower = query.toLowerCase();
+        // 그림체(style)는 @멘션이 아니라 패널 인스펙터의 select로 주입되므로 후보에서 제외.
         const filtered = list.filter((e) => {
+          if (e.type === 'style') return false;
           const hay = [e.name, ...e.aliases].join(' ').toLowerCase();
           return hay.includes(lower);
         });

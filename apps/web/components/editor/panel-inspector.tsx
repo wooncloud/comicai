@@ -6,9 +6,10 @@ import { useDebounced } from '@/lib/use-debounced';
 import {
   ApiPaths,
   emptyDoc,
+  type ConsistencyEntityDTO,
   type PanelDTO,
   type PanelShape,
-  type PanelShapeType,
+  type ProjectDTO,
   type RenderJobDTO,
   type RenderStatus,
   type TipTapDoc,
@@ -60,6 +61,18 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
     queryFn: () => api<RenderJobDTO>(ApiPaths.renderJob(activeJobId!)),
     enabled: !!activeJobId,
   });
+
+  // 프로젝트 대표 그림체와 등록된 style 엔티티 목록.
+  const { data: project } = useQuery<ProjectDTO>({
+    queryKey: ['project', projectId],
+    queryFn: () => api<ProjectDTO>(ApiPaths.project(projectId)),
+  });
+  const { data: styles } = useQuery<ConsistencyEntityDTO[]>({
+    queryKey: ['consistency', projectId, 'style'],
+    queryFn: () =>
+      api<ConsistencyEntityDTO[]>(`${ApiPaths.projectConsistency(projectId)}?type=style`),
+  });
+  const effectiveStyleId = panel.styleId ?? project?.defaultStyleId ?? null;
   const status: RenderStatus | null = job?.status ?? null;
   const resultImageUrl = job?.resultImageUrl ?? null;
 
@@ -203,6 +216,43 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
           {error}
         </div>
       )}
+
+      <div className="space-y-2">
+        <label className="block text-caption text-muted-foreground">
+          그림체
+          {panel.styleId == null && project?.defaultStyleId && (
+            <span className="ml-1 text-foreground/60">(프로젝트 대표)</span>
+          )}
+        </label>
+        <Select
+          value={effectiveStyleId ?? '__none__'}
+          onValueChange={async (v) => {
+            const next = v === '__none__' ? null : v;
+            try {
+              const updated = await api<PanelDTO>(ApiPaths.panel(panel.id), {
+                method: 'PATCH',
+                body: JSON.stringify({ styleId: next }),
+              });
+              onPanelUpdated(updated);
+            } catch (err) {
+              if (err instanceof ApiError) toast.push('error', `저장 실패: ${err.code}`);
+            }
+          }}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="그림체 선택" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">(없음)</SelectItem>
+            {(styles ?? []).map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
+                {s.id === project?.defaultStyleId ? ' · 대표' : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <div className="space-y-2">
         <label className="block text-caption text-muted-foreground">모델</label>

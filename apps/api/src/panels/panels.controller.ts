@@ -27,6 +27,7 @@ class PatchDto {
   static zodSchema = PanelPatchSchema;
   shape?: PanelShapeInput;
   text?: unknown;
+  styleId?: string | null;
 }
 
 @Controller()

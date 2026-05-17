@@ -6,7 +6,13 @@ import { AppShell } from '@/components/shell/app-shell';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { api } from '@/lib/api';
 import { useProject } from '@/lib/use-project';
-import { ApiPaths, type ConsistencyEntityDTO, type EntityType } from '@comicai/types';
+import {
+  ApiPaths,
+  type ConsistencyEntityDTO,
+  type EntityType,
+  type ProjectDTO,
+} from '@comicai/types';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EntityCard } from '@/components/consistency/entity-card';
@@ -31,6 +37,16 @@ export default function ConsistencyPage() {
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const project = useProject(projectId);
+  const queryClient = useQueryClient();
+  const defaultStyleId = project?.defaultStyleId ?? null;
+
+  async function setDefaultStyle(id: string) {
+    const updated = await api<ProjectDTO>(ApiPaths.project(projectId), {
+      method: 'PATCH',
+      body: JSON.stringify({ defaultStyleId: id }),
+    });
+    queryClient.setQueryData(['project', projectId], updated);
+  }
 
   async function refresh() {
     const list = await api<ConsistencyEntityDTO[]>(
@@ -158,6 +174,8 @@ export default function ConsistencyPage() {
                     onUpdated={applyUpdated}
                     onEdit={() => beginEdit(it)}
                     onRemove={() => remove(it.id)}
+                    isDefault={tab === 'style' && it.id === defaultStyleId}
+                    onSetDefault={tab === 'style' ? () => setDefaultStyle(it.id) : undefined}
                   />
                 ))}
               </ul>
