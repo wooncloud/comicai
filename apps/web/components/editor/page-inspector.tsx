@@ -53,7 +53,9 @@ export function PageInspector({ page, onPageUpdated, onCollapse }: Props) {
     <aside className="flex w-72 flex-col gap-4 overflow-y-auto border-l border-border bg-card p-4">
       <div className="flex items-center justify-between gap-2">
         {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="인스펙터 접기" />}
-        <div className="flex-1 text-xs uppercase tracking-wide text-muted-foreground">페이지</div>
+        <div className="flex-1 truncate text-xs uppercase tracking-wide text-muted-foreground">
+          페이지
+        </div>
       </div>
 
       <div className="space-y-2">

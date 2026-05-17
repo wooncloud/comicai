@@ -102,7 +102,7 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
   return (
     <aside className="flex w-36 flex-col border-r border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-2 py-1.5">
-        <span className="text-caption font-medium text-muted-foreground">페이지</span>
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">페이지</span>
         <div className="flex items-center gap-0.5">
           <button
             type="button"

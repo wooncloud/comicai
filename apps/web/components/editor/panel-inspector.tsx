@@ -189,10 +189,12 @@ export function PanelInspector({
   }
 
   return (
-    <aside className="flex w-96 min-h-0 flex-col gap-4 overflow-y-auto border-l border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
+    <aside className="flex min-h-0 w-96 flex-col gap-4 overflow-y-auto border-l border-border bg-card p-4">
       <div className="flex items-center justify-between gap-2">
         {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="인스펙터 접기" />}
-        <div className="flex-1 truncate text-xs text-neutral-500">패널 {panel.id.slice(-8)}</div>
+        <div className="flex-1 truncate text-xs uppercase tracking-wide text-muted-foreground">
+          패널 · {panel.id.slice(-8)}
+        </div>
         <PanelStatusBadge status={status} />
       </div>
 
@@ -295,7 +297,7 @@ export function PanelInspector({
       )}
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950">
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-caption text-destructive">
           {error}
         </div>
       )}
@@ -370,10 +372,16 @@ export function PanelInspector({
         }}
       />
 
-      <div className="mt-auto">
-        <button onClick={onDelete} className="text-xs text-red-600 underline">
+      <div className="mt-auto border-t border-border pt-3">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onDelete}
+          className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+        >
           패널 삭제
-        </button>
+        </Button>
       </div>
     </aside>
   );
