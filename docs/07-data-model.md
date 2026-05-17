@@ -113,6 +113,25 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 
 - 인덱스: `@@index([pageId])` (`:141`).
 
+### 2.8b SpeechBubble — `speech_bubbles` (`schema.prisma:132`)
+
+페이지 직속(Page 1:N SpeechBubble). 패널과 독립이며 항상 패널 위 z-order로 렌더된다. **렌더 IR에는 영향 없음** — export 합성 단계에서만 SVG 오버레이로 합성된다(`apps/api/src/export/export.service.ts`).
+
+| 필드      | 타입      | nullable | 기본값                                                        |
+| --------- | --------- | -------- | ------------------------------------------------------------- |
+| id        | String PK | no       | —                                                             |
+| pageId    | String    | no       | FK→pages (cascade)                                            |
+| variant   | String    | no       | `'ellipse'\|'rect'\|'cloud'\|'spike'\|'thought'\|'polygon'`   |
+| shape     | Json      | no       | `SpeechBubbleShape` — `{x,y,w,h,points?,tail?}`               |
+| text      | Json      | no       | `{}` — TipTap 문서(단순 텍스트)                               |
+| style     | Json      | no       | `{}` — `SpeechBubbleStyle` (`fontSize/strokeWidth/색상/정렬`) |
+| order     | Int       | no       | z-order 보조 카운터(Panel과 별개)                             |
+| createdAt | DateTime  | no       | `now()`                                                       |
+| updatedAt | DateTime  | no       | `@updatedAt`                                                  |
+
+- 인덱스: `@@index([pageId, order])`.
+- `text` 평탄화 헬퍼: `apps/api/src/export/speech-bubble.render.ts:flattenTipTapToText`.
+
 ### 2.9 RenderJob — `render_jobs` (`schema.prisma:143`)
 
 | 필드        | 타입                  | nullable | 비고                                       |

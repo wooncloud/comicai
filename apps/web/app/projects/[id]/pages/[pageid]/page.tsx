@@ -8,7 +8,13 @@ import { useProject } from '@/lib/use-project';
 import { useLocalStorageBoolean } from '@/lib/use-local-storage-state';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
-import { ApiPaths, pageLabel, type PageDTO, type PanelDTO } from '@comicai/types';
+import {
+  ApiPaths,
+  pageLabel,
+  type PageDTO,
+  type PanelDTO,
+  type SpeechBubbleDTO,
+} from '@comicai/types';
 import { PanelInspector } from '@/components/editor/panel-inspector';
 import { PageSidebar } from '@/components/editor/page-sidebar';
 import { ToolRail } from '@/components/editor/tool-rail';
@@ -17,6 +23,7 @@ import { ExportDialog } from '@/components/editor/export-dialog';
 import { PageInspector } from '@/components/editor/page-inspector';
 import { CollapseRail } from '@/components/editor/collapse-rail';
 import { usePanelSync } from '@/components/editor/tldraw/use-panel-sync';
+import { useSpeechBubbleSync } from '@/components/editor/tldraw/use-speech-bubble-sync';
 import { usePageFrame } from '@/components/editor/tldraw/use-page-frame';
 import type { ComicPanelShape } from '@/components/editor/tldraw/comic-panel-shape';
 
@@ -39,6 +46,7 @@ export default function PageEditor() {
   const project = useProject(projectId);
   const [page, setPage] = useState<PageDTO | null>(null);
   const [panels, setPanels] = useState<PanelDTO[]>([]);
+  const [bubbles, setBubbles] = useState<SpeechBubbleDTO[]>([]);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -50,12 +58,14 @@ export default function PageEditor() {
   useEffect(() => {
     if (!pageId) return;
     void (async () => {
-      const [p, list] = await Promise.all([
+      const [p, list, bubs] = await Promise.all([
         api<PageDTO>(ApiPaths.page(pageId)),
         api<PanelDTO[]>(ApiPaths.pagePanels(pageId)),
+        api<SpeechBubbleDTO[]>(ApiPaths.pageSpeechBubbles(pageId)),
       ]);
       setPage(p);
       setPanels(list);
+      setBubbles(bubs);
     })();
   }, [pageId]);
 
@@ -71,6 +81,15 @@ export default function PageEditor() {
     pageId,
     panels,
     onPanelsChanged: setPanels,
+    onSavingChange,
+    onSaveError,
+  });
+
+  useSpeechBubbleSync({
+    editor,
+    pageId,
+    bubbles,
+    onBubblesChanged: setBubbles,
     onSavingChange,
     onSaveError,
   });

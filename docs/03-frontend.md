@@ -91,6 +91,10 @@ App Router 구조. 모든 `page.tsx` 파일.
 - `panel-geometry.ts` — `clipPathFor` / `outlinePathFor` / `NormalizedPoint` 헬퍼
 - `use-panel-sync.ts` — 패널 ↔ tldraw 양방향 동기화 훅 (후술)
 - `use-page-frame.ts` — 페이지 frame 자동 생성/갱신 훅 (후술)
+- `speech-bubble-shape.tsx` — `BaseBoxShapeUtil` 기반 `speech-bubble` shape. `canEdit()=true`로 더블클릭 시 inline 텍스트 편집. variant `ellipse/rect/cloud/spike/thought/polygon` 별 SVG path + 꼬리(tail) 옵션
+- `speech-bubble-tools.tsx` — variant별 `BaseBoxShapeTool` 5종(ellipse/rect/cloud/spike/thought)과 `BubblePolygonTool`(StateNode, polygon-panel과 동일 인터랙션)
+- `use-speech-bubble-sync.ts` — 말풍선 ↔ tldraw 양방향 동기화 (use-panel-sync 패턴, 1.5초 디바운스, mergeRemoteChanges 보호)
+- `comic-editor.tsx:onMount` — store listener에서 모든 `speech-bubble` shape를 항상 `bringToFront`로 패널 위에 유지(재귀 방지 microtask + mergeRemoteChanges)
 
 ### components/ui (Radix 래퍼 + cva)
 

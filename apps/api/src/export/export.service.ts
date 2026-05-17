@@ -1,11 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import sharp from 'sharp';
 import { prisma } from '@comicai/db';
-import { isHexColor, type ImageRef, type PanelShape } from '@comicai/types';
+import {
+  isHexColor,
+  type ImageRef,
+  type PanelShape,
+  type SpeechBubbleShape,
+  type SpeechBubbleStyle,
+  type SpeechBubbleVariant,
+  type TipTapDoc,
+} from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { StorageService } from '../storage/storage.service';
 import { shapeBoundingBox } from '../common/bbox';
 import { buildPanelMaskSvg, buildPanelStrokeSvg } from './panel-mask';
+import { renderSpeechBubbleSvg } from './speech-bubble.render';
 
 export interface ExportResult {
   storageKey: string;
@@ -36,7 +45,10 @@ export class ExportService {
     const owned = await this.pages.findOwned(userId, pageId);
     const page = await prisma.page.findUnique({
       where: { id: owned.id },
-      include: { panels: true },
+      include: {
+        panels: true,
+        speechBubbles: { orderBy: { order: 'asc' } },
+      },
     });
     if (!page) throw new NotFoundException({ code: 'PAGE_NOT_FOUND' });
 
@@ -106,6 +118,17 @@ export class ExportService {
         }),
       )
     ).flat();
+
+    // 3) 말풍선 — 패널 합성 직후, 항상 가장 위 레이어로.
+    for (const bubble of page.speechBubbles) {
+      const { svg, left, top } = renderSpeechBubbleSvg({
+        variant: bubble.variant as SpeechBubbleVariant,
+        shape: bubble.shape,
+        style: bubble.style,
+        text: bubble.text,
+      });
+      composites.push({ input: svg, left, top });
+    }
 
     let canvas = sharp({
       create: {

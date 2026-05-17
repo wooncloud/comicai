@@ -2,12 +2,16 @@
 import { useEffect } from 'react';
 import { useValue, type Editor } from 'tldraw';
 import {
+  Circle,
+  Cloud,
   Hand,
   MessageCircle,
   MousePointer2,
+  Pentagon,
   Square,
   Star,
   Type,
+  Zap,
   type LucideIcon,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -29,7 +33,13 @@ const TOOLS: readonly Tool[] = [
   { id: 'hand', kbd: 'h', label: '손', icon: Hand },
   { id: 'comic-panel', kbd: 'p', label: '패널', icon: Square, aliases: ['polygon-panel'] },
   { id: 'text', kbd: 't', label: '텍스트', icon: Type },
-  { id: 'speech-bubble', kbd: 'b', label: '말풍선', icon: MessageCircle, disabled: true },
+  {
+    id: 'bubble-ellipse',
+    kbd: 'b',
+    label: '말풍선',
+    icon: MessageCircle,
+    aliases: ['bubble-rect', 'bubble-cloud', 'bubble-spike', 'bubble-thought', 'bubble-polygon'],
+  },
 ] as const;
 
 interface PanelSubMode {
@@ -44,9 +54,33 @@ const PANEL_SUB_MODES: readonly PanelSubMode[] = [
   { id: 'polygon-panel', kbd: 'g', label: '다각형', icon: Star },
 ] as const;
 
+interface BubbleSubMode {
+  id:
+    | 'bubble-ellipse'
+    | 'bubble-rect'
+    | 'bubble-cloud'
+    | 'bubble-spike'
+    | 'bubble-thought'
+    | 'bubble-polygon';
+  kbd: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+const BUBBLE_SUB_MODES: readonly BubbleSubMode[] = [
+  { id: 'bubble-ellipse', kbd: 'b', label: '타원', icon: Circle },
+  { id: 'bubble-rect', kbd: 'r', label: '사각', icon: Square },
+  { id: 'bubble-cloud', kbd: 'c', label: '구름', icon: Cloud },
+  { id: 'bubble-spike', kbd: 'k', label: '스파이크', icon: Zap },
+  { id: 'bubble-thought', kbd: 'o', label: '생각', icon: MessageCircle },
+  { id: 'bubble-polygon', kbd: 'n', label: '다각형', icon: Pentagon },
+] as const;
+
 const KBD_MAP: Record<string, string> = {
+  // TOOLS의 primary kbd 중 sub-mode와 겹치는 'b' 같은 키는 BUBBLE_SUB_MODES가 덮어쓰도록 뒤에 둔다.
   ...Object.fromEntries(TOOLS.filter((t) => !t.disabled).map((t) => [t.kbd, t.id])),
   ...Object.fromEntries(PANEL_SUB_MODES.map((s) => [s.kbd, s.id])),
+  ...Object.fromEntries(BUBBLE_SUB_MODES.map((s) => [s.kbd, s.id])),
 };
 
 interface Props {
@@ -79,6 +113,7 @@ export function ToolRail({ editor }: Props) {
   }, [editor]);
 
   const panelActive = current === 'comic-panel' || current === 'polygon-panel';
+  const bubbleActive = BUBBLE_SUB_MODES.some((m) => m.id === current);
 
   return (
     <TooltipProvider delayDuration={0} skipDelayDuration={0}>
@@ -119,38 +154,60 @@ export function ToolRail({ editor }: Props) {
           );
         })}
 
-        {panelActive && (
-          <div className="mt-1 flex flex-col items-center gap-1 border-t border-border pt-1">
-            {PANEL_SUB_MODES.map((m) => {
-              const Icon = m.icon;
-              const active = current === m.id;
-              return (
-                <Tooltip key={m.id}>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => editor?.setCurrentTool(m.id)}
-                      className={cn(
-                        'flex h-7 w-7 items-center justify-center rounded-md transition-colors',
-                        active
-                          ? 'bg-foreground text-background'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      <span className="sr-only">{m.label}</span>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    {m.label}
-                    <span className="ml-1 opacity-60">{m.kbd.toUpperCase()}</span>
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </div>
+        {panelActive && <SubModeGroup modes={PANEL_SUB_MODES} current={current} editor={editor} />}
+        {bubbleActive && (
+          <SubModeGroup modes={BUBBLE_SUB_MODES} current={current} editor={editor} />
         )}
       </nav>
     </TooltipProvider>
+  );
+}
+
+interface SubMode {
+  id: string;
+  kbd: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+function SubModeGroup({
+  modes,
+  current,
+  editor,
+}: {
+  modes: readonly SubMode[];
+  current: string;
+  editor: Editor | null;
+}) {
+  return (
+    <div className="mt-1 flex flex-col items-center gap-1 border-t border-border pt-1">
+      {modes.map((m) => {
+        const Icon = m.icon;
+        const active = current === m.id;
+        return (
+          <Tooltip key={m.id}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => editor?.setCurrentTool(m.id)}
+                className={cn(
+                  'flex h-7 w-7 items-center justify-center rounded-md transition-colors',
+                  active
+                    ? 'bg-foreground text-background'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="sr-only">{m.label}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {m.label}
+              <span className="ml-1 opacity-60">{m.kbd.toUpperCase()}</span>
+            </TooltipContent>
+          </Tooltip>
+        );
+      })}
+    </div>
   );
 }

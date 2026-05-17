@@ -44,6 +44,8 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 | `PageDTO`                                                                | `src/index.ts:157-168` | `id, projectId, order, name(null이면 'p{order+1}'), size{w,h}, background?, backgroundUrl?(presigned)`                                                               |
 | `PanelDTO`                                                               | `src/index.ts:118-133` | `id, pageId, shape, conti?, text(TipTapDoc), refImages, currentRenderId?, currentRenderStatus?, currentRenderImageUrl?, styleId?(패널별 그림체 override), history[]` |
 | `PanelShape`                                                             | `src/index.ts:111-116` | `type, points[], strokeColor, strokeWidth`                                                                                                                           |
+| `SpeechBubbleDTO`                                                        | `src/index.ts`         | `id, pageId, variant(ellipse/rect/cloud/spike/thought/polygon), shape{x,y,w,h,points?,tail?}, text(TipTapDoc), style, order` — Page 직속, 패널과 독립                |
+| `SpeechBubbleStyle`                                                      | `src/index.ts`         | `fontSize, strokeWidth, strokeColor, fillColor, textAlign, fontFamily?` — `defaultSpeechBubbleStyle()` 헬퍼 제공                                                     |
 | `ConsistencyEntityDTO`                                                   | `src/index.ts:74-87`   | `type, name, aliases[], description, refImages[], refImageUrls[](presigned), version`                                                                                |
 | `RenderJobDTO`                                                           | `src/index.ts:250-263` | `id, panelId, userId, model, status, resultImage?, resultImageUrl?(presigned), error?, attempts, finishedAt?`                                                        |
 | `RenderIR`                                                               | `src/index.ts:235-248` | 워커에 전달되는 입력 IR: `styles/characters/backgrounds/worldviews`, `contiSketch?, userImages, userPrompt, aspectRatio, panelSize, seed?`                           |
@@ -77,8 +79,9 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
   - me: `me`, `mePassword`, `meSessions`, `meSession(sid)`.
   - api keys: `apiKeys`, `apiKey(id)`, `apiKeyVerify(id)`.
   - projects: `projects`, `project(id)`, `projectPages(pid)`, `projectConsistency(pid)`.
-  - pages: `page(id)`, `pageExport(id)`, `pagePanels(id)`.
+  - pages: `page(id)`, `pageExport(id)`, `pagePanels(id)`, `pageSpeechBubbles(id)`, `pageSpeechBubblesReorder(id)`.
   - panels: `panel(id)`, `panelUpload(id)`, `panelRender(id)`, `panelHistory(id)`.
+  - speech bubbles: `speechBubble(id)`.
   - consistency: `consistency(id)`, `consistencyImages(id)`.
   - render: `renderJob(id)`, `renderJobCancel(id)`, `renderJobEvents(id)`, `renderJobRestore(id)`.
 
@@ -95,6 +98,7 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - 렌더: `RenderModelSchema`(ModelId enum과 동일), `RenderStartSchema` (`src/schemas.ts:103-106`).
 - 내보내기: `ExportFormatSchema = 'png'|'jpg'`, `ExportRequestSchema`(dpi 72~600, 기본 150) (`src/schemas.ts:111-115`).
 - 패널: `PanelShapeSchema` — points 3~64개, strokeColor 기본 `#000000`, strokeWidth 기본 2 (`src/schemas.ts:119-124`).
+- 말풍선: `SpeechBubbleVariantSchema`, `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`, `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts`).
 - 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema` (`src/schemas.ts:141-145`).
 
 ### Panel path 헬퍼 (panel-path.ts)
@@ -146,6 +150,7 @@ Prisma 기반 ORM 래퍼. 글로벌 싱글톤 클라이언트 + ID 발급 헬퍼
 | `ConsistencyEntity` | `consistency_entities` | `type(str), name, aliases[], description, refImages(Json), version` (`:93-109`)                                 | projectId → Project cascade, `@@index([projectId, type])`         |
 | `Page`              | `pages`                | `order, name?, size(Json), background(Json?)` (`:111-125`)                                                      | panels, `@@index([projectId, order])`                             |
 | `Panel`             | `panels`               | `shape(Json), conti(Json?), text(Json), refImages(Json), currentRenderId?, history[]` (`:127-141`)              | pageId → Page cascade                                             |
+| `SpeechBubble`      | `speech_bubbles`       | `variant, shape(Json), text(Json), style(Json), order` — Page 직속, 패널과 독립. Cascade on Page 삭제           | pageId → Page cascade, `@@index([pageId, order])`                 |
 | `RenderJob`         | `render_jobs`          | `model, ir(Json), status, resultImage(Json?), error(Json?), attempts, finishedAt?` (`:143-161`)                 | userId → User cascade, `@@index([panelId, createdAt])`            |
 
 JSON 컬럼들은 `@comicai/types`의 `PanelShape`, `ImageRef`, `TipTapDoc`, `RenderIR`, `RenderError` 등을 그대로 직렬화해 저장한다.

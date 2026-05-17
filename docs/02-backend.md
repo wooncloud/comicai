@@ -176,6 +176,20 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 
 리스트 응답은 currentRender의 presign URL을 동봉 — `panels/panels.service.ts:55-80`.
 
+### 3.6b SpeechBubblesModule (`speech-bubbles/*`)
+
+페이지 직속 말풍선의 CRUD + reorder. 패널과 독립이며 렌더에는 영향 없고 export 합성에서만 사용된다.
+
+| Method | Route                                      | Handler                                 |
+| ------ | ------------------------------------------ | --------------------------------------- |
+| GET    | `/v1/pages/:pageid/speech-bubbles`         | `list` (`speech-bubbles.controller.ts`) |
+| POST   | `/v1/pages/:pageid/speech-bubbles`         | `create` — `order`는 MAX+1 자동 할당    |
+| POST   | `/v1/pages/:pageid/speech-bubbles/reorder` | `reorder` — body `{ ids: string[] }`    |
+| PATCH  | `/v1/speech-bubbles/:id`                   | `patch` — variant/shape/text/style      |
+| DELETE | `/v1/speech-bubbles/:id`                   | `remove`                                |
+
+소유 검증은 `page→project→userId` 체인을 `PagesService.findOwned` 와 자체 `assertOwned`로 처리 — `panels.service.ts` 패턴과 동일.
+
 ### 3.7 RenderModule (`render/*`)
 
 RenderModule import: `AuthModule, PanelsModule, StorageModule, ApiKeysModule` — `render/render.module.ts:12-13`.

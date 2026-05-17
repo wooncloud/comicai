@@ -7,9 +7,11 @@ import { ComicPanelTool } from './comic-panel-tool';
 import { PageFrameShapeUtil } from './page-frame-shape';
 import { PolygonPanelTool } from './polygon-panel-tool';
 import { PolygonPreview } from './polygon-preview';
+import { SpeechBubbleShapeUtil } from './speech-bubble-shape';
+import { ALL_BUBBLE_TOOLS } from './speech-bubble-tools';
 
-const shapeUtils = [ComicPanelShapeUtil, PageFrameShapeUtil];
-const tools = [ComicPanelTool, PolygonPanelTool];
+const shapeUtils = [ComicPanelShapeUtil, PageFrameShapeUtil, SpeechBubbleShapeUtil];
+const tools = [ComicPanelTool, PolygonPanelTool, ...ALL_BUBBLE_TOOLS];
 
 const uiOverrides: TLUiOverrides = {
   tools(_editor, baseTools) {
@@ -50,6 +52,27 @@ export function ComicEditor({ onMount }: Props) {
       editor.setCurrentTool('select');
       // 그리드 보기를 기본 ON. 페이지 프레임 안에 패널을 정렬할 때 유용.
       editor.updateInstanceState({ isGridMode: true });
+      // 말풍선은 항상 패널 위에. user-sourced shape 변경이 있을 때 모든 speech-bubble을 맨 위로.
+      // remote source는 우리 자신의 mergeRemoteChanges 호출도 포함되므로 source='user'로 한정해 루프 방지.
+      let scheduled = false;
+      editor.store.listen(
+        () => {
+          if (scheduled) return;
+          scheduled = true;
+          queueMicrotask(() => {
+            scheduled = false;
+            const bubbles = editor
+              .getCurrentPageShapes()
+              .filter((s) => s.type === 'speech-bubble')
+              .map((s) => s.id);
+            if (bubbles.length === 0) return;
+            editor.store.mergeRemoteChanges(() => {
+              editor.bringToFront(bubbles);
+            });
+          });
+        },
+        { source: 'user', scope: 'document' },
+      );
       onMount(editor);
     },
     [onMount],

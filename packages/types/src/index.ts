@@ -134,6 +134,60 @@ export interface PanelDTO {
   history: string[];
 }
 
+// ─── 말풍선 ─────────────────────────────────────
+export const SPEECH_BUBBLE_VARIANTS = [
+  'ellipse',
+  'rect',
+  'cloud',
+  'spike',
+  'thought',
+  'polygon',
+] as const;
+export type SpeechBubbleVariant = (typeof SPEECH_BUBBLE_VARIANTS)[number];
+
+export interface SpeechBubbleShape {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** polygon variant 전용. bbox 정규화 좌표(0..1). */
+  points?: { x: number; y: number }[];
+  /** 꼬리 끝점 (bbox 좌상단 기준 절대 px). null이면 꼬리 없음. */
+  tail?: { x: number; y: number } | null;
+}
+
+export interface SpeechBubbleStyle {
+  fontSize: number;
+  fontFamily?: string | null;
+  strokeWidth: number;
+  strokeColor: string;
+  fillColor: string;
+  textAlign: 'left' | 'center' | 'right';
+}
+
+export function defaultSpeechBubbleStyle(): SpeechBubbleStyle {
+  return {
+    fontSize: 14,
+    fontFamily: null,
+    strokeWidth: 2,
+    strokeColor: '#000000',
+    fillColor: '#ffffff',
+    textAlign: 'center',
+  };
+}
+
+export interface SpeechBubbleDTO {
+  id: string;
+  pageId: string;
+  variant: SpeechBubbleVariant;
+  shape: SpeechBubbleShape;
+  text: TipTapDoc;
+  style: SpeechBubbleStyle;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── TipTap 문서 (멘션 노드) ────────────────────
 export interface TipTapMentionAttrs {
   id: string;

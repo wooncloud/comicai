@@ -15,6 +15,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { ConsistencyModule } from './consistency/consistency.module';
 import { PagesModule } from './pages/pages.module';
 import { PanelsModule } from './panels/panels.module';
+import { SpeechBubblesModule } from './speech-bubbles/speech-bubbles.module';
 import { RenderModule } from './render/render.module';
 import { ExportModule } from './export/export.module';
 
@@ -65,6 +66,7 @@ import { ExportModule } from './export/export.module';
     ConsistencyModule,
     PagesModule,
     PanelsModule,
+    SpeechBubblesModule,
     RenderModule,
     ExportModule,
   ],
