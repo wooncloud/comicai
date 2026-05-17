@@ -99,7 +99,7 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
   }
 
   return (
-    <aside className="flex w-44 flex-col border-r border-border bg-card">
+    <aside className="flex w-36 flex-col border-r border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-2 py-1.5">
         <span className="text-caption font-medium text-muted-foreground">페이지</span>
         <div className="flex items-center gap-0.5">
@@ -126,7 +126,7 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
           )}
         </div>
       </div>
-      <ul className="flex-1 overflow-auto p-2">
+      <ul className="flex-1 overflow-auto p-1">
         {pages === null && <li className="text-caption text-muted-foreground">로딩…</li>}
         {pages && pages.length > 0 && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -239,7 +239,6 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
     );
   }
 
-  const thumb = page.backgroundUrl ?? null;
   return (
     <li ref={setNodeRef} style={style} className="group">
       <div
@@ -255,30 +254,14 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
           aria-label="드래그하여 순서 변경"
           {...attributes}
           {...listeners}
-          className="flex h-7 w-4 flex-none cursor-grab items-center justify-center text-muted-foreground/60 opacity-0 transition active:cursor-grabbing group-hover:opacity-100 hover:text-foreground"
+          className="flex h-5 w-3 flex-none cursor-grab items-center justify-center text-muted-foreground/60 opacity-0 transition active:cursor-grabbing group-hover:opacity-100 hover:text-foreground"
         >
           <GripVertical className="h-3 w-3" />
         </button>
         <Link
           href={`/projects/${projectId}/pages/${page.id}`}
-          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2"
+          className="flex min-w-0 flex-1 items-center gap-1 py-1 pr-1"
         >
-          {thumb ? (
-            <img
-              src={thumb}
-              alt=""
-              className="h-8 w-6 flex-none rounded-sm border border-border object-cover"
-            />
-          ) : (
-            <span
-              className={cn(
-                'flex h-8 w-6 flex-none items-center justify-center rounded-sm border border-border text-[10px] font-medium',
-                active ? 'bg-background text-foreground' : 'bg-muted/40',
-              )}
-            >
-              {page.order + 1}
-            </span>
-          )}
           <span className="min-w-0 flex-1 truncate" title={pageLabel(page)}>
             {pageLabel(page)}
           </span>
@@ -290,13 +273,10 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
               setEditing(true);
             }}
             title="이름 변경"
-            className="hidden h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover:flex"
+            className="hidden h-4 w-4 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover:flex"
           >
             <Pencil className="h-3 w-3" />
           </button>
-          <span className="ml-auto text-caption text-muted-foreground">
-            {page.size.w}×{page.size.h}
-          </span>
         </Link>
       </div>
     </li>

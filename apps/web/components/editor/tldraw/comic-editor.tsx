@@ -1,17 +1,6 @@
 'use client';
 import { useCallback } from 'react';
-import {
-  Tldraw,
-  type Editor,
-  type TLComponents,
-  type TLUiOverrides,
-  DefaultMainMenu,
-  DefaultToolbar,
-  HandToolbarItem,
-  SelectToolbarItem,
-  TextToolbarItem,
-  TldrawUiMenuToolItem,
-} from 'tldraw';
+import { Tldraw, type Editor, type TLComponents, type TLUiOverrides } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { ComicPanelShapeUtil } from './comic-panel-shape';
 import { ComicPanelTool } from './comic-panel-tool';
@@ -44,25 +33,10 @@ const uiOverrides: TLUiOverrides = {
   },
 };
 
+// hideUi=true이면 기본 셸 UI(툴바/메뉴/스타일패널 등)가 전부 사라진다.
+// 캔버스 안에 띄우는 PolygonPreview만 유지.
 const components: TLComponents = {
-  // 최소 셸: 메뉴는 유지하되 페이지/공유 등은 숨김(MVP).
-  PageMenu: null,
-  ActionsMenu: null,
-  HelpMenu: null,
-  NavigationPanel: null,
-  MainMenu: () => <DefaultMainMenu />,
   InFrontOfTheCanvas: () => <PolygonPreview />,
-  // 하단 툴바를 선택/손/패널/텍스트만 노출하도록 축소. 그 외 기본 도구(그리기/지우개/
-  // 화살표/스티키/이미지/도형 등)는 만화 워크플로에 불필요해 숨김.
-  // TODO: 말풍선 도구가 등록되면 여기에 <TldrawUiMenuToolItem toolId="speech-bubble" />
-  Toolbar: () => (
-    <DefaultToolbar>
-      <SelectToolbarItem />
-      <HandToolbarItem />
-      <TldrawUiMenuToolItem toolId="comic-panel" />
-      <TextToolbarItem />
-    </DefaultToolbar>
-  ),
 };
 
 interface Props {
@@ -72,9 +46,10 @@ interface Props {
 export function ComicEditor({ onMount }: Props) {
   const mount = useCallback(
     (editor: Editor) => {
-      // 마우스 휠 zoom의 ergonomy: 트랙패드에선 pinch만으로 zoom (default ok).
       // 기본 도구를 'select'로
       editor.setCurrentTool('select');
+      // 그리드 보기를 기본 ON. 페이지 프레임 안에 패널을 정렬할 때 유용.
+      editor.updateInstanceState({ isGridMode: true });
       onMount(editor);
     },
     [onMount],
@@ -82,6 +57,7 @@ export function ComicEditor({ onMount }: Props) {
 
   return (
     <Tldraw
+      hideUi
       shapeUtils={shapeUtils}
       tools={tools}
       overrides={uiOverrides}
