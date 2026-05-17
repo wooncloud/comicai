@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Ruler, Palette } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { ApiPaths, type PageDTO } from '@comicai/types';
 import { PageSizeSelect } from './page-size-select';
+import { SectionLabel } from './section-label';
 import { useToast } from '@/components/ui/toast';
 
 interface Props {
@@ -69,12 +70,12 @@ export function PageInspector({ page, onPageUpdated, onCollapse }: Props) {
       </div>
 
       <div className="space-y-2">
-        <label className="block text-caption text-muted-foreground">페이지 크기</label>
+        <SectionLabel icon={Ruler}>페이지 크기</SectionLabel>
         <PageSizeSelect value={page.size} onChange={(size) => void patch({ size })} />
       </div>
 
       <div className="space-y-2">
-        <label className="block text-caption text-muted-foreground">배경 색</label>
+        <SectionLabel icon={Palette}>배경 색</SectionLabel>
         <div className="flex items-center gap-2">
           <input
             type="color"

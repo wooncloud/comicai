@@ -15,9 +15,10 @@ import {
   type TipTapDoc,
   type ModelId,
 } from '@comicai/types';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, PencilRuler, Brush, Sparkles, Square } from 'lucide-react';
 import { PanelTextEditor } from './panel-editor';
 import { PanelStatusBadge } from './panel-status-badge';
+import { SectionLabel } from './section-label';
 import { HistoryTray } from './history-tray';
 import { ContiDialog } from './conti-dialog';
 import { useToast } from '@/components/ui/toast';
@@ -225,7 +226,7 @@ export function PanelInspector({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-caption text-muted-foreground">콘티 (구도 스케치)</label>
+          <SectionLabel icon={PencilRuler}>콘티 (구도 스케치)</SectionLabel>
           {panel.conti && (
             <button
               type="button"
@@ -314,12 +315,14 @@ export function PanelInspector({
       )}
 
       <div className="space-y-2">
-        <label className="block text-caption text-muted-foreground">
+        <SectionLabel icon={Brush}>
           그림체
           {panel.styleId == null && project?.defaultStyleId && (
-            <span className="ml-1 text-foreground/60">(프로젝트 대표)</span>
+            <span className="ml-1 text-caption font-normal text-muted-foreground">
+              (프로젝트 대표)
+            </span>
           )}
-        </label>
+        </SectionLabel>
         <Select
           value={effectiveStyleId ?? '__none__'}
           onValueChange={async (v) => {
@@ -351,7 +354,7 @@ export function PanelInspector({
       </div>
 
       <div className="space-y-2">
-        <label className="block text-caption text-muted-foreground">모델</label>
+        <SectionLabel icon={Sparkles}>모델</SectionLabel>
         <Select value={model} onValueChange={(v) => setUserModel(v as ModelId)}>
           <SelectTrigger className="w-full">
             <SelectValue />
@@ -417,7 +420,7 @@ function PanelStrokeEditor({
 
   return (
     <div className="space-y-2">
-      <label className="block text-caption text-muted-foreground">패널 선</label>
+      <SectionLabel icon={Square}>패널 선</SectionLabel>
       <div className="flex items-center gap-2">
         <input
           type="color"
