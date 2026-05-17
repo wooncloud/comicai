@@ -71,4 +71,19 @@ export class PanelsController {
   ) {
     return this.svc.appendUpload(req.user.id, id, requireUploadedFile(file).buffer);
   }
+
+  @Post('panels/:id/conti')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
+  setConti(
+    @Req() req: AuthedRequest,
+    @Param('id') id: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.svc.setConti(req.user.id, id, requireUploadedFile(file).buffer);
+  }
+
+  @Delete('panels/:id/conti')
+  clearConti(@Req() req: AuthedRequest, @Param('id') id: string) {
+    return this.svc.clearConti(req.user.id, id);
+  }
 }

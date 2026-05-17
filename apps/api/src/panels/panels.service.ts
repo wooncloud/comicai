@@ -31,12 +31,14 @@ function panelDto(
     history: string[];
   },
   render: RenderRef = { status: null, imageUrl: null },
+  contiUrl: string | null = null,
 ): PanelDTO {
   return {
     id: row.id,
     pageId: row.pageId,
     shape: row.shape as PanelShape,
     conti: (row.conti as ImageRef) ?? null,
+    contiUrl,
     text: (row.text as TipTapDoc) ?? emptyDoc(),
     refImages: (row.refImages as ImageRef[]) ?? [],
     currentRenderId: row.currentRenderId,
@@ -76,14 +78,26 @@ export class PanelsService {
         ),
       ),
     );
-    return rows.map((r) => {
-      const job = r.currentRenderId ? byId.get(r.currentRenderId) : undefined;
-      const key = (job?.resultImage as ImageRef | null)?.storageKey;
-      return panelDto(r, {
-        status: (job?.status as RenderStatus | undefined) ?? null,
-        imageUrl: job?.status === 'succeeded' && key ? (presigned.get(key) ?? null) : null,
-      });
-    });
+    return Promise.all(
+      rows.map(async (r) => {
+        const job = r.currentRenderId ? byId.get(r.currentRenderId) : undefined;
+        const key = (job?.resultImage as ImageRef | null)?.storageKey;
+        return panelDto(
+          r,
+          {
+            status: (job?.status as RenderStatus | undefined) ?? null,
+            imageUrl: job?.status === 'succeeded' && key ? (presigned.get(key) ?? null) : null,
+          },
+          await this.presignContiUrl(r.conti),
+        );
+      }),
+    );
+  }
+
+  private async presignContiUrl(conti: unknown): Promise<string | null> {
+    const ref = conti as ImageRef | null;
+    if (!ref?.storageKey) return null;
+    return (await this.storage.presignDownload(ref.storageKey)).url;
   }
 
   async create(userId: string, pageId: string, shape: PanelShape): Promise<PanelDTO> {
@@ -112,7 +126,11 @@ export class PanelsService {
     const row = await prisma.panel.update({ where: { id }, data: data as never });
     // 응답에 항상 현재 render 정보까지 채워 보냄 — 누락 시 클라이언트가 panels state를
     // 덮으며 imageUrl을 null로 잃는 회귀 위험(efac8df 사례).
-    return panelDto(row, await this.loadRender(row.currentRenderId));
+    return panelDto(
+      row,
+      await this.loadRender(row.currentRenderId),
+      await this.presignContiUrl(row.conti),
+    );
   }
 
   async remove(userId: string, id: string) {
@@ -131,7 +149,41 @@ export class PanelsService {
       where: { id: owned.id },
       data: { refImages: [...refs, ref] as unknown as Prisma.InputJsonValue },
     });
-    return panelDto(row, await this.loadRender(row.currentRenderId));
+    return panelDto(
+      row,
+      await this.loadRender(row.currentRenderId),
+      await this.presignContiUrl(row.conti),
+    );
+  }
+
+  async setConti(userId: string, panelId: string, fileBuffer: Buffer): Promise<PanelDTO> {
+    const owned = await this.assertOwned(userId, panelId);
+    const ref = await this.storage.storeUploadedImage(
+      { kind: 'panel-conti', projectId: owned.projectId, panelId: owned.id },
+      fileBuffer,
+    );
+    const row = await prisma.panel.update({
+      where: { id: owned.id },
+      data: { conti: ref as unknown as Prisma.InputJsonValue },
+    });
+    return panelDto(
+      row,
+      await this.loadRender(row.currentRenderId),
+      await this.presignContiUrl(row.conti),
+    );
+  }
+
+  async clearConti(userId: string, panelId: string): Promise<PanelDTO> {
+    await this.assertOwned(userId, panelId);
+    const row = await prisma.panel.update({
+      where: { id: panelId },
+      data: { conti: Prisma.JsonNull },
+    });
+    return panelDto(
+      row,
+      await this.loadRender(row.currentRenderId),
+      await this.presignContiUrl(row.conti),
+    );
   }
 
   /** panel.currentRenderId 기준으로 status + presigned URL을 한 번에 조회. */
@@ -201,7 +253,11 @@ export class PanelsService {
       where: { id: job.panelId },
       data: { currentRenderId: job.id },
     });
-    return panelDto(row, await this.loadRender(row.currentRenderId));
+    return panelDto(
+      row,
+      await this.loadRender(row.currentRenderId),
+      await this.presignContiUrl(row.conti),
+    );
   }
 
   async assertOwned(

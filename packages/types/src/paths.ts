@@ -34,6 +34,7 @@ export const ApiPaths = {
 
   panel: (id: string) => `/panels/${id}`,
   panelUpload: (id: string) => `/panels/${id}/upload`,
+  panelConti: (id: string) => `/panels/${id}/conti`,
   panelRender: (id: string) => `/panels/${id}/render`,
 
   projectConsistency: (pid: string) => `/projects/${pid}/consistency`,

@@ -19,6 +19,7 @@ import { PanelTextEditor } from './panel-editor';
 import { PanelStatusBadge } from './panel-status-badge';
 import { HistoryTray } from './history-tray';
 import { PanelShapePicker } from './panel-shape-picker';
+import { ContiDialog } from './conti-dialog';
 import { useToast } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,6 +47,7 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
   const [doc, setDoc] = useState<TipTapDoc>(panel.text ?? emptyDoc());
   // 사용자가 직접 고른 모델. null이면 프로젝트 대표 모델(없으면 Gemini)을 사용.
   const [userModel, setUserModel] = useState<ModelId | null>(null);
+  const [contiDialogOpen, setContiDialogOpen] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(panel.currentRenderId ?? null);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
@@ -200,6 +202,78 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
           }
         }}
       />
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-caption text-muted-foreground">콘티 (구도 스케치)</label>
+          {panel.conti && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (!confirm('콘티를 제거하시겠습니까?')) return;
+                try {
+                  const updated = await api<PanelDTO>(ApiPaths.panelConti(panel.id), {
+                    method: 'DELETE',
+                  });
+                  onPanelUpdated(updated);
+                } catch (err) {
+                  if (err instanceof ApiError) toast.push('error', `삭제 실패: ${err.code}`);
+                }
+              }}
+              className="text-caption text-destructive hover:underline"
+            >
+              제거
+            </button>
+          )}
+        </div>
+        {panel.contiUrl ? (
+          <button
+            type="button"
+            onClick={() => setContiDialogOpen(true)}
+            className="block w-full overflow-hidden rounded-md border border-border bg-card transition hover:border-foreground/40"
+            title="콘티 변경"
+          >
+            <img
+              src={panel.contiUrl}
+              alt="콘티"
+              className="block h-auto w-full bg-white object-contain"
+            />
+          </button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setContiDialogOpen(true)}
+            className="w-full"
+          >
+            + 콘티 추가
+          </Button>
+        )}
+      </div>
+
+      {contiDialogOpen && (
+        <ContiDialog
+          open={contiDialogOpen}
+          onClose={() => setContiDialogOpen(false)}
+          width={1024}
+          height={1024}
+          onSubmit={async (file) => {
+            const fd = new FormData();
+            fd.append('file', file);
+            try {
+              const updated = await api<PanelDTO>(ApiPaths.panelConti(panel.id), {
+                method: 'POST',
+                body: fd,
+              });
+              onPanelUpdated(updated);
+              toast.push('success', '콘티가 첨부되었습니다.');
+            } catch (err) {
+              toast.push('error', (err as Error).message || '업로드 실패');
+              throw err;
+            }
+          }}
+        />
+      )}
 
       {resultImageUrl && (
         <a

@@ -120,6 +120,8 @@ export interface PanelDTO {
   pageId: string;
   shape: PanelShape;
   conti?: ImageRef | null;
+  /** conti의 presigned URL (있을 때만). 인스펙터 썸네일/캔버스에서 사용. */
+  contiUrl?: string | null;
   text: TipTapDoc;
   refImages: ImageRef[];
   currentRenderId?: string | null;
