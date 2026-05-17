@@ -82,7 +82,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 
 ### components/editor/tldraw (tldraw 측)
 
-- `comic-editor.tsx:56` — `<Tldraw>` 마운트. `shapeUtils=[ComicPanelShapeUtil, PageFrameShapeUtil]`, `tools=[ComicPanelTool, PolygonPanelTool]`. `uiOverrides`로 `comic-panel`(키 `p`), `polygon-panel`(키 `g`) 툴바 등록 (`:20-40`). `components`로 PageMenu/ActionsMenu/HelpMenu/NavigationPanel을 null 처리해 MVP 셸 단순화 (`:42-50`)
+- `comic-editor.tsx:119` — `<Tldraw>` 마운트. `shapeUtils=[ComicPanelShapeUtil, PageFrameShapeUtil, SpeechBubbleShapeUtil]`, `tools=[ComicPanelTool, PolygonPanelTool, ...ALL_BUBBLE_TOOLS]`. `uiOverrides`로 `comic-panel`(키 `p`), `polygon-panel`(키 `g`) 툴바 등록 (`:16-36`). `components`로 모든 UI 슬롯(Toolbar/MenuPanel/StylePanel/…)을 null 처리해 자체 사이드바/툴레일로 대체하면서도 `useKeyboardShortcuts`(=Backspace 삭제/Cmd+Z 등)는 유지한다 — `hideUi` prop을 쓰면 `TldrawUiContent`가 통째로 안 마운트되어 단축키도 비활성되므로 사용 금지 (`:41-67`)
 - `comic-panel-shape.tsx:13` — `BaseBoxShapeUtil` 기반 `comic-panel` shape (props: w, h, panelId, status, resultImageUrl, variant, polygonPoints). 클립패스로 polygon/oval 등 외형 적용
 - `comic-panel-tool.tsx:4` — `BaseBoxShapeTool` 상속 rect 드래그 도구
 - `polygon-panel-tool.tsx:3` — `StateNode` 기반 자유 polygon 도구. 첫 vertex 근처 클릭/더블클릭/Enter로 닫음, Escape 취소

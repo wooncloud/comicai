@@ -35,10 +35,36 @@ const uiOverrides: TLUiOverrides = {
   },
 };
 
-// hideUi=true이면 기본 셸 UI(툴바/메뉴/스타일패널 등)가 전부 사라진다.
-// 캔버스 안에 띄우는 PolygonPreview만 유지.
+// 기본 셸 UI(툴바/메뉴/스타일패널 등)는 자체 사이드바/툴레일로 대체하므로 모두 숨긴다.
+// `hideUi` prop을 쓰면 `TldrawUiContent`가 통째로 마운트되지 않아 `useKeyboardShortcuts`도
+// 비활성되므로(=Backspace 삭제, Cmd+Z 등 전부 안 됨), 대신 각 슬롯을 null로 비워 UI 만 숨긴다.
 const components: TLComponents = {
   InFrontOfTheCanvas: () => <PolygonPreview />,
+  ContextMenu: null,
+  ActionsMenu: null,
+  HelpMenu: null,
+  ZoomMenu: null,
+  MainMenu: null,
+  Minimap: null,
+  StylePanel: null,
+  PageMenu: null,
+  NavigationPanel: null,
+  Toolbar: null,
+  RichTextToolbar: null,
+  ImageToolbar: null,
+  VideoToolbar: null,
+  KeyboardShortcutsDialog: null,
+  QuickActions: null,
+  HelperButtons: null,
+  DebugPanel: null,
+  DebugMenu: null,
+  MenuPanel: null,
+  TopPanel: null,
+  SharePanel: null,
+  CursorChatBubble: null,
+  Dialogs: null,
+  Toasts: null,
+  A11y: null,
 };
 
 interface Props {
@@ -91,7 +117,6 @@ export function ComicEditor({ onMount }: Props) {
 
   return (
     <Tldraw
-      hideUi
       shapeUtils={shapeUtils}
       tools={tools}
       overrides={uiOverrides}

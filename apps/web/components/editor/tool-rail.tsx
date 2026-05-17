@@ -74,11 +74,13 @@ const BUBBLE_SUB_MODES: readonly BubbleSubMode[] = [
   { id: 'bubble-polygon', kbd: 'n', label: '다각형', icon: Pentagon },
 ] as const;
 
-// TOOLS의 primary kbd 중 sub-mode와 겹치는 'b' 같은 키는 sub-mode가 덮어쓰도록 뒤에 둔다.
+// 한글 IME 활성 시 `e.key` 가 'ㅂ'/'ㅎ' 같은 자모로 들어오므로 KeyboardEvent.code 기준으로 매핑.
+// 'b' → 'KeyB' 등. TOOLS의 primary kbd 중 sub-mode와 겹치는 'b' 같은 키는 sub-mode 가 덮어쓰도록 뒤에 둔다.
+const codeOf = (k: string) => `Key${k.toUpperCase()}`;
 const KBD_MAP: Record<string, string> = {
-  ...Object.fromEntries(TOOLS.map((t) => [t.kbd, t.id])),
-  ...Object.fromEntries(PANEL_SUB_MODES.map((s) => [s.kbd, s.id])),
-  ...Object.fromEntries(BUBBLE_SUB_MODES.map((s) => [s.kbd, s.id])),
+  ...Object.fromEntries(TOOLS.map((t) => [codeOf(t.kbd), t.id])),
+  ...Object.fromEntries(PANEL_SUB_MODES.map((s) => [codeOf(s.kbd), s.id])),
+  ...Object.fromEntries(BUBBLE_SUB_MODES.map((s) => [codeOf(s.kbd), s.id])),
 };
 
 interface Props {
@@ -92,6 +94,7 @@ export function ToolRail({ editor }: Props) {
     if (!editor) return;
     function onKey(e: KeyboardEvent) {
       if (!editor) return;
+      if (e.repeat) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const target = e.target as HTMLElement | null;
       if (
@@ -100,14 +103,16 @@ export function ToolRail({ editor }: Props) {
       ) {
         return;
       }
-      const next = KBD_MAP[e.key.toLowerCase()];
-      if (next) {
-        e.preventDefault();
-        editor.setCurrentTool(next);
-      }
+      const next = KBD_MAP[e.code];
+      if (!next) return;
+      // tldraw 기본 단축키('r'=rectangle, 'o'=ellipse 등)와 키가 겹치므로 capture + stopImmediate
+      // 로 우선권 잡고 tldraw 핸들러에는 도달하지 않게 한다.
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      editor.setCurrentTool(next);
     }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [editor]);
 
   const panelActive = current === 'comic-panel' || current === 'polygon-panel';
