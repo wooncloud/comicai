@@ -151,7 +151,7 @@ export default function PageEditor() {
 
       <div className="flex flex-1 overflow-hidden">
         {leftCollapsed ? (
-          <CollapseRail side="left" label="페이지" onExpand={() => setLeftCollapsed(false)} />
+          <CollapseRail side="left" onExpand={() => setLeftCollapsed(false)} />
         ) : (
           <PageSidebar
             projectId={projectId}
@@ -164,11 +164,7 @@ export default function PageEditor() {
           <ComicEditor onMount={setEditor} />
         </div>
         {rightCollapsed ? (
-          <CollapseRail
-            side="right"
-            label={selected ? '패널' : '페이지'}
-            onExpand={() => setRightCollapsed(false)}
-          />
+          <CollapseRail side="right" onExpand={() => setRightCollapsed(false)} />
         ) : selected ? (
           <PanelInspector
             key={selected.id}
