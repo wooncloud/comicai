@@ -6,6 +6,11 @@ import {
   type TLComponents,
   type TLUiOverrides,
   DefaultMainMenu,
+  DefaultToolbar,
+  HandToolbarItem,
+  SelectToolbarItem,
+  TextToolbarItem,
+  TldrawUiMenuToolItem,
 } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { ComicPanelShapeUtil } from './comic-panel-shape';
@@ -47,6 +52,17 @@ const components: TLComponents = {
   NavigationPanel: null,
   MainMenu: () => <DefaultMainMenu />,
   InFrontOfTheCanvas: () => <PolygonPreview />,
+  // 하단 툴바를 선택/손/패널/텍스트만 노출하도록 축소. 그 외 기본 도구(그리기/지우개/
+  // 화살표/스티키/이미지/도형 등)는 만화 워크플로에 불필요해 숨김.
+  // TODO: 말풍선 도구가 등록되면 여기에 <TldrawUiMenuToolItem toolId="speech-bubble" />
+  Toolbar: () => (
+    <DefaultToolbar>
+      <SelectToolbarItem />
+      <HandToolbarItem />
+      <TldrawUiMenuToolItem toolId="comic-panel" />
+      <TextToolbarItem />
+    </DefaultToolbar>
+  ),
 };
 
 interface Props {
