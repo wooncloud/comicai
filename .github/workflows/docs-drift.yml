@@ -22,7 +22,7 @@ concurrency:
 jobs:
   verify:
     name: verify docs refs
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, comicai]
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
