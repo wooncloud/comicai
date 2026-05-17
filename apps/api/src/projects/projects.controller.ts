@@ -13,7 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ProjectCreateSchema, ProjectPatchSchema } from '@comicai/types';
+import { ProjectCreateSchema, ProjectPatchSchema, type ModelId } from '@comicai/types';
 import { ProjectsService } from './projects.service';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
@@ -28,6 +28,7 @@ class PatchDto {
   name?: string;
   thumbnail?: string | null;
   defaultStyleId?: string | null;
+  defaultModel?: ModelId | null;
 }
 
 @Controller('projects')

@@ -59,6 +59,10 @@ export const ProjectPatchSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   thumbnail: z.string().nullable().optional(),
   defaultStyleId: z.string().min(1).nullable().optional(),
+  defaultModel: z
+    .enum(['gemini-3.1-flash-image-preview', 'gpt-image-2', 'mock'])
+    .nullable()
+    .optional(),
 });
 
 // ─── 페이지 ───────────────────────────────────

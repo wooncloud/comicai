@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { newId, prisma } from '@comicai/db';
-import type { ImageRef, ProjectDTO } from '@comicai/types';
+import type { ImageRef, ModelId, ProjectDTO } from '@comicai/types';
 import { StorageService } from '../storage/storage.service';
 
 interface ProjectRow {
@@ -9,6 +9,7 @@ interface ProjectRow {
   name: string;
   thumbnail: string | null;
   defaultStyleId: string | null;
+  defaultModel: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +21,7 @@ function toDtoBase(p: ProjectRow): ProjectDTO {
     name: p.name,
     thumbnail: p.thumbnail,
     defaultStyleId: p.defaultStyleId,
+    defaultModel: (p.defaultModel as ModelId | null) ?? null,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   };
@@ -59,7 +61,12 @@ export class ProjectsService {
   async patch(
     userId: string,
     id: string,
-    patch: { name?: string; thumbnail?: string | null; defaultStyleId?: string | null },
+    patch: {
+      name?: string;
+      thumbnail?: string | null;
+      defaultStyleId?: string | null;
+      defaultModel?: ModelId | null;
+    },
   ): Promise<ProjectDTO> {
     await this.assertOwned(userId, id);
     const row = await prisma.project.update({ where: { id }, data: patch });

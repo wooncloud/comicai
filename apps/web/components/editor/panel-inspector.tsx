@@ -44,7 +44,8 @@ const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
 export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDeleted }: Props) {
   // 부모(page editor)가 key={panel.id}로 마운트해 panel.id는 한 인스턴스 안에서 불변.
   const [doc, setDoc] = useState<TipTapDoc>(panel.text ?? emptyDoc());
-  const [model, setModel] = useState<ModelId>('gemini-3.1-flash-image-preview');
+  // 사용자가 직접 고른 모델. null이면 프로젝트 대표 모델(없으면 Gemini)을 사용.
+  const [userModel, setUserModel] = useState<ModelId | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(panel.currentRenderId ?? null);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
@@ -73,6 +74,7 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
       api<ConsistencyEntityDTO[]>(`${ApiPaths.projectConsistency(projectId)}?type=style`),
   });
   const effectiveStyleId = panel.styleId ?? project?.defaultStyleId ?? null;
+  const model: ModelId = userModel ?? project?.defaultModel ?? 'gemini-3.1-flash-image-preview';
   const status: RenderStatus | null = job?.status ?? null;
   const resultImageUrl = job?.resultImageUrl ?? null;
 
@@ -256,7 +258,7 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
 
       <div className="space-y-2">
         <label className="block text-caption text-muted-foreground">모델</label>
-        <Select value={model} onValueChange={(v) => setModel(v as ModelId)}>
+        <Select value={model} onValueChange={(v) => setUserModel(v as ModelId)}>
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>

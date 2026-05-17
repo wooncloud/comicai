@@ -22,9 +22,21 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
 import { AppShell } from '@/components/shell/app-shell';
 import { api } from '@/lib/api';
-import { ApiPaths, pageLabel, type PageDTO, type ProjectDTO } from '@comicai/types';
+import { ApiPaths, pageLabel, type ModelId, type PageDTO, type ProjectDTO } from '@comicai/types';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+
+const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
+  { id: 'gemini-3.1-flash-image-preview', label: 'Gemini' },
+  { id: 'gpt-image-2', label: 'OpenAI' },
+];
 
 export default function ProjectDetail() {
   const params = useParams<{ id: string }>();
@@ -84,11 +96,41 @@ export default function ProjectDetail() {
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <div className="flex items-baseline justify-between">
+        <div className="flex items-baseline justify-between gap-3">
           <h1 className="text-2xl font-semibold">{project?.name ?? '로딩…'}</h1>
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/projects/${projectId}/consistency`}>일관성 관리</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <label className="text-caption text-muted-foreground">대표 모델</label>
+            <Select
+              value={project?.defaultModel ?? '__none__'}
+              onValueChange={async (v) => {
+                const next = v === '__none__' ? null : (v as ModelId);
+                try {
+                  const updated = await api<ProjectDTO>(ApiPaths.project(projectId), {
+                    method: 'PATCH',
+                    body: JSON.stringify({ defaultModel: next }),
+                  });
+                  setProject(updated);
+                } catch (err) {
+                  toast.push('error', (err as Error).message || '저장 실패');
+                }
+              }}
+            >
+              <SelectTrigger className="h-8 w-32">
+                <SelectValue placeholder="기본값" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">기본값(Gemini)</SelectItem>
+                {MODEL_OPTIONS.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/projects/${projectId}/consistency`}>일관성 관리</Link>
+            </Button>
+          </div>
         </div>
 
         <section className="mt-10">

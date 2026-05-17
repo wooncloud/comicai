@@ -183,6 +183,8 @@ export interface ProjectDTO {
   thumbnailUrl?: string | null;
   /** 패널 렌더 시 자동 주입되는 대표 그림체 엔티티 id. */
   defaultStyleId?: string | null;
+  /** 패널 인스펙터 모델 select의 기본값으로 사용. */
+  defaultModel?: ModelId | null;
   createdAt: string;
   updatedAt: string;
 }
