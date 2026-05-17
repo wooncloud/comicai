@@ -20,6 +20,26 @@ import {
 } from '@comicai/types';
 import { cn } from '@/lib/cn';
 
+function formatGenerateError(err: unknown): string {
+  if (!(err instanceof ApiError)) return '생성 실패';
+  const details = err.details as { category?: string } | undefined;
+  const category = details?.category;
+  const reasonByCategory: Record<string, string> = {
+    timeout: '모델 응답이 너무 오래 걸려 중단되었습니다 (120초 초과)',
+    auth: 'API 키가 유효하지 않습니다. 설정 → API 키에서 확인',
+    quota: 'API 호출 한도(quota)에 도달했습니다',
+    safety: '모델이 안전 정책으로 차단했습니다. 프롬프트를 바꿔 다시 시도',
+    invalid: '요청이 거부됐습니다. 프롬프트나 키를 확인',
+    transient: '일시적 오류, 잠시 후 다시 시도',
+  };
+  const hint = category && reasonByCategory[category];
+  if (err.code === 'API_KEY_NOT_FOUND') {
+    return 'API 키가 등록돼 있지 않습니다. 설정 → API 키에서 등록하세요.';
+  }
+  if (hint) return `생성 실패 (${category}) — ${hint}`;
+  return `생성 실패: ${err.code}${err.message ? ` — ${err.message}` : ''}`;
+}
+
 const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
   { id: 'gemini-3.1-flash-image-preview', label: 'Gemini' },
   { id: 'gpt-image-2', label: 'OpenAI' },
@@ -87,7 +107,7 @@ export function EntityImageDialog({
       });
       setGenerated(res);
     } catch (err) {
-      setError(err instanceof ApiError ? `생성 실패: ${err.code}` : '생성 실패');
+      setError(formatGenerateError(err));
     } finally {
       setGenerating(false);
     }

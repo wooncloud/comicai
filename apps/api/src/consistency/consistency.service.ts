@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { entityIdPrefix, newId, prisma, Prisma } from '@comicai/db';
@@ -11,7 +12,7 @@ import { ProjectsService } from '../projects/projects.service';
 import { StorageService } from '../storage/storage.service';
 import { open } from '../api-keys/crypto';
 
-const GENERATE_TIMEOUT_MS = 60_000;
+const GENERATE_TIMEOUT_MS = 120_000;
 
 /**
  * 일관성 엔티티 타입별 system prompt. AI 생성 시 패널-룰 대신 적용되어
@@ -59,6 +60,8 @@ function toDto(
 
 @Injectable()
 export class ConsistencyService {
+  private readonly logger = new Logger(ConsistencyService.name);
+
   constructor(
     private readonly projects: ProjectsService,
     private readonly storage: StorageService,
@@ -210,6 +213,10 @@ export class ConsistencyService {
       return { ...stored, url: presigned.url, expiresAt: presigned.expiresAt };
     } catch (err) {
       const classified = adapter.classifyError(err);
+      this.logger.error(
+        { err, classified, model, entityId: owned.id },
+        'consistency generate failed',
+      );
       throw new BadRequestException({
         code: 'CONSISTENCY_GENERATE_FAILED',
         category: classified.category,
@@ -263,7 +270,7 @@ export class ConsistencyService {
       where: { userId, provider, isActive: true },
       orderBy: { createdAt: 'desc' },
     });
-    if (!row) throw new BadRequestException({ code: 'API_KEY_MISSING', provider });
+    if (!row) throw new BadRequestException({ code: 'API_KEY_NOT_FOUND', provider });
     return open({ ciphertext: row.ciphertext, nonce: row.nonce });
   }
 
