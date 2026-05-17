@@ -100,8 +100,8 @@ export class ComicPanelShapeUtil extends BaseBoxShapeUtil<ComicPanelShape> {
           <path
             d={outline}
             fill="none"
-            stroke={strokeColor || 'hsl(var(--foreground))'}
-            strokeWidth={strokeWidth > 0 ? strokeWidth : 2}
+            stroke={strokeColor}
+            strokeWidth={strokeWidth}
             strokeLinejoin="round"
             vectorEffect="non-scaling-stroke"
           />

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Pencil, Check, X, GripVertical, ChevronLeft } from 'lucide-react';
+import { Plus, Pencil, Check, X, GripVertical } from 'lucide-react';
 import {
   DndContext,
   KeyboardSensor,
@@ -23,6 +23,7 @@ import { api } from '@/lib/api';
 import { ApiPaths, pageLabel, type PageDTO } from '@comicai/types';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
+import { CollapseButton } from './collapse-button';
 import { cn } from '@/lib/cn';
 
 interface Props {
@@ -113,17 +114,7 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
             <Plus className="h-4 w-4" />
             <span className="sr-only">페이지 추가</span>
           </button>
-          {onCollapse && (
-            <button
-              type="button"
-              onClick={onCollapse}
-              title="사이드바 접기"
-              className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span className="sr-only">사이드바 접기</span>
-            </button>
-          )}
+          {onCollapse && <CollapseButton side="left" onClick={onCollapse} title="사이드바 접기" />}
         </div>
       </div>
       <ul className="flex-1 overflow-auto p-1">

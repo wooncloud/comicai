@@ -15,10 +15,12 @@ import {
   type TipTapDoc,
   type ModelId,
 } from '@comicai/types';
-import { ChevronRight, PencilRuler, Brush, Sparkles, Square } from 'lucide-react';
+import { PencilRuler, Brush, Sparkles, Square } from 'lucide-react';
 import { PanelTextEditor } from './panel-editor';
 import { PanelStatusBadge } from './panel-status-badge';
 import { SectionLabel } from './section-label';
+import { CollapseButton } from './collapse-button';
+import { HexColorField } from './hex-color-field';
 import { HistoryTray } from './history-tray';
 import { ContiDialog } from './conti-dialog';
 import { useToast } from '@/components/ui/toast';
@@ -52,9 +54,8 @@ export function PanelInspector({
   onPanelDeleted,
   onCollapse,
 }: Props) {
-  // 부모(page editor)가 key={panel.id}로 마운트해 panel.id는 한 인스턴스 안에서 불변.
   const [doc, setDoc] = useState<TipTapDoc>(panel.text ?? emptyDoc());
-  // 사용자가 직접 고른 모델. null이면 프로젝트 대표 모델(없으면 Gemini)을 사용.
+  // null이면 프로젝트 대표 모델(없으면 Gemini)을 사용.
   const [userModel, setUserModel] = useState<ModelId | null>(null);
   const [contiDialogOpen, setContiDialogOpen] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(panel.currentRenderId ?? null);
@@ -63,7 +64,6 @@ export function PanelInspector({
   const esRef = useRef<EventSource | null>(null);
   const queryClient = useQueryClient();
 
-  // activeJobId가 바뀌면 새 잡 상태를 추적. panel.currentRenderId가 외부에서 바뀌면 sync.
   useEffect(() => {
     setActiveJobId(panel.currentRenderId ?? null);
   }, [panel.currentRenderId]);
@@ -192,17 +192,7 @@ export function PanelInspector({
   return (
     <aside className="flex w-96 min-h-0 flex-col gap-4 overflow-y-auto border-l border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
       <div className="flex items-center justify-between gap-2">
-        {onCollapse && (
-          <button
-            type="button"
-            onClick={onCollapse}
-            title="인스펙터 접기"
-            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <ChevronRight className="h-4 w-4" />
-            <span className="sr-only">인스펙터 접기</span>
-          </button>
-        )}
+        {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="인스펙터 접기" />}
         <div className="flex-1 truncate text-xs text-neutral-500">패널 {panel.id.slice(-8)}</div>
         <PanelStatusBadge status={status} />
       </div>
@@ -400,14 +390,9 @@ function PanelStrokeEditor({
   shape: PanelShape;
   onChange: (next: PanelShape) => void | Promise<void>;
 }) {
-  // 입력 중에는 로컬 state 만, 커밋(blur/change-end) 시점에만 PATCH.
-  const [color, setColor] = useState<string>(shape.strokeColor ?? '#000000');
+  const color = shape.strokeColor ?? '#000000';
   const [width, setWidth] = useState<number>(shape.strokeWidth ?? 2);
-
-  useEffect(() => {
-    setColor(shape.strokeColor ?? '#000000');
-    setWidth(shape.strokeWidth ?? 2);
-  }, [shape.strokeColor, shape.strokeWidth]);
+  useEffect(() => setWidth(shape.strokeWidth ?? 2), [shape.strokeWidth]);
 
   function commitColor(next: string) {
     if (next === shape.strokeColor) return;
@@ -422,25 +407,12 @@ function PanelStrokeEditor({
     <div className="space-y-2">
       <SectionLabel icon={Square}>패널 선</SectionLabel>
       <div className="flex items-center gap-2">
-        <input
-          type="color"
+        <HexColorField
           value={color}
-          onChange={(e) => setColor(e.target.value)}
-          onBlur={(e) => commitColor(e.target.value)}
-          aria-label="패널 선 색"
-          className="h-8 w-10 cursor-pointer rounded border border-border bg-card p-0.5"
-        />
-        <input
-          type="text"
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
-          onBlur={(e) => {
-            const v = e.target.value.trim();
-            if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v)) commitColor(v);
-            else setColor(shape.strokeColor ?? '#000000');
-          }}
-          className="h-8 flex-1 rounded border border-border bg-card px-2 font-mono text-caption"
-          aria-label="패널 선 색 (hex)"
+          fallback={color}
+          onCommit={commitColor}
+          ariaLabel="패널 선 색"
+          variant="panel"
         />
         <input
           type="number"

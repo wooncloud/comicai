@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import sharp from 'sharp';
 import { prisma } from '@comicai/db';
-import type { ImageRef, PanelShape } from '@comicai/types';
+import { isHexColor, type ImageRef, type PanelShape } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { StorageService } from '../storage/storage.service';
 import { shapeBoundingBox } from '../common/bbox';
@@ -42,13 +42,11 @@ export class ExportService {
 
     const size = page.size as { w: number; h: number };
     // 페이지가 backgroundColor 를 지정했다면 그것을 base 로. 아니면 jpg=white / png=투명.
-    const baseColor =
-      page.backgroundColor &&
-      /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(page.backgroundColor)
-        ? page.backgroundColor
-        : format === 'jpg'
-          ? '#ffffff'
-          : ({ r: 0, g: 0, b: 0, alpha: 0 } as const);
+    const baseColor = isHexColor(page.backgroundColor)
+      ? page.backgroundColor
+      : format === 'jpg'
+        ? '#ffffff'
+        : ({ r: 0, g: 0, b: 0, alpha: 0 } as const);
 
     const jobIds = page.panels.flatMap((p) => (p.currentRenderId ? [p.currentRenderId] : []));
     const jobs = jobIds.length

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import type { Editor, TLShapeId } from 'tldraw';
 import { api } from '@/lib/api';
 import { useProject } from '@/lib/use-project';
+import { useLocalStorageBoolean } from '@/lib/use-local-storage-state';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { ApiPaths, pageLabel, type PageDTO, type PanelDTO } from '@comicai/types';
@@ -43,23 +44,8 @@ export default function PageEditor() {
   const [exportOpen, setExportOpen] = useState(false);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
-  // 사이드/인스펙터 접힘 상태. localStorage에 저장해 페이지 전환 후에도 유지.
-  const [leftCollapsed, setLeftCollapsed] = useState(false);
-  const [rightCollapsed, setRightCollapsed] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    setLeftCollapsed(window.localStorage.getItem('editor.leftCollapsed') === '1');
-    setRightCollapsed(window.localStorage.getItem('editor.rightCollapsed') === '1');
-  }, []);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem('editor.leftCollapsed', leftCollapsed ? '1' : '0');
-  }, [leftCollapsed]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem('editor.rightCollapsed', rightCollapsed ? '1' : '0');
-  }, [rightCollapsed]);
+  const [leftCollapsed, setLeftCollapsed] = useLocalStorageBoolean('editor.leftCollapsed');
+  const [rightCollapsed, setRightCollapsed] = useLocalStorageBoolean('editor.rightCollapsed');
 
   useEffect(() => {
     if (!pageId) return;
@@ -103,12 +89,13 @@ export default function PageEditor() {
       () => {
         const ids = editor.getSelectedShapeIds();
         if (ids.length === 0) {
-          setSelectedPanelId(null);
+          setSelectedPanelId((prev) => (prev === null ? prev : null));
           return;
         }
         const shape = editor.getShape(ids[0] as TLShapeId);
         if (shape?.type === 'comic-panel') {
-          setSelectedPanelId((shape as ComicPanelShape).props.panelId);
+          const next = (shape as ComicPanelShape).props.panelId;
+          setSelectedPanelId((prev) => (prev === next ? prev : next));
         }
       },
       { source: 'user' },

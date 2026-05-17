@@ -73,13 +73,17 @@ export const PageSizeSchema = z.object({
 export const PageCreateSchema = z.object({
   size: PageSizeSchema.default({ w: 800, h: 1200 }),
 });
-// CSS color string (hex/rgb/etc). 빈 문자열은 null로 대체해 받기 위해 별도 검증.
+export const HEX_COLOR_REGEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+export function isHexColor(v: unknown): v is string {
+  return typeof v === 'string' && HEX_COLOR_REGEX.test(v);
+}
+
 const ColorStringSchema = z
   .string()
   .trim()
   .min(1)
   .max(32)
-  .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/, '#RRGGBB 형식이어야 합니다.');
+  .regex(HEX_COLOR_REGEX, '#RRGGBB 형식이어야 합니다.');
 
 export const PagePatchSchema = z.object({
   order: z.number().int().nonnegative().optional(),

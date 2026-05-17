@@ -1,4 +1,4 @@
-import { panelShapePath, shapeBoundingBox, type PanelShape } from '@comicai/types';
+import { isHexColor, panelShapePath, shapeBoundingBox, type PanelShape } from '@comicai/types';
 
 /**
  * 패널 모양에 맞는 알파 마스크 SVG.
@@ -37,10 +37,9 @@ export function buildPanelStrokeSvg(
   return Buffer.from(svg);
 }
 
+// SVG inline 주입 방지 — hex 형식이 아닌 색상은 흑색으로 폴백.
 function sanitizeColor(c: string): string {
-  // SVG inline 주입이라 따옴표/꺾쇠 차단. 색상 외 문자열은 흑색으로 폴백.
-  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(c)) return c;
-  return '#000000';
+  return isHexColor(c) ? c : '#000000';
 }
 
 /** 절대 좌표 polygon points를 자신의 bbox 기준 정규화([0..1])로 변환. */
