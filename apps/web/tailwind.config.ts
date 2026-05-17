@@ -77,6 +77,7 @@ const config: Config = {
         overlay: '1000',
         dialog: '1001',
         popover: '1002',
+        tooltip: '1003',
       },
     },
   },
