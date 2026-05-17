@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, API_BASE, ApiError } from '@/lib/api';
 import { useDebounced } from '@/lib/use-debounced';
 import {
@@ -41,34 +42,30 @@ const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
 
 export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDeleted }: Props) {
   // 부모(page editor)가 key={panel.id}로 마운트해 panel.id는 한 인스턴스 안에서 불변.
-  // 따라서 ref dance 없이 캡쳐된 panel/onPanelUpdated를 그대로 써도 stale 위험 없음.
   const [doc, setDoc] = useState<TipTapDoc>(panel.text ?? emptyDoc());
-  const [status, setStatus] = useState<RenderStatus | null>(null);
   const [model, setModel] = useState<ModelId>('gemini-3.1-flash-image-preview');
-  const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(panel.currentRenderId ?? null);
   const [error, setError] = useState<string | null>(null);
-  const [historyKey, setHistoryKey] = useState(0);
   const toast = useToast();
   const esRef = useRef<EventSource | null>(null);
+  const queryClient = useQueryClient();
+
+  // activeJobId가 바뀌면 새 잡 상태를 추적. panel.currentRenderId가 외부에서 바뀌면 sync.
+  useEffect(() => {
+    setActiveJobId(panel.currentRenderId ?? null);
+  }, [panel.currentRenderId]);
+
+  const { data: job } = useQuery<RenderJobDTO>({
+    queryKey: ['render-job', activeJobId],
+    queryFn: () => api<RenderJobDTO>(ApiPaths.renderJob(activeJobId!)),
+    enabled: !!activeJobId,
+  });
+  const status: RenderStatus | null = job?.status ?? null;
+  const resultImageUrl = job?.resultImageUrl ?? null;
 
   function patchRender(patch: Partial<PanelDTO>) {
     onPanelUpdated({ ...panel, ...patch });
   }
-
-  // panel.currentRenderId만 의존 — panel.id는 key로 분리되어 인스턴스 내 불변.
-  useEffect(() => {
-    if (panel.currentRenderId) {
-      api<RenderJobDTO>(ApiPaths.renderJob(panel.currentRenderId))
-        .then((j) => {
-          setStatus(j.status);
-          setResultImageUrl(j.resultImageUrl ?? null);
-        })
-        .catch(() => {});
-    } else {
-      setStatus(null);
-      setResultImageUrl(null);
-    }
-  }, [panel.currentRenderId]);
 
   useEffect(() => () => esRef.current?.close(), []);
 
@@ -87,21 +84,30 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
     }
   });
 
-  async function startRender() {
-    setError(null);
-    setResultImageUrl(null);
-    try {
-      const { jobId } = await api<{ jobId: string }>(ApiPaths.panelRender(panel.id), {
+  const startRender = useMutation({
+    mutationFn: () =>
+      api<{ jobId: string }>(ApiPaths.panelRender(panel.id), {
         method: 'POST',
         body: JSON.stringify({ model }),
-      });
-      setStatus('queued');
+      }),
+    onMutate: () => {
+      setError(null);
+    },
+    onSuccess: ({ jobId }) => {
+      setActiveJobId(jobId);
+      queryClient.setQueryData<RenderJobDTO>(['render-job', jobId], (prev) => ({
+        ...(prev ?? ({} as RenderJobDTO)),
+        id: jobId,
+        status: 'queued',
+        resultImageUrl: null,
+      }));
       patchRender({ currentRenderStatus: 'queued' });
       subscribeJob(jobId);
-    } catch (err) {
+    },
+    onError: (err) => {
       if (err instanceof ApiError) setError(`렌더 시작 실패: ${err.code}`);
-    }
-  }
+    },
+  });
 
   function subscribeJob(jobId: string) {
     esRef.current?.close();
@@ -112,12 +118,13 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
     es.addEventListener('status', (e) => {
       try {
         const { status: next } = JSON.parse((e as MessageEvent).data) as { status: RenderStatus };
-        setStatus(next);
+        queryClient.setQueryData<RenderJobDTO>(['render-job', jobId], (prev) =>
+          prev ? { ...prev, status: next } : ({ id: jobId, status: next } as RenderJobDTO),
+        );
         if (next === 'succeeded') {
-          // 후속 GET이 status+URL을 한 번에 푸시하므로 여기선 panel 갱신 생략.
           api<RenderJobDTO>(ApiPaths.renderJob(jobId))
             .then((j) => {
-              setResultImageUrl(j.resultImageUrl ?? null);
+              queryClient.setQueryData<RenderJobDTO>(['render-job', jobId], j);
               patchRender({
                 currentRenderStatus: 'succeeded',
                 currentRenderImageUrl: j.resultImageUrl ?? null,
@@ -125,13 +132,13 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
             })
             .catch(() => {});
           toast.push('success', '렌더 완료');
-          setHistoryKey((k) => k + 1);
+          queryClient.invalidateQueries({ queryKey: ['panel-history', panel.id] });
           es.close();
           esRef.current = null;
         } else if (next === 'failed' || next === 'canceled') {
           patchRender({ currentRenderStatus: next });
           toast.push('error', next === 'failed' ? '렌더 실패' : '렌더 취소됨');
-          setHistoryKey((k) => k + 1);
+          queryClient.invalidateQueries({ queryKey: ['panel-history', panel.id] });
           es.close();
           esRef.current = null;
         } else {
@@ -212,8 +219,8 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
           </SelectContent>
         </Select>
         <Button
-          onClick={startRender}
-          disabled={status === 'queued' || status === 'running'}
+          onClick={() => startRender.mutate()}
+          disabled={status === 'queued' || status === 'running' || startRender.isPending}
           className="w-full"
         >
           {status === 'queued' || status === 'running' ? '생성 중…' : '생성하기'}
@@ -223,11 +230,8 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
       <HistoryTray
         panelId={panel.id}
         currentRenderId={panel.currentRenderId}
-        refreshKey={historyKey}
         onRestored={(p) => {
           onPanelUpdated(p);
-          setResultImageUrl(p.currentRenderImageUrl ?? null);
-          setHistoryKey((k) => k + 1);
         }}
       />
 

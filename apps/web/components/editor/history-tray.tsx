@@ -1,36 +1,30 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { ApiPaths, type PanelDTO, type RenderJobDTO } from '@comicai/types';
-import { Button } from '@/components/ui/button';
 import { PanelStatusBadge } from './panel-status-badge';
 
 interface Props {
   panelId: string;
   currentRenderId: string | null | undefined;
-  refreshKey?: unknown;
   onRestored?: (panel: PanelDTO) => void;
 }
 
-export function HistoryTray({ panelId, currentRenderId, refreshKey, onRestored }: Props) {
-  const [items, setItems] = useState<RenderJobDTO[] | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
+export function HistoryTray({ panelId, currentRenderId, onRestored }: Props) {
+  const queryClient = useQueryClient();
+  const { data: items } = useQuery<RenderJobDTO[]>({
+    queryKey: ['panel-history', panelId],
+    queryFn: () => api<RenderJobDTO[]>(ApiPaths.panelHistory(panelId)),
+  });
 
-  useEffect(() => {
-    api<RenderJobDTO[]>(ApiPaths.panelHistory(panelId))
-      .then(setItems)
-      .catch(() => setItems([]));
-  }, [panelId, refreshKey]);
-
-  async function restore(jobId: string) {
-    setBusyId(jobId);
-    try {
-      const panel = await api<PanelDTO>(ApiPaths.renderJobRestore(jobId), { method: 'POST' });
+  const restore = useMutation({
+    mutationFn: (jobId: string) =>
+      api<PanelDTO>(ApiPaths.renderJobRestore(jobId), { method: 'POST' }),
+    onSuccess: (panel) => {
       onRestored?.(panel);
-    } finally {
-      setBusyId(null);
-    }
-  }
+      queryClient.invalidateQueries({ queryKey: ['panel-history', panelId] });
+    },
+  });
 
   if (!items) return <div className="text-caption text-muted-foreground">히스토리 로딩…</div>;
   if (items.length === 0) {
@@ -46,6 +40,7 @@ export function HistoryTray({ panelId, currentRenderId, refreshKey, onRestored }
         {items.map((j) => {
           const isCurrent = j.id === currentRenderId;
           const canRestore = j.status === 'succeeded' && !isCurrent;
+          const isBusy = restore.isPending && restore.variables === j.id;
           return (
             <li
               key={j.id}
@@ -76,11 +71,11 @@ export function HistoryTray({ panelId, currentRenderId, refreshKey, onRestored }
                 )}
                 {canRestore && (
                   <button
-                    onClick={() => restore(j.id)}
-                    disabled={busyId === j.id}
+                    onClick={() => restore.mutate(j.id)}
+                    disabled={isBusy}
                     className="absolute inset-0 flex items-center justify-center bg-black/60 text-caption font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 disabled:opacity-100"
                   >
-                    {busyId === j.id ? '복원 중…' : '이 결과로 복원'}
+                    {isBusy ? '복원 중…' : '이 결과로 복원'}
                   </button>
                 )}
               </div>

@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppShell } from '@/components/shell/app-shell';
 import { api } from '@/lib/api';
 import { ApiPaths, type ProjectDTO } from '@comicai/types';
@@ -8,25 +9,29 @@ import { ProjectCreateDialog } from '@/components/dashboard/project-create-dialo
 import { ProjectCard } from '@/components/dashboard/project-card';
 
 export default function DashboardPage() {
-  const [items, setItems] = useState<ProjectDTO[] | null>(null);
+  const queryClient = useQueryClient();
+  const { data: items, isLoading } = useQuery<ProjectDTO[]>({
+    queryKey: ['projects'],
+    queryFn: () => api<ProjectDTO[]>(ApiPaths.projects),
+  });
   const [createOpen, setCreateOpen] = useState(false);
 
-  async function refresh() {
-    setItems(await api<ProjectDTO[]>(ApiPaths.projects));
-  }
-
-  useEffect(() => {
-    refresh().catch(() => setItems([]));
-  }, []);
-
   function appendItem(created: ProjectDTO) {
-    setItems((prev) => (prev ? [created, ...prev] : [created]));
+    queryClient.setQueryData<ProjectDTO[]>(['projects'], (prev) =>
+      prev ? [created, ...prev] : [created],
+    );
   }
   function patchItem(next: ProjectDTO) {
-    setItems((prev) => prev?.map((p) => (p.id === next.id ? next : p)) ?? prev);
+    queryClient.setQueryData<ProjectDTO[]>(
+      ['projects'],
+      (prev) => prev?.map((p) => (p.id === next.id ? next : p)) ?? prev,
+    );
   }
   function removeItem(id: string) {
-    setItems((prev) => prev?.filter((p) => p.id !== id) ?? prev);
+    queryClient.setQueryData<ProjectDTO[]>(
+      ['projects'],
+      (prev) => prev?.filter((p) => p.id !== id) ?? prev,
+    );
   }
 
   const empty = items?.length === 0;
@@ -39,7 +44,7 @@ export default function DashboardPage() {
           {!empty && <Button onClick={() => setCreateOpen(true)}>+ 새 프로젝트</Button>}
         </header>
 
-        {items === null && <p className="mt-10 text-body-sm text-muted-foreground">로딩…</p>}
+        {isLoading && <p className="mt-10 text-body-sm text-muted-foreground">로딩…</p>}
 
         {empty && (
           <div className="mt-16 rounded-lg border border-dashed border-border bg-muted/30 p-16 text-center">

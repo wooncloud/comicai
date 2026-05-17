@@ -1,7 +1,8 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
 import { ApiPaths, type SessionUser } from '@comicai/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,29 +34,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 export function Topbar({ rightSlot }: { rightSlot?: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
-  const [me, setMe] = useState<SessionUser | null>(null);
+  const queryClient = useQueryClient();
+  const { data: me, error } = useQuery<SessionUser>({
+    queryKey: ['me'],
+    queryFn: () => api<SessionUser>(ApiPaths.me),
+    retry: false,
+  });
 
   useEffect(() => {
-    api<SessionUser>(ApiPaths.me)
-      .then(setMe)
-      .catch((err) => {
-        if (err instanceof ApiError && err.status === 401) {
-          if (
-            typeof window !== 'undefined' &&
-            !window.location.pathname.startsWith('/login') &&
-            !window.location.pathname.startsWith('/signup') &&
-            window.location.pathname !== '/'
-          ) {
-            window.location.href = '/login';
-          }
-        }
-      });
-  }, []);
+    if (error instanceof ApiError && error.status === 401) {
+      if (
+        typeof window !== 'undefined' &&
+        !window.location.pathname.startsWith('/login') &&
+        !window.location.pathname.startsWith('/signup') &&
+        window.location.pathname !== '/'
+      ) {
+        window.location.href = '/login';
+      }
+    }
+  }, [error]);
 
   async function logout() {
     try {
       await api(ApiPaths.logout, { method: 'POST' });
     } finally {
+      queryClient.setQueryData(['me'], null);
       router.push('/');
     }
   }
