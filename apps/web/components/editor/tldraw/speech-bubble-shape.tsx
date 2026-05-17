@@ -85,6 +85,10 @@ export class SpeechBubbleShapeUtil extends BaseBoxShapeUtil<SpeechBubbleShape> {
     };
   }
 
+  override component(shape: SpeechBubbleShape) {
+    return <SpeechBubbleBody shape={shape} util={this} />;
+  }
+
   override indicator(shape: SpeechBubbleShape) {
     const { w, h, variant, polygonPoints } = shape.props;
     return <path d={bodyPathFor(variant, w, h, polygonPoints)} />;

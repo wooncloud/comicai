@@ -214,7 +214,7 @@ export function useSpeechBubbleSync({
       const needsRefetch = creates.size > 0;
       for (const id of deletes) ops.push(deleteOne(id));
       for (const id of creates) {
-        const shape = editor!.getShape(id);
+        const shape = editor!.getShape<SpeechBubbleShape>(id);
         if (shape) ops.push(createOne(shape));
       }
       for (const [, shape] of pending) {

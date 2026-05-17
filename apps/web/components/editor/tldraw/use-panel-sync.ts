@@ -136,7 +136,7 @@ export function usePanelSync({
       const needsIdAssignment = creates.size > 0;
       for (const sid of deletes) ops.push(deletePanel(sid));
       for (const id of creates) {
-        const shape = editor!.getShape(id);
+        const shape = editor!.getShape<ComicPanelShape>(id);
         if (shape) ops.push(createPanel(shape));
       }
       for (const [, shape] of pending) {
