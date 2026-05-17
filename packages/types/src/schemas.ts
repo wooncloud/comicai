@@ -75,6 +75,12 @@ export const PagePatchSchema = z.object({
   name: z.string().trim().min(1).max(80).nullable().optional(),
 });
 
+// 프로젝트의 페이지를 한 번에 재정렬. pageIds는 새 order(0..N-1) 순서.
+export const PageReorderSchema = z.object({
+  pageIds: z.array(z.string().min(1)).min(1).max(500),
+});
+export type PageReorderInput = z.infer<typeof PageReorderSchema>;
+
 // ─── 렌더 ─────────────────────────────────────
 export const RenderModelSchema = z.enum(['gemini-3.1-flash-image-preview', 'gpt-image-2', 'mock']);
 export const RenderStartSchema = z.object({

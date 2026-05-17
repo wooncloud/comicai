@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { newId, prisma } from '@comicai/db';
 import type { PageDTO, ImageRef } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
@@ -86,6 +91,36 @@ export class PagesService {
   async remove(userId: string, id: string) {
     await this.findOwned(userId, id);
     await prisma.page.delete({ where: { id } });
+  }
+
+  /**
+   * 프로젝트 내 페이지를 한 번에 재정렬한다.
+   * - pageIds는 새 order(0..N-1) 순서.
+   * - 누락된 페이지가 있거나 외부 ID가 섞이면 거부.
+   * - PK 제약은 (id) 단일이므로 충돌 우회용 임시 order는 불필요하지만,
+   *   동시 reorder 두 건이 섞일 가능성을 줄이려 단일 트랜잭션으로 처리.
+   */
+  async reorder(userId: string, projectId: string, pageIds: string[]): Promise<PageDTO[]> {
+    await this.projects.assertOwned(userId, projectId);
+    const current = await prisma.page.findMany({
+      where: { projectId },
+      select: { id: true },
+    });
+    const currentIds = new Set(current.map((p) => p.id));
+    if (pageIds.length !== currentIds.size || !pageIds.every((id) => currentIds.has(id))) {
+      throw new BadRequestException({
+        code: 'PAGE_REORDER_MISMATCH',
+        message: '프로젝트의 모든 페이지를 순서대로 지정해야 합니다.',
+      });
+    }
+    await prisma.$transaction(
+      pageIds.map((id, order) => prisma.page.update({ where: { id }, data: { order } })),
+    );
+    const rows = await prisma.page.findMany({
+      where: { projectId },
+      orderBy: { order: 'asc' },
+    });
+    return Promise.all(rows.map((r) => this.withBackgroundUrl(r)));
   }
 
   async findOwned(userId: string, id: string) {

@@ -10,7 +10,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { PageCreateSchema, PagePatchSchema } from '@comicai/types';
+import { PageCreateSchema, PagePatchSchema, PageReorderSchema } from '@comicai/types';
 import { PagesService } from './pages.service';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
 
@@ -23,6 +23,10 @@ class PatchDto {
   order?: number;
   size?: { w: number; h: number };
   name?: string | null;
+}
+class ReorderDto {
+  static zodSchema = PageReorderSchema;
+  pageIds!: string[];
 }
 
 @Controller()
@@ -39,6 +43,11 @@ export class PagesController {
   @HttpCode(201)
   create(@Req() req: AuthedRequest, @Param('pid') pid: string, @Body() body: CreateDto) {
     return this.svc.create(req.user.id, pid, body.size);
+  }
+
+  @Post('projects/:pid/pages/reorder')
+  reorder(@Req() req: AuthedRequest, @Param('pid') pid: string, @Body() body: ReorderDto) {
+    return this.svc.reorder(req.user.id, pid, body.pageIds);
   }
 
   @Get('pages/:id')

@@ -27,6 +27,7 @@ export const ApiPaths = {
   projectThumbnail: (id: string) => `/projects/${id}/thumbnail`,
 
   projectPages: (pid: string) => `/projects/${pid}/pages`,
+  projectPagesReorder: (pid: string) => `/projects/${pid}/pages/reorder`,
   page: (id: string) => `/pages/${id}`,
   pageExport: (id: string) => `/pages/${id}/export`,
   pagePanels: (id: string) => `/pages/${id}/panels`,

@@ -2,16 +2,36 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
 import { AppShell } from '@/components/shell/app-shell';
 import { api } from '@/lib/api';
 import { ApiPaths, pageLabel, type PageDTO, type ProjectDTO } from '@comicai/types';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 
 export default function ProjectDetail() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
   const [project, setProject] = useState<ProjectDTO | null>(null);
   const [pages, setPages] = useState<PageDTO[]>([]);
+  const toast = useToast();
 
   async function loadProject() {
     setProject(await api<ProjectDTO>(ApiPaths.project(projectId)));
@@ -32,6 +52,33 @@ export default function ProjectDetail() {
       body: JSON.stringify({ size: { w: 800, h: 1200 } }),
     });
     await loadPages();
+  }
+
+  const sensors = useSensors(
+    // 클릭과 드래그를 구분하기 위해 6px 이상 이동해야 활성화.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  async function onDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIndex = pages.findIndex((p) => p.id === active.id);
+    const newIndex = pages.findIndex((p) => p.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const prev = pages;
+    const next = arrayMove(pages, oldIndex, newIndex).map((p, i) => ({ ...p, order: i }));
+    setPages(next);
+    try {
+      const fresh = await api<PageDTO[]>(ApiPaths.projectPagesReorder(projectId), {
+        method: 'POST',
+        body: JSON.stringify({ pageIds: next.map((p) => p.id) }),
+      });
+      setPages(fresh);
+    } catch (err) {
+      setPages(prev);
+      toast.push('error', (err as Error).message || '순서 저장에 실패했습니다.');
+    }
   }
 
   return (
@@ -59,11 +106,20 @@ export default function ProjectDetail() {
               </button>
             </div>
           ) : (
-            <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {pages.map((p) => (
-                <PageCard key={p.id} projectId={projectId} page={p} onChanged={loadPages} />
-              ))}
-            </ul>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+              <SortableContext items={pages.map((p) => p.id)} strategy={rectSortingStrategy}>
+                <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  {pages.map((p) => (
+                    <SortablePageCard
+                      key={p.id}
+                      projectId={projectId}
+                      page={p}
+                      onChanged={loadPages}
+                    />
+                  ))}
+                </ul>
+              </SortableContext>
+            </DndContext>
           )}
         </section>
       </div>
@@ -71,7 +127,7 @@ export default function ProjectDetail() {
   );
 }
 
-function PageCard({
+function SortablePageCard({
   projectId,
   page,
   onChanged,
@@ -80,6 +136,16 @@ function PageCard({
   page: PageDTO;
   onChanged: () => void;
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: page.id,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+    opacity: isDragging ? 0.85 : undefined,
+  };
+
   async function remove(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -90,7 +156,11 @@ function PageCard({
   const thumb = page.backgroundUrl ?? null;
   const label = pageLabel(page);
   return (
-    <li className="group relative">
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`group relative ${isDragging ? 'cursor-grabbing' : ''}`}
+    >
       <Link
         href={`/projects/${projectId}/pages/${page.id}`}
         className="relative block aspect-[2/3] overflow-hidden rounded-md border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-400 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-900"
@@ -120,6 +190,15 @@ function PageCard({
           #{page.order + 1}
         </div>
       </Link>
+      <button
+        type="button"
+        aria-label="드래그하여 순서 변경"
+        {...attributes}
+        {...listeners}
+        className="absolute left-1/2 top-1.5 -translate-x-1/2 cursor-grab rounded bg-white/80 p-1 text-neutral-700 opacity-0 shadow-sm transition active:cursor-grabbing group-hover:opacity-100 hover:bg-white dark:bg-neutral-900/80 dark:text-neutral-200 dark:hover:bg-neutral-900"
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
       <button
         onClick={remove}
         title="삭제"

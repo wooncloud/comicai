@@ -1,10 +1,28 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Pencil, Check, X } from 'lucide-react';
+import { Plus, Pencil, Check, X, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { api } from '@/lib/api';
 import { ApiPaths, pageLabel, type PageDTO } from '@comicai/types';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/toast';
 import { cn } from '@/lib/cn';
 
 interface Props {
@@ -17,6 +35,7 @@ interface Props {
 export function PageSidebar({ projectId, currentPageId, currentPage }: Props) {
   const [pages, setPages] = useState<PageDTO[] | null>(null);
   const [adding, setAdding] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     api<PageDTO[]>(ApiPaths.projectPages(projectId))
@@ -51,6 +70,32 @@ export function PageSidebar({ projectId, currentPageId, currentPage }: Props) {
     setPages((prev) => prev?.map((p) => (p.id === id ? updated : p)) ?? prev);
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  async function onDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id || !pages) return;
+    const oldIndex = pages.findIndex((p) => p.id === active.id);
+    const newIndex = pages.findIndex((p) => p.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const prev = pages;
+    const next = arrayMove(pages, oldIndex, newIndex).map((p, i) => ({ ...p, order: i }));
+    setPages(next);
+    try {
+      const fresh = await api<PageDTO[]>(ApiPaths.projectPagesReorder(projectId), {
+        method: 'POST',
+        body: JSON.stringify({ pageIds: next.map((p) => p.id) }),
+      });
+      setPages(fresh);
+    } catch (err) {
+      setPages(prev);
+      toast.push('error', (err as Error).message || '순서 저장에 실패했습니다.');
+    }
+  }
+
   return (
     <aside className="flex w-44 flex-col border-r border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-2 py-1.5">
@@ -68,15 +113,21 @@ export function PageSidebar({ projectId, currentPageId, currentPage }: Props) {
       </div>
       <ul className="flex-1 overflow-auto p-2">
         {pages === null && <li className="text-caption text-muted-foreground">로딩…</li>}
-        {pages?.map((p) => (
-          <PageRow
-            key={p.id}
-            projectId={projectId}
-            page={p}
-            active={p.id === currentPageId}
-            onRename={(name) => renamePage(p.id, name)}
-          />
-        ))}
+        {pages && pages.length > 0 && (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={pages.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+              {pages.map((p) => (
+                <PageRow
+                  key={p.id}
+                  projectId={projectId}
+                  page={p}
+                  active={p.id === currentPageId}
+                  onRename={(name) => renamePage(p.id, name)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+        )}
         {pages?.length === 0 && (
           <li>
             <button
@@ -105,6 +156,15 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(page.name ?? '');
   const [busy, setBusy] = useState(false);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: page.id,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+    opacity: isDragging ? 0.85 : undefined,
+  };
 
   async function commit() {
     const trimmed = draft.trim();
@@ -124,7 +184,7 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
 
   if (editing) {
     return (
-      <li className="flex items-center gap-1 px-1 py-1">
+      <li ref={setNodeRef} style={style} className="flex items-center gap-1 px-1 py-1">
         <Input
           autoFocus
           value={draft}
@@ -166,51 +226,64 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
 
   const thumb = page.backgroundUrl ?? null;
   return (
-    <li className="group">
-      <Link
-        href={`/projects/${projectId}/pages/${page.id}`}
+    <li ref={setNodeRef} style={style} className="group">
+      <div
         className={cn(
-          'flex items-center gap-2 rounded px-2 py-1.5 text-body-sm transition-colors',
+          'flex items-center gap-1 rounded text-body-sm transition-colors',
           active
             ? 'bg-muted font-medium'
             : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
         )}
       >
-        {thumb ? (
-          <img
-            src={thumb}
-            alt=""
-            className="h-8 w-6 flex-none rounded-sm border border-border object-cover"
-          />
-        ) : (
-          <span
-            className={cn(
-              'flex h-8 w-6 flex-none items-center justify-center rounded-sm border border-border text-[10px] font-medium',
-              active ? 'bg-background text-foreground' : 'bg-muted/40',
-            )}
-          >
-            {page.order + 1}
-          </span>
-        )}
-        <span className="min-w-0 flex-1 truncate" title={pageLabel(page)}>
-          {pageLabel(page)}
-        </span>
         <button
           type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setEditing(true);
-          }}
-          title="이름 변경"
-          className="hidden h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover:flex"
+          aria-label="드래그하여 순서 변경"
+          {...attributes}
+          {...listeners}
+          className="flex h-7 w-4 flex-none cursor-grab items-center justify-center text-muted-foreground/60 opacity-0 transition active:cursor-grabbing group-hover:opacity-100 hover:text-foreground"
         >
-          <Pencil className="h-3 w-3" />
+          <GripVertical className="h-3 w-3" />
         </button>
-        <span className="ml-auto text-caption text-muted-foreground">
-          {page.size.w}×{page.size.h}
-        </span>
-      </Link>
+        <Link
+          href={`/projects/${projectId}/pages/${page.id}`}
+          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2"
+        >
+          {thumb ? (
+            <img
+              src={thumb}
+              alt=""
+              className="h-8 w-6 flex-none rounded-sm border border-border object-cover"
+            />
+          ) : (
+            <span
+              className={cn(
+                'flex h-8 w-6 flex-none items-center justify-center rounded-sm border border-border text-[10px] font-medium',
+                active ? 'bg-background text-foreground' : 'bg-muted/40',
+              )}
+            >
+              {page.order + 1}
+            </span>
+          )}
+          <span className="min-w-0 flex-1 truncate" title={pageLabel(page)}>
+            {pageLabel(page)}
+          </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setEditing(true);
+            }}
+            title="이름 변경"
+            className="hidden h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover:flex"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+          <span className="ml-auto text-caption text-muted-foreground">
+            {page.size.w}×{page.size.h}
+          </span>
+        </Link>
+      </div>
     </li>
   );
 }
