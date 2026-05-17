@@ -14,6 +14,7 @@ export const ApiPaths = {
   passwordResetRequest: '/auth/password-reset/request',
   passwordResetConfirm: '/auth/password-reset/confirm',
   me: '/me',
+  meAvatar: '/me/avatar',
   mePassword: '/me/password',
   meSessions: '/me/sessions',
   meSession: (sid: string) => `/me/sessions/${sid}`,

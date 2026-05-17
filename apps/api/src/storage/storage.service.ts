@@ -19,6 +19,7 @@ export type ImageScope =
   | { kind: 'panel-upload'; projectId: string; panelId: string }
   | { kind: 'panel-conti'; projectId: string; panelId: string }
   | { kind: 'project-thumbnail'; projectId: string }
+  | { kind: 'user-avatar'; userId: string }
   | { kind: 'export'; userId: string; pageId: string };
 
 const PRESIGN_TTL_SECONDS = 15 * 60;
@@ -178,6 +179,8 @@ function buildKey(scope: ImageScope, mimeType: string): string {
       return `projects/${scope.projectId}/panels/${scope.panelId}/conti/${id}.${ext}`;
     case 'project-thumbnail':
       return `projects/${scope.projectId}/thumbnail/${id}.${ext}`;
+    case 'user-avatar':
+      return `users/${scope.userId}/avatar/${id}.${ext}`;
     case 'export':
       return `exports/${scope.userId}/${scope.pageId}/${id}.${ext}`;
   }

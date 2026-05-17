@@ -15,6 +15,7 @@ model User {
   passwordHash    String?
   displayName     String?   @map("display_name")
   avatarUrl       String?   @map("avatar_url")
+  avatarStorageKey String?  @map("avatar_storage_key")
   oauthProviders  Json      @default("[]") @map("oauth_providers")
   emailVerifiedAt DateTime? @map("email_verified_at")
   createdAt       DateTime  @default(now()) @map("created_at")
