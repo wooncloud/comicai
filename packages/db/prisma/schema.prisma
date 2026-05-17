@@ -75,12 +75,13 @@ model ApiKey {
 }
 
 model Project {
-  id        String   @id
-  userId    String   @map("user_id")
-  name      String
-  thumbnail String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id              String   @id
+  userId          String   @map("user_id")
+  name            String
+  thumbnail       String?
+  defaultStyleId  String?  @map("default_style_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   pages       Page[]
@@ -132,6 +133,7 @@ model Panel {
   text            Json    @default("{}")
   refImages       Json    @default("[]") @map("ref_images")
   currentRenderId String? @map("current_render_id")
+  styleId         String? @map("style_id")
   history         String[] @default([])
 
   page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)

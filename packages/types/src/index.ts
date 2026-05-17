@@ -127,6 +127,8 @@ export interface PanelDTO {
   currentRenderStatus?: RenderStatus | null;
   /** 현재 렌더 결과의 presigned URL (성공한 경우만). 캔버스/인스펙터 미리보기용. */
   currentRenderImageUrl?: string | null;
+  /** 패널별 그림체 override. null이면 Project.defaultStyleId 사용. */
+  styleId?: string | null;
   history: string[];
 }
 
@@ -160,6 +162,8 @@ export interface PageDTO {
   name: string | null;
   size: { w: number; h: number };
   background?: ImageRef | null;
+  /** background.storageKey의 presigned URL (브라우저 미리보기용). */
+  backgroundUrl?: string | null;
   createdAt: string;
 }
 
@@ -173,7 +177,12 @@ export interface ProjectDTO {
   id: string;
   userId: string;
   name: string;
+  /** R2/S3 storage key. 클라이언트는 thumbnailUrl을 사용. */
   thumbnail?: string | null;
+  /** thumbnail이 있으면 그 키의 presigned URL, 없으면 첫 페이지 background의 presigned URL 폴백. */
+  thumbnailUrl?: string | null;
+  /** 패널 렌더 시 자동 주입되는 대표 그림체 엔티티 id. */
+  defaultStyleId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -24,6 +24,7 @@ export const ApiPaths = {
 
   projects: '/projects',
   project: (id: string) => `/projects/${id}`,
+  projectThumbnail: (id: string) => `/projects/${id}/thumbnail`,
 
   projectPages: (pid: string) => `/projects/${pid}/pages`,
   page: (id: string) => `/pages/${id}`,

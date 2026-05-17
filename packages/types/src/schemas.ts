@@ -58,6 +58,7 @@ export const ProjectCreateSchema = z.object({
 export const ProjectPatchSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   thumbnail: z.string().nullable().optional(),
+  defaultStyleId: z.string().min(1).nullable().optional(),
 });
 
 // ─── 페이지 ───────────────────────────────────
@@ -103,6 +104,7 @@ export const PanelCreateSchema = z.object({ shape: PanelShapeSchema });
 export const PanelPatchSchema = z.object({
   shape: PanelShapeSchema.optional(),
   text: z.any().optional(),
+  styleId: z.string().min(1).nullable().optional(),
 });
 
 // ─── 일관성 ───────────────────────────────────
