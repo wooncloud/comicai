@@ -19,7 +19,6 @@ import { ChevronRight } from 'lucide-react';
 import { PanelTextEditor } from './panel-editor';
 import { PanelStatusBadge } from './panel-status-badge';
 import { HistoryTray } from './history-tray';
-import { PanelShapePicker } from './panel-shape-picker';
 import { ContiDialog } from './conti-dialog';
 import { useToast } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
@@ -208,23 +207,6 @@ export function PanelInspector({
       </div>
 
       <PanelTextEditor projectId={projectId} initial={doc} onChange={setDoc} />
-
-      <PanelShapePicker
-        value={panel.shape.type ?? 'rect'}
-        onChange={async (variant) => {
-          if (variant === panel.shape.type) return;
-          try {
-            const nextShape: PanelShape = { ...panel.shape, type: variant };
-            const updated = await api<PanelDTO>(ApiPaths.panel(panel.id), {
-              method: 'PATCH',
-              body: JSON.stringify({ shape: nextShape }),
-            });
-            onPanelUpdated(updated);
-          } catch (err) {
-            if (err instanceof ApiError) toast.push('error', `저장 실패: ${err.code}`);
-          }
-        }}
-      />
 
       <PanelStrokeEditor
         shape={panel.shape}
