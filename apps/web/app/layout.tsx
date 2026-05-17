@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
 import { ToastProvider } from '@/components/ui/toast';
+import { MobileBlocker } from '@/components/shell/mobile-blocker';
 import { Providers } from './providers';
 
 const inter = Inter({
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <ToastProvider>{children}</ToastProvider>
         </Providers>
+        <MobileBlocker />
       </body>
     </html>
   );
