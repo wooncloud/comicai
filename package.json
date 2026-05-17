@@ -19,6 +19,15 @@
     "docker:up:app": "docker compose -f infra/compose/full.yml --env-file .env up -d --build api worker web",
     "docker:down": "docker compose -f infra/compose/full.yml --env-file .env down",
     "docker:logs": "docker compose -f infra/compose/full.yml --env-file .env logs -f --tail=100 api worker web",
+    "prod:up": "docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup up -d --build",
+    "prod:up:app": "docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup up -d --build --force-recreate web api worker",
+    "prod:restart": "docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup up -d api",
+    "prod:restart:web": "docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup up -d --build --force-recreate web",
+    "prod:down": "docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup down",
+    "prod:ps": "docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup ps",
+    "prod:logs": "docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup logs -f --tail=100",
+    "prod:logs:api": "docker compose -f infra/compose/full.yml --env-file .env logs -f --tail=200 api",
+    "prod:logs:tunnel": "docker compose -f infra/compose/full.yml --env-file .env --profile tunnel logs -f --tail=100 cloudflared",
     "prepare": "husky"
   },
   "lint-staged": {
