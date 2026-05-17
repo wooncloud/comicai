@@ -8,11 +8,16 @@ import {
   Patch,
   Post,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ProjectCreateSchema, ProjectPatchSchema } from '@comicai/types';
 import { ProjectsService } from './projects.service';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
+import { requireUploadedFile } from '../common/upload';
 
 class CreateDto {
   static zodSchema = ProjectCreateSchema;
@@ -22,6 +27,7 @@ class PatchDto {
   static zodSchema = ProjectPatchSchema;
   name?: string;
   thumbnail?: string | null;
+  defaultStyleId?: string | null;
 }
 
 @Controller('projects')
@@ -48,6 +54,16 @@ export class ProjectsController {
   @Patch(':id')
   patch(@Req() req: AuthedRequest, @Param('id') id: string, @Body() body: PatchDto) {
     return this.svc.patch(req.user.id, id, body);
+  }
+
+  @Post(':id/thumbnail')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
+  uploadThumbnail(
+    @Req() req: AuthedRequest,
+    @Param('id') id: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.svc.setThumbnail(req.user.id, id, requireUploadedFile(file).buffer);
   }
 
   @Delete(':id')
