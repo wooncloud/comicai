@@ -87,7 +87,6 @@ export function PanelInspector({
   const effectiveStyleId = panel.styleId ?? project?.defaultStyleId ?? null;
   const model: ModelId = userModel ?? project?.defaultModel ?? 'gemini-3.1-flash-image-preview';
   const status: RenderStatus | null = job?.status ?? null;
-  const resultImageUrl = job?.resultImageUrl ?? null;
 
   function patchRender(patch: Partial<PanelDTO>) {
     onPanelUpdated({ ...panel, ...patch });
@@ -197,7 +196,16 @@ export function PanelInspector({
         <PanelStatusBadge status={status} />
       </div>
 
-      <PanelTextEditor projectId={projectId} initial={doc} onChange={setDoc} />
+      <PanelTextEditor
+        projectId={projectId}
+        initial={doc}
+        onChange={setDoc}
+        onSubmit={() => {
+          // 진행 중이거나 mutation pending이면 무시.
+          if (status === 'queued' || status === 'running' || startRender.isPending) return;
+          startRender.mutate();
+        }}
+      />
 
       <PanelStrokeEditor
         shape={panel.shape}
@@ -284,18 +292,6 @@ export function PanelInspector({
             }
           }}
         />
-      )}
-
-      {resultImageUrl && (
-        <a
-          href={resultImageUrl}
-          target="_blank"
-          rel="noopener"
-          className="block overflow-hidden rounded-md border border-border bg-card"
-          title="원본 보기"
-        >
-          <img src={resultImageUrl} alt="렌더 결과" className="block h-auto w-full object-cover" />
-        </a>
       )}
 
       {error && (
