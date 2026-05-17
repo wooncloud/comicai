@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
-import { prisma } from '@comicai/db';
+import { prisma, Prisma } from '@comicai/db';
 import { getAdapter, type AdapterContext } from '@comicai/adapters';
 import type { ImageRef, RenderError, RenderIR, RenderStatus } from '@comicai/types';
 import { RENDER_QUEUE_NAME, parseRedis, type RenderJobData } from './render.queue';
@@ -84,7 +84,7 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
         where: { id: renderJobId },
         data: {
           status: 'succeeded',
-          resultImage: stored,
+          resultImage: stored as unknown as Prisma.InputJsonValue,
           finishedAt: new Date(),
         },
       });
@@ -111,7 +111,7 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
         where: { id: renderJobId },
         data: {
           status: finalStatus,
-          error: classified,
+          error: classified as unknown as Prisma.InputJsonValue,
           finishedAt: new Date(),
         },
       });

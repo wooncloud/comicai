@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { entityIdPrefix, newId, prisma } from '@comicai/db';
+import { entityIdPrefix, newId, prisma, Prisma } from '@comicai/db';
 import type { ConsistencyEntityDTO, EntityType, ImageRef } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
 import { StorageService } from '../storage/storage.service';
@@ -130,7 +130,7 @@ export class ConsistencyService {
     const row = await prisma.consistencyEntity.update({
       where: { id: owned.id },
       data: {
-        refImages: [...existing, ...newRefs],
+        refImages: [...existing, ...newRefs] as unknown as Prisma.InputJsonValue,
         version: { increment: 1 },
       },
     });

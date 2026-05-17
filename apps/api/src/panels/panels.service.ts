@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { newId, prisma } from '@comicai/db';
+import { newId, prisma, Prisma } from '@comicai/db';
 import {
   emptyDoc,
   type PanelDTO,
@@ -92,8 +92,8 @@ export class PanelsService {
       data: {
         id: newId('panel'),
         pageId,
-        shape: shape,
-        text: emptyDoc(),
+        shape: shape as unknown as Prisma.InputJsonValue,
+        text: emptyDoc() as unknown as Prisma.InputJsonValue,
       },
     });
     return panelDto(row);
@@ -129,7 +129,7 @@ export class PanelsService {
     const refs = (owned.refImages as ImageRef[]) ?? [];
     const row = await prisma.panel.update({
       where: { id: owned.id },
-      data: { refImages: [...refs, ref] },
+      data: { refImages: [...refs, ref] as unknown as Prisma.InputJsonValue },
     });
     return panelDto(row, await this.loadRender(row.currentRenderId));
   }

@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { prisma } from '@comicai/db';
+import { prisma, Prisma } from '@comicai/db';
 import type { ModelId, RenderJobDTO, RenderStatus, ImageRef, RenderError } from '@comicai/types';
 import { PanelsService } from '../panels/panels.service';
 import { StorageService } from '../storage/storage.service';
@@ -41,7 +41,7 @@ export class RenderService {
         panelId: panel.id,
         userId,
         model,
-        ir: ir,
+        ir: ir as unknown as Prisma.InputJsonValue,
         status: 'queued',
       },
     });
