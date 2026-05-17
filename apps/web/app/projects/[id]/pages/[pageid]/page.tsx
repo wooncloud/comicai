@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ApiPaths, pageLabel, type PageDTO, type PanelDTO } from '@comicai/types';
 import { PanelInspector } from '@/components/editor/panel-inspector';
 import { PageSidebar } from '@/components/editor/page-sidebar';
-import { ToolToggle } from '@/components/editor/tool-toggle';
+import { ToolRail } from '@/components/editor/tool-rail';
 import { SaveStatus } from '@/components/editor/save-status';
 import { ExportDialog } from '@/components/editor/export-dialog';
 import { PageInspector } from '@/components/editor/page-inspector';
@@ -132,7 +132,6 @@ export default function PageEditor() {
               { label: page ? pageLabel(page) : '…' },
             ]}
           />
-          <ToolToggle editor={editor} />
         </div>
         <div className="flex items-center gap-3">
           <SaveStatus state={saveState} lastSavedAt={lastSavedAt} />
@@ -153,12 +152,15 @@ export default function PageEditor() {
         {leftCollapsed ? (
           <CollapseRail side="left" onExpand={() => setLeftCollapsed(false)} />
         ) : (
-          <PageSidebar
-            projectId={projectId}
-            currentPageId={pageId}
-            currentPage={page}
-            onCollapse={() => setLeftCollapsed(true)}
-          />
+          <>
+            <PageSidebar
+              projectId={projectId}
+              currentPageId={pageId}
+              currentPage={page}
+              onCollapse={() => setLeftCollapsed(true)}
+            />
+            <ToolRail editor={editor} />
+          </>
         )}
         <div className="relative flex-1 bg-muted/40">
           <ComicEditor onMount={setEditor} />
