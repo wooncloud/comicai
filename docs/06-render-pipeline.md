@@ -12,7 +12,7 @@
    └─▶ POST /panels/:id/render            (apps/web/components/editor/panel-inspector.tsx:222 → :87)
         └─▶ RenderController.start        (apps/api/src/render/render.controller.ts:25)
              └─▶ RenderService.startRender(apps/api/src/render/render.service.ts:17)
-                  ├─ buildRenderIR        (apps/api/src/render/ir.builder.ts:20)
+                  ├─ buildRenderIR        (apps/api/src/render/ir.builder.ts:21)
                   ├─ prisma.renderJob.create  status='queued'      (render.service.ts:38)
                   ├─ RenderQueue.enqueue  (BullMQ)                 (render.service.ts:48 → render.queue.ts:34)
                   └─ panel.currentRenderId/history 갱신            (render.service.ts:50)
@@ -66,8 +66,9 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
 `RenderService.startRender` (`apps/api/src/render/render.service.ts:17`):
 
 1. `panels.assertOwned` — 소유권 확인 (`:23`).
-2. `buildRenderIR(panel.id, seed)` — 텍스트/콘티/참조이미지를 IR로 직렬화
-   (`apps/api/src/render/ir.builder.ts:20`).
+2. `buildRenderIR(panel.id, seed)` — 텍스트/콘티/참조이미지를 IR로 직렬화. 그림체는
+   `panel.styleId ?? project.defaultStyleId`를 `effectiveStyleId`로 자동 주입하며 멘션 대상이 아님
+   (`apps/api/src/render/ir.builder.ts:21, 34-36, 61-63`).
 3. 입력 검증 — 본문/콘티/참조 중 하나도 없으면
    `BadRequestException({ code: 'RENDER_INVALID_INPUT' })` (`:25-30`).
 4. **Idempotency key** = `sha256({ ir, userId, model }).slice(0,32)` →

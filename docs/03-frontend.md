@@ -69,7 +69,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 
 ### components/consistency
 
-- `entity-card.tsx` — 일관성 엔티티(캐릭터/배경/세계관/그림체) 카드와 인라인 편집 UI. 목록 페이지는 `app/projects/[id]/consistency/page.tsx`에서 `useState`로 직접 관리(React Query 미사용)
+- `entity-card.tsx` — 일관성 엔티티(캐릭터/배경/세계관/그림체) 카드와 인라인 편집 UI. style 탭에서는 `isDefault?`/`onSetDefault?` props로 대표 그림체 배지·"대표로 지정" 버튼 노출(`entity-card.tsx:12-15, 57-61, 85-88`). 목록 페이지는 `app/projects/[id]/consistency/page.tsx`에서 `useState`로 직접 관리(React Query 미사용)
 
 ### components/editor (TipTap 측)
 

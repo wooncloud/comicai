@@ -71,8 +71,9 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 
 ### 2.5 Project — `projects` (`schema.prisma:77`)
 
-- 필드: id, userId, name, thumbnail?, createdAt, updatedAt.
-- 인덱스: `@@index([userId, createdAt])` (`:89`).
+- 필드: id, userId, name, thumbnail?, defaultStyleId?, createdAt, updatedAt.
+- `defaultStyleId`(`schema.prisma:82`): 패널 렌더 시 자동 주입되는 대표 그림체 엔티티 id. **FK 없음** — ConsistencyEntity 삭제 시 정합성은 애플리케이션 레벨로 처리.
+- 인덱스: `@@index([userId, createdAt])` (`:90`).
 - 관계: 1:N → Page, ConsistencyEntity.
 
 ### 2.6 ConsistencyEntity — `consistency_entities` (`schema.prisma:93`)
@@ -98,18 +99,19 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 
 ### 2.8 Panel — `panels` (`schema.prisma:127`)
 
-| 필드            | 타입      | nullable | 기본값                        |
-| --------------- | --------- | -------- | ----------------------------- |
-| id              | String PK | no       | —                             |
-| pageId          | String    | no       | FK→pages                      |
-| shape           | Json      | no       | `PanelShape` (아래 enum 참조) |
-| conti           | Json      | yes      | `ImageRef` 또는 null          |
-| text            | Json      | no       | `{}` — TipTap 문서            |
-| refImages       | Json      | no       | `[]`                          |
-| currentRenderId | String    | yes      | RenderJob 약결합 참조         |
-| history         | String[]  | no       | `[]` — RenderJob id 목록      |
+| 필드            | 타입      | nullable | 기본값                                                                                           |
+| --------------- | --------- | -------- | ------------------------------------------------------------------------------------------------ |
+| id              | String PK | no       | —                                                                                                |
+| pageId          | String    | no       | FK→pages                                                                                         |
+| shape           | Json      | no       | `PanelShape` (아래 enum 참조)                                                                    |
+| conti           | Json      | yes      | `ImageRef` 또는 null                                                                             |
+| text            | Json      | no       | `{}` — TipTap 문서                                                                               |
+| refImages       | Json      | no       | `[]`                                                                                             |
+| currentRenderId | String    | yes      | RenderJob 약결합 참조                                                                            |
+| styleId         | String    | yes      | 패널별 그림체 override(`schema.prisma:136`). null이면 `Project.defaultStyleId` 사용. **FK 없음** |
+| history         | String[]  | no       | `[]` — RenderJob id 목록                                                                         |
 
-- 인덱스: `@@index([pageId])` (`:139`).
+- 인덱스: `@@index([pageId])` (`:141`).
 
 ### 2.9 RenderJob — `render_jobs` (`schema.prisma:143`)
 
@@ -201,6 +203,7 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 | `20260516100128_p3_auth_tokens/migration.sql`        | `email_verifications`, `password_resets` 테이블 추가 (token_hash unique, user_id index, FK cascade).                       |
 | `20260516141839_p7_page_name/migration.sql`          | `pages.name` (TEXT, nullable) 컬럼 추가 — 사용자 지정 페이지 라벨.                                                         |
 | `20260517005900_p7_rename_model_ids/migration.sql`   | render_jobs.model 데이터 마이그레이션: `gemini-nano-banana → gemini-3.1-flash-image-preview`, `gpt-image-1 → gpt-image-2`. |
+| `20260517120000_p8_style_id/migration.sql`           | `projects.default_style_id`, `panels.style_id` (둘 다 TEXT nullable) 추가 — 그림체 자동 주입. FK 없음.                     |
 
 `migration_lock.toml`은 provider를 PostgreSQL로 고정합니다.
 
@@ -213,4 +216,5 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 3. **`ApiKey.provider` 범위 불일치**: DB는 자유 텍스트, Zod 생성 스키마는 `gemini|openai`, DTO `ApiKeySummary.provider`는 `ModelProvider`(mock 포함). 실사용 경로에서는 mock provider의 키를 만들 수 없으나, 타입은 허용.
 4. **`Panel.history`는 String[]**: 순서 의미가 있음 (history 순). 별도 RenderHistory 테이블 없음.
 5. **파생 필드는 DTO에만 존재**: `refImageUrls`, `currentRenderStatus`, `currentRenderImageUrl`, `resultImageUrl`은 모두 응답 직전에 채워지는 presigned URL/조인 필드이며 DB에는 없음.
-6. **`text` 컬럼 기본값 `{}`** (`schema.prisma:132`): DTO `TipTapDoc`은 `{type:'doc', content:[...]}` 형태이므로 신규 패널 생성 시 `emptyDoc()` (`index.ts:150`)으로 정규화 필요.
+6. **`text` 컬럼 기본값 `{}`** (`schema.prisma:133`): DTO `TipTapDoc`은 `{type:'doc', content:[...]}` 형태이므로 신규 패널 생성 시 `emptyDoc()` (`index.ts:152`)으로 정규화 필요.
+7. **`Project.defaultStyleId` / `Panel.styleId` FK 부재**(`schema.prisma:82, 136`): 둘 다 `ConsistencyEntity.id` 참조이나 FK가 없음. 엔티티 삭제 시 dangling id가 남을 수 있으며 cleanup·정합성은 애플리케이션 레벨에서 처리. `ir.builder.ts:34-36`의 effectiveStyleId 결정 로직과 함께 본다.
