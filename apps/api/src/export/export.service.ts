@@ -120,12 +120,16 @@ export class ExportService {
     ).flat();
 
     // 3) 말풍선 — 패널 합성 직후, 항상 가장 위 레이어로.
+    // Prisma JSON 컬럼은 JsonValue 로 추론되므로 도메인 타입으로 좁힌다.
     for (const bubble of page.speechBubbles) {
+      const shape = bubble.shape as unknown as SpeechBubbleShape;
+      const style = bubble.style as unknown as SpeechBubbleStyle;
+      const text = bubble.text as unknown as TipTapDoc;
       const { svg, left, top } = renderSpeechBubbleSvg({
         variant: bubble.variant as SpeechBubbleVariant,
-        shape: bubble.shape,
-        style: bubble.style,
-        text: bubble.text,
+        shape,
+        style,
+        text,
       });
       composites.push({ input: svg, left, top });
     }
