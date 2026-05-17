@@ -88,6 +88,12 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
           finishedAt: new Date(),
         },
       });
+      // 렌더 성공 시 콘티는 역할을 다했으므로 자동 제거(다음 렌더에 잔존하지 않도록).
+      // R2 오브젝트는 일단 그대로 두고 panel.conti만 null화 — 추후 GC 대상.
+      await prisma.panel.update({
+        where: { id: row.panelId },
+        data: { conti: Prisma.JsonNull },
+      });
       this.hub.publish(renderJobId, {
         type: 'status',
         jobId: renderJobId,

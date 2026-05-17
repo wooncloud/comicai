@@ -142,9 +142,12 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
           api<RenderJobDTO>(ApiPaths.renderJob(jobId))
             .then((j) => {
               queryClient.setQueryData<RenderJobDTO>(['render-job', jobId], j);
+              // 백엔드 워커가 렌더 성공 시 panel.conti를 null화 하므로 클라이언트도 동기화.
               patchRender({
                 currentRenderStatus: 'succeeded',
                 currentRenderImageUrl: j.resultImageUrl ?? null,
+                conti: null,
+                contiUrl: null,
               });
             })
             .catch(() => {});
