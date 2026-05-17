@@ -16,6 +16,7 @@ interface PageRow {
   name: string | null;
   size: unknown;
   background: unknown;
+  backgroundColor: string | null;
   createdAt: Date;
 }
 
@@ -27,6 +28,7 @@ function toDtoBase(row: PageRow): PageDTO {
     name: row.name,
     size: row.size as { w: number; h: number },
     background: (row.background as ImageRef) ?? null,
+    backgroundColor: row.backgroundColor,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -78,7 +80,12 @@ export class PagesService {
   async patch(
     userId: string,
     id: string,
-    patch: { order?: number; size?: { w: number; h: number }; name?: string | null },
+    patch: {
+      order?: number;
+      size?: { w: number; h: number };
+      name?: string | null;
+      backgroundColor?: string | null;
+    },
   ) {
     await this.findOwned(userId, id);
     const row = await prisma.page.update({

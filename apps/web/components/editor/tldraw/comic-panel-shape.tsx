@@ -22,6 +22,9 @@ export type ComicPanelShape = TLBaseShape<
     variant: PanelShapeType;
     /** variant='polygon'일 때 vertex들. [0,1] 정규화 좌표(bbox 기준). */
     polygonPoints: NormalizedPoint[] | null;
+    /** 외곽선 색/굵기. PanelShape 와 동기. */
+    strokeColor: string;
+    strokeWidth: number;
   }
 >;
 
@@ -37,6 +40,8 @@ export class ComicPanelShapeUtil extends BaseBoxShapeUtil<ComicPanelShape> {
     resultImageUrl: T.string.nullable(),
     variant: T.literalEnum(...PANEL_SHAPE_TYPES),
     polygonPoints: T.arrayOf(NormalizedPointSchema).nullable(),
+    strokeColor: T.string,
+    strokeWidth: T.number,
   };
 
   override canResize() {
@@ -55,11 +60,14 @@ export class ComicPanelShapeUtil extends BaseBoxShapeUtil<ComicPanelShape> {
       resultImageUrl: null,
       variant: 'rect',
       polygonPoints: null,
+      strokeColor: '#000000',
+      strokeWidth: 2,
     };
   }
 
   override component(shape: ComicPanelShape) {
-    const { w, h, status, resultImageUrl, variant, polygonPoints } = shape.props;
+    const { w, h, status, resultImageUrl, variant, polygonPoints, strokeColor, strokeWidth } =
+      shape.props;
     const inProgress = isInProgressRender(status);
     const clipPath = clipPathFor(variant, w, h, polygonPoints);
     const outline = outlinePathFor(variant, w, h, polygonPoints);
@@ -92,8 +100,8 @@ export class ComicPanelShapeUtil extends BaseBoxShapeUtil<ComicPanelShape> {
           <path
             d={outline}
             fill="none"
-            stroke="hsl(var(--foreground))"
-            strokeWidth={2}
+            stroke={strokeColor || 'hsl(var(--foreground))'}
+            strokeWidth={strokeWidth > 0 ? strokeWidth : 2}
             strokeLinejoin="round"
             vectorEffect="non-scaling-stroke"
           />

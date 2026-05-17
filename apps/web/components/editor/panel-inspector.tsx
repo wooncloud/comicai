@@ -181,7 +181,7 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
   }
 
   return (
-    <aside className="flex w-96 flex-col gap-4 border-l border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
+    <aside className="flex w-96 min-h-0 flex-col gap-4 overflow-y-auto border-l border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
       <div className="flex items-center justify-between">
         <div className="text-xs text-neutral-500">패널 {panel.id.slice(-8)}</div>
         <PanelStatusBadge status={status} />
@@ -198,6 +198,21 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
             const updated = await api<PanelDTO>(ApiPaths.panel(panel.id), {
               method: 'PATCH',
               body: JSON.stringify({ shape: nextShape }),
+            });
+            onPanelUpdated(updated);
+          } catch (err) {
+            if (err instanceof ApiError) toast.push('error', `저장 실패: ${err.code}`);
+          }
+        }}
+      />
+
+      <PanelStrokeEditor
+        shape={panel.shape}
+        onChange={async (next) => {
+          try {
+            const updated = await api<PanelDTO>(ApiPaths.panel(panel.id), {
+              method: 'PATCH',
+              body: JSON.stringify({ shape: next }),
             });
             onPanelUpdated(updated);
           } catch (err) {
@@ -370,5 +385,74 @@ export function PanelInspector({ projectId, panel, onPanelUpdated, onPanelDelete
         </button>
       </div>
     </aside>
+  );
+}
+
+function PanelStrokeEditor({
+  shape,
+  onChange,
+}: {
+  shape: PanelShape;
+  onChange: (next: PanelShape) => void | Promise<void>;
+}) {
+  // 입력 중에는 로컬 state 만, 커밋(blur/change-end) 시점에만 PATCH.
+  const [color, setColor] = useState<string>(shape.strokeColor ?? '#000000');
+  const [width, setWidth] = useState<number>(shape.strokeWidth ?? 2);
+
+  useEffect(() => {
+    setColor(shape.strokeColor ?? '#000000');
+    setWidth(shape.strokeWidth ?? 2);
+  }, [shape.strokeColor, shape.strokeWidth]);
+
+  function commitColor(next: string) {
+    if (next === shape.strokeColor) return;
+    void onChange({ ...shape, strokeColor: next });
+  }
+  function commitWidth(next: number) {
+    if (next === shape.strokeWidth) return;
+    void onChange({ ...shape, strokeWidth: next });
+  }
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-caption text-muted-foreground">패널 선</label>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
+          onBlur={(e) => commitColor(e.target.value)}
+          aria-label="패널 선 색"
+          className="h-8 w-10 cursor-pointer rounded border border-border bg-card p-0.5"
+        />
+        <input
+          type="text"
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
+          onBlur={(e) => {
+            const v = e.target.value.trim();
+            if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v)) commitColor(v);
+            else setColor(shape.strokeColor ?? '#000000');
+          }}
+          className="h-8 flex-1 rounded border border-border bg-card px-2 font-mono text-caption"
+          aria-label="패널 선 색 (hex)"
+        />
+        <input
+          type="number"
+          min={0}
+          max={20}
+          step={1}
+          value={width}
+          onChange={(e) => setWidth(Number(e.target.value))}
+          onBlur={(e) => {
+            const v = Math.max(0, Math.min(20, Math.round(Number(e.target.value) || 0)));
+            commitWidth(v);
+          }}
+          aria-label="패널 선 굵기 (px)"
+          className="h-8 w-16 rounded border border-border bg-card px-2 text-body-sm"
+        />
+        <span className="text-caption text-muted-foreground">px</span>
+      </div>
+    </div>
   );
 }

@@ -166,6 +166,8 @@ export interface PageDTO {
   background?: ImageRef | null;
   /** background.storageKey의 presigned URL (브라우저 미리보기용). */
   backgroundUrl?: string | null;
+  /** 페이지 단색 배경 (예: '#ffffff'). null이면 투명. background 이미지가 있을 땐 그 아래에 깔린다. */
+  backgroundColor?: string | null;
   createdAt: string;
 }
 

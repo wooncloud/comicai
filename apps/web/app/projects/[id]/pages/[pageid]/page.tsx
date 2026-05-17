@@ -13,7 +13,7 @@ import { PageSidebar } from '@/components/editor/page-sidebar';
 import { ToolToggle } from '@/components/editor/tool-toggle';
 import { SaveStatus } from '@/components/editor/save-status';
 import { ExportDialog } from '@/components/editor/export-dialog';
-import { PageSizeSelect } from '@/components/editor/page-size-select';
+import { PageInspector } from '@/components/editor/page-inspector';
 import { usePanelSync } from '@/components/editor/tldraw/use-panel-sync';
 import { usePageFrame } from '@/components/editor/tldraw/use-page-frame';
 import type { ComicPanelShape } from '@/components/editor/tldraw/comic-panel-shape';
@@ -117,19 +117,6 @@ export default function PageEditor() {
           <ToolToggle editor={editor} />
         </div>
         <div className="flex items-center gap-3">
-          {page && (
-            <PageSizeSelect
-              value={page.size}
-              onChange={(size) => {
-                // 옵티미스틱: 프레임이 즉시 새 크기로 갱신되도록 로컬 먼저 갱신.
-                setPage((prev) => (prev ? { ...prev, size } : prev));
-                void api<PageDTO>(ApiPaths.page(pageId), {
-                  method: 'PATCH',
-                  body: JSON.stringify({ size }),
-                }).then(setPage);
-              }}
-            />
-          )}
           <SaveStatus state={saveState} lastSavedAt={lastSavedAt} />
           <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
             내보내기
@@ -160,15 +147,10 @@ export default function PageEditor() {
               setSelectedPanelId(null);
             }}
           />
+        ) : page ? (
+          <PageInspector page={page} onPageUpdated={setPage} />
         ) : (
-          <aside className="flex w-72 flex-col items-center justify-center border-l border-border bg-card p-6 text-center text-body-sm text-muted-foreground">
-            <div className="text-display-md text-muted-foreground/30">◯</div>
-            <p className="mt-3">
-              패널을 선택하거나
-              <br />
-              상단 ‘패널’ 도구로 새 패널을 그려보세요.
-            </p>
-          </aside>
+          <aside className="w-72 border-l border-border bg-card" />
         )}
       </div>
     </div>

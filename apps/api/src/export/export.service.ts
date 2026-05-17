@@ -5,7 +5,7 @@ import type { ImageRef, PanelShape } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { StorageService } from '../storage/storage.service';
 import { shapeBoundingBox } from '../common/bbox';
-import { buildPanelMaskSvg } from './panel-mask';
+import { buildPanelMaskSvg, buildPanelStrokeSvg } from './panel-mask';
 
 export interface ExportResult {
   storageKey: string;
@@ -41,7 +41,14 @@ export class ExportService {
     if (!page) throw new NotFoundException({ code: 'PAGE_NOT_FOUND' });
 
     const size = page.size as { w: number; h: number };
-    const baseColor = format === 'jpg' ? '#ffffff' : { r: 0, g: 0, b: 0, alpha: 0 };
+    // 페이지가 backgroundColor 를 지정했다면 그것을 base 로. 아니면 jpg=white / png=투명.
+    const baseColor =
+      page.backgroundColor &&
+      /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(page.backgroundColor)
+        ? page.backgroundColor
+        : format === 'jpg'
+          ? '#ffffff'
+          : ({ r: 0, g: 0, b: 0, alpha: 0 } as const);
 
     const jobIds = page.panels.flatMap((p) => (p.currentRenderId ? [p.currentRenderId] : []));
     const jobs = jobIds.length
@@ -52,31 +59,55 @@ export class ExportService {
       : [];
     const jobById = new Map(jobs.map((j) => [j.id, j]));
 
-    const composites = await Promise.all(
-      page.panels
-        .filter((p) => p.currentRenderId && jobById.get(p.currentRenderId)?.resultImage)
-        .map(async (panel) => {
-          const job = jobById.get(panel.currentRenderId!)!;
-          const ref = job.resultImage as unknown as ImageRef;
+    const composites = (
+      await Promise.all(
+        page.panels.map(async (panel) => {
           const shape = panel.shape as unknown as PanelShape;
           const box = shapeBoundingBox(shape);
           const W = Math.round(box.w);
           const H = Math.round(box.h);
-          const { bytes } = await this.storage.getBytes(ref.storageKey);
-          // rect도 마스크가 전체 영역(no-op)이라 분기 없이 한 경로로.
-          const masked = await sharp(Buffer.from(bytes))
-            .resize({ width: W, height: H, fit: 'cover' })
-            .ensureAlpha()
-            .composite([{ input: buildPanelMaskSvg(shape, W, H), blend: 'dest-in' }])
-            .png()
-            .toBuffer();
-          return {
-            input: masked,
-            left: Math.round(box.x),
-            top: Math.round(box.y),
-          } satisfies sharp.OverlayOptions;
+          if (W <= 0 || H <= 0) return [];
+
+          const overlays: sharp.OverlayOptions[] = [];
+
+          // 1) 렌더 결과가 있으면 마스크 적용해 깐다.
+          const job = panel.currentRenderId ? jobById.get(panel.currentRenderId) : null;
+          if (job?.resultImage) {
+            const ref = job.resultImage as unknown as ImageRef;
+            const { bytes } = await this.storage.getBytes(ref.storageKey);
+            const masked = await sharp(Buffer.from(bytes))
+              .resize({ width: W, height: H, fit: 'cover' })
+              .ensureAlpha()
+              .composite([{ input: buildPanelMaskSvg(shape, W, H), blend: 'dest-in' }])
+              .png()
+              .toBuffer();
+            overlays.push({
+              input: masked,
+              left: Math.round(box.x),
+              top: Math.round(box.y),
+            });
+          }
+
+          // 2) 패널 외곽선(strokeColor/strokeWidth). 렌더 유무와 무관하게 항상 그린다.
+          const strokeSvg = buildPanelStrokeSvg(
+            shape,
+            W,
+            H,
+            shape.strokeColor ?? '#000000',
+            shape.strokeWidth ?? 2,
+          );
+          if (strokeSvg) {
+            overlays.push({
+              input: strokeSvg,
+              left: Math.round(box.x),
+              top: Math.round(box.y),
+            });
+          }
+
+          return overlays;
         }),
-    );
+      )
+    ).flat();
 
     let canvas = sharp({
       create: {

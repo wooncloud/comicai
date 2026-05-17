@@ -23,6 +23,7 @@ class PatchDto {
   order?: number;
   size?: { w: number; h: number };
   name?: string | null;
+  backgroundColor?: string | null;
 }
 class ReorderDto {
   static zodSchema = PageReorderSchema;

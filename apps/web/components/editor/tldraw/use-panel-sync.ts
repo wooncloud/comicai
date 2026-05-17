@@ -53,9 +53,11 @@ export function usePanelSync({
         const shape = existing.get(panel.id);
         const status = panel.currentRenderStatus ?? null;
         const imageUrl = panel.currentRenderImageUrl ?? null;
-        const variant = panel.shape.type as PanelShapeType;
+        const variant = panel.shape.type;
         const polygonPoints =
           variant === 'polygon' ? normalizePolygonPoints(panel.shape.points, bbox) : null;
+        const strokeColor = panel.shape.strokeColor ?? '#000000';
+        const strokeWidth = panel.shape.strokeWidth ?? 2;
         if (shape) {
           const unchanged =
             shape.x === bbox.x &&
@@ -65,6 +67,8 @@ export function usePanelSync({
             shape.props.status === status &&
             shape.props.resultImageUrl === imageUrl &&
             shape.props.variant === variant &&
+            shape.props.strokeColor === strokeColor &&
+            shape.props.strokeWidth === strokeWidth &&
             samePolygon(shape.props.polygonPoints, polygonPoints);
           if (!unchanged) {
             editor.updateShape({
@@ -80,6 +84,8 @@ export function usePanelSync({
                 resultImageUrl: imageUrl,
                 variant,
                 polygonPoints,
+                strokeColor,
+                strokeWidth,
               },
             });
           }
@@ -98,6 +104,8 @@ export function usePanelSync({
               resultImageUrl: imageUrl,
               variant,
               polygonPoints,
+              strokeColor,
+              strokeWidth,
             },
           });
         }
@@ -128,7 +136,7 @@ export function usePanelSync({
       const needsIdAssignment = creates.size > 0;
       for (const sid of deletes) ops.push(deletePanel(sid));
       for (const id of creates) {
-        const shape = editor!.getShape(id) as ComicPanelShape | undefined;
+        const shape = editor!.getShape(id);
         if (shape) ops.push(createPanel(shape));
       }
       for (const [, shape] of pending) {
@@ -184,7 +192,7 @@ export function usePanelSync({
         let dirty = false;
         for (const record of Object.values(entry.changes.added)) {
           if (record.typeName === 'shape' && record.type === 'comic-panel') {
-            creates.add(record.id as TLShapeId);
+            creates.add(record.id);
             dirty = true;
           }
         }
@@ -220,7 +228,7 @@ export function usePanelSync({
 
 function toApiShape(shape: ComicPanelShape): PanelShape {
   const { x, y } = shape;
-  const { w, h, variant, polygonPoints } = shape.props;
+  const { w, h, variant, polygonPoints, strokeColor, strokeWidth } = shape.props;
   const bboxCorners = [
     { x, y },
     { x: x + w, y },
@@ -234,8 +242,8 @@ function toApiShape(shape: ComicPanelShape): PanelShape {
   return {
     type: variant,
     points,
-    strokeColor: '#000000',
-    strokeWidth: 2,
+    strokeColor: strokeColor ?? '#000000',
+    strokeWidth: strokeWidth ?? 2,
   };
 }
 
@@ -256,6 +264,6 @@ function samePolygon(a: NormalizedPoint[] | null, b: NormalizedPoint[] | null): 
   if (a.length !== b.length) return false;
   return a.every((pa, i) => {
     const pb = b[i];
-    return pb && pa.x === pb.x && pa.y === pb.y;
+    return pa.x === pb?.x && pa.y === pb.y;
   });
 }

@@ -73,10 +73,19 @@ export const PageSizeSchema = z.object({
 export const PageCreateSchema = z.object({
   size: PageSizeSchema.default({ w: 800, h: 1200 }),
 });
+// CSS color string (hex/rgb/etc). 빈 문자열은 null로 대체해 받기 위해 별도 검증.
+const ColorStringSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(32)
+  .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/, '#RRGGBB 형식이어야 합니다.');
+
 export const PagePatchSchema = z.object({
   order: z.number().int().nonnegative().optional(),
   size: PageSizeSchema.optional(),
   name: z.string().trim().min(1).max(80).nullable().optional(),
+  backgroundColor: ColorStringSchema.nullable().optional(),
 });
 
 // 프로젝트의 페이지를 한 번에 재정렬. pageIds는 새 order(0..N-1) 순서.
