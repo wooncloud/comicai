@@ -350,6 +350,14 @@ export interface RenderIR {
   aspectRatio: string;
   panelSize: { w: number; h: number };
   seed?: number;
+  /**
+   * 출력 종류. 미지정 시 'panel' (만화 컷). 'entity' 는 일관성 엔티티의 참조 이미지
+   * (캐릭터 시트·배경 콘셉트·세계관 무드 보드 등) 생성용. 어댑터는 mode 에 따라
+   * 시스템 프롬프트(컷 분할 금지 vs 시트 톤 강제)를 다르게 적용한다.
+   */
+  outputMode?: 'panel' | 'entity';
+  /** outputMode='entity' 일 때 panel 룰 대신 사용될 system 텍스트. */
+  systemPrompt?: string;
 }
 
 export interface RenderJobDTO {

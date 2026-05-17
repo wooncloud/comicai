@@ -114,12 +114,19 @@ function buildPrompt(ir: RenderIR): string {
   for (const c of ir.characters) lines.push(`캐릭터 ${c.name}: ${c.description}`);
   for (const b of ir.backgrounds) lines.push(`배경 ${b.name}: ${b.description}`);
   for (const w of ir.worldviews) lines.push(`세계관: ${w.description}`);
-  lines.push(
-    `이 출력은 만화 한 컷(single panel)이다. 여러 컷·격자·필름 스트립·페이지 레이아웃으로 분할하지 말고 하나의 장면만 한 프레임에 그릴 것.`,
-  );
-  lines.push(
-    `패널 비율 ${ir.aspectRatio} (${ir.panelSize.w}×${ir.panelSize.h}px). 구도는 이 비율에서 잘리지 않게 잡을 것.`,
-  );
+  if (ir.outputMode === 'entity') {
+    if (ir.systemPrompt) lines.push(ir.systemPrompt);
+    lines.push(
+      `비율 ${ir.aspectRatio} (${ir.panelSize.w}×${ir.panelSize.h}px). 구도는 이 비율에서 잘리지 않게 잡을 것.`,
+    );
+  } else {
+    lines.push(
+      `이 출력은 만화 한 컷(single panel)이다. 여러 컷·격자·필름 스트립·페이지 레이아웃으로 분할하지 말고 하나의 장면만 한 프레임에 그릴 것.`,
+    );
+    lines.push(
+      `패널 비율 ${ir.aspectRatio} (${ir.panelSize.w}×${ir.panelSize.h}px). 구도는 이 비율에서 잘리지 않게 잡을 것.`,
+    );
+  }
   if (ir.seed != null) lines.push(`seed=${ir.seed}`);
   lines.push(ir.userPrompt);
   return lines.join('\n');

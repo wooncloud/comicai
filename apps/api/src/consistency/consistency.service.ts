@@ -13,6 +13,20 @@ import { open } from '../api-keys/crypto';
 
 const GENERATE_TIMEOUT_MS = 60_000;
 
+/**
+ * 일관성 엔티티 타입별 system prompt. AI 생성 시 패널-룰 대신 적용되어
+ * 캐릭터 시트·환경 콘셉트 아트·세계관 무드 보드 톤을 강제한다.
+ * style 은 텍스트→이미지 생성 의미가 다르므로 generate 자체를 거부한다.
+ */
+const ENTITY_SYSTEM_PROMPTS: Record<'character' | 'background' | 'worldview', string> = {
+  character:
+    '이 출력은 만화의 캐릭터 설정 이미지(character reference sheet)다. 단일 캐릭터를, 중립 배경(흰색 또는 옅은 단색)에서, 전신 또는 상반신, 정면 또는 3/4 각도, 정적인 포즈로 또렷하게 그릴 것. 의상·헤어·체형·표정 같은 시각적 식별 요소가 분명하게 보이도록 그리고, 만화의 한 장면이 아닌 캐릭터 시트 톤으로 출력한다. 말풍선·격자·여러 컷 분할 금지.',
+  background:
+    '이 출력은 만화의 배경/장소 설정 이미지(environment reference)다. 사람과 캐릭터 없이 장소·공간·환경만 그리고, 와이드 샷으로 공간감과 조명·시간대·재질의 분위기를 명확히 드러낼 것. 환경 콘셉트 아트 톤으로 출력하며, 말풍선·격자·여러 컷 분할 금지.',
+  worldview:
+    '이 출력은 만화의 세계관 설정 이미지다. 특정 캐릭터·장소에 묶이지 않고, 작품의 톤·시대·기술 수준·문화 같은 전반적 아이덴티티를 상징적인 한 장면 또는 무드 보드(mood board) 톤으로 압축해 표현할 것. 색감·재질·구도가 세계관의 분위기를 함축해야 한다. 말풍선·격자·여러 컷 분할 금지.',
+};
+
 function toDto(
   row: {
     id: string;
@@ -159,7 +173,7 @@ export class ConsistencyService {
     model: ModelId,
   ): Promise<ImageRef & { url: string; expiresAt: string }> {
     const owned = await this.findOwnedFull(userId, entityId);
-    if (owned.type === 'style') {
+    if (owned.type === 'style' || !(owned.type in ENTITY_SYSTEM_PROMPTS)) {
       throw new BadRequestException({ code: 'CONSISTENCY_GENERATE_UNSUPPORTED' });
     }
     const apiKey = await this.resolveApiKey(userId, model);
@@ -176,6 +190,8 @@ export class ConsistencyService {
       userPrompt: prompt,
       aspectRatio: '1:1',
       panelSize: { w: 1024, h: 1024 },
+      outputMode: 'entity',
+      systemPrompt: ENTITY_SYSTEM_PROMPTS[owned.type as keyof typeof ENTITY_SYSTEM_PROMPTS],
     };
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), GENERATE_TIMEOUT_MS);

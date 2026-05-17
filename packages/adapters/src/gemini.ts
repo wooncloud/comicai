@@ -47,13 +47,22 @@ export const GeminiAdapter: ModelAdapter = {
     for (const b of ir.backgrounds) parts.push({ text: `[배경: ${b.name} — ${b.description}]` });
     for (const w of ir.worldviews) parts.push({ text: `[세계관] ${w.description}` });
     for (const img of refs) parts.push(toRefPart(img));
-    parts.push({
-      text:
-        `위 레퍼런스의 그림체·캐릭터·배경 일관성을 유지하라.\n` +
-        `이 출력은 만화 한 컷(single panel)이다. 절대로 여러 컷·격자·말풍선 분할·필름 스트립·페이지 레이아웃으로 나누지 말고, 하나의 연속된 장면만 한 프레임 안에 그릴 것.\n` +
-        `최종 출력은 패널 비율 ${ir.aspectRatio}(${ir.panelSize.w}×${ir.panelSize.h}px)에 정확히 맞춰 잘림 없이 구도를 잡을 것.\n` +
-        `${ir.userPrompt}${ir.seed != null ? `\nseed=${ir.seed}` : ''}`,
-    });
+    if (ir.outputMode === 'entity') {
+      parts.push({
+        text:
+          `${ir.systemPrompt ?? ''}\n` +
+          `최종 출력은 비율 ${ir.aspectRatio}(${ir.panelSize.w}×${ir.panelSize.h}px)에 맞출 것.\n` +
+          `${ir.userPrompt}${ir.seed != null ? `\nseed=${ir.seed}` : ''}`,
+      });
+    } else {
+      parts.push({
+        text:
+          `위 레퍼런스의 그림체·캐릭터·배경 일관성을 유지하라.\n` +
+          `이 출력은 만화 한 컷(single panel)이다. 절대로 여러 컷·격자·말풍선 분할·필름 스트립·페이지 레이아웃으로 나누지 말고, 하나의 연속된 장면만 한 프레임 안에 그릴 것.\n` +
+          `최종 출력은 패널 비율 ${ir.aspectRatio}(${ir.panelSize.w}×${ir.panelSize.h}px)에 정확히 맞춰 잘림 없이 구도를 잡을 것.\n` +
+          `${ir.userPrompt}${ir.seed != null ? `\nseed=${ir.seed}` : ''}`,
+      });
+    }
 
     return {
       url: GEMINI_URL,
