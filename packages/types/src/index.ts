@@ -163,6 +163,7 @@ export interface SpeechBubbleStyle {
   strokeWidth: number;
   strokeColor: string;
   fillColor: string;
+  textColor: string;
   textAlign: 'left' | 'center' | 'right';
 }
 
@@ -173,6 +174,7 @@ export function defaultSpeechBubbleStyle(): SpeechBubbleStyle {
     strokeWidth: 2,
     strokeColor: '#000000',
     fillColor: '#ffffff',
+    textColor: '#111111',
     textAlign: 'center',
   };
 }

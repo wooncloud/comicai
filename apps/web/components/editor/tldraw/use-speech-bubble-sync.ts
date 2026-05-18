@@ -41,6 +41,7 @@ function flatten(b: SpeechBubbleDTO): SpeechBubbleShape['props'] {
     strokeWidth: style.strokeWidth,
     strokeColor: style.strokeColor,
     fillColor: style.fillColor,
+    textColor: style.textColor,
     textAlign: style.textAlign,
   };
 }
@@ -64,6 +65,7 @@ function toApi(shape: SpeechBubbleShape): {
     strokeWidth,
     strokeColor,
     fillColor,
+    textColor,
     textAlign,
   } = shape.props;
   return {
@@ -80,7 +82,7 @@ function toApi(shape: SpeechBubbleShape): {
       tail: tailX !== null && tailY !== null ? { x: tailX, y: tailY } : null,
     },
     text: textToTipTapDoc(text),
-    style: { fontSize, strokeWidth, strokeColor, fillColor, textAlign },
+    style: { fontSize, strokeWidth, strokeColor, fillColor, textColor, textAlign },
   };
 }
 
@@ -100,6 +102,7 @@ function samePropsAsDto(shape: SpeechBubbleShape, dto: SpeechBubbleDTO): boolean
     cur.strokeWidth !== next.strokeWidth ||
     cur.strokeColor !== next.strokeColor ||
     cur.fillColor !== next.fillColor ||
+    cur.textColor !== next.textColor ||
     cur.textAlign !== next.textAlign
   ) {
     return false;

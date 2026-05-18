@@ -16,6 +16,7 @@ import {
   type SpeechBubbleDTO,
 } from '@comicai/types';
 import { PanelInspector } from '@/components/editor/panel-inspector';
+import { SpeechBubbleInspector } from '@/components/editor/speech-bubble-inspector';
 import { PageSidebar } from '@/components/editor/page-sidebar';
 import { ToolRail } from '@/components/editor/tool-rail';
 import { SaveStatus } from '@/components/editor/save-status';
@@ -26,6 +27,7 @@ import { usePanelSync } from '@/components/editor/tldraw/use-panel-sync';
 import { useSpeechBubbleSync } from '@/components/editor/tldraw/use-speech-bubble-sync';
 import { usePageFrame } from '@/components/editor/tldraw/use-page-frame';
 import type { ComicPanelShape } from '@/components/editor/tldraw/comic-panel-shape';
+import type { SpeechBubbleShape } from '@/components/editor/tldraw/speech-bubble-shape';
 
 const ComicEditor = dynamic(
   () => import('@/components/editor/tldraw/comic-editor').then((m) => m.ComicEditor),
@@ -48,6 +50,7 @@ export default function PageEditor() {
   const [panels, setPanels] = useState<PanelDTO[]>([]);
   const [bubbles, setBubbles] = useState<SpeechBubbleDTO[]>([]);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
+  const [selectedBubble, setSelectedBubble] = useState<SpeechBubbleShape | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
@@ -101,24 +104,31 @@ export default function PageEditor() {
     label: page ? pageLabel(page) : 'page',
   });
 
-  // tldraw selection ↔ selectedPanelId
+  // tldraw selection ↔ selected{Panel,Bubble}
   useEffect(() => {
     if (!editor) return;
-    const unsub = editor.store.listen(
-      () => {
-        const ids = editor.getSelectedShapeIds();
-        if (ids.length === 0) {
-          setSelectedPanelId((prev) => (prev === null ? prev : null));
-          return;
-        }
-        const shape = editor.getShape(ids[0] as TLShapeId);
-        if (shape?.type === 'comic-panel') {
-          const next = (shape as ComicPanelShape).props.panelId;
-          setSelectedPanelId((prev) => (prev === next ? prev : next));
-        }
-      },
-      { source: 'user' },
-    );
+    const sync = () => {
+      const ids = editor.getSelectedShapeIds();
+      if (ids.length === 0) {
+        setSelectedPanelId((prev) => (prev === null ? prev : null));
+        setSelectedBubble((prev) => (prev === null ? prev : null));
+        return;
+      }
+      const shape = editor.getShape(ids[0] as TLShapeId);
+      if (shape?.type === 'comic-panel') {
+        const next = (shape as ComicPanelShape).props.panelId;
+        setSelectedPanelId((prev) => (prev === next ? prev : next));
+        setSelectedBubble((prev) => (prev === null ? prev : null));
+      } else if (shape?.type === 'speech-bubble') {
+        setSelectedPanelId((prev) => (prev === null ? prev : null));
+        setSelectedBubble(shape as SpeechBubbleShape);
+      } else {
+        setSelectedPanelId((prev) => (prev === null ? prev : null));
+        setSelectedBubble((prev) => (prev === null ? prev : null));
+      }
+    };
+    const unsub = editor.store.listen(sync, { source: 'user' });
+    sync();
     return () => unsub();
   }, [editor]);
 
@@ -183,6 +193,14 @@ export default function PageEditor() {
               setPanels((prev) => prev.filter((x) => x.id !== selectedPanelId));
               setSelectedPanelId(null);
             }}
+            onCollapse={() => setRightCollapsed(true)}
+          />
+        ) : selectedBubble && editor ? (
+          <SpeechBubbleInspector
+            key={selectedBubble.id}
+            editor={editor}
+            shapeId={selectedBubble.id}
+            shape={selectedBubble}
             onCollapse={() => setRightCollapsed(true)}
           />
         ) : page ? (

@@ -85,7 +85,7 @@ function buildTextSvg(lines: string[], W: number, H: number, style: SpeechBubble
   const tspans = lines
     .map((l, i) => `<tspan x="${cx}" y="${startY + i * lh}">${escapeText(l)}</tspan>`)
     .join('');
-  return `<text font-family="${escapeAttr(family)}" font-size="${style.fontSize}" fill="#000000" text-anchor="${anchor}" dominant-baseline="alphabetic">${tspans}</text>`;
+  return `<text font-family="${escapeAttr(family)}" font-size="${style.fontSize}" fill="${escapeAttr(style.textColor)}" text-anchor="${anchor}" dominant-baseline="alphabetic">${tspans}</text>`;
 }
 
 function escapeAttr(v: string): string {

@@ -27,7 +27,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 | `/dashboard`                              | `app/dashboard/page.tsx:11`                    | 내 프로젝트 목록. `useQuery(['projects'])`로 로딩, `ProjectCard` 그리드 + `ProjectCreateDialog`                             |
 | `/projects`                               | `app/projects/page.tsx:1`                      | 서버 컴포넌트. `redirect('/dashboard')`                                                                                     |
 | `/projects/[id]`                          | `app/projects/[id]/page.tsx:10`                | 프로젝트 상세 — 페이지 목록과 페이지 추가. `useState`/`useEffect`로 로딩 (React Query 미사용)                               |
-| `/projects/[id]/pages/[pageid]`           | `app/projects/[id]/pages/[pageid]/page.tsx:34` | **에디터 본체**. `dynamic(..., { ssr: false })`로 `ComicEditor` 로드. 좌 사이드바·캔버스·우 인스펙터 3분할                  |
+| `/projects/[id]/pages/[pageid]`           | `app/projects/[id]/pages/[pageid]/page.tsx:45` | **에디터 본체**. `dynamic(..., { ssr: false })`로 `ComicEditor` 로드. 좌 사이드바·캔버스·우 인스펙터 3분할                  |
 | `/projects/[id]/consistency`              | `app/projects/[id]/consistency/page.tsx:23`    | 일관성 엔티티(`style`/`character`/`background`/`worldview`) 탭 + CRUD + 이미지 업로드                                       |
 | `/login`, `/signup`                       | `app/login/page.tsx`, `app/signup/page.tsx`    | 폼 + `OAuthButtons`. `Suspense`로 쿼리파라미터 배너 분리                                                                    |
 | `/forgot-password`, `/reset-password`     | 비밀번호 재설정 요청/확정 폼                   |
@@ -134,7 +134,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 ### 5.2 클라이언트/UI 상태 — local hooks
 
 - 폼·다이얼로그 open·로딩 플래그·임시 입력값은 전부 `useState`/`useRef`/`useEffect`
-- 페이지 에디터(`app/projects/[id]/pages/[pageid]/page.tsx:34`)는 `page`, `panels`, `selectedPanelId`, `editor`, `exportOpen`, `saveState`, `lastSavedAt` 모두 컴포넌트 로컬 상태. React Query에 페이지/패널 목록을 올리지 않는다 (현재 코드 시점)
+- 페이지 에디터(`app/projects/[id]/pages/[pageid]/page.tsx:45`)는 `page`, `panels`, `selectedPanelId`, `editor`, `exportOpen`, `saveState`, `lastSavedAt` 모두 컴포넌트 로컬 상태. React Query에 페이지/패널 목록을 올리지 않는다 (현재 코드 시점)
 - 일관성 페이지(`app/projects/[id]/consistency/page.tsx`)도 동일하게 `useState` 기반
 - **Zustand·Redux·Jotai 등 전역 상태 라이브러리 없음**. 단, `polygon-state.ts`는 tldraw가 노출하는 atom 유틸을 사용한 도구-내부 상태
 

@@ -1,4 +1,5 @@
 'use client';
+import { useLayoutEffect, useRef } from 'react';
 import {
   BaseBoxShapeUtil,
   HTMLContainer,
@@ -34,6 +35,7 @@ export type SpeechBubbleShape = TLBaseShape<
     strokeWidth: number;
     strokeColor: string;
     fillColor: string;
+    textColor: string;
     textAlign: 'left' | 'center' | 'right';
   }
 >;
@@ -55,6 +57,7 @@ export class SpeechBubbleShapeUtil extends BaseBoxShapeUtil<SpeechBubbleShape> {
     strokeWidth: T.number,
     strokeColor: T.string,
     fillColor: T.string,
+    textColor: T.string,
     textAlign: T.literalEnum('left', 'center', 'right'),
   };
 
@@ -82,6 +85,7 @@ export class SpeechBubbleShapeUtil extends BaseBoxShapeUtil<SpeechBubbleShape> {
       strokeWidth: 2,
       strokeColor: '#000000',
       fillColor: '#ffffff',
+      textColor: '#111111',
       textAlign: 'center',
     };
   }
@@ -116,10 +120,34 @@ function SpeechBubbleBody({
     strokeWidth,
     strokeColor,
     fillColor,
+    textColor,
     textAlign,
   } = shape.props;
   const bodyPath = bubbleBodyPath(variant, w, h, polygonPoints);
   const tailPath = tailX !== null && tailY !== null ? bubbleTailPath(tailX, tailY, w, h) : null;
+
+  const editableRef = useRef<HTMLDivElement>(null);
+  const composingRef = useRef(false);
+
+  // 외부 변경(예: DTO sync, 인스펙터에서 다른 필드 변경 후 re-render)만 textContent 에 반영.
+  // 사용자 키 입력 중에는 textContent 가 이미 최신이라 분기 통과 — caret 재설정 없음.
+  useLayoutEffect(() => {
+    const el = editableRef.current;
+    if (!el) return;
+    if ((el.textContent ?? '') !== text) {
+      el.textContent = text;
+    }
+  }, [text]);
+
+  function commit(next: string) {
+    const sliced = next.slice(0, 2000);
+    if (sliced === shape.props.text) return;
+    util.editor.updateShape<SpeechBubbleShape>({
+      id: shape.id,
+      type: 'speech-bubble',
+      props: { ...shape.props, text: sliced },
+    });
+  }
 
   return (
     <HTMLContainer
@@ -156,18 +184,23 @@ function SpeechBubbleBody({
         )}
       </svg>
       <div
+        ref={editableRef}
         contentEditable={isEditing}
         suppressContentEditableWarning
         spellCheck={false}
+        onCompositionStart={() => {
+          composingRef.current = true;
+        }}
+        onCompositionEnd={(e) => {
+          composingRef.current = false;
+          if (!isEditing) return;
+          commit(e.currentTarget.textContent ?? '');
+        }}
         onInput={(e) => {
           if (!isEditing) return;
-          const next = (e.currentTarget.textContent ?? '').slice(0, 2000);
-          if (next === shape.props.text) return;
-          util.editor.updateShape<SpeechBubbleShape>({
-            id: shape.id,
-            type: 'speech-bubble',
-            props: { ...shape.props, text: next },
-          });
+          // IME 조합 중에는 보류 — compositionend 시점에 한 번에 반영.
+          if (composingRef.current) return;
+          commit(e.currentTarget.textContent ?? '');
         }}
         onPointerDown={(e) => {
           if (isEditing) e.stopPropagation();
@@ -182,7 +215,7 @@ function SpeechBubbleBody({
           textAlign,
           fontSize,
           lineHeight: 1.25,
-          color: '#111',
+          color: textColor,
           outline: isEditing ? '1px dashed rgba(0,0,0,0.3)' : 'none',
           cursor: isEditing ? 'text' : 'inherit',
           whiteSpace: 'pre-wrap',
@@ -190,9 +223,7 @@ function SpeechBubbleBody({
           userSelect: isEditing ? 'text' : 'none',
           pointerEvents: isEditing ? 'auto' : 'none',
         }}
-      >
-        {text}
-      </div>
+      />
     </HTMLContainer>
   );
 }

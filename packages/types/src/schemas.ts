@@ -157,6 +157,7 @@ export const SpeechBubbleStyleSchema = z.object({
   strokeWidth: z.number().nonnegative().max(20).default(2),
   strokeColor: z.string().max(32).default('#000000'),
   fillColor: z.string().max(32).default('#ffffff'),
+  textColor: z.string().max(32).default('#111111'),
   textAlign: z.enum(['left', 'center', 'right']).default('center'),
 });
 

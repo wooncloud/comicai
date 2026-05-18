@@ -21,6 +21,7 @@ function defaultBubbleProps(): Omit<SpeechBubbleShape['props'], 'variant' | 'w' 
     strokeWidth: 2,
     strokeColor: '#000000',
     fillColor: '#ffffff',
+    textColor: '#111111',
     textAlign: 'center',
   };
 }
