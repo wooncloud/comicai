@@ -9,24 +9,19 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # JS 액션 런타임을 Node.js 24 로 강제. v4 액션들이 내부적으로 node20 을 쓰는데
-  # 2026-09-16 부터 runner 에서 node20 이 제거되므로 미리 24 로 opt-in.
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-
 jobs:
   build:
     name: lint / typecheck / test
     runs-on: [self-hosted, comicai]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9.12.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'pnpm'
