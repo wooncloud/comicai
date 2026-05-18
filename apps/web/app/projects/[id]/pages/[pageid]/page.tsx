@@ -38,6 +38,12 @@ const ComicEditor = dynamic(
   { ssr: false, loading: () => <CanvasFallback /> },
 );
 
+type Selection =
+  | { kind: 'panel'; id: string }
+  | { kind: 'bubble'; shape: SpeechBubbleShape }
+  | { kind: 'text'; shape: PageTextShape }
+  | null;
+
 function CanvasFallback() {
   return (
     <div className="flex h-full items-center justify-center text-body-sm text-muted-foreground">
@@ -54,9 +60,7 @@ export default function PageEditor() {
   const [panels, setPanels] = useState<PanelDTO[]>([]);
   const [bubbles, setBubbles] = useState<SpeechBubbleDTO[]>([]);
   const [texts, setTexts] = useState<PageTextDTO[]>([]);
-  const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
-  const [selectedBubble, setSelectedBubble] = useState<SpeechBubbleShape | null>(null);
-  const [selectedText, setSelectedText] = useState<PageTextShape | null>(null);
+  const [selection, setSelection] = useState<Selection>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
@@ -121,35 +125,21 @@ export default function PageEditor() {
     label: page ? pageLabel(page) : 'page',
   });
 
-  // tldraw selection ↔ selected{Panel,Bubble}
   useEffect(() => {
     if (!editor) return;
     const sync = () => {
       const ids = editor.getSelectedShapeIds();
-      if (ids.length === 0) {
-        setSelectedPanelId((prev) => (prev === null ? prev : null));
-        setSelectedBubble((prev) => (prev === null ? prev : null));
-        setSelectedText((prev) => (prev === null ? prev : null));
-        return;
-      }
+      if (ids.length === 0) return setSelection(null);
       const shape = editor.getShape(ids[0] as TLShapeId);
       if (shape?.type === 'comic-panel') {
-        const next = (shape as ComicPanelShape).props.panelId;
-        setSelectedPanelId((prev) => (prev === next ? prev : next));
-        setSelectedBubble((prev) => (prev === null ? prev : null));
-        setSelectedText((prev) => (prev === null ? prev : null));
+        const panelId = (shape as ComicPanelShape).props.panelId;
+        setSelection(panelId ? { kind: 'panel', id: panelId } : null);
       } else if (shape?.type === 'speech-bubble') {
-        setSelectedPanelId((prev) => (prev === null ? prev : null));
-        setSelectedBubble(shape as SpeechBubbleShape);
-        setSelectedText((prev) => (prev === null ? prev : null));
+        setSelection({ kind: 'bubble', shape: shape as SpeechBubbleShape });
       } else if (shape?.type === 'page-text') {
-        setSelectedPanelId((prev) => (prev === null ? prev : null));
-        setSelectedBubble((prev) => (prev === null ? prev : null));
-        setSelectedText(shape as PageTextShape);
+        setSelection({ kind: 'text', shape: shape as PageTextShape });
       } else {
-        setSelectedPanelId((prev) => (prev === null ? prev : null));
-        setSelectedBubble((prev) => (prev === null ? prev : null));
-        setSelectedText((prev) => (prev === null ? prev : null));
+        setSelection(null);
       }
     };
     const unsub = editor.store.listen(sync, { source: 'user' });
@@ -157,9 +147,10 @@ export default function PageEditor() {
     return () => unsub();
   }, [editor]);
 
-  const selected = useMemo(
-    () => panels.find((p) => p.id === selectedPanelId) ?? null,
-    [panels, selectedPanelId],
+  const selectedPanel = useMemo(
+    () =>
+      selection?.kind === 'panel' ? (panels.find((p) => p.id === selection.id) ?? null) : null,
+    [panels, selection],
   );
 
   return (
@@ -208,32 +199,32 @@ export default function PageEditor() {
         </div>
         {rightCollapsed ? (
           <CollapseRail side="right" onExpand={() => setRightCollapsed(false)} />
-        ) : selected ? (
+        ) : selectedPanel ? (
           <PanelInspector
-            key={selected.id}
+            key={selectedPanel.id}
             projectId={projectId}
-            panel={selected}
+            panel={selectedPanel}
             onPanelUpdated={(p) => setPanels((prev) => prev.map((x) => (x.id === p.id ? p : x)))}
             onPanelDeleted={() => {
-              setPanels((prev) => prev.filter((x) => x.id !== selectedPanelId));
-              setSelectedPanelId(null);
+              setPanels((prev) => prev.filter((x) => x.id !== selectedPanel.id));
+              setSelection(null);
             }}
             onCollapse={() => setRightCollapsed(true)}
           />
-        ) : selectedBubble && editor ? (
+        ) : selection?.kind === 'bubble' && editor ? (
           <SpeechBubbleInspector
-            key={selectedBubble.id}
+            key={selection.shape.id}
             editor={editor}
-            shapeId={selectedBubble.id}
-            shape={selectedBubble}
+            shapeId={selection.shape.id}
+            shape={selection.shape}
             onCollapse={() => setRightCollapsed(true)}
           />
-        ) : selectedText && editor ? (
+        ) : selection?.kind === 'text' && editor ? (
           <PageTextInspector
-            key={selectedText.id}
+            key={selection.shape.id}
             editor={editor}
-            shapeId={selectedText.id}
-            shape={selectedText}
+            shapeId={selection.shape.id}
+            shape={selection.shape}
             onCollapse={() => setRightCollapsed(true)}
           />
         ) : page ? (

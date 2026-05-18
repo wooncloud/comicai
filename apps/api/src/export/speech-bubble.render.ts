@@ -6,6 +6,7 @@ import {
   type SpeechBubbleStyle,
   type SpeechBubbleVariant,
 } from '@comicai/types';
+import { escapeAttr } from './svg-escape';
 
 interface BubbleInput {
   variant: SpeechBubbleVariant;
@@ -44,8 +45,4 @@ function buildBubbleFragment(b: BubbleInput): string {
     ${tailD ? `<path d="${tailD}" />` : ''}
   </g>
 </g>`;
-}
-
-function escapeAttr(v: string): string {
-  return v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }

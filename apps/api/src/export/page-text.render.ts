@@ -1,4 +1,5 @@
 import { defaultPageTextStyle, type PageTextStyle } from '@comicai/types';
+import { escapeAttr, escapeText } from './svg-escape';
 
 interface PageTextInput {
   x: number;
@@ -44,11 +45,4 @@ function buildTextFragment(t: PageTextInput): string {
     .map((l, i) => `<tspan x="${cx}" y="${startY + i * lh}">${escapeText(l)}</tspan>`)
     .join('');
   return `<g transform="translate(${x} ${y})"><text font-family="${escapeAttr(style.fontFamily)}" font-size="${style.fontSize}" fill="${escapeAttr(style.color)}" text-anchor="${anchor}" dominant-baseline="alphabetic">${tspans}</text></g>`;
-}
-
-function escapeAttr(v: string): string {
-  return v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-}
-function escapeText(v: string): string {
-  return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

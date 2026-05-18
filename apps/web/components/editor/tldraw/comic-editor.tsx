@@ -101,7 +101,7 @@ export function ComicEditor({ onMount }: Props) {
         else if (s.type === 'page-text') textIds.add(s.id);
       }
       let scheduled = false;
-      editor.store.listen(
+      const unsubscribe = editor.store.listen(
         (entry) => {
           let touched = false;
           for (const r of Object.values(entry.changes.added)) {
@@ -131,6 +131,7 @@ export function ComicEditor({ onMount }: Props) {
         { source: 'user', scope: 'document' },
       );
       onMount(editor);
+      return unsubscribe;
     },
     [onMount],
   );
