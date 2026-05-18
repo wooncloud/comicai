@@ -37,3 +37,17 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  deploy:
+    name: deploy to prod
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, comicai]
+    timeout-minutes: 20
+    steps:
+      - name: Pull & restart prod compose
+        working-directory: ${{ secrets.PROD_REPO_PATH }}
+        run: |
+          git fetch --prune origin
+          git reset --hard origin/main
+          docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup up -d --build --force-recreate web api worker
