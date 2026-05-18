@@ -66,12 +66,7 @@ export function PageInspector({ page, onPageUpdated, onCollapse }: Props) {
       <div className="space-y-2">
         <SectionLabel icon={Palette}>배경 색</SectionLabel>
         <div className="flex items-center gap-2">
-          <HexColorField
-            value={currentColor}
-            fallback={currentColor}
-            onCommit={commitColor}
-            ariaLabel="페이지 배경 색"
-          />
+          <HexColorField value={currentColor} onCommit={commitColor} ariaLabel="페이지 배경 색" />
         </div>
         {hasColor && (
           <button

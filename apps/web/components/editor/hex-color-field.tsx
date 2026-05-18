@@ -4,7 +4,6 @@ import { isHexColor } from '@comicai/types';
 
 interface Props {
   value: string;
-  fallback: string;
   onCommit: (v: string) => void;
   ariaLabel: string;
   variant?: 'page' | 'panel';
@@ -12,9 +11,9 @@ interface Props {
 
 /**
  * color picker + hex 텍스트 필드. blur 시점에만 onCommit.
- * 잘못된 hex 입력은 fallback 으로 되돌린다.
+ * 잘못된 hex 입력은 직전 value 로 되돌린다.
  */
-export function HexColorField({ value, fallback, onCommit, ariaLabel, variant = 'page' }: Props) {
+export function HexColorField({ value, onCommit, ariaLabel, variant = 'page' }: Props) {
   const [local, setLocal] = useState(value);
   useEffect(() => setLocal(value), [value]);
 
@@ -36,7 +35,7 @@ export function HexColorField({ value, fallback, onCommit, ariaLabel, variant = 
         onBlur={(e) => {
           const v = e.target.value.trim();
           if (isHexColor(v)) onCommit(v);
-          else setLocal(fallback);
+          else setLocal(value);
         }}
         className={`h-8 flex-1 rounded border border-border ${bg} px-2 font-mono text-caption`}
         aria-label={`${ariaLabel} (hex)`}

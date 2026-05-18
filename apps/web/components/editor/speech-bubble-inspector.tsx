@@ -1,11 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
 import { Type, MessageSquare, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import type { Editor, TLShapeId } from 'tldraw';
 import type { SpeechBubbleShape } from './tldraw/speech-bubble-shape';
 import { SectionLabel } from './section-label';
 import { CollapseButton } from './collapse-button';
 import { HexColorField } from './hex-color-field';
+import { NumberField } from './number-field';
 
 interface Props {
   editor: Editor;
@@ -52,7 +52,6 @@ export function SpeechBubbleInspector({ editor, shapeId, shape, onCollapse }: Pr
         <div className="flex items-center gap-2">
           <HexColorField
             value={p.textColor}
-            fallback={p.textColor}
             onCommit={(v) => patch({ textColor: v })}
             ariaLabel="글자 색"
             variant="panel"
@@ -68,7 +67,6 @@ export function SpeechBubbleInspector({ editor, shapeId, shape, onCollapse }: Pr
           <div className="flex items-center gap-2">
             <HexColorField
               value={p.fillColor}
-              fallback={p.fillColor}
               onCommit={(v) => patch({ fillColor: v })}
               ariaLabel="말풍선 채움색"
               variant="panel"
@@ -80,7 +78,6 @@ export function SpeechBubbleInspector({ editor, shapeId, shape, onCollapse }: Pr
           <div className="flex items-center gap-2">
             <HexColorField
               value={p.strokeColor}
-              fallback={p.strokeColor}
               onCommit={(v) => patch({ strokeColor: v })}
               ariaLabel="말풍선 선 색"
               variant="panel"
@@ -98,43 +95,6 @@ export function SpeechBubbleInspector({ editor, shapeId, shape, onCollapse }: Pr
         </div>
       </div>
     </aside>
-  );
-}
-
-function NumberField({
-  value,
-  min,
-  max,
-  step,
-  onCommit,
-  ariaLabel,
-}: {
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onCommit: (v: number) => void;
-  ariaLabel: string;
-}) {
-  const [local, setLocal] = useState<string>(String(value));
-  useEffect(() => setLocal(String(value)), [value]);
-
-  return (
-    <input
-      type="number"
-      min={min}
-      max={max}
-      step={step}
-      value={local}
-      onChange={(e) => setLocal(e.target.value)}
-      onBlur={() => {
-        const n = Math.max(min, Math.min(max, Math.round(Number(local) || 0)));
-        setLocal(String(n));
-        if (n !== value) onCommit(n);
-      }}
-      aria-label={ariaLabel}
-      className="h-8 w-16 rounded border border-border bg-card px-2 text-body-sm"
-    />
   );
 }
 

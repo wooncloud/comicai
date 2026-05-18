@@ -21,6 +21,7 @@ import { PanelStatusBadge } from './panel-status-badge';
 import { SectionLabel } from './section-label';
 import { CollapseButton } from './collapse-button';
 import { HexColorField } from './hex-color-field';
+import { NumberField } from './number-field';
 import { HistoryTray } from './history-tray';
 import { ContiDialog } from './conti-dialog';
 import { useToast } from '@/components/ui/toast';
@@ -400,8 +401,7 @@ function PanelStrokeEditor({
   onChange: (next: PanelShape) => void | Promise<void>;
 }) {
   const color = shape.strokeColor ?? '#000000';
-  const [width, setWidth] = useState<number>(shape.strokeWidth ?? 2);
-  useEffect(() => setWidth(shape.strokeWidth ?? 2), [shape.strokeWidth]);
+  const width = shape.strokeWidth ?? 2;
 
   function commitColor(next: string) {
     if (next === shape.strokeColor) return;
@@ -418,24 +418,17 @@ function PanelStrokeEditor({
       <div className="flex items-center gap-2">
         <HexColorField
           value={color}
-          fallback={color}
           onCommit={commitColor}
           ariaLabel="패널 선 색"
           variant="panel"
         />
-        <input
-          type="number"
+        <NumberField
+          value={width}
           min={0}
           max={20}
           step={1}
-          value={width}
-          onChange={(e) => setWidth(Number(e.target.value))}
-          onBlur={(e) => {
-            const v = Math.max(0, Math.min(20, Math.round(Number(e.target.value) || 0)));
-            commitWidth(v);
-          }}
-          aria-label="패널 선 굵기 (px)"
-          className="h-8 w-16 rounded border border-border bg-card px-2 text-body-sm"
+          onCommit={commitWidth}
+          ariaLabel="패널 선 굵기 (px)"
         />
         <span className="text-caption text-muted-foreground">px</span>
       </div>
