@@ -1,5 +1,7 @@
 // ComicAI 공통 타입 (계약). 변경 시 owner: A-Backend.
 
+import type { TextAlign } from './schemas';
+
 export * from './envelope';
 export * from './schemas';
 export * from './paths';
@@ -164,7 +166,7 @@ export interface SpeechBubbleStyle {
   strokeColor: string;
   fillColor: string;
   textColor: string;
-  textAlign: 'left' | 'center' | 'right';
+  textAlign: TextAlign;
 }
 
 export function defaultSpeechBubbleStyle(): SpeechBubbleStyle {

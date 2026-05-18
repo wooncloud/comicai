@@ -12,8 +12,10 @@ import {
   bubbleBodyPath,
   bubbleTailPath,
   SPEECH_BUBBLE_VARIANTS,
+  TEXT_ALIGNS,
   type NormalizedPoint,
   type SpeechBubbleVariant,
+  type TextAlign,
 } from '@comicai/types';
 
 export type SpeechBubbleShape = TLBaseShape<
@@ -36,7 +38,7 @@ export type SpeechBubbleShape = TLBaseShape<
     strokeColor: string;
     fillColor: string;
     textColor: string;
-    textAlign: 'left' | 'center' | 'right';
+    textAlign: TextAlign;
   }
 >;
 
@@ -58,7 +60,7 @@ export class SpeechBubbleShapeUtil extends BaseBoxShapeUtil<SpeechBubbleShape> {
     strokeColor: T.string,
     fillColor: T.string,
     textColor: T.string,
-    textAlign: T.literalEnum('left', 'center', 'right'),
+    textAlign: T.literalEnum(...TEXT_ALIGNS),
   };
 
   override canResize() {

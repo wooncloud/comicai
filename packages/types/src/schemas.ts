@@ -1,6 +1,9 @@
 // 공유 Zod 스키마. 백엔드 validation과 프론트엔드 form 검증에 동일 스키마 사용.
 import { z } from 'zod';
 
+export const TEXT_ALIGNS = ['left', 'center', 'right'] as const;
+export type TextAlign = (typeof TEXT_ALIGNS)[number];
+
 // ─── 인증 ─────────────────────────────────────
 // 10자 이상, 영문+숫자 (spec docs/20-ux/screens/02-auth-signup.md §3)
 export const PASSWORD_MIN_LENGTH = 10;
@@ -158,7 +161,7 @@ export const SpeechBubbleStyleSchema = z.object({
   strokeColor: z.string().max(32).default('#000000'),
   fillColor: z.string().max(32).default('#ffffff'),
   textColor: z.string().max(32).default('#111111'),
-  textAlign: z.enum(['left', 'center', 'right']).default('center'),
+  textAlign: z.enum(TEXT_ALIGNS).default('center'),
 });
 
 export const SpeechBubbleCreateSchema = z.object({
