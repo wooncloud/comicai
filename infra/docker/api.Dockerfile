@@ -34,7 +34,9 @@ RUN pnpm --filter @comicai/db exec prisma generate \
 
 # ---- runner: 런타임 ----
 FROM node:${NODE_VERSION} AS runner
-RUN apk add --no-cache openssl libc6-compat dumb-init
+# font-noto-cjk: sharp 가 export SVG 의 한국어/일본어/중국어 글리프 렌더링에 필요.
+# 미설치 시 페이지 자유 텍스트(PageText)의 한글이 PNG 결과에서 사라진다.
+RUN apk add --no-cache openssl libc6-compat dumb-init font-noto-cjk fontconfig
 ENV NODE_ENV=production
 WORKDIR /app
 
