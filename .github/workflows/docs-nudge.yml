@@ -15,6 +15,9 @@ concurrency:
   group: docs-nudge-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   nudge:
     runs-on: [self-hosted, comicai]
