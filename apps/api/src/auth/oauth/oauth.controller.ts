@@ -19,7 +19,7 @@ export class OAuthController {
   async redirect(
     @Param('provider') provider: string,
     @Query('returnTo') returnTo: string | undefined,
-    @Res({ passthrough: true }) res: Response,
+    @Res() res: Response,
   ) {
     const p = ensureSupported(provider);
     const url = await this.oauth.startAuth(p, returnTo);
@@ -33,7 +33,7 @@ export class OAuthController {
     @Query('state') state: string | undefined,
     @Query('error') errorParam: string | undefined,
     @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
+    @Res() res: Response,
   ) {
     const p = ensureSupported(provider);
     const webOrigin = this.config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000';

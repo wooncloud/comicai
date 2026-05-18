@@ -12,6 +12,8 @@ export class ResponseEnvelopeInterceptor implements NestInterceptor {
     const res = ctx.switchToHttp().getResponse<Response>();
     return next.handle().pipe(
       map((value) => {
+        // 컨트롤러가 @Res()로 직접 응답을 보낸 경우 (redirect 등) wrap 하지 않는다.
+        if (res.headersSent) return value;
         if (res.statusCode === 204) return value;
         const contentType = res.getHeader('content-type');
         if (typeof contentType === 'string' && contentType.includes('text/event-stream')) {

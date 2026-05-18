@@ -45,6 +45,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (status >= 500) {
       this.logger.error({ err: exception }, 'unhandled exception');
     }
+    // 컨트롤러가 이미 응답을 끝낸 뒤 (예: res.redirect 후) 발생한 예외를 또 한 번
+    // res.json 으로 처리하면 ERR_HTTP_HEADERS_SENT 가 두 번 던져져 프로세스가 죽는다.
+    if (res.headersSent) return;
     res.status(status).json(body);
   }
 
