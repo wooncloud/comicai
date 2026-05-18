@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { LogIn, UserPlus } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { ApiPaths, type SessionUser } from '@comicai/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -125,10 +126,16 @@ export function Topbar({ rightSlot }: { rightSlot?: React.ReactNode }) {
       ) : (
         <div className="flex items-center gap-2 text-body-sm">
           <Button asChild variant="ghost" size="sm">
-            <Link href="/login">로그인</Link>
+            <Link href="/login">
+              <LogIn className="h-4 w-4 shrink-0" />
+              로그인
+            </Link>
           </Button>
           <Button asChild size="sm">
-            <Link href="/signup">가입</Link>
+            <Link href="/signup">
+              <UserPlus className="h-4 w-4 shrink-0" />
+              가입
+            </Link>
           </Button>
         </div>
       )}
