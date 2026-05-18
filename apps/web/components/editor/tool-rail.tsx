@@ -3,7 +3,6 @@ import { useEffect } from 'react';
 import { useValue, type Editor } from 'tldraw';
 import {
   Circle,
-  Cloud,
   Hand,
   MessageCircle,
   MousePointer2,
@@ -30,13 +29,13 @@ const TOOLS: readonly Tool[] = [
   { id: 'select', kbd: 'v', label: '선택', icon: MousePointer2 },
   { id: 'hand', kbd: 'h', label: '손', icon: Hand },
   { id: 'comic-panel', kbd: 'p', label: '패널', icon: Square, aliases: ['polygon-panel'] },
-  { id: 'text', kbd: 't', label: '텍스트', icon: Type },
+  { id: 'page-text', kbd: 't', label: '텍스트', icon: Type },
   {
     id: 'bubble-ellipse',
     kbd: 'b',
     label: '말풍선',
     icon: MessageCircle,
-    aliases: ['bubble-rect', 'bubble-cloud', 'bubble-spike', 'bubble-thought', 'bubble-polygon'],
+    aliases: ['bubble-rect', 'bubble-spike', 'bubble-polygon'],
   },
 ] as const;
 
@@ -53,13 +52,7 @@ const PANEL_SUB_MODES: readonly PanelSubMode[] = [
 ] as const;
 
 interface BubbleSubMode {
-  id:
-    | 'bubble-ellipse'
-    | 'bubble-rect'
-    | 'bubble-cloud'
-    | 'bubble-spike'
-    | 'bubble-thought'
-    | 'bubble-polygon';
+  id: 'bubble-ellipse' | 'bubble-rect' | 'bubble-spike' | 'bubble-polygon';
   kbd: string;
   label: string;
   icon: LucideIcon;
@@ -68,9 +61,7 @@ interface BubbleSubMode {
 const BUBBLE_SUB_MODES: readonly BubbleSubMode[] = [
   { id: 'bubble-ellipse', kbd: 'b', label: '타원', icon: Circle },
   { id: 'bubble-rect', kbd: 'r', label: '사각', icon: Square },
-  { id: 'bubble-cloud', kbd: 'c', label: '구름', icon: Cloud },
   { id: 'bubble-spike', kbd: 'k', label: '스파이크', icon: Zap },
-  { id: 'bubble-thought', kbd: 'o', label: '생각', icon: MessageCircle },
   { id: 'bubble-polygon', kbd: 'n', label: '다각형', icon: Pentagon },
 ] as const;
 

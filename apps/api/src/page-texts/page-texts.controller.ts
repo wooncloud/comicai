@@ -11,62 +11,66 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  SpeechBubbleCreateSchema,
-  SpeechBubblePatchSchema,
-  SpeechBubbleReorderSchema,
-  type SpeechBubbleShape,
-  type SpeechBubbleStyle,
-  type SpeechBubbleVariant,
+  PageTextCreateSchema,
+  PageTextPatchSchema,
+  PageTextReorderSchema,
+  type PageTextStyle,
 } from '@comicai/types';
-import { SpeechBubblesService } from './speech-bubbles.service';
+import { PageTextsService } from './page-texts.service';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
 
 class CreateDto {
-  static zodSchema = SpeechBubbleCreateSchema;
-  variant!: SpeechBubbleVariant;
-  shape!: SpeechBubbleShape;
-  style?: Partial<SpeechBubbleStyle>;
+  static zodSchema = PageTextCreateSchema;
+  x!: number;
+  y!: number;
+  w!: number;
+  h!: number;
+  text?: string;
+  style?: Partial<PageTextStyle>;
 }
 
 class PatchDto {
-  static zodSchema = SpeechBubblePatchSchema;
-  variant?: SpeechBubbleVariant;
-  shape?: SpeechBubbleShape;
-  style?: Partial<SpeechBubbleStyle>;
+  static zodSchema = PageTextPatchSchema;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  text?: string;
+  style?: Partial<PageTextStyle>;
 }
 
 class ReorderDto {
-  static zodSchema = SpeechBubbleReorderSchema;
+  static zodSchema = PageTextReorderSchema;
   ids!: string[];
 }
 
 @Controller()
 @UseGuards(SessionGuard)
-export class SpeechBubblesController {
-  constructor(private readonly svc: SpeechBubblesService) {}
+export class PageTextsController {
+  constructor(private readonly svc: PageTextsService) {}
 
-  @Get('pages/:pageid/speech-bubbles')
+  @Get('pages/:pageid/page-texts')
   list(@Req() req: AuthedRequest, @Param('pageid') pageid: string) {
     return this.svc.list(req.user.id, pageid);
   }
 
-  @Post('pages/:pageid/speech-bubbles')
+  @Post('pages/:pageid/page-texts')
   @HttpCode(201)
   create(@Req() req: AuthedRequest, @Param('pageid') pageid: string, @Body() body: CreateDto) {
     return this.svc.create(req.user.id, pageid, body);
   }
 
-  @Post('pages/:pageid/speech-bubbles/reorder')
+  @Post('pages/:pageid/page-texts/reorder')
   reorder(@Req() req: AuthedRequest, @Param('pageid') pageid: string, @Body() body: ReorderDto) {
     return this.svc.reorder(req.user.id, pageid, body.ids);
   }
 
-  @Patch('speech-bubbles/:id')
+  @Patch('page-texts/:id')
   patch(@Req() req: AuthedRequest, @Param('id') id: string, @Body() body: PatchDto) {
     return this.svc.patch(req.user.id, id, body);
   }
 
-  @Delete('speech-bubbles/:id')
+  @Delete('page-texts/:id')
   @HttpCode(204)
   async remove(@Req() req: AuthedRequest, @Param('id') id: string) {
     await this.svc.remove(req.user.id, id);

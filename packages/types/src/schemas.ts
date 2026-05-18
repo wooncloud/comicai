@@ -134,14 +134,8 @@ export const PanelPatchSchema = z.object({
 });
 
 // ─── 말풍선 ───────────────────────────────────
-export const SpeechBubbleVariantSchema = z.enum([
-  'ellipse',
-  'rect',
-  'cloud',
-  'spike',
-  'thought',
-  'polygon',
-]);
+// 모양·선·채움만. 텍스트는 PageText 로 분리됨.
+export const SpeechBubbleVariantSchema = z.enum(['ellipse', 'rect', 'spike', 'polygon']);
 
 const PointSchema = z.object({ x: z.number(), y: z.number() });
 
@@ -155,30 +149,62 @@ export const SpeechBubbleShapeSchema = z.object({
 });
 
 export const SpeechBubbleStyleSchema = z.object({
-  fontSize: z.number().min(6).max(96).default(14),
-  fontFamily: z.string().max(100).nullable().optional(),
   strokeWidth: z.number().nonnegative().max(20).default(2),
   strokeColor: z.string().max(32).default('#000000'),
   fillColor: z.string().max(32).default('#ffffff'),
-  textColor: z.string().max(32).default('#111111'),
-  textAlign: z.enum(TEXT_ALIGNS).default('center'),
 });
 
 export const SpeechBubbleCreateSchema = z.object({
   variant: SpeechBubbleVariantSchema,
   shape: SpeechBubbleShapeSchema,
-  text: z.any().optional(),
   style: SpeechBubbleStyleSchema.partial().optional(),
 });
 
 export const SpeechBubblePatchSchema = z.object({
   variant: SpeechBubbleVariantSchema.optional(),
   shape: SpeechBubbleShapeSchema.optional(),
-  text: z.any().optional(),
   style: SpeechBubbleStyleSchema.partial().optional(),
 });
 
 export const SpeechBubbleReorderSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(500),
+});
+
+// ─── 페이지 텍스트 ────────────────────────────
+export const PAGE_TEXT_FONT_FAMILIES = [
+  'sans-serif',
+  'serif',
+  'monospace',
+  'Pretendard',
+  'Inter',
+] as const;
+
+export const PageTextStyleSchema = z.object({
+  fontSize: z.number().min(6).max(200).default(24),
+  fontFamily: z.enum(PAGE_TEXT_FONT_FAMILIES).default('sans-serif'),
+  color: z.string().max(32).default('#111111'),
+  textAlign: z.enum(TEXT_ALIGNS).default('left'),
+});
+
+export const PageTextCreateSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  w: z.number().positive(),
+  h: z.number().positive(),
+  text: z.string().max(2000).optional(),
+  style: PageTextStyleSchema.partial().optional(),
+});
+
+export const PageTextPatchSchema = z.object({
+  x: z.number().optional(),
+  y: z.number().optional(),
+  w: z.number().positive().optional(),
+  h: z.number().positive().optional(),
+  text: z.string().max(2000).optional(),
+  style: PageTextStyleSchema.partial().optional(),
+});
+
+export const PageTextReorderSchema = z.object({
   ids: z.array(z.string().min(1)).min(1).max(500),
 });
 

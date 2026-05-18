@@ -4,17 +4,18 @@ import { prisma } from '@comicai/db';
 import {
   isHexColor,
   type ImageRef,
+  type PageTextStyle,
   type PanelShape,
   type SpeechBubbleShape,
   type SpeechBubbleStyle,
   type SpeechBubbleVariant,
-  type TipTapDoc,
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { StorageService } from '../storage/storage.service';
 import { shapeBoundingBox } from '../common/bbox';
 import { buildPanelMaskSvg, buildPanelStrokeSvg } from './panel-mask';
 import { renderSpeechBubbleLayer } from './speech-bubble.render';
+import { renderPageTextLayer } from './page-text.render';
 
 export interface ExportResult {
   storageKey: string;
@@ -48,6 +49,7 @@ export class ExportService {
       include: {
         panels: true,
         speechBubbles: { orderBy: { order: 'asc' } },
+        pageTexts: { orderBy: { order: 'asc' } },
       },
     });
     if (!page) throw new NotFoundException({ code: 'PAGE_NOT_FOUND' });
@@ -119,21 +121,33 @@ export class ExportService {
       )
     ).flat();
 
-    // 3) 말풍선 — 패널 합성 직후, 항상 가장 위 레이어로.
-    // 페이지 사이즈와 동일한 단일 SVG 로 모아 합성한다 (sharp 는 input 이 canvas 보다 크면 거부 —
-    // 사용자가 풍선을 페이지 밖으로 끌거나 페이지보다 크게 늘린 경우 발생). Prisma JSON 컬럼은
-    // JsonValue 로 추론되므로 도메인 타입으로 좁힌다.
+    // 3) 말풍선 — 패널 합성 위. 텍스트는 별도 PageText 레이어에서 처리.
+    // 페이지 사이즈와 동일한 단일 SVG 로 모아 합성 (sharp 는 input 이 canvas 보다 크면 거부).
     const bubbleLayer = renderSpeechBubbleLayer(
       page.speechBubbles.map((b) => ({
         variant: b.variant as SpeechBubbleVariant,
         shape: b.shape as unknown as SpeechBubbleShape,
         style: b.style as unknown as SpeechBubbleStyle,
-        text: b.text as unknown as TipTapDoc,
       })),
       Math.round(size.w),
       Math.round(size.h),
     );
     if (bubbleLayer) composites.push({ input: bubbleLayer, left: 0, top: 0 });
+
+    // 4) 자유 텍스트 — 항상 최상단.
+    const textLayer = renderPageTextLayer(
+      page.pageTexts.map((t) => ({
+        x: t.x,
+        y: t.y,
+        w: t.w,
+        h: t.h,
+        text: t.text,
+        style: t.style as unknown as PageTextStyle,
+      })),
+      Math.round(size.w),
+      Math.round(size.h),
+    );
+    if (textLayer) composites.push({ input: textLayer, left: 0, top: 0 });
 
     let canvas = sharp({
       create: {

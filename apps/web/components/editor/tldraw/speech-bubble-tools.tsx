@@ -16,13 +16,9 @@ function defaultBubbleProps(): Omit<SpeechBubbleShape['props'], 'variant' | 'w' 
     polygonPoints: null,
     tailX: null,
     tailY: null,
-    text: '',
-    fontSize: 14,
     strokeWidth: 2,
     strokeColor: '#000000',
     fillColor: '#ffffff',
-    textColor: '#111111',
-    textAlign: 'center',
   };
 }
 
@@ -116,17 +112,9 @@ export class BubbleRectTool extends BubbleBoxToolBase {
   static override id = 'bubble-rect';
   readonly variant = 'rect' as const;
 }
-export class BubbleCloudTool extends BubbleBoxToolBase {
-  static override id = 'bubble-cloud';
-  readonly variant = 'cloud' as const;
-}
 export class BubbleSpikeTool extends BubbleBoxToolBase {
   static override id = 'bubble-spike';
   readonly variant = 'spike' as const;
-}
-export class BubbleThoughtTool extends BubbleBoxToolBase {
-  static override id = 'bubble-thought';
-  readonly variant = 'thought' as const;
 }
 
 export class BubblePolygonTool extends PolygonDrawingTool {
@@ -153,8 +141,6 @@ export class BubblePolygonTool extends PolygonDrawingTool {
 export const ALL_BUBBLE_TOOLS = [
   BubbleEllipseTool,
   BubbleRectTool,
-  BubbleCloudTool,
   BubbleSpikeTool,
-  BubbleThoughtTool,
   BubblePolygonTool,
 ] as const;

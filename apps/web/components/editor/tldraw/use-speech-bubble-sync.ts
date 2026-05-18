@@ -5,13 +5,10 @@ import { api } from '@/lib/api';
 import {
   ApiPaths,
   defaultSpeechBubbleStyle,
-  flattenTipTapToText,
-  textToTipTapDoc,
   type NormalizedPoint,
   type SpeechBubbleDTO,
   type SpeechBubbleShape as ApiBubbleShape,
   type SpeechBubbleStyle,
-  type TipTapDoc,
 } from '@comicai/types';
 import type { SpeechBubbleShape } from './speech-bubble-shape';
 
@@ -36,38 +33,20 @@ function flatten(b: SpeechBubbleDTO): SpeechBubbleShape['props'] {
     polygonPoints: b.shape.points ?? null,
     tailX: b.shape.tail?.x ?? null,
     tailY: b.shape.tail?.y ?? null,
-    text: flattenTipTapToText(b.text),
-    fontSize: style.fontSize,
     strokeWidth: style.strokeWidth,
     strokeColor: style.strokeColor,
     fillColor: style.fillColor,
-    textColor: style.textColor,
-    textAlign: style.textAlign,
   };
 }
 
 function toApi(shape: SpeechBubbleShape): {
   variant: SpeechBubbleShape['props']['variant'];
   shape: ApiBubbleShape;
-  text: TipTapDoc;
   style: Partial<SpeechBubbleStyle>;
 } {
   const { x, y } = shape;
-  const {
-    w,
-    h,
-    variant,
-    polygonPoints,
-    tailX,
-    tailY,
-    text,
-    fontSize,
-    strokeWidth,
-    strokeColor,
-    fillColor,
-    textColor,
-    textAlign,
-  } = shape.props;
+  const { w, h, variant, polygonPoints, tailX, tailY, strokeWidth, strokeColor, fillColor } =
+    shape.props;
   return {
     variant,
     shape: {
@@ -81,8 +60,7 @@ function toApi(shape: SpeechBubbleShape): {
           : undefined,
       tail: tailX !== null && tailY !== null ? { x: tailX, y: tailY } : null,
     },
-    text: textToTipTapDoc(text),
-    style: { fontSize, strokeWidth, strokeColor, fillColor, textColor, textAlign },
+    style: { strokeWidth, strokeColor, fillColor },
   };
 }
 
@@ -97,13 +75,9 @@ function samePropsAsDto(shape: SpeechBubbleShape, dto: SpeechBubbleDTO): boolean
     cur.variant !== next.variant ||
     cur.tailX !== next.tailX ||
     cur.tailY !== next.tailY ||
-    cur.text !== next.text ||
-    cur.fontSize !== next.fontSize ||
     cur.strokeWidth !== next.strokeWidth ||
     cur.strokeColor !== next.strokeColor ||
-    cur.fillColor !== next.fillColor ||
-    cur.textColor !== next.textColor ||
-    cur.textAlign !== next.textAlign
+    cur.fillColor !== next.fillColor
   ) {
     return false;
   }

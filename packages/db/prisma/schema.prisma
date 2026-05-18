@@ -124,6 +124,7 @@ model Page {
   project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   panels        Panel[]
   speechBubbles SpeechBubble[]
+  pageTexts     PageText[]
 
   @@index([projectId, order])
   @@map("pages")
@@ -132,10 +133,9 @@ model Page {
 model SpeechBubble {
   id        String   @id
   pageId    String   @map("page_id")
-  variant   String   // 'ellipse' | 'rect' | 'cloud' | 'spike' | 'thought' | 'polygon'
+  variant   String   // 'ellipse' | 'rect' | 'spike' | 'polygon'
   shape     Json     // { x, y, w, h, points?, tail? }
-  text      Json     @default("{}") // TipTapDoc
-  style     Json     @default("{}") // SpeechBubbleStyle
+  style     Json     @default("{}") // SpeechBubbleStyle (모양/선/채움 — 텍스트 없음)
   order     Int
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -144,6 +144,25 @@ model SpeechBubble {
 
   @@index([pageId, order])
   @@map("speech_bubbles")
+}
+
+model PageText {
+  id        String   @id
+  pageId    String   @map("page_id")
+  x         Float
+  y         Float
+  w         Float
+  h         Float
+  text      String   @default("")
+  style     Json     @default("{}") // PageTextStyle
+  order     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, order])
+  @@map("page_texts")
 }
 
 model Panel {

@@ -138,14 +138,8 @@ export interface PanelDTO {
 }
 
 // ─── 말풍선 ─────────────────────────────────────
-export const SPEECH_BUBBLE_VARIANTS = [
-  'ellipse',
-  'rect',
-  'cloud',
-  'spike',
-  'thought',
-  'polygon',
-] as const;
+// 모양·선·채움만 담당. 텍스트는 PageText 로 분리.
+export const SPEECH_BUBBLE_VARIANTS = ['ellipse', 'rect', 'spike', 'polygon'] as const;
 export type SpeechBubbleVariant = (typeof SPEECH_BUBBLE_VARIANTS)[number];
 
 export interface SpeechBubbleShape {
@@ -160,24 +154,16 @@ export interface SpeechBubbleShape {
 }
 
 export interface SpeechBubbleStyle {
-  fontSize: number;
-  fontFamily?: string | null;
   strokeWidth: number;
   strokeColor: string;
   fillColor: string;
-  textColor: string;
-  textAlign: TextAlign;
 }
 
 export function defaultSpeechBubbleStyle(): SpeechBubbleStyle {
   return {
-    fontSize: 14,
-    fontFamily: null,
     strokeWidth: 2,
     strokeColor: '#000000',
     fillColor: '#ffffff',
-    textColor: '#111111',
-    textAlign: 'center',
   };
 }
 
@@ -186,8 +172,48 @@ export interface SpeechBubbleDTO {
   pageId: string;
   variant: SpeechBubbleVariant;
   shape: SpeechBubbleShape;
-  text: TipTapDoc;
   style: SpeechBubbleStyle;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── 페이지 텍스트 ──────────────────────────────
+// 캔버스 위 자유 텍스트 박스 (말풍선과 독립). 만화 효과음 등.
+export const PAGE_TEXT_FONT_FAMILIES = [
+  'sans-serif',
+  'serif',
+  'monospace',
+  'Pretendard',
+  'Inter',
+] as const;
+export type PageTextFontFamily = (typeof PAGE_TEXT_FONT_FAMILIES)[number];
+
+export interface PageTextStyle {
+  fontSize: number;
+  fontFamily: PageTextFontFamily;
+  color: string;
+  textAlign: TextAlign;
+}
+
+export function defaultPageTextStyle(): PageTextStyle {
+  return {
+    fontSize: 24,
+    fontFamily: 'sans-serif',
+    color: '#111111',
+    textAlign: 'left',
+  };
+}
+
+export interface PageTextDTO {
+  id: string;
+  pageId: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  text: string;
+  style: PageTextStyle;
   order: number;
   createdAt: string;
   updatedAt: string;

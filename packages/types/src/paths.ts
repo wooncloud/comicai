@@ -35,6 +35,9 @@ export const ApiPaths = {
   pageSpeechBubbles: (id: string) => `/pages/${id}/speech-bubbles`,
   pageSpeechBubblesReorder: (id: string) => `/pages/${id}/speech-bubbles/reorder`,
   speechBubble: (id: string) => `/speech-bubbles/${id}`,
+  pagePageTexts: (id: string) => `/pages/${id}/page-texts`,
+  pagePageTextsReorder: (id: string) => `/pages/${id}/page-texts/reorder`,
+  pageText: (id: string) => `/page-texts/${id}`,
 
   panel: (id: string) => `/panels/${id}`,
   panelUpload: (id: string) => `/panels/${id}/upload`,

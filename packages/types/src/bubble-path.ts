@@ -10,14 +10,11 @@ export function bubbleBodyPath(
 ): string {
   switch (variant) {
     case 'ellipse':
-    case 'thought':
       return ellipsePath(w / 2, h / 2, w / 2 - 1, h / 2 - 1);
     case 'rect': {
       const r = Math.min(w, h) * 0.12;
       return roundedRectPath(1, 1, w - 2, h - 2, r);
     }
-    case 'cloud':
-      return cloudPath(w, h);
     case 'spike':
       return spikePath(w, h);
     case 'polygon': {
@@ -60,24 +57,6 @@ function roundedRectPath(x: number, y: number, w: number, h: number, r: number):
     `Q ${x} ${y + h} ${x} ${y + h - rr}`,
     `L ${x} ${y + rr}`,
     `Q ${x} ${y} ${x + rr} ${y}`,
-    'Z',
-  ].join(' ');
-}
-
-function cloudPath(w: number, h: number): string {
-  const k = 0.18;
-  const rx = w * 0.45;
-  const ry = h * 0.45;
-  const cx = w / 2;
-  const cy = h / 2;
-  return [
-    `M ${cx - rx} ${cy}`,
-    `Q ${cx - rx} ${cy - ry * (1 + k)} ${cx - rx * 0.5} ${cy - ry}`,
-    `Q ${cx} ${cy - ry * (1 + k)} ${cx + rx * 0.5} ${cy - ry}`,
-    `Q ${cx + rx} ${cy - ry * (1 + k)} ${cx + rx} ${cy}`,
-    `Q ${cx + rx} ${cy + ry * (1 + k)} ${cx + rx * 0.5} ${cy + ry}`,
-    `Q ${cx} ${cy + ry * (1 + k)} ${cx - rx * 0.5} ${cy + ry}`,
-    `Q ${cx - rx} ${cy + ry * (1 + k)} ${cx - rx} ${cy}`,
     'Z',
   ].join(' ');
 }

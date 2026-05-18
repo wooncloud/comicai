@@ -1,13 +1,11 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { newId, prisma, Prisma } from '@comicai/db';
 import {
-  emptyDoc,
   defaultSpeechBubbleStyle,
   type SpeechBubbleDTO,
   type SpeechBubbleShape,
   type SpeechBubbleStyle,
   type SpeechBubbleVariant,
-  type TipTapDoc,
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 
@@ -16,7 +14,6 @@ interface BubbleRow {
   pageId: string;
   variant: string;
   shape: unknown;
-  text: unknown;
   style: unknown;
   order: number;
   createdAt: Date;
@@ -29,7 +26,6 @@ function toDto(row: BubbleRow): SpeechBubbleDTO {
     pageId: row.pageId,
     variant: row.variant as SpeechBubbleVariant,
     shape: row.shape as SpeechBubbleShape,
-    text: (row.text as TipTapDoc) ?? emptyDoc(),
     style: { ...defaultSpeechBubbleStyle(), ...((row.style as Partial<SpeechBubbleStyle>) ?? {}) },
     order: row.order,
     createdAt: row.createdAt.toISOString(),
@@ -40,14 +36,12 @@ function toDto(row: BubbleRow): SpeechBubbleDTO {
 export interface CreateInput {
   variant: SpeechBubbleVariant;
   shape: SpeechBubbleShape;
-  text?: TipTapDoc;
   style?: Partial<SpeechBubbleStyle>;
 }
 
 export interface PatchInput {
   variant?: SpeechBubbleVariant;
   shape?: SpeechBubbleShape;
-  text?: TipTapDoc;
   style?: Partial<SpeechBubbleStyle>;
 }
 
@@ -78,7 +72,6 @@ export class SpeechBubblesService {
         pageId,
         variant: input.variant,
         shape: input.shape as unknown as Prisma.InputJsonValue,
-        text: (input.text ?? emptyDoc()) as unknown as Prisma.InputJsonValue,
         style: style,
         order,
       },
@@ -91,7 +84,6 @@ export class SpeechBubblesService {
     const data: Prisma.SpeechBubbleUpdateInput = {};
     if (input.variant) data.variant = input.variant;
     if (input.shape) data.shape = input.shape as unknown as Prisma.InputJsonValue;
-    if (input.text !== undefined) data.text = input.text as unknown as Prisma.InputJsonValue;
     if (input.style) {
       const merged = { ...defaultSpeechBubbleStyle(), ...input.style };
       data.style = merged;

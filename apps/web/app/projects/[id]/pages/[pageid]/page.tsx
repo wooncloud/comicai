@@ -12,11 +12,13 @@ import {
   ApiPaths,
   pageLabel,
   type PageDTO,
+  type PageTextDTO,
   type PanelDTO,
   type SpeechBubbleDTO,
 } from '@comicai/types';
 import { PanelInspector } from '@/components/editor/panel-inspector';
 import { SpeechBubbleInspector } from '@/components/editor/speech-bubble-inspector';
+import { PageTextInspector } from '@/components/editor/page-text-inspector';
 import { PageSidebar } from '@/components/editor/page-sidebar';
 import { ToolRail } from '@/components/editor/tool-rail';
 import { SaveStatus } from '@/components/editor/save-status';
@@ -25,9 +27,11 @@ import { PageInspector } from '@/components/editor/page-inspector';
 import { CollapseRail } from '@/components/editor/collapse-rail';
 import { usePanelSync } from '@/components/editor/tldraw/use-panel-sync';
 import { useSpeechBubbleSync } from '@/components/editor/tldraw/use-speech-bubble-sync';
+import { usePageTextSync } from '@/components/editor/tldraw/use-page-text-sync';
 import { usePageFrame } from '@/components/editor/tldraw/use-page-frame';
 import type { ComicPanelShape } from '@/components/editor/tldraw/comic-panel-shape';
 import type { SpeechBubbleShape } from '@/components/editor/tldraw/speech-bubble-shape';
+import type { PageTextShape } from '@/components/editor/tldraw/page-text-shape';
 
 const ComicEditor = dynamic(
   () => import('@/components/editor/tldraw/comic-editor').then((m) => m.ComicEditor),
@@ -49,8 +53,10 @@ export default function PageEditor() {
   const [page, setPage] = useState<PageDTO | null>(null);
   const [panels, setPanels] = useState<PanelDTO[]>([]);
   const [bubbles, setBubbles] = useState<SpeechBubbleDTO[]>([]);
+  const [texts, setTexts] = useState<PageTextDTO[]>([]);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
   const [selectedBubble, setSelectedBubble] = useState<SpeechBubbleShape | null>(null);
+  const [selectedText, setSelectedText] = useState<PageTextShape | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
@@ -61,14 +67,16 @@ export default function PageEditor() {
   useEffect(() => {
     if (!pageId) return;
     void (async () => {
-      const [p, list, bubs] = await Promise.all([
+      const [p, list, bubs, txs] = await Promise.all([
         api<PageDTO>(ApiPaths.page(pageId)),
         api<PanelDTO[]>(ApiPaths.pagePanels(pageId)),
         api<SpeechBubbleDTO[]>(ApiPaths.pageSpeechBubbles(pageId)),
+        api<PageTextDTO[]>(ApiPaths.pagePageTexts(pageId)),
       ]);
       setPage(p);
       setPanels(list);
       setBubbles(bubs);
+      setTexts(txs);
     })();
   }, [pageId]);
 
@@ -97,6 +105,15 @@ export default function PageEditor() {
     onSaveError,
   });
 
+  usePageTextSync({
+    editor,
+    pageId,
+    texts,
+    onTextsChanged: setTexts,
+    onSavingChange,
+    onSaveError,
+  });
+
   usePageFrame({
     editor,
     pageId,
@@ -112,6 +129,7 @@ export default function PageEditor() {
       if (ids.length === 0) {
         setSelectedPanelId((prev) => (prev === null ? prev : null));
         setSelectedBubble((prev) => (prev === null ? prev : null));
+        setSelectedText((prev) => (prev === null ? prev : null));
         return;
       }
       const shape = editor.getShape(ids[0] as TLShapeId);
@@ -119,12 +137,19 @@ export default function PageEditor() {
         const next = (shape as ComicPanelShape).props.panelId;
         setSelectedPanelId((prev) => (prev === next ? prev : next));
         setSelectedBubble((prev) => (prev === null ? prev : null));
+        setSelectedText((prev) => (prev === null ? prev : null));
       } else if (shape?.type === 'speech-bubble') {
         setSelectedPanelId((prev) => (prev === null ? prev : null));
         setSelectedBubble(shape as SpeechBubbleShape);
+        setSelectedText((prev) => (prev === null ? prev : null));
+      } else if (shape?.type === 'page-text') {
+        setSelectedPanelId((prev) => (prev === null ? prev : null));
+        setSelectedBubble((prev) => (prev === null ? prev : null));
+        setSelectedText(shape as PageTextShape);
       } else {
         setSelectedPanelId((prev) => (prev === null ? prev : null));
         setSelectedBubble((prev) => (prev === null ? prev : null));
+        setSelectedText((prev) => (prev === null ? prev : null));
       }
     };
     const unsub = editor.store.listen(sync, { source: 'user' });
@@ -201,6 +226,14 @@ export default function PageEditor() {
             editor={editor}
             shapeId={selectedBubble.id}
             shape={selectedBubble}
+            onCollapse={() => setRightCollapsed(true)}
+          />
+        ) : selectedText && editor ? (
+          <PageTextInspector
+            key={selectedText.id}
+            editor={editor}
+            shapeId={selectedText.id}
+            shape={selectedText}
             onCollapse={() => setRightCollapsed(true)}
           />
         ) : page ? (

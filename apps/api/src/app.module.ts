@@ -16,6 +16,7 @@ import { ConsistencyModule } from './consistency/consistency.module';
 import { PagesModule } from './pages/pages.module';
 import { PanelsModule } from './panels/panels.module';
 import { SpeechBubblesModule } from './speech-bubbles/speech-bubbles.module';
+import { PageTextsModule } from './page-texts/page-texts.module';
 import { RenderModule } from './render/render.module';
 import { ExportModule } from './export/export.module';
 
@@ -67,6 +68,7 @@ import { ExportModule } from './export/export.module';
     PagesModule,
     PanelsModule,
     SpeechBubblesModule,
+    PageTextsModule,
     RenderModule,
     ExportModule,
   ],
