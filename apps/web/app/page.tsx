@@ -23,57 +23,61 @@ export default function HomePage() {
       <Topbar />
       <main>
         {/* Hero */}
-        <section className="mx-auto grid max-w-[1440px] items-center gap-12 px-6 py-16 lg:grid-cols-[minmax(0,592px)_minmax(0,1fr)] lg:py-24 lg:pr-0">
-          <div className="flex flex-col items-start gap-7">
-            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-caption font-medium text-primary-strong">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              캐릭터 일관성을 지키는 AI 만화 도구
-            </span>
-            <h1 className="text-display-md font-bold sm:text-display-lg lg:text-display-xl">
-              누구나
-              <br />
-              만화 작가가
-              <br />될 수 있다
-            </h1>
-            <p className="max-w-lg text-body-lg text-muted-foreground [text-wrap:pretty]">
-              캐릭터와 그림체를 한 번 등록하면 모든 컷에 같은 인물이 나옵니다. 장면을 문장으로 쓰면
-              AI가 그림을 그립니다.
-            </p>
-            <div className="mt-1 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-              <Button asChild size="lg" className="h-12 px-7 text-body-lg">
-                <Link href="/signup">시작하기</Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="h-12 border-input/60 px-7 text-body-lg"
-              >
-                <Link href="/login">로그인</Link>
-              </Button>
+        <div className="relative isolate overflow-hidden">
+          {/* 초록 앰비언트. 장식이므로 스크린리더에서 감춘다. */}
+          <div className="hero-ambient pointer-events-none absolute inset-0 -z-10" aria-hidden />
+          <section className="mx-auto grid max-w-[1440px] items-center gap-12 px-6 py-16 lg:grid-cols-[minmax(0,592px)_minmax(0,1fr)] lg:py-24 lg:pr-0">
+            <div className="flex flex-col items-start gap-7">
+              <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-caption font-medium text-primary-strong">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                캐릭터 일관성을 지키는 AI 만화 도구
+              </span>
+              <h1 className="text-display-md font-bold sm:text-display-lg lg:text-display-xl">
+                누구나
+                <br />
+                만화 작가가
+                <br />될 수 있다
+              </h1>
+              <p className="max-w-lg text-body-lg text-muted-foreground [text-wrap:pretty]">
+                캐릭터와 그림체를 한 번 등록하면 모든 컷에 같은 인물이 나옵니다. 장면을 문장으로
+                쓰면 AI가 그림을 그립니다.
+              </p>
+              <div className="mt-1 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                <Button asChild size="lg" className="h-12 px-7 text-body-lg">
+                  <Link href="/signup">시작하기</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="h-12 border-input/60 px-7 text-body-lg"
+                >
+                  <Link href="/login">로그인</Link>
+                </Button>
+              </div>
             </div>
-          </div>
 
-          <div className="relative">
-            <div className="overflow-hidden rounded-xl shadow-2xl shadow-foreground/25 lg:rounded-r-none dark:shadow-black/60 dark:ring-1 dark:ring-border">
-              <SampleImage
-                id="hero-02"
-                alt="교실 창가에 앉아 밖을 바라보는 인물"
-                sizes="(min-width: 1024px) 55vw, 100vw"
-                priority
-                className="block aspect-[3/2] w-full object-cover lg:aspect-auto lg:h-[496px]"
-              />
+            <div className="relative">
+              <div className="overflow-hidden rounded-xl shadow-2xl shadow-foreground/25 lg:rounded-r-none dark:shadow-black/60 dark:ring-1 dark:ring-border">
+                <SampleImage
+                  id="hero-02"
+                  alt="교실 창가에 앉아 밖을 바라보는 인물"
+                  sizes="(min-width: 1024px) 55vw, 100vw"
+                  priority
+                  className="block aspect-[3/2] w-full object-cover lg:aspect-auto lg:h-[496px]"
+                />
+              </div>
+              <div className="absolute -bottom-8 -left-6 hidden w-52 overflow-hidden rounded-xl border-[5px] border-background shadow-xl shadow-foreground/30 lg:-left-16 lg:block dark:border-[hsl(240_3.7%_18%)] dark:shadow-black/70">
+                <SampleImage
+                  id="grid-02"
+                  alt="복도에서 손을 흔드는 인물"
+                  sizes="208px"
+                  className="block h-[268px] w-full object-cover"
+                />
+              </div>
             </div>
-            <div className="absolute -bottom-8 -left-6 hidden w-52 overflow-hidden rounded-xl border-[5px] border-background shadow-xl shadow-foreground/30 lg:-left-16 lg:block dark:border-[hsl(240_3.7%_18%)] dark:shadow-black/70">
-              <SampleImage
-                id="grid-02"
-                alt="복도에서 손을 흔드는 인물"
-                sizes="208px"
-                className="block h-[268px] w-full object-cover"
-              />
-            </div>
-          </div>
-        </section>
+          </section>
+        </div>
 
         {/* Gallery */}
         <section className="border-y border-border bg-muted/50">

@@ -62,3 +62,25 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+@layer components {
+  /*
+   * 랜딩 히어로 배경의 은은한 초록 앰비언트.
+   * --primary 를 그대로 쓰므로 라이트/다크가 자동으로 따라온다.
+   * 본문 대비를 해치지 않도록 알파를 낮게 유지한다(라이트 기준 최대 0.13).
+   */
+  .hero-ambient {
+    background:
+      radial-gradient(46rem 30rem at 16% 18%, hsl(var(--primary) / 0.13), transparent 62%),
+      radial-gradient(40rem 30rem at 84% 34%, hsl(var(--primary) / 0.1), transparent 60%),
+      radial-gradient(34rem 20rem at 52% 104%, hsl(var(--primary) / 0.07), transparent 66%);
+  }
+
+  /* 어두운 바탕에서는 같은 알파가 거의 안 보여 조금 더 올린다. */
+  [data-theme='dark'] .hero-ambient {
+    background:
+      radial-gradient(46rem 30rem at 16% 18%, hsl(var(--primary) / 0.18), transparent 62%),
+      radial-gradient(40rem 30rem at 84% 34%, hsl(var(--primary) / 0.14), transparent 60%),
+      radial-gradient(34rem 20rem at 52% 104%, hsl(var(--primary) / 0.1), transparent 66%);
+  }
+}
