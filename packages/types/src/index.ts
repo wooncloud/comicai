@@ -9,6 +9,17 @@ export * from './paths';
 export type ModelProvider = 'gemini' | 'openai' | 'mock';
 export type ModelId = 'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock';
 
+/**
+ * 모델 → 제공자. 예전엔 호출부마다 `model.startsWith('gemini')` 로 추측했는데,
+ * 그러면 gemini 로 시작하지 않는 새 모델이 조용히 openai 로 분류된다.
+ * Record 라서 ModelId 가 늘면 여기서 컴파일 에러가 난다.
+ */
+export const MODEL_PROVIDER: Record<ModelId, ModelProvider> = {
+  'gemini-3.1-flash-image-preview': 'gemini',
+  'gpt-image-2': 'openai',
+  mock: 'mock',
+};
+
 export const OAUTH_PROVIDERS = ['google', 'github'] as const;
 export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
 
@@ -180,14 +191,20 @@ export interface SpeechBubbleDTO {
 
 // ─── 페이지 텍스트 ──────────────────────────────
 // 캔버스 위 자유 텍스트 박스 (말풍선과 독립). 만화 효과음 등.
-export const PAGE_TEXT_FONT_FAMILIES = [
-  'sans-serif',
-  'serif',
-  'monospace',
-  'Pretendard',
-  'Inter',
-] as const;
+// 캔버스(CSS)와 export(SVG) 양쪽에서 실제로 해석되는 것만 둔다.
+// 'Pretendard'/'Inter' 가 있었지만 어느 쪽에도 그 이름의 패밀리가 없었다:
+// 웹은 next/font 가 CSS 변수(--font-pretendard)만 만들고 패밀리명을 노출하지 않으며,
+// export 컨테이너(infra/docker/api.Dockerfile:39)에는 font-noto-cjk 만 설치된다.
+// 고르면 아무 일도 일어나지 않는 선택지라 제거했다.
+export const PAGE_TEXT_FONT_FAMILIES = ['sans-serif', 'serif', 'monospace'] as const;
 export type PageTextFontFamily = (typeof PAGE_TEXT_FONT_FAMILIES)[number];
+
+/** 제거된 값이 들어 있는 기존 행을 읽을 때 기본값으로 흡수한다. */
+export function coercePageTextFontFamily(v: unknown): PageTextFontFamily {
+  return (PAGE_TEXT_FONT_FAMILIES as readonly string[]).includes(v as string)
+    ? (v as PageTextFontFamily)
+    : 'sans-serif';
+}
 
 export interface PageTextStyle {
   fontSize: number;

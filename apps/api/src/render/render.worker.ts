@@ -3,7 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
 import { prisma, Prisma } from '@comicai/db';
 import { getAdapter, type AdapterContext } from '@comicai/adapters';
-import type { ImageRef, RenderError, RenderIR, RenderStatus } from '@comicai/types';
+import {
+  MODEL_PROVIDER,
+  type ImageRef,
+  type ModelId,
+  type RenderError,
+  type RenderIR,
+  type RenderStatus,
+} from '@comicai/types';
 import { RENDER_QUEUE_NAME, parseRedis, type RenderJobData } from './render.queue';
 import { SseHub } from './sse.hub';
 import { StorageService } from '../storage/storage.service';
@@ -135,7 +142,7 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
     model: string,
   ): Promise<{ id: string | null; secret: string }> {
     if (model === 'mock') return { id: null, secret: '' };
-    const provider = model.startsWith('gemini') ? 'gemini' : 'openai';
+    const provider = MODEL_PROVIDER[model as ModelId];
     const row = await prisma.apiKey.findFirst({
       where: { userId, provider, isActive: true },
       orderBy: { createdAt: 'desc' },

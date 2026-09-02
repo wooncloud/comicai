@@ -262,15 +262,30 @@ apps/web/
 │   │                           # page-frame-shape, panel-geometry,
 │   │                           # use-panel-sync, use-page-frame
 │   └── ui/                     # Radix 래퍼 + toast(sonner) + tooltip/breadcrumb/input
+├── landing/
+│   └── sample-image.tsx        # 사전 생성 srcSet + LQIP (next/image 미사용)
 └── lib/
     ├── api.ts                  # envelope/CSRF/credentials
     ├── cn.ts                   # clsx + tailwind-merge
+    ├── error-message.ts        # ErrorCode → 사용자 문구 (단일 출처)
     ├── theme.ts
     ├── use-debounced.ts
     └── use-project.ts          # useQuery(['project', id])
 ```
 
 ## 10. 관찰된 패턴 / 제약
+
+### 에러 문구는 `lib/error-message.ts` 한 곳에서 나온다
+
+호출부는 실패한 동작만 넘기고 문장은 만들지 않는다 — `errorMessage(err, '프로필을 저장')`.
+
+- `BY_CODE` 는 `Record<ErrorCode | 'HTTP_ERROR', string | null>` (`lib/error-message.ts:21`) 이라
+  `packages/types` 에 코드가 추가되면 **컴파일 에러**로 잡힌다. `null` 은 "코드만으로는 안내할
+  내용이 없음" 이고, 그때만 호출부가 넘긴 문맥을 쓴다.
+- `renderErrorMessage`(`:101`) 는 워커가 실어 보내는 `RenderError.category` 를, `oauthErrorMessage`(`:117`)
+  는 OAuth 콜백 쿼리 파라미터를 각각 다룬다. 셋 다 같은 파일에 있다.
+- 이렇게 모으기 전에는 `저장 실패: ${err.code}` 로 영문 enum 이, `(err as Error).message` 로 NestJS
+  기본 영문 메시지가 화면에 노출됐고 스윕할 때마다 몇 곳씩 놓쳤다.
 
 - **점진적 React Query 마이그레이션**: 현재 `['me']`/`['projects']`/`['project', id]`/`['panel-history', id]`/`['render-job', id]`만 캐시화. 페이지 목록·패널 목록·일관성 엔티티·세션 목록·API 키 목록은 아직 `useState + useEffect + api()`로 남아 있음
 - **부모-주도 캐시 갱신**: 카드/다이얼로그 같은 자식은 콜백을 호출하고, 부모 페이지가 `queryClient.setQueryData`로 직접 캐시를 수정하는 옵티미스틱 패턴이 일관적으로 쓰임 (`useMutation` 의존도 낮음)

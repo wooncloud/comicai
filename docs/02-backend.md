@@ -21,7 +21,10 @@
 - `setGlobalPrefix('v1', { exclude: ['healthz'] })` — `bootstrap.ts:15` (즉 `/healthz` 외 모든 라우트는 `/v1/...`)
 - `app.use(cookieParser())` — `bootstrap.ts:16`
 - 글로벌 파이프: `ZodValidationPipe` — `bootstrap.ts:17`
-  - `DTO.zodSchema` 정적 프로퍼티에서 Zod 스키마를 찾아 `safeParse`, 실패 시 `ZodError` throw — `common/zod-validation.pipe.ts:7-13`
+  - `DTO.zodSchema` 정적 프로퍼티에서 Zod 스키마를 찾아 `safeParse`, 실패 시 `ZodError` throw — `common/zod-validation.pipe.ts:14-40`
+  - 전역 파이프라 `@Param('id')` 같은 원시 타입도 지나간다. `PASS_THROUGH` 목록(`:10`)으로 걸러낸다.
+  - **이름이 `Dto` 로 끝나는데 `zodSchema` 가 없으면 500 으로 즉시 실패**(`:21-33`). 예전에는 조용히
+    통과시켜서, 규약을 잊은 DTO 가 아무 입력이나 받아도 아무도 몰랐다.
 - 글로벌 인터셉터: `HttpMetricsInterceptor` → `ResponseEnvelopeInterceptor`
   - `ResponseEnvelopeInterceptor`: 204/SSE를 제외한 모든 성공 응답을 `{ data: ... }`로 감싼다 — `common/response-envelope.interceptor.ts:14-22`
 - 글로벌 필터: `AllExceptionsFilter`
@@ -225,6 +228,11 @@ AI 생성 로직은 `consistency.service.ts:190-248` (`generateImage`) / `:254-2
 | PATCH  | `/v1/page-lines/:id`                   | `patch` (`:67-70`) — `x1/y1/x2/y2`, `style` 부분 갱신 |
 | DELETE | `/v1/page-lines/:id`                   | `remove` (`:72-76`)                                   |
 
+`style` 은 세 모듈(PageLine/PageText/SpeechBubble) 모두 PatchSchema 에서 `.partial()` 이므로,
+patch 는 **기본값 → 기존 값 → 입력** 3항 병합이어야 한다(`page-lines.service.ts:93-98`).
+기존 값을 빼먹으면 명시하지 않은 필드가 기본값으로 되돌아간다 — 굵기 8인 선의 색만 바꿔도
+굵기가 리셋된다. 병합 규칙은 `common/style-merge.spec.ts` 가 고정한다.
+
 좌표는 페이지 좌표계 절대값 두 점(x1/y1/x2/y2)으로 저장된다. tldraw 측은 BaseBoxShape 패턴(bbox + bbox 내 normalized 두 끝점)으로 표현하며, sync hook(`apps/web/components/editor/tldraw/use-page-line-sync.ts`)이 두 표현을 양방향 변환한다. `style` 은 `PageLineStyle` (`strokeWidth/strokeColor/strokeStyle='solid'|'dashed'`) 의 partial 머지로 정규화 — `page-lines.service.ts:63-84` (`create`) / `:86-99` (`patch`).
 
 ### 3.7 RenderModule (`render/*`)
@@ -353,7 +361,7 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 
 ## 7. 외부 모델 어댑터 연계
 
-- 패키지: `packages/adapters` — `index.ts:24-34`에 `REGISTRY` 정의.
+- 패키지: `packages/adapters` — `index.ts:35-45`에 `REGISTRY` 정의.
   - `mock` → `MockAdapter`
   - `gemini-3.1-flash-image-preview` → `GeminiAdapter`
   - `gpt-image-2` → `OpenAIAdapter`

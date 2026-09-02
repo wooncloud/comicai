@@ -1,6 +1,11 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { newId, prisma, Prisma } from '@comicai/db';
-import { defaultPageTextStyle, type PageTextDTO, type PageTextStyle } from '@comicai/types';
+import {
+  coercePageTextFontFamily,
+  defaultPageTextStyle,
+  type PageTextDTO,
+  type PageTextStyle,
+} from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 
 interface PageTextRow {
@@ -17,6 +22,12 @@ interface PageTextRow {
   updatedAt: Date;
 }
 
+/** 기본값 채우기 + 제거된 폰트 값 흡수. DB 는 Json 이라 옛 값이 그대로 남아 있다. */
+function normalizeStyle(style: Partial<PageTextStyle>): PageTextStyle {
+  const merged = { ...defaultPageTextStyle(), ...style };
+  return { ...merged, fontFamily: coercePageTextFontFamily(merged.fontFamily) };
+}
+
 function toDto(row: PageTextRow): PageTextDTO {
   return {
     id: row.id,
@@ -26,7 +37,7 @@ function toDto(row: PageTextRow): PageTextDTO {
     w: row.w,
     h: row.h,
     text: row.text,
-    style: { ...defaultPageTextStyle(), ...((row.style as Partial<PageTextStyle>) ?? {}) },
+    style: normalizeStyle((row.style as Partial<PageTextStyle>) ?? {}),
     order: row.order,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -100,7 +111,10 @@ export class PageTextsService {
       // PatchSchema 의 style 은 .partial() 이다. 기존 값을 빼먹으면 명시하지 않은
       // 필드가 기본값으로 되돌아간다(굵기 8인 선의 색만 바꿔도 굵기가 리셋됨).
       const current = (owned.style ?? {}) as Partial<PageTextStyle>;
-      data.style = { ...defaultPageTextStyle(), ...current, ...input.style };
+      data.style = normalizeStyle({
+        ...current,
+        ...input.style,
+      }) as unknown as Prisma.InputJsonValue;
     }
     const row = await prisma.pageText.update({ where: { id: owned.id }, data });
     return toDto(row);

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { ApiPaths, type SessionUser } from '@comicai/types';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ export default function ProfileSettingsPage() {
   const [urlDirty, setUrlDirty] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     api<SessionUser>(ApiPaths.me)
@@ -43,6 +45,9 @@ export default function ProfileSettingsPage() {
         }),
       });
       setMe(updated);
+      // Topbar 가 같은 값을 useQuery(['me']) 로 들고 있다. staleTime 30초 +
+      // refetchOnWindowFocus:false 라 갱신하지 않으면 옛 아바타가 계속 남는다.
+      queryClient.setQueryData(['me'], updated);
       setAvatarUrl(updated.avatarUrl ?? '');
       setUrlDirty(false);
       toast.push('success', '프로필이 저장되었습니다.');
@@ -66,6 +71,9 @@ export default function ProfileSettingsPage() {
         body: fd,
       });
       setMe(updated);
+      // Topbar 가 같은 값을 useQuery(['me']) 로 들고 있다. staleTime 30초 +
+      // refetchOnWindowFocus:false 라 갱신하지 않으면 옛 아바타가 계속 남는다.
+      queryClient.setQueryData(['me'], updated);
       setAvatarUrl(updated.avatarUrl ?? '');
       setUrlDirty(false);
       toast.push('success', '아바타가 업로드되었습니다.');
@@ -81,6 +89,9 @@ export default function ProfileSettingsPage() {
     try {
       const updated = await api<SessionUser>(ApiPaths.meAvatar, { method: 'DELETE' });
       setMe(updated);
+      // Topbar 가 같은 값을 useQuery(['me']) 로 들고 있다. staleTime 30초 +
+      // refetchOnWindowFocus:false 라 갱신하지 않으면 옛 아바타가 계속 남는다.
+      queryClient.setQueryData(['me'], updated);
       setAvatarUrl('');
       setUrlDirty(false);
       toast.push('success', '아바타가 제거되었습니다.');

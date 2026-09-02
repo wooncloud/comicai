@@ -7,7 +7,14 @@ import {
 } from '@nestjs/common';
 import { entityIdPrefix, newId, prisma, Prisma } from '@comicai/db';
 import { getAdapter, type AdapterContext } from '@comicai/adapters';
-import type { ConsistencyEntityDTO, EntityType, ImageRef, ModelId, RenderIR } from '@comicai/types';
+import {
+  MODEL_PROVIDER,
+  type ConsistencyEntityDTO,
+  type EntityType,
+  type ImageRef,
+  type ModelId,
+  type RenderIR,
+} from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
 import { StorageService } from '../storage/storage.service';
 import { open } from '../api-keys/crypto';
@@ -285,7 +292,7 @@ export class ConsistencyService {
 
   private async resolveApiKey(userId: string, model: ModelId): Promise<string> {
     if (model === 'mock') return '';
-    const provider = model.startsWith('gemini') ? 'gemini' : 'openai';
+    const provider = MODEL_PROVIDER[model];
     const row = await prisma.apiKey.findFirst({
       where: { userId, provider, isActive: true },
       orderBy: { createdAt: 'desc' },

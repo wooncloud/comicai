@@ -106,7 +106,7 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
      - `breaker.recordSuccess(apiKeyId)` — 회로차단기 카운터 리셋 (`:103`).
   9. 예외:
      - `adapter.classifyError(err)` → `RenderError` (category: `transient|auth|quota|safety|invalid|timeout`)
-       (`render.worker.ts:106`, 타입 `packages/types/src/index.ts:379-385`).
+       (`render.worker.ts:106`, 타입 `packages/types/src/index.ts:396-402`).
      - `auth`면 `ApiKeyBreaker.recordAuthFailure` (`:108-110`).
      - 재시도 한도(`retryLimitFor`)에 못 미치면 `throw err` → BullMQ가 backoff로 재시도
        (`:112-114, 152-156`): transient=3, timeout=2, 그 외=1(즉시 실패).
@@ -247,7 +247,7 @@ UI에서 취소 버튼은 현재 panel-inspector에 노출되어 있지 않다 (
 
 ### 6.1 분류 (`RenderError`)
 
-`packages/types/src/index.ts:379-385`:
+`packages/types/src/index.ts:396-402`:
 
 ```ts
 type RenderErrorCategory = 'transient' | 'auth' | 'quota' | 'safety' | 'invalid' | 'timeout';
@@ -327,7 +327,7 @@ API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생�
 | presign                                          | `apps/api/src/storage/storage.service.ts:125,133`         |
 | SSE Hub publish/subscribe                        | `apps/api/src/render/sse.hub.ts:95,76`                    |
 | SSE wire 포맷                                    | `packages/events/src/index.ts:25`                         |
-| RenderStatus enum                                | `packages/types/src/index.ts:15-25`                       |
-| RenderError 타입                                 | `packages/types/src/index.ts:381-385`                     |
+| RenderStatus enum                                | `packages/types/src/index.ts:26-36`                       |
+| RenderError 타입                                 | `packages/types/src/index.ts:398-402`                     |
 | 패널 히스토리 (list/restore)                     | `apps/api/src/panels/panels.service.ts:208,237`           |
 | 히스토리 UI                                      | `apps/web/components/editor/history-tray.tsx:15,20`       |
