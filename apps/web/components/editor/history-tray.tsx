@@ -26,15 +26,16 @@ export function HistoryTray({ panelId, currentRenderId, onRestored }: Props) {
     },
   });
 
-  if (!items) return <div className="text-caption text-muted-foreground">히스토리 로딩…</div>;
+  if (!items)
+    return <div className="text-caption text-muted-foreground">생성 기록 불러오는 중…</div>;
   if (items.length === 0) {
-    return <div className="text-caption text-muted-foreground">렌더 기록이 없습니다.</div>;
+    return <div className="text-caption text-muted-foreground">아직 생성한 이미지가 없습니다.</div>;
   }
 
   return (
     <div className="space-y-2">
       <div className="text-caption font-medium text-muted-foreground">
-        히스토리 ({items.length})
+        생성 기록 ({items.length})
       </div>
       <ul className="grid max-h-72 grid-cols-2 gap-2 overflow-auto pr-1">
         {items.map((j) => {
@@ -52,7 +53,7 @@ export function HistoryTray({ panelId, currentRenderId, onRestored }: Props) {
                 {j.resultImageUrl ? (
                   <img
                     src={j.resultImageUrl}
-                    alt={`render ${j.id.slice(-6)}`}
+                    alt={`생성 이미지 ${j.id.slice(-6)}`}
                     className="h-full w-full object-cover"
                     loading="lazy"
                   />

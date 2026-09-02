@@ -122,11 +122,13 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
             <Plus className="h-4 w-4" />
             <span className="sr-only">페이지 추가</span>
           </button>
-          {onCollapse && <CollapseButton side="left" onClick={onCollapse} title="사이드바 접기" />}
+          {onCollapse && (
+            <CollapseButton side="left" onClick={onCollapse} title="페이지 목록 접기" />
+          )}
         </div>
       </div>
       <ul className="flex-1 overflow-auto p-1">
-        {pages === null && <li className="text-caption text-muted-foreground">로딩…</li>}
+        {pages === null && <li className="text-caption text-muted-foreground">불러오는 중…</li>}
         {pages && pages.length > 0 && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={pages.map((p) => p.id)} strategy={verticalListSortingStrategy}>

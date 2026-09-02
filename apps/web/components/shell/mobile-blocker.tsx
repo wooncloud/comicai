@@ -12,7 +12,7 @@ export function MobileBlocker() {
       <div className="text-display font-semibold">화면이 너무 작아요</div>
       <p className="max-w-sm text-body text-muted-foreground">
         ComicAI 는 정밀한 캔버스 편집을 위해 태블릿(iPad 등) 또는 데스크톱 환경에서만 동작합니다.
-        화면 가로폭 768px 이상의 기기에서 다시 접속해 주세요.
+        화면이 더 큰 기기에서 다시 접속해 주세요.
       </p>
     </div>
   );

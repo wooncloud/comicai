@@ -44,7 +44,7 @@ export default function DashboardPage() {
           {!empty && <Button onClick={() => setCreateOpen(true)}>+ 새 프로젝트</Button>}
         </header>
 
-        {isLoading && <p className="mt-10 text-body-sm text-muted-foreground">로딩…</p>}
+        {isLoading && <p className="mt-10 text-body-sm text-muted-foreground">불러오는 중…</p>}
 
         {empty && (
           <div className="mt-16 rounded-lg border border-dashed border-border bg-muted/30 p-16 text-center">

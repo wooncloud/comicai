@@ -39,7 +39,7 @@ export function PageInspector({ page, onPageUpdated, onCollapse }: Props) {
       });
       onPageUpdated(updated);
     } catch (err) {
-      if (err instanceof ApiError) toast.push('error', `저장 실패: ${err.code}`);
+      if (err instanceof ApiError) toast.push('error', '페이지 설정을 저장하지 못했습니다.');
       onPageUpdated(page);
     }
   }
@@ -52,7 +52,7 @@ export function PageInspector({ page, onPageUpdated, onCollapse }: Props) {
   return (
     <aside className="flex w-72 flex-col gap-4 overflow-y-auto border-l border-border bg-card p-4">
       <div className="flex items-center justify-between gap-2">
-        {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="인스펙터 접기" />}
+        {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="속성 창 접기" />}
         <div className="flex-1 truncate text-xs uppercase tracking-wide text-muted-foreground">
           페이지
         </div>

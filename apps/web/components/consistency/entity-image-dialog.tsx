@@ -21,23 +21,23 @@ import {
 import { cn } from '@/lib/cn';
 
 function formatGenerateError(err: unknown): string {
-  if (!(err instanceof ApiError)) return '생성 실패';
+  if (!(err instanceof ApiError)) return '이미지 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.';
   const details = err.details as { category?: string } | undefined;
   const category = details?.category;
   const reasonByCategory: Record<string, string> = {
-    timeout: '모델 응답이 너무 오래 걸려 중단되었습니다 (120초 초과)',
-    auth: 'API 키가 유효하지 않습니다. 설정 → API 키에서 확인',
-    quota: 'API 호출 한도(quota)에 도달했습니다',
-    safety: '모델이 안전 정책으로 차단했습니다. 프롬프트를 바꿔 다시 시도',
-    invalid: '요청이 거부됐습니다. 프롬프트나 키를 확인',
-    transient: '일시적 오류, 잠시 후 다시 시도',
+    timeout: 'AI 응답이 너무 오래 걸려 중단되었습니다 (120초 초과)',
+    auth: 'API 키가 올바르지 않습니다. 설정 → API 키에서 확인해 주세요',
+    quota: 'API 호출 한도에 도달했습니다',
+    safety: 'AI가 안전 정책상 생성을 거부했습니다. 설명을 바꿔 다시 시도해 주세요',
+    invalid: '요청이 거부되었습니다. 설명이나 API 키를 확인해 주세요',
+    transient: '일시적인 오류입니다. 잠시 후 다시 시도해 주세요',
   };
   const hint = category && reasonByCategory[category];
   if (err.code === 'API_KEY_NOT_FOUND') {
     return 'API 키가 등록돼 있지 않습니다. 설정 → API 키에서 등록하세요.';
   }
-  if (hint) return `생성 실패 (${category}) — ${hint}`;
-  return `생성 실패: ${err.code}${err.message ? ` — ${err.message}` : ''}`;
+  if (hint) return `이미지 생성 실패 — ${hint}`;
+  return '이미지 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.';
 }
 
 const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
@@ -123,8 +123,8 @@ export function EntityImageDialog({
       });
       onUpdated(updated);
       onOpenChange(false);
-    } catch (err) {
-      setError(err instanceof ApiError ? `등록 실패: ${err.code}` : '등록 실패');
+    } catch {
+      setError('참조 이미지로 등록하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       setAttaching(false);
     }
@@ -143,8 +143,8 @@ export function EntityImageDialog({
       });
       onUpdated(updated);
       onOpenChange(false);
-    } catch (err) {
-      setError(err instanceof ApiError ? `업로드 실패: ${err.code}` : '업로드 실패');
+    } catch {
+      setError('이미지를 업로드하지 못했습니다. 파일 형식과 크기를 확인해 주세요.');
     } finally {
       setUploading(false);
     }
@@ -199,7 +199,7 @@ export function EntityImageDialog({
         {/* 안내 / 에러 */}
         {generating && (
           <div className="border-t border-border bg-amber-50 px-6 py-2 text-body-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-            ⓘ 생성 중입니다. 모달을 닫지 마세요. 최대 1분까지 걸릴 수 있습니다.
+            ⓘ 이미지를 생성하고 있습니다. 이 창을 닫지 마세요. 최대 2분까지 걸릴 수 있습니다.
           </div>
         )}
         {error && (

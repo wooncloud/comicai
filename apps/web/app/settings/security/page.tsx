@@ -51,8 +51,8 @@ function EmailVerificationSection({ me }: { me: SessionUser | null }) {
       await api(ApiPaths.verifyEmailRequest, { method: 'POST' });
       setDone(true);
       toast.push('success', '인증 메일이 발송되었습니다.');
-    } catch (err) {
-      toast.push('error', (err as Error).message || '발송에 실패했습니다.');
+    } catch {
+      toast.push('error', '인증 메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       setPending(false);
     }
@@ -89,12 +89,15 @@ function PasswordSection({ me, onChanged }: { me: SessionUser | null; onChanged:
       setCurrent('');
       setNext('');
       onChanged();
-      toast.push('success', '비밀번호가 변경되었습니다. 다른 세션은 모두 로그아웃됩니다.');
+      toast.push('success', '비밀번호가 변경되었습니다. 다른 기기에서는 모두 로그아웃됩니다.');
     } catch (err) {
       if (err instanceof ApiError && err.code === 'INVALID_PASSWORD') {
         toast.push('error', '현재 비밀번호가 올바르지 않습니다.');
       } else if (err instanceof ApiError && err.code === 'PASSWORD_REQUIRED') {
-        toast.push('error', 'OAuth 전용 계정입니다. 비밀번호 설정은 추후 지원.');
+        toast.push(
+          'error',
+          '구글·깃허브 로그인으로 가입한 계정입니다. 비밀번호 설정은 준비 중입니다.',
+        );
       } else {
         toast.push('error', '비밀번호 변경에 실패했습니다.');
       }
@@ -174,20 +177,20 @@ function SessionsSection({
 }) {
   const toast = useToast();
   async function revoke(sid: string) {
-    if (!confirm('이 세션을 종료하시겠습니까?')) return;
+    if (!confirm('이 기기에서 로그아웃하시겠습니까?')) return;
     try {
       await api(ApiPaths.meSession(sid), { method: 'DELETE' });
       onChanged();
-      toast.push('success', '세션이 종료되었습니다.');
-    } catch (err) {
-      toast.push('error', (err as Error).message || '세션 종료에 실패했습니다.');
+      toast.push('success', '해당 기기에서 로그아웃되었습니다.');
+    } catch {
+      toast.push('error', '로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     }
   }
 
   if (!sessions) return null;
   return (
     <section className="space-y-3">
-      <h2 className="text-title-lg font-semibold">활성 세션</h2>
+      <h2 className="text-title-lg font-semibold">로그인된 기기</h2>
       <ul className="divide-y divide-border rounded-md border border-border text-body-sm">
         {sessions.map((s) => (
           <li key={s.id} className="flex items-center justify-between gap-3 px-4 py-3">
@@ -195,11 +198,14 @@ function SessionsSection({
               <div className="flex items-center gap-2">
                 <span className="font-medium">{shortenUA(s.userAgent)}</span>
                 {s.current && (
-                  <span className="rounded bg-secondary px-1.5 py-0.5 text-caption">현재 세션</span>
+                  <span className="rounded bg-secondary px-1.5 py-0.5 text-caption">
+                    지금 사용 중
+                  </span>
                 )}
               </div>
               <div className="mt-0.5 text-caption text-muted-foreground">
-                {s.ip ?? 'unknown ip'} · 최근 활동 {new Date(s.lastUsedAt).toLocaleString('ko-KR')}
+                {s.ip ?? 'IP 정보 없음'} · 최근 활동{' '}
+                {new Date(s.lastUsedAt).toLocaleString('ko-KR')}
               </div>
             </div>
             {!s.current && (
@@ -220,7 +226,7 @@ function SessionsSection({
 }
 
 function shortenUA(ua: string | null): string {
-  if (!ua) return 'unknown';
+  if (!ua) return '알 수 없는 기기';
   if (ua.includes('Chrome')) return 'Chrome';
   if (ua.includes('Safari')) return 'Safari';
   if (ua.includes('Firefox')) return 'Firefox';

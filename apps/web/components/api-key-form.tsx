@@ -39,7 +39,7 @@ export function ApiKeyForm({ onSubmit }: Props) {
     <form onSubmit={handle} className="space-y-4 rounded-md border border-border p-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground">제공자</label>
+          <label className="text-xs text-muted-foreground">AI 서비스</label>
           <Select value={provider} onValueChange={(v) => setProvider(v as ModelProvider)}>
             <SelectTrigger>
               <SelectValue />
@@ -51,7 +51,7 @@ export function ApiKeyForm({ onSubmit }: Props) {
           </Select>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground">라벨</label>
+          <label className="text-xs text-muted-foreground">이름</label>
           <Input
             required
             value={label}

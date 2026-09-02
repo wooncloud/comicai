@@ -104,8 +104,8 @@ export function PanelInspector({
       onPanelUpdated(updated);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(`저장 실패: ${err.code}`);
-        toast.push('error', `저장 실패: ${err.code}`);
+        setError('패널 내용을 저장하지 못했습니다.');
+        toast.push('error', '패널 내용을 저장하지 못했습니다.');
       }
     }
   });
@@ -131,7 +131,8 @@ export function PanelInspector({
       subscribeJob(jobId);
     },
     onError: (err) => {
-      if (err instanceof ApiError) setError(`렌더 시작 실패: ${err.code}`);
+      if (err instanceof ApiError)
+        setError('이미지 생성을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     },
   });
 
@@ -160,13 +161,13 @@ export function PanelInspector({
               });
             })
             .catch(() => {});
-          toast.push('success', '렌더 완료');
+          toast.push('success', '이미지 생성 완료');
           void queryClient.invalidateQueries({ queryKey: ['panel-history', panel.id] });
           es.close();
           esRef.current = null;
         } else if (next === 'failed' || next === 'canceled') {
           patchRender({ currentRenderStatus: next });
-          toast.push('error', next === 'failed' ? '렌더 실패' : '렌더 취소됨');
+          toast.push('error', next === 'failed' ? '이미지 생성 실패' : '이미지 생성 취소됨');
           void queryClient.invalidateQueries({ queryKey: ['panel-history', panel.id] });
           es.close();
           esRef.current = null;
@@ -197,9 +198,9 @@ export function PanelInspector({
   return (
     <aside className="flex min-h-0 w-96 flex-col gap-4 overflow-y-auto border-l border-border bg-card p-4">
       <div className="flex items-center justify-between gap-2">
-        {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="인스펙터 접기" />}
+        {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="속성 창 접기" />}
         <div className="flex-1 truncate text-xs uppercase tracking-wide text-muted-foreground">
-          패널 · {panel.id.slice(-8)}
+          패널
         </div>
         <PanelStatusBadge status={status} />
       </div>
@@ -244,7 +245,7 @@ export function PanelInspector({
                   });
                   onPanelUpdated(updated);
                 } catch (err) {
-                  if (err instanceof ApiError) toast.push('error', `삭제 실패: ${err.code}`);
+                  if (err instanceof ApiError) toast.push('error', '콘티를 제거하지 못했습니다.');
                 }
               }}
               className="text-caption text-destructive hover:underline"
@@ -328,7 +329,7 @@ export function PanelInspector({
               });
               onPanelUpdated(updated);
             } catch (err) {
-              if (err instanceof ApiError) toast.push('error', `저장 실패: ${err.code}`);
+              if (err instanceof ApiError) toast.push('error', '그림체를 저장하지 못했습니다.');
             }
           }}
         >
@@ -348,7 +349,7 @@ export function PanelInspector({
       </div>
 
       <div className="space-y-2">
-        <SectionLabel icon={Sparkles}>모델</SectionLabel>
+        <SectionLabel icon={Sparkles}>AI 서비스</SectionLabel>
         <Select value={model} onValueChange={(v) => setUserModel(v as ModelId)}>
           <SelectTrigger className="w-full">
             <SelectValue />

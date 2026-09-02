@@ -102,9 +102,9 @@ export default function ProjectDetail() {
     <AppShell>
       <div className="mx-auto max-w-6xl px-6 py-10">
         <div className="flex items-baseline justify-between gap-3">
-          <h1 className="text-display-md font-semibold">{project?.name ?? '로딩…'}</h1>
+          <h1 className="text-display-md font-semibold">{project?.name ?? '불러오는 중…'}</h1>
           <div className="flex items-center gap-2">
-            <label className="text-caption text-muted-foreground">대표 모델</label>
+            <label className="text-caption text-muted-foreground">기본 AI 서비스</label>
             <Select
               value={project?.defaultModel ?? '__none__'}
               onValueChange={async (v) => {
@@ -115,8 +115,8 @@ export default function ProjectDetail() {
                     body: JSON.stringify({ defaultModel: next }),
                   });
                   setProject(updated);
-                } catch (err) {
-                  toast.push('error', (err as Error).message || '저장 실패');
+                } catch {
+                  toast.push('error', '설정을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
                 }
               }}
             >

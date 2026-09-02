@@ -52,7 +52,7 @@ type Selection =
 function CanvasFallback() {
   return (
     <div className="flex h-full items-center justify-center text-body-sm text-muted-foreground">
-      에디터 로딩…
+      에디터 불러오는 중…
     </div>
   );
 }

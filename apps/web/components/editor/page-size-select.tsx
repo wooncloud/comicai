@@ -81,7 +81,7 @@ export function PageSizeSelect({ value, onChange, disabled }: Props) {
             <DialogTitle>페이지 크기</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            <div className="text-caption text-muted-foreground">프리셋</div>
+            <div className="text-caption text-muted-foreground">자주 쓰는 크기</div>
             <div className="grid grid-cols-2 gap-2">
               {PRESETS.map((p) => {
                 const active = p.w === value.w && p.h === value.h;

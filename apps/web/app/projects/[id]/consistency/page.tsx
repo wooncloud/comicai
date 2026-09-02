@@ -50,8 +50,8 @@ export default function ConsistencyPage() {
       });
       queryClient.setQueryData(['project', projectId], updated);
       toast.push('success', '대표 그림체로 지정했습니다.');
-    } catch (err) {
-      toast.push('error', (err as Error).message || '저장에 실패했습니다.');
+    } catch {
+      toast.push('error', '대표 그림체로 지정하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     }
   }
 
@@ -104,8 +104,8 @@ export default function ConsistencyPage() {
         toast.push('success', `'${final.name}' 항목이 추가되었습니다.`);
       }
       resetForm();
-    } catch (err) {
-      toast.push('error', (err as Error).message || '저장에 실패했습니다.');
+    } catch {
+      toast.push('error', '항목을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       setSubmitting(false);
     }
@@ -124,8 +124,8 @@ export default function ConsistencyPage() {
       await api(ApiPaths.consistency(id), { method: 'DELETE' });
       setItems((prev) => prev.filter((p) => p.id !== id));
       toast.push('success', '항목이 삭제되었습니다.');
-    } catch (err) {
-      toast.push('error', (err as Error).message || '삭제에 실패했습니다.');
+    } catch {
+      toast.push('error', '항목을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     }
   }
 
@@ -179,7 +179,7 @@ export default function ConsistencyPage() {
           <section className="space-y-4">
             {items.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border p-12 text-center text-body-sm text-muted-foreground">
-                항목이 없습니다. 오른쪽 폼으로 추가해보세요.
+                항목이 없습니다. 오른쪽 입력란에서 추가해 보세요.
               </div>
             ) : (
               <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">

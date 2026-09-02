@@ -16,7 +16,7 @@ function LoginBanner() {
   if (reset === 'ok') {
     return (
       <p className="mt-6 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-body-sm text-emerald-700 dark:text-emerald-300">
-        비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.
+        비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.
       </p>
     );
   }
@@ -33,13 +33,13 @@ function LoginBanner() {
 function oauthErrorMessage(code: string): string {
   switch (code) {
     case 'oauth_provider_disabled':
-      return '해당 OAuth Provider가 활성화되지 않았습니다.';
+      return '지금은 이 방법으로는 로그인할 수 없습니다. 이메일로 로그인해 주세요.';
     case 'oauth_state_invalid':
-      return 'OAuth 세션이 만료되었습니다. 다시 시도해주세요.';
+      return '로그인 시간이 만료되었습니다. 다시 시도해 주세요.';
     case 'oauth_missing_params':
-      return 'OAuth 응답이 누락되었습니다.';
+      return '로그인 정보를 받지 못했습니다. 다시 시도해 주세요.';
     default:
-      return `OAuth 로그인 실패: ${code}`;
+      return '로그인에 실패했습니다. 다시 시도해 주세요.';
   }
 }
 

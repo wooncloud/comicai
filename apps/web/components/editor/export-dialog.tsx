@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { ApiPaths, type PanelDTO } from '@comicai/types';
 import {
   Dialog,
@@ -52,8 +52,8 @@ export function ExportDialog({ open, onOpenChange, pageId, panels }: Props) {
       window.open(result.url, '_blank', 'noopener');
       toast.push('success', '내보내기 완료');
       onOpenChange(false);
-    } catch (err) {
-      toast.push('error', err instanceof ApiError ? `내보내기 실패: ${err.code}` : '내보내기 실패');
+    } catch {
+      toast.push('error', '내보내기에 실패했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       setPending(false);
     }

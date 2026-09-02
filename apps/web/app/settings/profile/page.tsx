@@ -46,7 +46,8 @@ export default function ProfileSettingsPage() {
       setUrlDirty(false);
       toast.push('success', '프로필이 저장되었습니다.');
     } catch (err) {
-      if (err instanceof ApiError) toast.push('error', `저장 실패: ${err.code}`);
+      if (err instanceof ApiError)
+        toast.push('error', '프로필을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
       else toast.push('error', '저장에 실패했습니다.');
     } finally {
       setPending(false);
@@ -70,7 +71,8 @@ export default function ProfileSettingsPage() {
       setUrlDirty(false);
       toast.push('success', '아바타가 업로드되었습니다.');
     } catch (err) {
-      if (err instanceof ApiError) toast.push('error', `업로드 실패: ${err.code}`);
+      if (err instanceof ApiError)
+        toast.push('error', '이미지를 업로드하지 못했습니다. 파일 형식과 크기를 확인해 주세요.');
       else toast.push('error', '업로드에 실패했습니다.');
     } finally {
       setUploading(false);
@@ -86,7 +88,8 @@ export default function ProfileSettingsPage() {
       setUrlDirty(false);
       toast.push('success', '아바타가 제거되었습니다.');
     } catch (err) {
-      if (err instanceof ApiError) toast.push('error', `삭제 실패: ${err.code}`);
+      if (err instanceof ApiError)
+        toast.push('error', '아바타를 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.');
       else toast.push('error', '삭제에 실패했습니다.');
     } finally {
       setUploading(false);
@@ -94,7 +97,7 @@ export default function ProfileSettingsPage() {
   }
 
   if (!me) {
-    return <p className="text-body-sm text-muted-foreground">{loadError ?? '로딩…'}</p>;
+    return <p className="text-body-sm text-muted-foreground">{loadError ?? '불러오는 중…'}</p>;
   }
 
   const initials = (me.displayName ?? me.email).slice(0, 2).toUpperCase();

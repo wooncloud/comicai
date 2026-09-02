@@ -27,8 +27,8 @@ export default function HomePage() {
             당신의 캐릭터로 그려보세요
           </h1>
           <p className="mt-6 max-w-xl text-body-lg text-muted-foreground">
-            캐릭터·배경·세계관을 등록하면 컷마다 일관된 결과물을 얻습니다. Gemini와 OpenAI 이미지
-            모델을 직접 연결해 사용하는 BYOK 도구입니다.
+            캐릭터·배경·세계관을 등록하면 컷마다 일관된 결과물을 얻습니다. Gemini와 OpenAI의 이미지
+            생성 AI를 직접 연결해 사용합니다. 내 API 키만 등록하면 됩니다.
           </p>
           <div className="mt-10 flex gap-3">
             <Button asChild size="lg">
@@ -50,22 +50,22 @@ export default function HomePage() {
             <Step
               order="2"
               title="패널에 멘션"
-              body="문장 안에서 @멘션으로 등장 인물·배경을 지정. 모델이 이를 기반으로 컷을 합성."
+              body="문장 안에서 @멘션으로 등장 인물·배경을 지정하면, AI가 이를 반영해 컷을 만듭니다."
             />
             <Step
               order="3"
-              title="개별 컷 렌더"
-              body="패널 단위로 렌더·재시도·히스토리 추적. 페이지 PNG/JPG로 내보내기."
+              title="컷별 이미지 생성"
+              body="패널 단위로 이미지를 생성·재시도하고 생성 기록도 남습니다. 페이지는 PNG/JPG로 내보냅니다."
             />
           </div>
         </section>
 
         <section className="mx-auto max-w-5xl px-6 py-16">
           <div className="rounded-lg border border-border bg-card p-8">
-            <h2 className="text-title-lg font-semibold">BYOK 안내</h2>
+            <h2 className="text-title-lg font-semibold">API 키 등록 안내</h2>
             <p className="mt-2 text-body-sm text-muted-foreground">
-              ComicAI는 모델사 API 키를 직접 등록해 사용합니다. Gemini는 Google AI Studio, OpenAI는
-              Platform에서 발급받은 키를 설정 화면에 등록하면 됩니다. 키는 서버에 AES-256-GCM으로
+              ComicAI는 내 API 키를 직접 등록해 사용합니다. Gemini는 Google AI Studio, OpenAI는
+              Platform에서 발급받은 키를 설정 화면에 등록하면 됩니다. 키는 서버에 안전하게
               암호화되어 저장됩니다.
             </p>
           </div>

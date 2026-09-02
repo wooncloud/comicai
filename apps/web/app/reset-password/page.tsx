@@ -71,7 +71,7 @@ export default function ResetPasswordPage() {
     <main className="mx-auto max-w-sm px-6 py-16">
       <AuthHeader />
       <h1 className="text-display-md font-semibold">새 비밀번호 설정</h1>
-      <Suspense fallback={<p className="mt-6 text-body-sm text-muted-foreground">로딩…</p>}>
+      <Suspense fallback={<p className="mt-6 text-body-sm text-muted-foreground">불러오는 중…</p>}>
         <ResetPasswordForm />
       </Suspense>
       <p className="mt-6 text-body-sm text-muted-foreground">

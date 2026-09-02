@@ -37,9 +37,9 @@ export function PageTextInspector({ editor, shapeId, shape, onCollapse }: Props)
   return (
     <aside className="flex min-h-0 w-80 flex-col gap-4 overflow-y-auto border-l border-border bg-card p-4">
       <div className="flex items-center justify-between gap-2">
-        {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="인스펙터 접기" />}
+        {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="속성 창 접기" />}
         <div className="flex-1 truncate text-xs uppercase tracking-wide text-muted-foreground">
-          텍스트 {p.textId ? `· ${p.textId.slice(-8)}` : '· 저장 중…'}
+          텍스트{p.textId ? '' : ' · 저장 중…'}
         </div>
       </div>
 

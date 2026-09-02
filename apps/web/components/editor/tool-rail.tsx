@@ -63,7 +63,7 @@ interface BubbleSubMode {
 const BUBBLE_SUB_MODES: readonly BubbleSubMode[] = [
   { id: 'bubble-ellipse', kbd: 'b', label: '타원', icon: Circle },
   { id: 'bubble-rect', kbd: 'r', label: '사각', icon: Square },
-  { id: 'bubble-spike', kbd: 'k', label: '스파이크', icon: Zap },
+  { id: 'bubble-spike', kbd: 'k', label: '뾰족', icon: Zap },
   { id: 'bubble-polygon', kbd: 'n', label: '다각형', icon: Pentagon },
 ] as const;
 

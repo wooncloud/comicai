@@ -38,11 +38,11 @@ export function EntityCard({
             )}
           </h3>
           {entity.aliases.length > 0 && (
-            <p className="text-caption text-muted-foreground">alias: {entity.aliases.join(', ')}</p>
+            <p className="text-caption text-muted-foreground">별칭: {entity.aliases.join(', ')}</p>
           )}
         </div>
         <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-caption">
-          v{entity.version}
+          버전 {entity.version}
         </span>
       </header>
 

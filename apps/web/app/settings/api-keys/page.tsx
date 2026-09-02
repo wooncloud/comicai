@@ -39,7 +39,7 @@ export default function ApiKeysSettingsPage() {
       await refresh();
       toast.push('success', 'API 키가 등록되었습니다.');
     } catch (err) {
-      toast.push('error', (err as Error).message || '등록에 실패했습니다.');
+      toast.push('error', '키를 등록하지 못했습니다. 입력한 내용을 확인해 주세요.');
       throw err;
     }
   }
@@ -49,8 +49,8 @@ export default function ApiKeysSettingsPage() {
       await api(ApiPaths.apiKey(id), { method: 'DELETE' });
       await refresh();
       toast.push('success', 'API 키가 삭제되었습니다.');
-    } catch (err) {
-      toast.push('error', (err as Error).message || '삭제에 실패했습니다.');
+    } catch {
+      toast.push('error', '키를 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     }
   }
 
@@ -59,17 +59,17 @@ export default function ApiKeysSettingsPage() {
       await api(ApiPaths.apiKeyVerify(id), { method: 'POST' });
       await refresh();
       toast.push('success', 'API 키 검증을 완료했습니다.');
-    } catch (err) {
-      toast.push('error', (err as Error).message || '검증에 실패했습니다.');
+    } catch {
+      toast.push('error', '키 검증에 실패했습니다. 키가 올바른지 확인해 주세요.');
     }
   }
 
   return (
     <section className="space-y-6">
       <header>
-        <h2 className="text-title-lg font-semibold">API 키 (BYOK)</h2>
+        <h2 className="text-title-lg font-semibold">API 키</h2>
         <p className="mt-1 text-body-sm text-muted-foreground">
-          Gemini 또는 OpenAI API 키를 등록합니다. 키는 AES-256-GCM으로 암호화되어 저장됩니다.
+          Gemini 또는 OpenAI API 키를 등록합니다. 키는 서버에 안전하게 암호화되어 저장됩니다.
         </p>
       </header>
       <div className="space-y-6">

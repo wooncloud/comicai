@@ -130,7 +130,7 @@ function UploadPane({
     <div className="space-y-3">
       <label className="flex h-64 cursor-pointer items-center justify-center rounded-md border border-dashed border-border text-body-sm text-muted-foreground hover:border-foreground/40 hover:text-foreground">
         {previewUrl ? (
-          <img src={previewUrl} alt="preview" className="max-h-full max-w-full object-contain" />
+          <img src={previewUrl} alt="미리보기" className="max-h-full max-w-full object-contain" />
         ) : (
           <span>이미지 파일을 선택하세요 (PNG/JPEG/WEBP)</span>
         )}

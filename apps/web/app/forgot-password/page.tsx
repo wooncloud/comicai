@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
       <h1 className="text-display-md font-semibold">비밀번호 재설정</h1>
       {done ? (
         <p className="mt-6 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-body-sm text-emerald-700 dark:text-emerald-300">
-          입력하신 이메일로 재설정 링크를 보냈습니다. 메일이 도착하지 않으면 스팸함도 확인해주세요.
+          입력하신 이메일로 재설정 링크를 보냈습니다. 메일이 도착하지 않으면 스팸함도 확인해 주세요.
         </p>
       ) : (
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
