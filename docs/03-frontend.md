@@ -62,7 +62,9 @@ App Router 구조. 모든 `page.tsx` 파일.
 ### components/shell
 
 - `app-shell.tsx` — 위 참고. `AppShell`, `Topbar` 두 export
-- `mobile-blocker.tsx` — 좁은 뷰포트(모바일) 진입 시 데스크탑 권장 오버레이. `app/layout.tsx:40`에서 항상 마운트되어 viewport 폭에 따라 자동 노출
+- `mobile-blocker.tsx` — 768px 미만 뷰포트를 풀스크린으로 차단하는 오버레이(`md:hidden`). `app/layout.tsx:41`에서 항상 마운트되어 모든 라우트를 덮는다. CSS-only 라 JS 비활성·하이드레이션 전에도 걸린다
+  - **예외**: 모바일에서도 열려야 하는 라우트는 같은 파일의 `AllowMobileView`(`mobile-blocker.tsx:43`)를 렌더해 자기 라우트에서만 해제한다. 현재 랜딩(`app/page.tsx:26`) 한 곳뿐이며, 로그인 이후 화면은 계속 차단된다
+  - `usePathname()` 으로 라우트를 판별하지 않는 이유: 차단이 하이드레이션 전에도 걸려 있어야 하는데, JS 로 판별하면 그 사이 랜딩에서 차단이 깜빡이거나 보호 라우트가 잠깐 열린다
 
 ### components/dashboard
 

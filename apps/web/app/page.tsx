@@ -6,6 +6,7 @@ import { ShieldCheck } from 'lucide-react';
 import { api } from '@/lib/api';
 import { ApiPaths } from '@comicai/types';
 import { Topbar } from '@/components/shell/app-shell';
+import { AllowMobileView } from '@/components/shell/mobile-blocker';
 import { SampleImage } from '@/components/landing/sample-image';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
@@ -21,6 +22,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
+      {/* 랜딩은 읽기 전용이라 모바일에서도 연다. 로그인 이후 화면은 계속 차단된다. */}
+      <AllowMobileView />
       <Topbar />
       <main>
         {/* Hero */}
