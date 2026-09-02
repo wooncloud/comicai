@@ -26,7 +26,15 @@ export default [
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ['*.config.{js,mjs,cjs}', 'eslint.config.{js,mjs,cjs}'],
+          // scripts/*.ts 는 어느 워크스페이스 tsconfig 에도 속하지 않는 일회성 유틸이다.
+          // 루트 eslint.config.mjs 에도 같은 오버라이드가 있으나, projectService 설정은
+          // 실행 단위로 하나만 적용되어 scripts/ 와 apps/ 를 함께 lint 하면(= lint-staged)
+          // 이쪽이 이기므로 여기에 둔다.
+          allowDefaultProject: [
+            '*.config.{js,mjs,cjs}',
+            'eslint.config.{js,mjs,cjs}',
+            'scripts/*.ts',
+          ],
         },
       },
       globals: { ...globals.node, ...globals.es2022 },

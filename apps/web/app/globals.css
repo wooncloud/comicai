@@ -14,6 +14,8 @@
     /* 로고(brush.svg) 배경색 #22c55e와 일치 */
     --primary: 142 71% 45%;
     --primary-foreground: 0 0% 100%;
+    /* primary 틴트 배경 위 본문 강조용. WCAG AA 를 위해 primary 보다 어둡다. */
+    --primary-strong: 142 71% 26%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
@@ -37,6 +39,7 @@
     --popover-foreground: 0 0% 98%;
     --primary: 142 65% 50%;
     --primary-foreground: 0 0% 100%;
+    --primary-strong: 142 65% 64%;
     --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 240 3.7% 15.9%;

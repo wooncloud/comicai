@@ -2,9 +2,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ShieldCheck } from 'lucide-react';
 import { api } from '@/lib/api';
 import { ApiPaths } from '@comicai/types';
 import { Topbar } from '@/components/shell/app-shell';
+import { SampleImage } from '@/components/landing/sample-image';
 import { Button } from '@/components/ui/button';
 
 export default function HomePage() {
@@ -20,61 +22,161 @@ export default function HomePage() {
     <div className="min-h-screen">
       <Topbar />
       <main>
-        <section className="mx-auto max-w-5xl px-6 py-24">
-          <h1 className="max-w-3xl text-display-lg font-bold leading-tight tracking-tight">
-            AI로 일관성 있는 만화를
-            <br />
-            당신의 캐릭터로 그려보세요
-          </h1>
-          <p className="mt-6 max-w-xl text-body-lg text-muted-foreground">
-            캐릭터·배경·세계관을 등록하면 컷마다 일관된 결과물을 얻습니다. Gemini와 OpenAI의 이미지
-            생성 AI를 직접 연결해 사용합니다. 내 API 키만 등록하면 됩니다.
-          </p>
-          <div className="mt-10 flex gap-3">
-            <Button asChild size="lg">
-              <Link href="/signup">시작하기</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link href="/login">로그인</Link>
-            </Button>
-          </div>
-        </section>
-
-        <section className="border-y border-border bg-muted/30">
-          <div className="mx-auto grid max-w-5xl gap-6 px-6 py-16 sm:grid-cols-3">
-            <Step
-              order="1"
-              title="일관성 정보 등록"
-              body="캐릭터·배경·세계관·그림체를 등록해 프로젝트 전체에서 재사용합니다."
-            />
-            <Step
-              order="2"
-              title="패널에 멘션"
-              body="문장 안에서 @멘션으로 등장 인물·배경을 지정하면, AI가 이를 반영해 컷을 만듭니다."
-            />
-            <Step
-              order="3"
-              title="컷별 이미지 생성"
-              body="패널 단위로 이미지를 생성·재시도하고 생성 기록도 남습니다. 페이지는 PNG/JPG로 내보냅니다."
-            />
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-5xl px-6 py-16">
-          <div className="rounded-lg border border-border bg-card p-8">
-            <h2 className="text-title-lg font-semibold">API 키 등록 안내</h2>
-            <p className="mt-2 text-body-sm text-muted-foreground">
-              ComicAI는 내 API 키를 직접 등록해 사용합니다. Gemini는 Google AI Studio, OpenAI는
-              Platform에서 발급받은 키를 설정 화면에 등록하면 됩니다. 키는 서버에 안전하게
-              암호화되어 저장됩니다.
+        {/* Hero */}
+        <section className="mx-auto grid max-w-[1440px] items-center gap-12 px-6 py-16 lg:grid-cols-[minmax(0,592px)_minmax(0,1fr)] lg:py-24 lg:pr-0">
+          <div className="flex flex-col items-start gap-7">
+            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-caption font-medium text-primary-strong">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              캐릭터 일관성을 지키는 AI 만화 도구
+            </span>
+            <h1 className="text-display-md font-bold sm:text-display-lg lg:text-display-xl">
+              누구나
+              <br />
+              만화 작가가
+              <br />될 수 있다
+            </h1>
+            <p className="max-w-lg text-body-lg text-muted-foreground [text-wrap:pretty]">
+              캐릭터와 그림체를 한 번 등록하면 모든 컷에 같은 인물이 나옵니다. 장면을 문장으로 쓰면
+              AI가 그림을 그립니다.
             </p>
+            <div className="mt-1 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+              <Button asChild size="lg" className="h-12 px-7 text-body-lg">
+                <Link href="/signup">시작하기</Link>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="h-12 border-input/60 px-7 text-body-lg"
+              >
+                <Link href="/login">로그인</Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="overflow-hidden rounded-xl shadow-2xl shadow-foreground/25 lg:rounded-r-none dark:shadow-black/60 dark:ring-1 dark:ring-border">
+              <SampleImage
+                id="hero-02"
+                alt="교실 창가에 앉아 밖을 바라보는 인물"
+                sizes="(min-width: 1024px) 55vw, 100vw"
+                priority
+                className="block aspect-[3/2] w-full object-cover lg:aspect-auto lg:h-[496px]"
+              />
+            </div>
+            <div className="absolute -bottom-8 -left-6 hidden w-52 overflow-hidden rounded-xl border-[5px] border-background shadow-xl shadow-foreground/30 lg:-left-16 lg:block dark:border-[hsl(240_3.7%_18%)] dark:shadow-black/70">
+              <SampleImage
+                id="grid-02"
+                alt="복도에서 손을 흔드는 인물"
+                sizes="208px"
+                className="block h-[268px] w-full object-cover"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Gallery */}
+        <section className="border-y border-border bg-muted/50">
+          <div className="mx-auto max-w-[1440px] px-6 py-16 lg:py-20">
+            <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+              <div>
+                <h2 className="mb-2.5 text-display-md font-bold">장면이 바뀌어도, 같은 사람</h2>
+                <p className="max-w-2xl text-body-sm text-muted-foreground [text-wrap:pretty]">
+                  캐릭터 설정을 한 번 적어두고 배경과 장면만 바꿔가며 생성했습니다. 얼굴도,
+                  옷차림도, 그림체도 흔들리지 않습니다.
+                </p>
+              </div>
+              <span className="shrink-0 text-caption text-muted-foreground sm:pb-1">
+                모두 ComicAI로 생성한 결과물입니다.
+              </span>
+            </div>
+
+            <div className="grid auto-rows-[132px] grid-cols-2 gap-2.5 lg:auto-rows-[172px] lg:grid-cols-4 lg:gap-3.5">
+              <GalleryTile
+                id="hero-01"
+                alt="노을 지는 옥상 난간에 기대선 인물"
+                className="col-span-2 lg:row-span-2"
+                sizes="(min-width: 1024px) 46vw, 100vw"
+              />
+              <GalleryTile
+                id="grid-06"
+                alt="밤 육교에서 야경을 내려다보는 인물"
+                className="row-span-2"
+                sizes="(min-width: 1024px) 23vw, 50vw"
+              />
+              <GalleryTile
+                id="grid-04"
+                alt="도서관에서 졸고 있는 인물"
+                className="row-span-2"
+                sizes="(min-width: 1024px) 23vw, 50vw"
+              />
+              <GalleryTile
+                id="grid-05"
+                alt="여름 축제 골목의 인물"
+                sizes="(min-width: 1024px) 23vw, 50vw"
+              />
+              <GalleryTile
+                id="grid-01"
+                alt="벚꽃 흩날리는 등굣길"
+                sizes="(min-width: 1024px) 23vw, 50vw"
+              />
+              <GalleryTile
+                id="grid-03"
+                alt="비 오는 거리에서 우산을 든 인물"
+                className="col-span-2"
+                sizes="(min-width: 1024px) 46vw, 100vw"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section className="mx-auto max-w-[1440px] px-6 py-16 lg:py-24">
+          <h2 className="mb-2 text-display-md font-bold">세 단계면 됩니다</h2>
+          <p className="mb-11 text-body-sm text-muted-foreground">
+            그림 실력 대신 이야기만 준비하면 됩니다.
+          </p>
+          <div className="grid gap-4 lg:grid-cols-3 lg:gap-8">
+            <Step n="1" title="캐릭터와 그림체 등록">
+              이름, 생김새, 옷차림을 한 번 적어두면 프로젝트 전체에서 다시 씁니다. 배경과 세계관도
+              같은 방식입니다.
+            </Step>
+            <Step n="2" title="컷에 장면 쓰기">
+              문장 안에서 <span className="font-medium text-primary-strong">@</span>로 등장인물과
+              배경을 부르면, AI가 누구를 어디에 그릴지 압니다.
+            </Step>
+            <Step n="3" title="이미지 생성">
+              마음에 들 때까지 다시 생성하고, 이전 생성 결과도 그대로 남습니다. 완성한 페이지는
+              PNG·JPG로 내보냅니다.
+            </Step>
+          </div>
+        </section>
+
+        {/* API key notice */}
+        <section className="mx-auto max-w-[1440px] px-6 pb-16 lg:pb-24">
+          <div className="flex flex-col gap-4 rounded-xl border border-border bg-muted/60 p-6 sm:flex-row sm:items-start sm:gap-5 sm:p-8">
+            <ShieldCheck
+              className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <div className="flex flex-col gap-2">
+              <h3 className="text-title-md font-bold">API 키 등록 안내</h3>
+              <p className="max-w-3xl text-body-sm text-muted-foreground [text-wrap:pretty]">
+                ComicAI는 사용자가 직접 발급한 API 키로 동작합니다. Gemini는 Google AI Studio에서,
+                OpenAI는 OpenAI Platform에서 발급받은 키를 설정 화면에 등록하면 됩니다. 키는 서버에
+                안전하게 암호화되어 저장됩니다.
+              </p>
+            </div>
           </div>
         </section>
 
         <footer className="border-t border-border">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-6 text-caption text-muted-foreground">
+          <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-6 text-caption text-muted-foreground">
             <span>© 2026 ComicAI</span>
-            <Link href="/health" className="hover:text-foreground">
+            <Link
+              href="/health"
+              className="-mr-3 flex h-11 items-center px-3 hover:text-foreground"
+            >
               상태
             </Link>
           </div>
@@ -84,14 +186,32 @@ export default function HomePage() {
   );
 }
 
-function Step({ order, title, body }: { order: string; title: string; body: string }) {
+function GalleryTile({
+  id,
+  alt,
+  sizes,
+  className,
+}: {
+  id: string;
+  alt: string;
+  sizes: string;
+  className?: string;
+}) {
   return (
-    <div>
-      <div className="text-caption font-semibold tracking-wider text-muted-foreground">
-        STEP {order}
-      </div>
-      <h3 className="mt-2 text-title-md font-semibold">{title}</h3>
-      <p className="mt-2 text-body-sm text-muted-foreground">{body}</p>
+    <div className={`overflow-hidden rounded-xl bg-muted ${className ?? ''}`}>
+      <SampleImage id={id} alt={alt} sizes={sizes} className="block h-full w-full object-cover" />
+    </div>
+  );
+}
+
+function Step({ n, title, children }: { n: string; title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-7">
+      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/[0.12] text-body-sm font-bold text-primary-strong">
+        {n}
+      </span>
+      <h3 className="mt-1 text-title-md font-bold">{title}</h3>
+      <p className="text-body-sm text-muted-foreground [text-wrap:pretty]">{children}</p>
     </div>
   );
 }

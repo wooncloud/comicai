@@ -23,6 +23,7 @@ const config: Config = {
       },
       fontSize: {
         // (size, lineHeight, letterSpacing). spec 화면들의 hero/section/body 톤.
+        'display-xl': ['3.75rem', { lineHeight: '1.12', letterSpacing: '-0.03em' }],
         'display-lg': ['3rem', { lineHeight: '1.15', letterSpacing: '-0.02em' }],
         'display-md': ['2.25rem', { lineHeight: '1.2', letterSpacing: '-0.015em' }],
         'title-lg': ['1.5rem', { lineHeight: '1.3', letterSpacing: '-0.01em' }],
@@ -40,6 +41,7 @@ const config: Config = {
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
+          strong: 'hsl(var(--primary-strong))',
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',

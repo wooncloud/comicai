@@ -18,7 +18,7 @@
         "file": "/samples/grid-01-400.webp"
       }
     ],
-    "blur": "data:image/webp;base64,UklGRlwAAABXRUJQVlA4IFAAAADwAwCdASoUAA8APu1iqk2ppaQiMAgBMB2JZQCdACHdyH8o6tIhD3qAAP7Ij2RYe6ymqpSWcTpgjbyx6bre6W8SngTAoIjjCaV5Zm5e1OAAAA=="
+    "blur": "data:image/webp;base64,UklGRloAAABXRUJQVlA4IE4AAADwAwCdASoUAA8APu1mqk4ppaOiMAgBMB2JZQCdACHdyH8o6tIhD1CAAP7Ij2RYe6ymqpSWcTpgjbyx6bre6W8SnbTZAW0YTSvLM3GQAAA="
   },
   {
     "id": "grid-02",
@@ -35,7 +35,7 @@
         "file": "/samples/grid-02-400.webp"
       }
     ],
-    "blur": "data:image/webp;base64,UklGRooAAABXRUJQVlA4IH4AAABwBQCdASoUABsAPulmqU2pJiQiMBgMASAdCWMAuwAMeQTO73lqdukSS4Ku2PJaNXmiqv+AAP6vjfW04IMce2gmaFnwJX5d/TBSqjpBizDH6gsh2jhQKePnQuPhtRmGY6hgOSTQJFP5a++/r1x6v7em3aWOc6iiRanG6lAAAAA="
+    "blur": "data:image/webp;base64,UklGRowAAABXRUJQVlA4IIAAAABwBQCdASoUABsAPu1mqU2ppaQiMBgMATAdiWMAxNgOGF9JPS0yEzmgMyNiHkVYJdWtrv2AAP6vjAyEY2Hh/2WptY/4LdeBCFP/E2N5/5Ci1/ytlxMz5l+qqxhBPzUfC/Vw7Qi2JjsDiDJ3OlCuIrX0beiE6J5/3Nk71vgQUAAAAA=="
   },
   {
     "id": "grid-03",
@@ -56,13 +56,13 @@
         "file": "/samples/grid-03-400.webp"
       }
     ],
-    "blur": "data:image/webp;base64,UklGRloAAABXRUJQVlA4IE4AAAAQBACdASoUAA8APu1mq04ppaQiMAgBMB2JYwDE2CPpepTl08bkOYedgADOFnfI4D9k+rzysfa8dM1ZBEhW7zhl/o5BH3r0bWrcHqf6AAA="
+    "blur": "data:image/webp;base64,UklGRlwAAABXRUJQVlA4IFAAAADwAwCdASoUAA8APu1iqk2ppaQiMAgBMB2JYwDE2CPpepTsSxNbJ04AAM4Wd8jgP2T6vPKitirRYneV02mZe6RzFkZNk5lz5QMh/2FLF7RgAA=="
   },
   {
     "id": "grid-04",
-    "w": 896,
-    "h": 1200,
-    "ratio": 0.7467,
+    "w": 861,
+    "h": 1171,
+    "ratio": 0.7353,
     "srcSet": [
       {
         "w": 640,
@@ -73,13 +73,13 @@
         "file": "/samples/grid-04-400.webp"
       }
     ],
-    "blur": "data:image/webp;base64,UklGRpwAAABXRUJQVlA4IJAAAABQBgCdASoUABsAPu1ip02ppaOiMAgBMB2JYgCdOUFXNbACBui3yIv/a4PAY0NQZkQ6z+BAuPI44+7oAAD+4cv6Lswjj5mart4FxfvLXM9q+VAMcj40Yv9Dv3mz4SlLHVBfWdTCq3ssuwRvRUZCxnrP+ayYoxKYFdEJq8PrcKNE1kWwYblJxzf9rMy4atYcAAA="
+    "blur": "data:image/webp;base64,UklGRpoAAABXRUJQVlA4II4AAADwBQCdASoUABsAPu1kqU2ppaQiMAgBMB2JZACsL7DEnilIfsGmHL3S9MWO2tcczv9SKU4sJ1SkAAD+12pVVFVz2VHWmL0MsXx48kReHKYLvpcjuKkNUZt2h/8To193Hbuu5XyZ393hr8MM0Kgg9/4bTviUFz4kqqGoLBAwEpQPr5/VyShqHVbrWiBF3AAA"
   },
   {
     "id": "grid-05",
-    "w": 1200,
-    "h": 896,
-    "ratio": 1.3393,
+    "w": 1138,
+    "h": 842,
+    "ratio": 1.3515,
     "srcSet": [
       {
         "w": 960,
@@ -94,7 +94,7 @@
         "file": "/samples/grid-05-400.webp"
       }
     ],
-    "blur": "data:image/webp;base64,UklGRmoAAABXRUJQVlA4IF4AAAAwBACdASoUAA8APu1iqk4ppaQiMAgBMB2JQBOmUI+PA2/gtiFLQM65RoAAzfwpootBkTKzIY/Y/baTeYgzN0oKSVdKArDY9//98G1S8oY/+122q+AGlytTbxvEAAAA"
+    "blur": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAAAQBACdASoUAA8APu1iqU2ppaOiMAgBMB2JQBOmUI+PA2/geTf5dl4WTAD+M8Cjij/lwozWBINDZmjCO8jjIHh4Fztw+T1rPOhttAWyiKjsi2BRnHhN2GR/YQAAAA=="
   },
   {
     "id": "grid-06",
@@ -111,13 +111,13 @@
         "file": "/samples/grid-06-400.webp"
       }
     ],
-    "blur": "data:image/webp;base64,UklGRoAAAABXRUJQVlA4IHQAAAAwBQCdASoUABsAPu1qrlEppaQiqAqpMB2JZQCo9BC77CQ/nnBOHfHC53EnWvQP3EbYAAD+5BNr2wrshdjfWc8Cpq9cPSCLZIrgAF5W94ghkQrTqbjp8YJi71Z9s5ch6nQd5REELKTuQkG+VKH7QYcP1QAAAA=="
+    "blur": "data:image/webp;base64,UklGRnwAAABXRUJQVlA4IHAAAAAwBQCdASoUABsAPu1oqk+ppiOiKA1RMB2JZQC2yBC77CQ/nsc64f3MlaK9cfBGXfJLAAD+5BNr2wrshdjfWc8Cpq9cPSDhNBie+wUTBjJIrH8G8qpTZAid8bNN0a62WE/ZJkB8OvbtJUaVK7mqpBgA"
   },
   {
     "id": "hero-01",
-    "w": 1376,
-    "h": 768,
-    "ratio": 1.7917,
+    "w": 1303,
+    "h": 631,
+    "ratio": 2.065,
     "srcSet": [
       {
         "w": 1280,
@@ -128,7 +128,7 @@
         "file": "/samples/hero-01-768.webp"
       }
     ],
-    "blur": "data:image/webp;base64,UklGRloAAABXRUJQVlA4IE4AAACQAwCdASoUAAsAPu1iqk2ppaQiMAgBMB2JQBdgA2bLShwf+4yAAP7U745/aRIKlw8JCUcDhNMz9soBNFeOXFfXDHi/gcMZcQmxSDe1AAA="
+    "blur": "data:image/webp;base64,UklGRlIAAABXRUJQVlA4IEYAAACQAwCdASoUAAoAPu1iqk2ppaQiMAgBMB2JQBOgA2U4NSWEUwcAAP6MbHBV9N9z8Rt2/B2yHVjWAClpdKjSwzT7Y7a33gAA"
   },
   {
     "id": "hero-02",
@@ -145,6 +145,6 @@
         "file": "/samples/hero-02-768.webp"
       }
     ],
-    "blur": "data:image/webp;base64,UklGRlQAAABXRUJQVlA4IEgAAACQAwCdASoUAAsAPu1mqk4ppaOiMAgBMB2JYwCdABsBoaZEBaAAAP7hPPLDx6YIJ4TWh7VFcTmqdCWY0hnu7efRF9J0a5UeQAA="
+    "blur": "data:image/webp;base64,UklGRlQAAABXRUJQVlA4IEgAAAAQAwCdASoUAAsAPu1iqk2ppaQiMAgBMB2JYwCdABsBR9wA/uE88sPHpggnhNaHtUVxQBZ85p4PuI44X/voBv1IvqEPB/Q4AAA="
   }
 ]

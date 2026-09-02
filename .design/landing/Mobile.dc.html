@@ -11,8 +11,8 @@
   <style>
     body { margin: 0; }
     * { box-sizing: border-box; }
-    a { color: hsl(142 71% 38%); text-decoration: none; }
-    a:hover { color: hsl(142 71% 30%); }
+    a { color: hsl(142 71% 26%); text-decoration: none; }
+    a:hover { color: hsl(142 71% 26%); }
     .lp { font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif; }
   </style>
 </helmet>
@@ -27,12 +27,15 @@
       </div>
       <span style="font-size: 16px; font-weight: 700; letter-spacing: -0.01em;">ComicAI</span>
     </div>
-    <a href="#" style="display: inline-flex; align-items: center; justify-content: center; height: 44px; padding: 0 8px; font-size: 14px; font-weight: 500; color: hsl(240 3.8% 46.1%);">로그인</a>
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <a href="#" style="display: inline-flex; align-items: center; justify-content: center; height: 44px; padding: 0 10px; font-size: 14px; font-weight: 500; color: hsl(240 3.8% 46.1%);">로그인</a>
+      <a href="#" style="display: inline-flex; align-items: center; justify-content: center; height: 44px; padding: 0 16px; border-radius: 6px; background: hsl(142 71% 45%); color: #fff; font-size: 14px; font-weight: 500;">시작하기</a>
+    </div>
   </div>
 
   <!-- Hero -->
   <div style="display: flex; flex-direction: column; gap: 22px; padding: 40px 20px 36px;">
-    <div style="display: inline-flex; align-self: flex-start; align-items: center; gap: 7px; height: 28px; padding: 0 11px; border-radius: 999px; background: hsl(142 71% 45% / 0.1); color: hsl(142 71% 30%); font-size: 12px; font-weight: 500;">
+    <div style="display: inline-flex; align-self: flex-start; align-items: center; gap: 7px; height: 28px; padding: 0 11px; border-radius: 999px; background: hsl(142 71% 45% / 0.1); color: hsl(142 71% 26%); font-size: 12px; font-weight: 500;">
       <span style="width: 5px; height: 5px; border-radius: 999px; background: hsl(142 71% 45%);"></span>
       캐릭터 일관성을 지키는 AI 만화 도구
     </div>
@@ -44,7 +47,7 @@
     </p>
     <div style="display: flex; flex-direction: column; gap: 10px;">
       <a href="#" style="display: flex; align-items: center; justify-content: center; height: 50px; border-radius: 6px; background: hsl(142 71% 45%); color: #fff; font-size: 16px; font-weight: 500;">시작하기</a>
-      <a href="#" style="display: flex; align-items: center; justify-content: center; height: 50px; border-radius: 6px; border: 1px solid hsl(240 5.9% 90%); background: #fff; color: hsl(240 10% 3.9%); font-size: 16px; font-weight: 500;">로그인</a>
+      <a href="#" style="display: flex; align-items: center; justify-content: center; height: 50px; border-radius: 6px; border: 1px solid hsl(240 5.9% 78%); background: #fff; color: hsl(240 10% 3.9%); font-size: 16px; font-weight: 500;">로그인</a>
     </div>
     <div style="border-radius: 12px; overflow: hidden; margin-top: 6px; box-shadow: 0 16px 40px -20px hsl(240 10% 3.9% / 0.4);">
       <img src="hero-02-768.webp" alt="교실 창가에 앉아 밖을 바라보는 인물" style="display: block; width: 100%; height: 208px; object-fit: cover;">
@@ -53,7 +56,7 @@
 
   <!-- Gallery -->
   <div style="padding: 40px 20px 44px; background: hsl(240 4.8% 95.9% / 0.5); border-top: 1px solid hsl(240 5.9% 90%); border-bottom: 1px solid hsl(240 5.9% 90%);">
-    <h2 style="margin: 0 0 10px; font-size: 27px; line-height: 1.22; letter-spacing: -0.015em; font-weight: 700;">여덟 장면, 같은 사람</h2>
+    <h2 style="margin: 0 0 10px; font-size: 27px; line-height: 1.22; letter-spacing: -0.015em; font-weight: 700;">장면이 바뀌어도, 같은 사람</h2>
     <p style="margin: 0 0 20px; font-size: 14.5px; line-height: 1.6; color: hsl(240 3.8% 46.1%); text-wrap: pretty;">
       캐릭터 설정을 한 번 적어두고 배경과 장면만 바꿔가며 생성했습니다. 얼굴도, 옷차림도, 그림체도 흔들리지 않습니다.
     </p>
@@ -70,35 +73,38 @@
       <div style="border-radius: 10px; overflow: hidden; background: hsl(240 4.8% 95.9%);">
         <img src="grid-01-400.webp" alt="벚꽃 흩날리는 등굣길" style="display: block; width: 100%; height: 100%; object-fit: cover;">
       </div>
-      <div style="border-radius: 10px; overflow: hidden; background: hsl(240 4.8% 95.9%);">
-        <img src="grid-03-400.webp" alt="비 오는 거리에서 우산을 든 인물" style="display: block; width: 100%; height: 100%; object-fit: cover;">
+      <div style="grid-column: span 2; border-radius: 10px; overflow: hidden; background: hsl(240 4.8% 95.9%);">
+        <img src="grid-03-640.webp" alt="비 오는 거리에서 우산을 든 인물" style="display: block; width: 100%; height: 100%; object-fit: cover;">
       </div>
-      <div style="border-radius: 10px; overflow: hidden; background: hsl(240 4.8% 95.9%);">
+      <div style="grid-row: span 2; border-radius: 10px; overflow: hidden; background: hsl(240 4.8% 95.9%);">
+        <img src="grid-02-400.webp" alt="복도에서 손을 흔드는 인물" style="display: block; width: 100%; height: 100%; object-fit: cover;">
+      </div>
+      <div style="grid-row: span 2; border-radius: 10px; overflow: hidden; background: hsl(240 4.8% 95.9%);">
         <img src="grid-04-400.webp" alt="도서관에서 졸고 있는 인물" style="display: block; width: 100%; height: 100%; object-fit: cover;">
       </div>
     </div>
-    <p style="margin: 16px 0 0; font-size: 12.5px; color: hsl(240 3.8% 46.1%);">모두 ComicAI로 생성한 결과물입니다</p>
+    <p style="margin: 16px 0 0; font-size: 12.5px; color: hsl(240 3.8% 46.1%);">모두 ComicAI로 생성한 결과물입니다.</p>
   </div>
 
   <!-- How it works -->
   <div style="padding: 44px 20px;">
     <h2 style="margin: 0 0 6px; font-size: 27px; line-height: 1.22; letter-spacing: -0.015em; font-weight: 700;">세 단계면 됩니다</h2>
-    <p style="margin: 0 0 26px; font-size: 14.5px; line-height: 1.6; color: hsl(240 3.8% 46.1%);">그림 실력 대신 이야기만 준비하세요.</p>
+    <p style="margin: 0 0 26px; font-size: 14.5px; line-height: 1.6; color: hsl(240 3.8% 46.1%);">그림 실력 대신 이야기만 준비하면 됩니다.</p>
     <div style="display: flex; flex-direction: column; gap: 14px;">
       <div style="display: flex; flex-direction: column; gap: 10px; padding: 22px; border: 1px solid hsl(240 5.9% 90%); border-radius: 12px; background: #fff;">
-        <span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background: hsl(142 71% 45% / 0.12); color: hsl(142 71% 30%); font-size: 13px; font-weight: 700;">1</span>
-        <h3 style="margin: 2px 0 0; font-size: 17.5px; line-height: 1.4; font-weight: 700; letter-spacing: -0.01em;">캐릭터와 그림체를 등록</h3>
-        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: hsl(240 3.8% 46.1%); text-wrap: pretty;">이름, 생김새, 옷차림을 한 번 적어두면 프로젝트 전체에서 다시 씁니다.</p>
+        <span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background: hsl(142 71% 45% / 0.12); color: hsl(142 71% 26%); font-size: 13px; font-weight: 700;">1</span>
+        <h3 style="margin: 2px 0 0; font-size: 17.5px; line-height: 1.4; font-weight: 700; letter-spacing: -0.01em;">캐릭터와 그림체 등록</h3>
+        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: hsl(240 3.8% 46.1%); text-wrap: pretty;">이름, 생김새, 옷차림을 한 번 적어두면 프로젝트 전체에서 다시 씁니다. 배경과 세계관도 같은 방식입니다.</p>
       </div>
       <div style="display: flex; flex-direction: column; gap: 10px; padding: 22px; border: 1px solid hsl(240 5.9% 90%); border-radius: 12px; background: #fff;">
-        <span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background: hsl(142 71% 45% / 0.12); color: hsl(142 71% 30%); font-size: 13px; font-weight: 700;">2</span>
-        <h3 style="margin: 2px 0 0; font-size: 17.5px; line-height: 1.4; font-weight: 700; letter-spacing: -0.01em;">컷에 장면을 쓰기</h3>
-        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: hsl(240 3.8% 46.1%); text-wrap: pretty;">문장 안에서 <span style="color: hsl(142 71% 30%); font-weight: 500;">@</span>로 등장 인물과 배경을 부르면, AI가 누구를 어디에 그릴지 압니다.</p>
+        <span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background: hsl(142 71% 45% / 0.12); color: hsl(142 71% 26%); font-size: 13px; font-weight: 700;">2</span>
+        <h3 style="margin: 2px 0 0; font-size: 17.5px; line-height: 1.4; font-weight: 700; letter-spacing: -0.01em;">컷에 장면 쓰기</h3>
+        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: hsl(240 3.8% 46.1%); text-wrap: pretty;">문장 안에서 <span style="color: hsl(142 71% 26%); font-weight: 500;">@</span>로 등장인물과 배경을 부르면, AI가 누구를 어디에 그릴지 압니다.</p>
       </div>
       <div style="display: flex; flex-direction: column; gap: 10px; padding: 22px; border: 1px solid hsl(240 5.9% 90%); border-radius: 12px; background: #fff;">
-        <span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background: hsl(142 71% 45% / 0.12); color: hsl(142 71% 30%); font-size: 13px; font-weight: 700;">3</span>
+        <span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background: hsl(142 71% 45% / 0.12); color: hsl(142 71% 26%); font-size: 13px; font-weight: 700;">3</span>
         <h3 style="margin: 2px 0 0; font-size: 17.5px; line-height: 1.4; font-weight: 700; letter-spacing: -0.01em;">이미지 생성</h3>
-        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: hsl(240 3.8% 46.1%); text-wrap: pretty;">마음에 들 때까지 다시 생성하고, 지난 결과도 남습니다. 완성한 페이지는 PNG·JPG로 내보냅니다.</p>
+        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: hsl(240 3.8% 46.1%); text-wrap: pretty;">마음에 들 때까지 다시 생성하고, 이전 생성 결과도 그대로 남습니다. 완성한 페이지는 PNG·JPG로 내보냅니다.</p>
       </div>
     </div>
   </div>
@@ -109,7 +115,7 @@
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="hsl(240 3.8% 46.1%)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
       <h3 style="margin: 0; font-size: 16.5px; line-height: 1.4; font-weight: 700; letter-spacing: -0.01em;">API 키 등록 안내</h3>
       <p style="margin: 0; font-size: 14px; line-height: 1.65; color: hsl(240 3.8% 46.1%); text-wrap: pretty;">
-        ComicAI는 내 API 키를 직접 등록해 사용합니다. Gemini는 Google AI Studio, OpenAI는 Platform에서 발급받은 키를 설정 화면에 등록하면 됩니다. 키는 서버에 안전하게 암호화되어 저장됩니다.
+        ComicAI는 사용자가 직접 발급한 API 키로 동작합니다. Gemini는 Google AI Studio에서, OpenAI는 OpenAI Platform에서 발급받은 키를 설정 화면에 등록하면 됩니다. 키는 서버에 안전하게 암호화되어 저장됩니다.
       </p>
     </div>
   </div>
@@ -117,7 +123,7 @@
   <!-- Footer -->
   <div style="display: flex; align-items: center; justify-content: space-between; padding: 22px 20px; border-top: 1px solid hsl(240 5.9% 90%); font-size: 12.5px; color: hsl(240 3.8% 46.1%);">
     <span>© 2026 ComicAI</span>
-    <a href="#" style="color: hsl(240 3.8% 46.1%);">상태</a>
+    <a href="#" style="display: inline-flex; align-items: center; height: 44px; padding: 0 12px; margin-right: -12px; color: hsl(240 3.8% 46.1%);">상태</a>
   </div>
 
 </div>
