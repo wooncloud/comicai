@@ -6,6 +6,7 @@ import { ApiPaths, type ProjectDTO } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
+import { errorMessage } from '@/lib/error-message';
 
 interface Props {
   project: ProjectDTO;
@@ -37,7 +38,7 @@ export function ProjectCard({ project, onPatched, onRemoved }: Props) {
       setDraft(null);
       toast.push('success', '프로젝트 이름을 변경했습니다.');
     } catch (err) {
-      toast.push('error', (err as Error).message || '이름 변경에 실패했습니다.');
+      toast.push('error', errorMessage(err, '이름을 변경'));
     } finally {
       setBusy(false);
     }
@@ -51,7 +52,7 @@ export function ProjectCard({ project, onPatched, onRemoved }: Props) {
       onRemoved(project.id);
       toast.push('success', '프로젝트가 삭제되었습니다.');
     } catch (err) {
-      toast.push('error', (err as Error).message || '삭제에 실패했습니다.');
+      toast.push('error', errorMessage(err, '프로젝트를 삭제'));
     } finally {
       setBusy(false);
     }
@@ -72,7 +73,7 @@ export function ProjectCard({ project, onPatched, onRemoved }: Props) {
       onPatched(updated);
       toast.push('success', '썸네일이 변경되었습니다.');
     } catch (err) {
-      toast.push('error', (err as Error).message || '업로드에 실패했습니다.');
+      toast.push('error', errorMessage(err, '썸네일을 업로드'));
     } finally {
       setBusy(false);
     }

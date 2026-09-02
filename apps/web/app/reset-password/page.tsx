@@ -7,6 +7,7 @@ import { ApiPaths, PASSWORD_MIN_LENGTH, PASSWORD_PATTERN } from '@comicai/types'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthHeader } from '@/components/auth/auth-header';
+import { errorMessage } from '@/lib/error-message';
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -27,13 +28,7 @@ function ResetPasswordForm() {
       });
       router.replace('/login?reset=ok');
     } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.code === 'TOKEN_EXPIRED') setError('재설정 링크가 만료되었습니다.');
-        else if (err.code === 'TOKEN_INVALID') setError('재설정 링크가 유효하지 않습니다.');
-        else setError('비밀번호를 재설정하지 못했습니다.');
-      } else {
-        setError('비밀번호를 재설정하지 못했습니다.');
-      }
+      setError(errorMessage(err, '비밀번호를 재설정'));
     } finally {
       setPending(false);
     }

@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { errorMessage } from '@/lib/error-message';
 
 const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
   { id: 'gemini-3.1-flash-image-preview', label: 'Gemini' },
@@ -67,7 +68,7 @@ export default function ProjectDetail() {
       await loadPages();
       toast.push('success', '페이지가 추가되었습니다.');
     } catch (err) {
-      toast.push('error', (err as Error).message || '페이지 추가에 실패했습니다.');
+      toast.push('error', errorMessage(err, '페이지를 추가'));
     }
   }
 
@@ -94,7 +95,7 @@ export default function ProjectDetail() {
       setPages(fresh);
     } catch (err) {
       setPages(prev);
-      toast.push('error', (err as Error).message || '순서 저장에 실패했습니다.');
+      toast.push('error', errorMessage(err, '순서를 저장'));
     }
   }
 
@@ -115,8 +116,8 @@ export default function ProjectDetail() {
                     body: JSON.stringify({ defaultModel: next }),
                   });
                   setProject(updated);
-                } catch {
-                  toast.push('error', '설정을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+                } catch (err) {
+                  toast.push('error', errorMessage(err, '설정을 저장'));
                 }
               }}
             >
@@ -203,7 +204,7 @@ function SortablePageCard({
       onChanged();
       toast.push('success', '페이지가 삭제되었습니다.');
     } catch (err) {
-      toast.push('error', (err as Error).message || '삭제에 실패했습니다.');
+      toast.push('error', errorMessage(err, '프로젝트를 삭제'));
     }
   }
   const thumb = page.backgroundUrl ?? null;

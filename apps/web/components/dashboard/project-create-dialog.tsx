@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
+import { errorMessage } from '@/lib/error-message';
 
 interface Props {
   open: boolean;
@@ -41,7 +42,7 @@ export function ProjectCreateDialog({ open, onOpenChange, onCreated }: Props) {
       toast.push('success', `'${created.name}' 프로젝트가 생성되었습니다.`);
       router.push(`/projects/${created.id}`);
     } catch (err) {
-      toast.push('error', (err as Error).message || '프로젝트 생성에 실패했습니다.');
+      toast.push('error', errorMessage(err, '프로젝트를 생성'));
     } finally {
       setPending(false);
     }

@@ -7,6 +7,7 @@ import { SectionLabel } from './section-label';
 import { CollapseButton } from './collapse-button';
 import { HexColorField } from './hex-color-field';
 import { useToast } from '@/components/ui/toast';
+import { errorMessage } from '@/lib/error-message';
 
 interface Props {
   page: PageDTO;
@@ -39,7 +40,7 @@ export function PageInspector({ page, onPageUpdated, onCollapse }: Props) {
       });
       onPageUpdated(updated);
     } catch (err) {
-      if (err instanceof ApiError) toast.push('error', '페이지 설정을 저장하지 못했습니다.');
+      toast.push('error', errorMessage(err, '페이지 설정을 저장'));
       onPageUpdated(page);
     }
   }

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EntityCard } from '@/components/consistency/entity-card';
 import { useToast } from '@/components/ui/toast';
+import { errorMessage } from '@/lib/error-message';
 
 const TABS: { key: EntityType; label: string }[] = [
   { key: 'style', label: '그림체' },
@@ -50,8 +51,8 @@ export default function ConsistencyPage() {
       });
       queryClient.setQueryData(['project', projectId], updated);
       toast.push('success', '대표 그림체로 지정했습니다.');
-    } catch {
-      toast.push('error', '대표 그림체로 지정하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (err) {
+      toast.push('error', errorMessage(err, '대표 그림체로 지정'));
     }
   }
 
@@ -104,8 +105,8 @@ export default function ConsistencyPage() {
         toast.push('success', `'${final.name}' 항목이 추가되었습니다.`);
       }
       resetForm();
-    } catch {
-      toast.push('error', '항목을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (err) {
+      toast.push('error', errorMessage(err, '항목을 저장'));
     } finally {
       setSubmitting(false);
     }
@@ -124,8 +125,8 @@ export default function ConsistencyPage() {
       await api(ApiPaths.consistency(id), { method: 'DELETE' });
       setItems((prev) => prev.filter((p) => p.id !== id));
       toast.push('success', '항목이 삭제되었습니다.');
-    } catch {
-      toast.push('error', '항목을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (err) {
+      toast.push('error', errorMessage(err, '항목을 삭제'));
     }
   }
 

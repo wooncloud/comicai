@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { errorMessage } from '@/lib/error-message';
 
 interface Props {
   projectId: string;
@@ -104,8 +105,9 @@ export function PanelInspector({
       onPanelUpdated(updated);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError('패널 내용을 저장하지 못했습니다.');
-        toast.push('error', '패널 내용을 저장하지 못했습니다.');
+        const msg = errorMessage(err, '패널 내용을 저장');
+        setError(msg);
+        toast.push('error', msg);
       }
     }
   });
@@ -131,8 +133,7 @@ export function PanelInspector({
       subscribeJob(jobId);
     },
     onError: (err) => {
-      if (err instanceof ApiError)
-        setError('이미지 생성을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      if (err instanceof ApiError) setError(errorMessage(err, '이미지 생성을 시작'));
     },
   });
 
@@ -191,7 +192,7 @@ export function PanelInspector({
       onPanelDeleted();
       toast.push('success', '패널이 삭제되었습니다.');
     } catch (err) {
-      toast.push('error', (err as Error).message || '삭제에 실패했습니다.');
+      toast.push('error', errorMessage(err, '패널을 삭제'));
     }
   }
 
@@ -226,8 +227,7 @@ export function PanelInspector({
             });
             onPanelUpdated(updated);
           } catch (err) {
-            if (err instanceof ApiError)
-              toast.push('error', '콘티를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+            if (err instanceof ApiError) toast.push('error', errorMessage(err, '콘티를 저장'));
           }
         }}
       />
@@ -246,7 +246,7 @@ export function PanelInspector({
                   });
                   onPanelUpdated(updated);
                 } catch (err) {
-                  if (err instanceof ApiError) toast.push('error', '콘티를 제거하지 못했습니다.');
+                  toast.push('error', errorMessage(err, '콘티를 제거'));
                 }
               }}
               className="text-caption text-destructive hover:underline"
@@ -297,7 +297,7 @@ export function PanelInspector({
               onPanelUpdated(updated);
               toast.push('success', '콘티가 첨부되었습니다.');
             } catch (err) {
-              toast.push('error', (err as Error).message || '업로드 실패');
+              toast.push('error', errorMessage(err, '이미지를 업로드'));
               throw err;
             }
           }}
@@ -330,7 +330,7 @@ export function PanelInspector({
               });
               onPanelUpdated(updated);
             } catch (err) {
-              if (err instanceof ApiError) toast.push('error', '그림체를 저장하지 못했습니다.');
+              toast.push('error', errorMessage(err, '그림체를 저장'));
             }
           }}
         >

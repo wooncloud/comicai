@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/toast';
+import { errorMessage } from '@/lib/error-message';
 
 export default function ProfileSettingsPage() {
   const [me, setMe] = useState<SessionUser | null>(null);
@@ -45,8 +46,8 @@ export default function ProfileSettingsPage() {
       setAvatarUrl(updated.avatarUrl ?? '');
       setUrlDirty(false);
       toast.push('success', '프로필이 저장되었습니다.');
-    } catch {
-      toast.push('error', '프로필을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (err) {
+      toast.push('error', errorMessage(err, '프로필을 저장'));
     } finally {
       setPending(false);
     }
@@ -68,8 +69,8 @@ export default function ProfileSettingsPage() {
       setAvatarUrl(updated.avatarUrl ?? '');
       setUrlDirty(false);
       toast.push('success', '아바타가 업로드되었습니다.');
-    } catch {
-      toast.push('error', '이미지를 업로드하지 못했습니다. 파일 형식과 크기를 확인해 주세요.');
+    } catch (err) {
+      toast.push('error', errorMessage(err, '이미지를 업로드'));
     } finally {
       setUploading(false);
     }
@@ -83,8 +84,8 @@ export default function ProfileSettingsPage() {
       setAvatarUrl('');
       setUrlDirty(false);
       toast.push('success', '아바타가 제거되었습니다.');
-    } catch {
-      toast.push('error', '아바타를 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (err) {
+      toast.push('error', errorMessage(err, '아바타를 삭제'));
     } finally {
       setUploading(false);
     }

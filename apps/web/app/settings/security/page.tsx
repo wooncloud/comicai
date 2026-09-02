@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
+import { errorMessage } from '@/lib/error-message';
 
 export default function SecurityPage() {
   const [me, setMe] = useState<SessionUser | null>(null);
@@ -51,8 +52,8 @@ function EmailVerificationSection({ me }: { me: SessionUser | null }) {
       await api(ApiPaths.verifyEmailRequest, { method: 'POST' });
       setDone(true);
       toast.push('success', '인증 메일이 발송되었습니다.');
-    } catch {
-      toast.push('error', '인증 메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (err) {
+      toast.push('error', errorMessage(err, '인증 메일을 발송'));
     } finally {
       setPending(false);
     }
@@ -91,16 +92,7 @@ function PasswordSection({ me, onChanged }: { me: SessionUser | null; onChanged:
       onChanged();
       toast.push('success', '비밀번호가 변경되었습니다. 다른 기기에서는 모두 로그아웃됩니다.');
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'INVALID_PASSWORD') {
-        toast.push('error', '현재 비밀번호가 올바르지 않습니다.');
-      } else if (err instanceof ApiError && err.code === 'PASSWORD_REQUIRED') {
-        toast.push(
-          'error',
-          '구글·깃허브 로그인으로 가입한 계정입니다. 비밀번호 설정은 준비 중입니다.',
-        );
-      } else {
-        toast.push('error', '비밀번호 변경에 실패했습니다.');
-      }
+      toast.push('error', errorMessage(err, '비밀번호를 변경'));
     } finally {
       setPending(false);
     }
@@ -182,8 +174,8 @@ function SessionsSection({
       await api(ApiPaths.meSession(sid), { method: 'DELETE' });
       onChanged();
       toast.push('success', '해당 기기에서 로그아웃되었습니다.');
-    } catch {
-      toast.push('error', '로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (err) {
+      toast.push('error', errorMessage(err, '로그아웃'));
     }
   }
 

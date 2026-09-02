@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { errorMessage } from '@/lib/error-message';
 
 type Format = 'png' | 'jpg';
 
@@ -52,8 +53,8 @@ export function ExportDialog({ open, onOpenChange, pageId, panels }: Props) {
       window.open(result.url, '_blank', 'noopener');
       toast.push('success', '내보내기 완료');
       onOpenChange(false);
-    } catch {
-      toast.push('error', '내보내기에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (err) {
+      toast.push('error', errorMessage(err, '내보내기'));
     } finally {
       setPending(false);
     }

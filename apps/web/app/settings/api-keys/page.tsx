@@ -6,6 +6,7 @@ import { ApiPaths, type ApiKeySummary, type ModelProvider } from '@comicai/types
 import { ApiKeyList } from '@/components/api-key-list';
 import { ApiKeyForm } from '@/components/api-key-form';
 import { useToast } from '@/components/ui/toast';
+import { errorMessage } from '@/lib/error-message';
 
 export default function ApiKeysSettingsPage() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function ApiKeysSettingsPage() {
         router.replace('/login');
         return;
       }
-      setError('API 키 목록을 불러오지 못했습니다.');
+      setError(errorMessage(err, 'API 키 목록을 불러오지'));
     }
   }
 
@@ -39,7 +40,7 @@ export default function ApiKeysSettingsPage() {
       await refresh();
       toast.push('success', 'API 키가 등록되었습니다.');
     } catch (err) {
-      toast.push('error', '키를 등록하지 못했습니다. 입력한 내용을 확인해 주세요.');
+      toast.push('error', errorMessage(err, '키를 등록'));
       throw err;
     }
   }
@@ -49,8 +50,8 @@ export default function ApiKeysSettingsPage() {
       await api(ApiPaths.apiKey(id), { method: 'DELETE' });
       await refresh();
       toast.push('success', 'API 키가 삭제되었습니다.');
-    } catch {
-      toast.push('error', '키를 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (err) {
+      toast.push('error', errorMessage(err, '키를 삭제'));
     }
   }
 
@@ -59,8 +60,8 @@ export default function ApiKeysSettingsPage() {
       await api(ApiPaths.apiKeyVerify(id), { method: 'POST' });
       await refresh();
       toast.push('success', 'API 키 검증을 완료했습니다.');
-    } catch {
-      toast.push('error', '키 검증에 실패했습니다. 키가 올바른지 확인해 주세요.');
+    } catch (err) {
+      toast.push('error', errorMessage(err, '키를 검증'));
     }
   }
 

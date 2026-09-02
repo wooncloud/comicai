@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OAuthButtons } from '@/components/oauth-buttons';
 import { AuthHeader } from '@/components/auth/auth-header';
+import { errorMessage } from '@/lib/error-message';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -24,11 +25,7 @@ export default function SignupPage() {
       await api(ApiPaths.signup, { method: 'POST', body: JSON.stringify({ email, password }) });
       router.push('/dashboard');
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'EMAIL_TAKEN') {
-        setError('이미 사용 중인 이메일입니다.');
-      } else {
-        setError('회원가입에 실패했습니다.');
-      }
+      setError(errorMessage(err, '회원가입'));
     } finally {
       setPending(false);
     }

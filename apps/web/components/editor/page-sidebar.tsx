@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { CollapseButton } from './collapse-button';
 import { cn } from '@/lib/cn';
+import { errorMessage } from '@/lib/error-message';
 
 interface Props {
   projectId: string;
@@ -62,7 +63,7 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
       setPages((prev) => [...(prev ?? []), created]);
       toast.push('success', '페이지가 추가되었습니다.');
     } catch (err) {
-      toast.push('error', (err as Error).message || '페이지 추가에 실패했습니다.');
+      toast.push('error', errorMessage(err, '페이지를 추가'));
     } finally {
       setAdding(false);
     }
@@ -77,7 +78,7 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
       setPages((prev) => prev?.map((p) => (p.id === id ? updated : p)) ?? prev);
       toast.push('success', '페이지 이름을 변경했습니다.');
     } catch (err) {
-      toast.push('error', (err as Error).message || '이름 변경에 실패했습니다.');
+      toast.push('error', errorMessage(err, '이름을 변경'));
     }
   }
 
@@ -103,7 +104,7 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
       setPages(fresh);
     } catch (err) {
       setPages(prev);
-      toast.push('error', (err as Error).message || '순서 저장에 실패했습니다.');
+      toast.push('error', errorMessage(err, '순서를 저장'));
     }
   }
 

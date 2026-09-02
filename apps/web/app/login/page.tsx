@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OAuthButtons } from '@/components/oauth-buttons';
 import { AuthHeader } from '@/components/auth/auth-header';
+import { errorMessage, oauthErrorMessage } from '@/lib/error-message';
 
 function LoginBanner() {
   const params = useSearchParams();
@@ -30,19 +31,6 @@ function LoginBanner() {
   return null;
 }
 
-function oauthErrorMessage(code: string): string {
-  switch (code) {
-    case 'oauth_provider_disabled':
-      return '지금은 이 방법으로는 로그인할 수 없습니다. 이메일로 로그인해 주세요.';
-    case 'oauth_state_invalid':
-      return '로그인 시간이 만료되었습니다. 다시 시도해 주세요.';
-    case 'oauth_missing_params':
-      return '로그인 정보를 받지 못했습니다. 다시 시도해 주세요.';
-    default:
-      return '로그인에 실패했습니다. 다시 시도해 주세요.';
-  }
-}
-
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -58,11 +46,7 @@ export default function LoginPage() {
       await api(ApiPaths.login, { method: 'POST', body: JSON.stringify({ email, password }) });
       router.push('/dashboard');
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'INVALID_CREDENTIALS') {
-        setError('이메일 또는 비밀번호가 올바르지 않습니다.');
-      } else {
-        setError('로그인에 실패했습니다.');
-      }
+      setError(errorMessage(err, '로그인'));
     } finally {
       setPending(false);
     }
