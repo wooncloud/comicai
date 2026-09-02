@@ -11,14 +11,17 @@ import { SpeechBubbleShapeUtil } from './speech-bubble-shape';
 import { ALL_BUBBLE_TOOLS } from './speech-bubble-tools';
 import { PageTextShapeUtil } from './page-text-shape';
 import { PageTextTool } from './page-text-tool';
+import { PageLineShapeUtil } from './page-line-shape';
+import { PageLineTool } from './page-line-tool';
 
 const shapeUtils = [
   ComicPanelShapeUtil,
   PageFrameShapeUtil,
   SpeechBubbleShapeUtil,
   PageTextShapeUtil,
+  PageLineShapeUtil,
 ];
-const tools = [ComicPanelTool, PolygonPanelTool, PageTextTool, ...ALL_BUBBLE_TOOLS];
+const tools = [ComicPanelTool, PolygonPanelTool, PageTextTool, PageLineTool, ...ALL_BUBBLE_TOOLS];
 
 const uiOverrides: TLUiOverrides = {
   tools(_editor, baseTools) {
@@ -43,6 +46,13 @@ const uiOverrides: TLUiOverrides = {
         icon: 'tool-text',
         label: '텍스트',
         kbd: 't',
+        onSelect: () => undefined,
+      },
+      'page-line': {
+        id: 'page-line',
+        icon: 'tool-line',
+        label: '직선',
+        kbd: 'l',
         onSelect: () => undefined,
       },
     };
@@ -92,13 +102,15 @@ export function ComicEditor({ onMount }: Props) {
       editor.setCurrentTool('select');
       // 그리드 보기를 기본 ON. 페이지 프레임 안에 패널을 정렬할 때 유용.
       editor.updateInstanceState({ isGridMode: true });
-      // 말풍선과 자유 텍스트는 항상 패널 위에. user-sourced shape 변경 때 모두 맨 위로.
-      // 텍스트는 말풍선 위에 오도록 마지막에 올린다 (호출 순서 = z-order 끝).
+      // 말풍선/자유 텍스트/자유 직선은 항상 패널 위에. user-sourced shape 변경 때 모두 맨 위로.
+      // 호출 순서 = z-order 끝: 말풍선 → 텍스트 → 직선 (직선이 가장 위).
       const bubbleIds = new Set<TLShapeId>();
       const textIds = new Set<TLShapeId>();
+      const lineIds = new Set<TLShapeId>();
       for (const s of editor.getCurrentPageShapes()) {
         if (s.type === 'speech-bubble') bubbleIds.add(s.id);
         else if (s.type === 'page-text') textIds.add(s.id);
+        else if (s.type === 'page-line') lineIds.add(s.id);
       }
       let scheduled = false;
       const unsubscribe = editor.store.listen(
@@ -109,6 +121,7 @@ export function ComicEditor({ onMount }: Props) {
             touched = true;
             if (r.type === 'speech-bubble') bubbleIds.add(r.id);
             else if (r.type === 'page-text') textIds.add(r.id);
+            else if (r.type === 'page-line') lineIds.add(r.id);
           }
           for (const [, after] of Object.values(entry.changes.updated)) {
             if (after.typeName === 'shape') touched = true;
@@ -117,14 +130,21 @@ export function ComicEditor({ onMount }: Props) {
             if (r.typeName !== 'shape') continue;
             if (r.type === 'speech-bubble') bubbleIds.delete(r.id);
             else if (r.type === 'page-text') textIds.delete(r.id);
+            else if (r.type === 'page-line') lineIds.delete(r.id);
           }
-          if (!touched || (bubbleIds.size === 0 && textIds.size === 0) || scheduled) return;
+          if (
+            !touched ||
+            (bubbleIds.size === 0 && textIds.size === 0 && lineIds.size === 0) ||
+            scheduled
+          )
+            return;
           scheduled = true;
           queueMicrotask(() => {
             scheduled = false;
             editor.store.mergeRemoteChanges(() => {
               if (bubbleIds.size > 0) editor.bringToFront([...bubbleIds]);
               if (textIds.size > 0) editor.bringToFront([...textIds]);
+              if (lineIds.size > 0) editor.bringToFront([...lineIds]);
             });
           });
         },

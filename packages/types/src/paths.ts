@@ -38,6 +38,9 @@ export const ApiPaths = {
   pagePageTexts: (id: string) => `/pages/${id}/page-texts`,
   pagePageTextsReorder: (id: string) => `/pages/${id}/page-texts/reorder`,
   pageText: (id: string) => `/page-texts/${id}`,
+  pagePageLines: (id: string) => `/pages/${id}/page-lines`,
+  pagePageLinesReorder: (id: string) => `/pages/${id}/page-lines/reorder`,
+  pageLine: (id: string) => `/page-lines/${id}`,
 
   panel: (id: string) => `/panels/${id}`,
   panelUpload: (id: string) => `/panels/${id}/upload`,

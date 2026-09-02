@@ -4,6 +4,7 @@ import { prisma } from '@comicai/db';
 import {
   isHexColor,
   type ImageRef,
+  type PageLineStyle,
   type PageTextStyle,
   type PanelShape,
   type SpeechBubbleShape,
@@ -16,6 +17,7 @@ import { shapeBoundingBox } from '../common/bbox';
 import { buildPanelMaskSvg, buildPanelStrokeSvg } from './panel-mask';
 import { renderSpeechBubbleLayer } from './speech-bubble.render';
 import { renderPageTextLayer } from './page-text.render';
+import { renderPageLineLayer } from './page-line.render';
 
 export interface ExportResult {
   storageKey: string;
@@ -50,6 +52,7 @@ export class ExportService {
         panels: true,
         speechBubbles: { orderBy: { order: 'asc' } },
         pageTexts: { orderBy: { order: 'asc' } },
+        pageLines: { orderBy: { order: 'asc' } },
       },
     });
     if (!page) throw new NotFoundException({ code: 'PAGE_NOT_FOUND' });
@@ -134,7 +137,7 @@ export class ExportService {
     );
     if (bubbleLayer) composites.push({ input: bubbleLayer, left: 0, top: 0 });
 
-    // 4) 자유 텍스트 — 항상 최상단.
+    // 4) 자유 텍스트 — 말풍선 위, 직선 아래.
     const textLayer = renderPageTextLayer(
       page.pageTexts.map((t) => ({
         x: t.x,
@@ -148,6 +151,20 @@ export class ExportService {
       Math.round(size.h),
     );
     if (textLayer) composites.push({ input: textLayer, left: 0, top: 0 });
+
+    // 5) 자유 직선 — 최상단(가이드/연결선 용도).
+    const lineLayer = renderPageLineLayer(
+      page.pageLines.map((l) => ({
+        x1: l.x1,
+        y1: l.y1,
+        x2: l.x2,
+        y2: l.y2,
+        style: l.style as unknown as PageLineStyle,
+      })),
+      Math.round(size.w),
+      Math.round(size.h),
+    );
+    if (lineLayer) composites.push({ input: lineLayer, left: 0, top: 0 });
 
     let canvas = sharp({
       create: {

@@ -24,38 +24,47 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - `src/paths.ts` — API 경로 상수와 CSRF 쿠키/헤더 이름.
 - `src/schemas.ts` — zod 스키마(백엔드 validation + 프런트 폼 검증 공유).
 - `src/panel-path.ts` — 패널 모양 SVG path 생성(프런트 clip + 백엔드 알파 마스크 공유).
+- `src/bubble-path.ts` — 말풍선 모양(ellipse/rect/spike/polygon) + 꼬리 SVG path. 프런트 캔버스 + 백엔드 export 합성이 동일 path 식을 공유.
 
 ### 모델/렌더 enum
 
-- `ModelProvider = 'gemini' | 'openai' | 'mock'` (`src/index.ts:7`).
-- `ModelId = 'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock'` (`src/index.ts:8`).
-- `RENDER_STATUSES = ['queued','running','succeeded','failed','timeout','canceled']` (`src/index.ts:13-20`).
-- `IN_PROGRESS_RENDER_STATUSES`, `TERMINAL_RENDER_STATUSES`, `isInProgressRender()` 헬퍼 (`src/index.ts:22-27`).
-- `PANEL_SHAPE_TYPES = ['rect','rounded','oval','diamond','parallelogram','polygon']` (`src/index.ts:95-103`). 인스펙터 picker용 `PANEL_SHAPE_PRESETS`는 polygon 제외(`src/index.ts:106-107`).
-- `RenderErrorCategory = 'transient'|'auth'|'quota'|'safety'|'invalid'|'timeout'` (`src/index.ts:211`).
-- `EntityType = 'style'|'character'|'background'|'worldview'` (`src/index.ts:72`).
-- `OAUTH_PROVIDERS = ['google','github']` (`src/index.ts:10`).
+- `ModelProvider = 'gemini' | 'openai' | 'mock'` (`src/index.ts:9`).
+- `ModelId = 'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock'` (`src/index.ts:10`).
+- `RENDER_STATUSES = ['queued','running','succeeded','failed','timeout','canceled']` (`src/index.ts:15-22`).
+- `IN_PROGRESS_RENDER_STATUSES`, `TERMINAL_RENDER_STATUSES`, `isInProgressRender()` 헬퍼 (`src/index.ts:24-29`).
+- `PANEL_SHAPE_TYPES = ['rect','rounded','oval','diamond','parallelogram','polygon']` (`src/index.ts:97-105`). 인스펙터 picker용 `PANEL_SHAPE_PRESETS`는 polygon 제외(`src/index.ts:108-109`).
+- `SPEECH_BUBBLE_VARIANTS = ['ellipse','rect','spike','polygon']` (`src/index.ts:142`). cloud/thought 는 2026-05-19 migration에서 제거되어 ellipse 로 일괄 변환됨.
+- `PAGE_TEXT_FONT_FAMILIES = ['sans-serif','serif','monospace','Pretendard','Inter']` (`src/index.ts:183-189`).
+- `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/index.ts:225`). PageLine 의 선 종류.
+- `RenderErrorCategory = 'transient'|'auth'|'quota'|'safety'|'invalid'|'timeout'` (`src/index.ts:379`).
+- `EntityType = 'style'|'character'|'background'|'worldview'` (`src/index.ts:74`).
+- `OAUTH_PROVIDERS = ['google','github']` (`src/index.ts:12`).
+- `TEXT_ALIGNS = ['left','center','right']` (`src/schemas.ts:4`) — PageText/말풍선 인스펙터 공용 정렬 enum.
 
 ### DTO
 
-| DTO                                                                      | 위치                   | 주요 필드                                                                                                                                                            |
-| ------------------------------------------------------------------------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ProjectDTO`                                                             | `src/index.ts:176-188` | `id, userId, name, thumbnail?(storageKey), thumbnailUrl?(presigned, 페이지 background 폴백), defaultStyleId?(대표 그림체 엔티티 id), createdAt, updatedAt`           |
-| `PageDTO`                                                                | `src/index.ts:157-168` | `id, projectId, order, name(null이면 'p{order+1}'), size{w,h}, background?, backgroundUrl?(presigned)`                                                               |
-| `PanelDTO`                                                               | `src/index.ts:118-133` | `id, pageId, shape, conti?, text(TipTapDoc), refImages, currentRenderId?, currentRenderStatus?, currentRenderImageUrl?, styleId?(패널별 그림체 override), history[]` |
-| `PanelShape`                                                             | `src/index.ts:111-116` | `type, points[], strokeColor, strokeWidth`                                                                                                                           |
-| `SpeechBubbleDTO`                                                        | `src/index.ts`         | `id, pageId, variant(ellipse/rect/cloud/spike/thought/polygon), shape{x,y,w,h,points?,tail?}, text(TipTapDoc), style, order` — Page 직속, 패널과 독립                |
-| `SpeechBubbleStyle`                                                      | `src/index.ts`         | `fontSize, strokeWidth, strokeColor, fillColor, textAlign, fontFamily?` — `defaultSpeechBubbleStyle()` 헬퍼 제공                                                     |
-| `ConsistencyEntityDTO`                                                   | `src/index.ts:74-87`   | `type, name, aliases[], description, refImages[], refImageUrls[](presigned), version`                                                                                |
-| `RenderJobDTO`                                                           | `src/index.ts:250-263` | `id, panelId, userId, model, status, resultImage?, resultImageUrl?(presigned), error?, attempts, finishedAt?`                                                        |
-| `RenderIR`                                                               | `src/index.ts:235-248` | 워커에 전달되는 입력 IR: `styles/characters/backgrounds/worldviews`, `contiSketch?, userImages, userPrompt, aspectRatio, panelSize, seed?`                           |
-| `RenderError`                                                            | `src/index.ts:213-217` | `category, message, rawResponse?`                                                                                                                                    |
-| `ImageRef`                                                               | `src/index.ts:56-61`   | `storageKey, width, height, mimeType` — 모든 저장된 이미지 참조의 표준형                                                                                             |
-| `AdapterImage`                                                           | `src/index.ts:64-69`   | 모델 응답 raw 이미지(워커가 업로드)                                                                                                                                  |
-| `SessionInfo` / `SessionUser` / `ApiKeySummary`                          | `src/index.ts:29-53`   | 인증 관련                                                                                                                                                            |
-| `TipTapDoc` / `TipTapNode` / `TipTapMentionAttrs`                        | `src/index.ts:134-152` | 패널 본문(mention 노드 포함). `emptyDoc()` 헬퍼 제공                                                                                                                 |
-| `BoundingBox`, `shapeBoundingBox()`, `pointsBoundingBox()`               | `src/index.ts:184-209` | polygon 등 좌표 헬퍼                                                                                                                                                 |
-| `StylePayload / CharacterPayload / BackgroundPayload / WorldviewPayload` | `src/index.ts:219-233` | `RenderIR` 컴포넌트                                                                                                                                                  |
+| DTO                                                                      | 위치                   | 주요 필드                                                                                                                                                                                    |
+| ------------------------------------------------------------------------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ProjectDTO`                                                             | `src/index.ts:333-347` | `id, userId, name, thumbnail?(storageKey), thumbnailUrl?(presigned, 페이지 background 폴백), defaultStyleId?(대표 그림체), defaultModel?(인스펙터 모델 select 기본값), createdAt, updatedAt` |
+| `PageDTO`                                                                | `src/index.ts:312-325` | `id, projectId, order, name(null이면 'p{order+1}'), size{w,h}, background?, backgroundUrl?(presigned), backgroundColor?(단색)`                                                               |
+| `PanelDTO`                                                               | `src/index.ts:121-138` | `id, pageId, shape, conti?, contiUrl?(presigned), text(TipTapDoc), refImages, currentRenderId?, currentRenderStatus?, currentRenderImageUrl?, styleId?(패널별 그림체 override), history[]`   |
+| `PanelShape`                                                             | `src/index.ts:114-119` | `type, points[], strokeColor, strokeWidth`                                                                                                                                                   |
+| `SpeechBubbleDTO`                                                        | `src/index.ts:170-179` | `id, pageId, variant(ellipse/rect/spike/polygon), shape{x,y,w,h,points?,tail?}, style, order` — Page 직속, 패널과 독립. **text 필드는 더 이상 존재하지 않음** (PageText 로 분리)             |
+| `SpeechBubbleStyle`                                                      | `src/index.ts:156-160` | `strokeWidth, strokeColor, fillColor` — `defaultSpeechBubbleStyle()` 헬퍼 (`:162-168`). 텍스트 관련 필드는 모두 제거됨                                                                       |
+| `PageTextDTO`                                                            | `src/index.ts:208-220` | `id, pageId, x, y, w, h, text(평문), style(PageTextStyle), order` — Page 직속 자유 텍스트 박스                                                                                               |
+| `PageTextStyle`                                                          | `src/index.ts:192-197` | `fontSize, fontFamily, color, textAlign` — `defaultPageTextStyle()` 헬퍼 (`:199-206`)                                                                                                        |
+| `PageLineDTO`                                                            | `src/index.ts:242-253` | `id, pageId, x1, y1, x2, y2, style(PageLineStyle), order` — Page 직속 자유 직선                                                                                                              |
+| `PageLineStyle`                                                          | `src/index.ts:228-232` | `strokeWidth, strokeColor, strokeStyle('solid'\|'dashed')` — `defaultPageLineStyle()` 헬퍼 (`:234-240`)                                                                                      |
+| `ConsistencyEntityDTO`                                                   | `src/index.ts:76-89`   | `type, name, aliases[], description, refImages[], refImageUrls[](presigned), version`                                                                                                        |
+| `RenderJobDTO`                                                           | `src/index.ts:426-439` | `id, panelId, userId, model, status, resultImage?, resultImageUrl?(presigned), error?, attempts, finishedAt?`                                                                                |
+| `RenderIR`                                                               | `src/index.ts:403-424` | 워커에 전달되는 입력 IR: `styles/characters/backgrounds/worldviews`, `contiSketch?, userImages, userPrompt, aspectRatio, panelSize, seed?, outputMode?('panel'\|'entity'), systemPrompt?`    |
+| `RenderError`                                                            | `src/index.ts:381-385` | `category, message, rawResponse?`                                                                                                                                                            |
+| `ImageRef`                                                               | `src/index.ts:58-63`   | `storageKey, width, height, mimeType` — 모든 저장된 이미지 참조의 표준형                                                                                                                     |
+| `AdapterImage`                                                           | `src/index.ts:66-71`   | 모델 응답 raw 이미지(워커가 업로드)                                                                                                                                                          |
+| `SessionInfo` / `SessionUser` / `ApiKeySummary`                          | `src/index.ts:31-55`   | 인증 관련                                                                                                                                                                                    |
+| `TipTapDoc` / `TipTapNode` / `TipTapMentionAttrs`                        | `src/index.ts:256-309` | 패널 본문(mention 노드 포함). `emptyDoc()`, `flattenTipTapToText()`, `textToTipTapDoc()` 헬퍼 제공                                                                                           |
+| `BoundingBox`, `shapeBoundingBox()`, `pointsBoundingBox()`               | `src/index.ts:352-377` | polygon 등 좌표 헬퍼                                                                                                                                                                         |
+| `StylePayload / CharacterPayload / BackgroundPayload / WorldviewPayload` | `src/index.ts:387-401` | `RenderIR` 컴포넌트                                                                                                                                                                          |
 
 ### 에러 봉투 (envelope.ts)
 
@@ -74,32 +83,36 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 ### API 경로 (paths.ts)
 
 - `API_PREFIX = '/v1'`, `CSRF_COOKIE_NAME = 'comicai_csrf'`, `CSRF_HEADER_NAME = 'x-csrf-token'` (`src/paths.ts:2-4`).
-- `ApiPaths` 객체 — 정적 문자열 + 함수형 path builder(`src/paths.ts:6-46`). 양 앱 모두 이 상수를 import해 경로를 동기화한다.
+- `ApiPaths` 객체 — 정적 문자열 + 함수형 path builder(`src/paths.ts:6-61`). 양 앱 모두 이 상수를 import해 경로를 동기화한다.
   - auth: `signup`, `login`, `logout`, `oauthRedirect(p)`, `oauthCallback(p)`, `verifyEmailRequest`, `verifyEmail(token)`, `passwordResetRequest`, `passwordResetConfirm`.
-  - me: `me`, `mePassword`, `meSessions`, `meSession(sid)`.
+  - me: `me`, `meAvatar`, `mePassword`, `meSessions`, `meSession(sid)`.
   - api keys: `apiKeys`, `apiKey(id)`, `apiKeyVerify(id)`.
-  - projects: `projects`, `project(id)`, `projectPages(pid)`, `projectConsistency(pid)`.
-  - pages: `page(id)`, `pageExport(id)`, `pagePanels(id)`, `pageSpeechBubbles(id)`, `pageSpeechBubblesReorder(id)`.
-  - panels: `panel(id)`, `panelUpload(id)`, `panelRender(id)`, `panelHistory(id)`.
+  - projects: `projects`, `project(id)`, `projectThumbnail(id)`, `projectPages(pid)`, `projectPagesReorder(pid)`, `projectConsistency(pid)`.
+  - pages: `page(id)`, `pageExport(id)`, `pagePanels(id)`, `pageSpeechBubbles(id)`, `pageSpeechBubblesReorder(id)`, `pagePageTexts(id)`, `pagePageTextsReorder(id)`, `pagePageLines(id)`, `pagePageLinesReorder(id)`.
+  - panels: `panel(id)`, `panelUpload(id)`, `panelConti(id)`, `panelRender(id)`, `panelHistory(id)`.
   - speech bubbles: `speechBubble(id)`.
-  - consistency: `consistency(id)`, `consistencyImages(id)`.
+  - page texts: `pageText(id)`.
+  - page lines: `pageLine(id)`.
+  - consistency: `consistency(id)`, `consistencyImages(id)`, `consistencyGenerate(id)`, `consistencyAttach(id)`.
   - render: `renderJob(id)`, `renderJobCancel(id)`, `renderJobEvents(id)`, `renderJobRestore(id)`.
 
 ### Zod 스키마 (schemas.ts)
 
 백엔드 컨트롤러와 프런트엔드 폼이 동일 스키마를 import해 검증을 공유한다.
 
-- 비밀번호 정책 상수: `PASSWORD_MIN_LENGTH=10`, `PASSWORD_MAX_LENGTH=200`, `PASSWORD_PATTERN`(영문+숫자 10자+) (`src/schemas.ts:7-14`).
-- 인증: `CredentialsSchema`, `PasswordResetRequestSchema`, `PasswordResetConfirmSchema`, `PasswordChangeSchema` (`src/schemas.ts:16-35`).
-- 프로필: `MePatchSchema` (`src/schemas.ts:39-43`).
-- API 키: `ApiKeyCreateSchema` — provider는 `gemini`/`openai`만, key는 8~500자 (`src/schemas.ts:47-52`).
-- 프로젝트: `ProjectCreateSchema`, `ProjectPatchSchema` (`src/schemas.ts:55-61`).
-- 페이지: `PageSizeSchema`(기본 800×1200), `PageCreateSchema`, `PagePatchSchema` (`src/schemas.ts:88-93`).
-- 렌더: `RenderModelSchema`(ModelId enum과 동일), `RenderStartSchema` (`src/schemas.ts:103-106`).
-- 내보내기: `ExportFormatSchema = 'png'|'jpg'`, `ExportRequestSchema`(dpi 72~600, 기본 150) (`src/schemas.ts:111-115`).
-- 패널: `PanelShapeSchema` — points 3~64개, strokeColor 기본 `#000000`, strokeWidth 기본 2 (`src/schemas.ts:119-124`).
-- 말풍선: `SpeechBubbleVariantSchema`, `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`, `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts`).
-- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema` (`src/schemas.ts:141-145`).
+- 비밀번호 정책 상수: `PASSWORD_MIN_LENGTH=10`, `PASSWORD_MAX_LENGTH=200`, `PASSWORD_PATTERN`(영문+숫자 10자+) (`src/schemas.ts:9-17`).
+- 인증: `CredentialsSchema`, `PasswordResetRequestSchema`, `PasswordResetConfirmSchema`, `PasswordChangeSchema` (`src/schemas.ts:19-35`).
+- 프로필: `MePatchSchema` (`src/schemas.ts:42-46`).
+- API 키: `ApiKeyCreateSchema` — provider는 `gemini`/`openai`만, key는 8~500자 (`src/schemas.ts:50-54`).
+- 프로젝트: `ProjectCreateSchema`, `ProjectPatchSchema`(`defaultModel` 포함) (`src/schemas.ts:58-69`).
+- 페이지: `PageSizeSchema`(기본 800×1200), `PageCreateSchema`, `PagePatchSchema`(`backgroundColor` 포함), `PageReorderSchema`, `HEX_COLOR_REGEX`/`isHexColor` (`src/schemas.ts:72-102`).
+- 렌더: `RenderModelSchema`(ModelId enum과 동일), `RenderStartSchema` (`src/schemas.ts:105-110`).
+- 내보내기: `ExportFormatSchema = 'png'|'jpg'`, `ExportRequestSchema`(dpi 72~600, 기본 150) (`src/schemas.ts:113-118`).
+- 패널: `PanelShapeSchema` — points 3~64개, strokeColor 기본 `#000000`, strokeWidth 기본 2 (`src/schemas.ts:122-134`).
+- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림 — strokeWidth/Color/fillColor 만), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts:138-171`).
+- 페이지 텍스트: `PAGE_TEXT_FONT_FAMILIES`, `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`src/schemas.ts:174-209`).
+- 페이지 직선: `PAGE_LINE_STROKE_STYLES`, `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`src/schemas.ts:212-239`).
+- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`(`prompt+model`), `ConsistencyAttachSchema`(`storageKey`) (`src/schemas.ts:242-260`).
 
 ### Panel path 헬퍼 (panel-path.ts)
 
@@ -126,10 +139,10 @@ Prisma 기반 ORM 래퍼. 글로벌 싱글톤 클라이언트 + ID 발급 헬퍼
 - `export * from '@prisma/client'` — Prisma 생성 타입을 그대로 re-export.
 - `export * from './ids'` — `newId(prefix)`, `entityIdPrefix(type)`, `IdPrefix` 타입.
 
-### ID 컨벤션 (`src/ids.ts:1-32`)
+### ID 컨벤션 (`src/ids.ts:1-34`)
 
 - `newId(prefix)`가 `'{prefix}_{ulid()}'` 형식으로 ID 생성. ULID는 시간 정렬 가능 + URL safe.
-- `IdPrefix` 목록: `user`, `apikey`, `proj`, `page`, `panel`, `render`, `char`, `bg`, `style`, `world`, `evf`(email verification), `prt`(password reset token).
+- `IdPrefix` 목록 (`ids.ts:3-18`): `user`, `apikey`, `proj`, `page`, `panel`, `render`, `char`, `bg`, `style`, `world`, `evf`(email verification), `prt`(password reset token), `bubble`(speech bubble), `ptext`(page text), `pline`(page line).
 - `entityIdPrefix(type)`로 `EntityType`(`style/character/background/worldview`)을 ID prefix(`style/char/bg/world`)로 매핑.
 
 ### ORM 및 DB
@@ -140,20 +153,22 @@ Prisma 기반 ORM 래퍼. 글로벌 싱글톤 클라이언트 + ID 발급 헬퍼
 
 ### 스키마 엔티티 (`prisma/schema.prisma`)
 
-| 모델                | 매핑 테이블            | 주요 필드                                                                                                       | 관계                                                              |
-| ------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `User`              | `users`                | `id, email(unique), passwordHash?, displayName?, avatarUrl?, oauthProviders(Json), emailVerifiedAt?` (`:12-30`) | apiKeys, projects, renderJobs, emailVerifications, passwordResets |
-| `EmailVerification` | `email_verifications`  | `tokenHash(unique), expiresAt, usedAt?` (`:32-44`)                                                              | userId → User cascade                                             |
-| `PasswordReset`     | `password_resets`      | `tokenHash(unique), expiresAt, usedAt?` (`:46-58`)                                                              | userId → User cascade                                             |
-| `ApiKey`            | `api_keys`             | `provider, label, ciphertext, nonce, lastVerifiedAt?, isActive` (`:60-75`)                                      | userId → User cascade. AES envelope encryption                    |
-| `Project`           | `projects`             | `name, thumbnail?` (`:77-91`)                                                                                   | pages, entities                                                   |
-| `ConsistencyEntity` | `consistency_entities` | `type(str), name, aliases[], description, refImages(Json), version` (`:93-109`)                                 | projectId → Project cascade, `@@index([projectId, type])`         |
-| `Page`              | `pages`                | `order, name?, size(Json), background(Json?)` (`:111-125`)                                                      | panels, `@@index([projectId, order])`                             |
-| `Panel`             | `panels`               | `shape(Json), conti(Json?), text(Json), refImages(Json), currentRenderId?, history[]` (`:127-141`)              | pageId → Page cascade                                             |
-| `SpeechBubble`      | `speech_bubbles`       | `variant, shape(Json), text(Json), style(Json), order` — Page 직속, 패널과 독립. Cascade on Page 삭제           | pageId → Page cascade, `@@index([pageId, order])`                 |
-| `RenderJob`         | `render_jobs`          | `model, ir(Json), status, resultImage(Json?), error(Json?), attempts, finishedAt?` (`:143-161`)                 | userId → User cascade, `@@index([panelId, createdAt])`            |
+| 모델                | 매핑 테이블            | 주요 필드                                                                                                                                     | 관계                                                                       |
+| ------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `User`              | `users`                | `id, email(unique), passwordHash?, displayName?, avatarUrl?, avatarStorageKey?, oauthProviders(Json), emailVerifiedAt?` (`:12-31`)            | apiKeys, projects, renderJobs, emailVerifications, passwordResets          |
+| `EmailVerification` | `email_verifications`  | `tokenHash(unique), expiresAt, usedAt?` (`:33-45`)                                                                                            | userId → User cascade                                                      |
+| `PasswordReset`     | `password_resets`      | `tokenHash(unique), expiresAt, usedAt?` (`:47-59`)                                                                                            | userId → User cascade                                                      |
+| `ApiKey`            | `api_keys`             | `provider, label, ciphertext, nonce, lastVerifiedAt?, isActive` (`:61-76`)                                                                    | userId → User cascade. AES envelope encryption                             |
+| `Project`           | `projects`             | `name, thumbnail?, defaultStyleId?, defaultModel?` (`:78-94`)                                                                                 | pages, entities                                                            |
+| `ConsistencyEntity` | `consistency_entities` | `type(str), name, aliases[], description, refImages(Json), version` (`:96-112`)                                                               | projectId → Project cascade, `@@index([projectId, type])`                  |
+| `Page`              | `pages`                | `order, name?, size(Json), background(Json?), backgroundColor?` (`:114-132`)                                                                  | panels, speechBubbles, pageTexts, pageLines, `@@index([projectId, order])` |
+| `SpeechBubble`      | `speech_bubbles`       | `variant(4종), shape(Json), style(Json — 모양/선/채움만), order` — Page 직속, 패널과 독립. **text 컬럼 없음** (PageText 로 분리) (`:134-148`) | pageId → Page cascade, `@@index([pageId, order])`                          |
+| `PageText`          | `page_texts`           | `x/y/w/h(Float), text(평문), style(Json — PageTextStyle), order` — Page 직속 자유 텍스트 박스 (`:150-167`)                                    | pageId → Page cascade, `@@index([pageId, order])`                          |
+| `PageLine`          | `page_lines`           | `x1/y1/x2/y2(Float), style(Json — PageLineStyle), order` — Page 직속 자유 직선 (`:169-186`)                                                   | pageId → Page cascade, `@@index([pageId, order])`                          |
+| `Panel`             | `panels`               | `shape(Json), conti(Json?), text(Json — TipTapDoc), refImages(Json), currentRenderId?, styleId?, history[]` (`:188-203`)                      | pageId → Page cascade                                                      |
+| `RenderJob`         | `render_jobs`          | `model, ir(Json), status, resultImage(Json?), error(Json?), attempts, finishedAt?` (`:205-223`)                                               | userId → User cascade, `@@index([panelId, createdAt])`                     |
 
-JSON 컬럼들은 `@comicai/types`의 `PanelShape`, `ImageRef`, `TipTapDoc`, `RenderIR`, `RenderError` 등을 그대로 직렬화해 저장한다.
+JSON 컬럼들은 `@comicai/types`의 `PanelShape`, `ImageRef`, `TipTapDoc`, `RenderIR`, `RenderError`, `SpeechBubbleStyle`, `PageTextStyle`, `PageLineStyle` 등을 그대로 직렬화해 저장한다.
 
 ### 마이그레이션
 
@@ -164,6 +179,13 @@ JSON 컬럼들은 `@comicai/types`의 `PanelShape`, `ImageRef`, `TipTapDoc`, `Re
 - `20260516100128_p3_auth_tokens`
 - `20260516141839_p7_page_name`
 - `20260517005900_p7_rename_model_ids` (gemini-3.1-flash-image-preview / gpt-image-2로 ID 갱신)
+- `20260517120000_p8_style_id` (`projects.default_style_id`, `panels.style_id`)
+- `20260517160000_p8_default_model` (`projects.default_model`)
+- `20260517180000_p9_page_background_color` (`pages.background_color`)
+- `20260517190000_p9_user_avatar_storage_key` (`users.avatar_storage_key`)
+- `20260517200000_speech_bubble` (`speech_bubbles` 테이블 신설)
+- `20260519000000_cleanup_speech_bubble_add_page_text` (SpeechBubble.text 제거, variant 4종으로 축소, `page_texts` 테이블 신설)
+- `20260524000000_page_line` (`page_lines` 테이블 신설 — 자유 직선)
 
 `migration_lock.toml`로 PostgreSQL provider 고정.
 

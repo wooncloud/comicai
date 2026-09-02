@@ -23,7 +23,7 @@
 - 글로벌 파이프: `ZodValidationPipe` — `bootstrap.ts:17`
   - `DTO.zodSchema` 정적 프로퍼티에서 Zod 스키마를 찾아 `safeParse`, 실패 시 `ZodError` throw — `common/zod-validation.pipe.ts:7-13`
 - 글로벌 인터셉터: `HttpMetricsInterceptor` → `ResponseEnvelopeInterceptor`
-  - `ResponseEnvelopeInterceptor`: 204/SSE를 제외한 모든 성공 응답을 `{ data: ... }`로 감싼다 — `common/response-envelope.interceptor.ts:14-21`
+  - `ResponseEnvelopeInterceptor`: 204/SSE를 제외한 모든 성공 응답을 `{ data: ... }`로 감싼다 — `common/response-envelope.interceptor.ts:14-22`
 - 글로벌 필터: `AllExceptionsFilter`
   - `ZodError → 400 VALIDATION_ERROR(details.issues)`, `HttpException → 매핑된 code/message`, 그 외 → `500 INTERNAL_ERROR` — `common/all-exceptions.filter.ts:42-97`
   - 상태→코드 매핑은 `STATUS_TO_CODE` 테이블, 코드→한국어 메시지는 `CODE_TO_MESSAGE` 매핑(`common/all-exceptions.filter.ts:20-36`).
@@ -36,12 +36,12 @@
 
 ### 1.4 AppModule (`app.module.ts`)
 
-- `ConfigModule.forRoot({ isGlobal: true })` — `app.module.ts:23`
-- `LoggerModule.forRoot(...)`: pino redact 경로(`req.headers.cookie`, `authorization`, `*.apiKey`, `*.secret`, `*.token`, `*.ciphertext`, `*.password`, `*.passwordHash`), `/healthz`는 autoLogging 제외 — `app.module.ts:24-56`
-- `ThrottlerModule.forRoot([{ ttl: 60s, limit: 120 }])`, `APP_GUARD = ThrottlerGuard`로 글로벌 적용 — `app.module.ts:57, 72`
-- `configure(consumer)`에서 `CsrfMiddleware`를 모든 라우트(`'*'`)에 부착 — `app.module.ts:74-77`
-- 등록 모듈: `MetricsModule, EmailModule, AuthModule, OAuthModule, MeModule, ApiKeysModule, ProjectsModule, ConsistencyModule, PagesModule, PanelsModule, RenderModule, ExportModule` — `app.module.ts:58-69`
-- 직접 등록 컨트롤러: `HealthController` — `app.module.ts:71`
+- `ConfigModule.forRoot({ isGlobal: true })` — `app.module.ts:26`
+- `LoggerModule.forRoot(...)`: pino redact 경로(`req.headers.cookie`, `authorization`, `*.apiKey`, `*.secret`, `*.token`, `*.ciphertext`, `*.password`, `*.passwordHash`), `/healthz`는 autoLogging 제외 — `app.module.ts:27-59`
+- `ThrottlerModule.forRoot([{ ttl: 60s, limit: 120 }])`, `APP_GUARD = ThrottlerGuard`로 글로벌 적용 — `app.module.ts:60, 78`
+- `configure(consumer)`에서 `CsrfMiddleware`를 모든 라우트(`'*'`)에 부착 — `app.module.ts:81-83`
+- 등록 모듈: `MetricsModule, EmailModule, AuthModule, OAuthModule, MeModule, ApiKeysModule, ProjectsModule, ConsistencyModule, PagesModule, PanelsModule, SpeechBubblesModule, PageTextsModule, PageLinesModule, RenderModule, ExportModule` — `app.module.ts:61-75`
+- 직접 등록 컨트롤러: `HealthController` — `app.module.ts:77`
 
 ---
 
@@ -103,13 +103,15 @@
 
 ### 3.1 MeModule (`me/me.controller.ts`)
 
-| Method | Route                  | Handler                                                            |
-| ------ | ---------------------- | ------------------------------------------------------------------ |
-| GET    | `/v1/me`               | `me` (`me.controller.ts:69-76`)                                    |
-| PATCH  | `/v1/me`               | `patch` (`:78-89`) — displayName/avatarUrl                         |
-| PATCH  | `/v1/me/password`      | `changePassword` (`:91-109`) — argon2 검증, 현재 세션 외 모두 종료 |
-| GET    | `/v1/me/sessions`      | `listSessions` (`:111-122`)                                        |
-| DELETE | `/v1/me/sessions/:sid` | `revokeSession` (`:124-130`)                                       |
+| Method | Route                  | Handler                                                                         |
+| ------ | ---------------------- | ------------------------------------------------------------------------------- |
+| GET    | `/v1/me`               | `me` (`me.controller.ts:86-93`) — `avatarStorageKey` 있으면 presigned URL 우선  |
+| PATCH  | `/v1/me`               | `patch` (`:95-109`) — displayName/avatarUrl. 외부 URL 지정 시 storageKey 비움   |
+| POST   | `/v1/me/avatar`        | `uploadAvatar` (`:111-128`) — multipart `file`, `MAX_UPLOAD_BYTES`, 자체 업로드 |
+| DELETE | `/v1/me/avatar`        | `deleteAvatar` (`:130-139`) — 스토리지 키 + 외부 URL 모두 null                  |
+| PATCH  | `/v1/me/password`      | `changePassword` (`:141-159`) — argon2 검증, 현재 세션 외 모두 종료             |
+| GET    | `/v1/me/sessions`      | `listSessions` (`:161-172`)                                                     |
+| DELETE | `/v1/me/sessions/:sid` | `revokeSession` (`:174-180`)                                                    |
 
 ### 3.2 ApiKeysModule (`api-keys/api-keys.controller.ts`)
 
@@ -128,67 +130,102 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 
 ### 3.3 ProjectsModule (`projects/projects.controller.ts`)
 
-| Method | Route                        | Handler                                                                             |
-| ------ | ---------------------------- | ----------------------------------------------------------------------------------- |
-| GET    | `/v1/projects`               | `list` (`projects.controller.ts:38-41`)                                             |
-| POST   | `/v1/projects`               | `create` (`:43-47`)                                                                 |
-| GET    | `/v1/projects/:id`           | `detail` (`:49-52`) — pages id/order 포함                                           |
-| PATCH  | `/v1/projects/:id`           | `patch` (`:54-57`) — `name?`, `thumbnail?`, `defaultStyleId?` 필드 부분 갱신        |
-| POST   | `/v1/projects/:id/thumbnail` | `uploadThumbnail` (`:59-67`) — multipart `file`, `MAX_UPLOAD_BYTES`. 썸네일 키 교체 |
-| DELETE | `/v1/projects/:id`           | `remove` (`:69-73`)                                                                 |
+| Method | Route                        | Handler                                                                                  |
+| ------ | ---------------------------- | ---------------------------------------------------------------------------------------- |
+| GET    | `/v1/projects`               | `list` (`projects.controller.ts:39-42`)                                                  |
+| POST   | `/v1/projects`               | `create` (`:44-48`)                                                                      |
+| GET    | `/v1/projects/:id`           | `detail` (`:50-53`) — pages id/order 포함                                                |
+| PATCH  | `/v1/projects/:id`           | `patch` (`:55-58`) — `name?`, `thumbnail?`, `defaultStyleId?`, `defaultModel?` 부분 갱신 |
+| POST   | `/v1/projects/:id/thumbnail` | `uploadThumbnail` (`:60-68`) — multipart `file`, `MAX_UPLOAD_BYTES`. 썸네일 키 교체      |
+| DELETE | `/v1/projects/:id`           | `remove` (`:70-74`)                                                                      |
 
-`PATCH`의 `defaultStyleId`는 프로젝트 대표 그림체 엔티티 id를 지정한다(렌더 시 자동 주입). 소유권 체크: `assertOwned` (`projects/projects.service.ts`, public 헬퍼).
+`PATCH`의 `defaultStyleId`는 프로젝트 대표 그림체 엔티티 id를 지정한다(렌더 시 자동 주입). `defaultModel`은 패널 인스펙터 모델 select의 초기값. 소유권 체크: `assertOwned` (`projects/projects.service.ts`, public 헬퍼).
 
 ### 3.4 ConsistencyModule (`consistency/consistency.controller.ts`)
 
 타입: `style | character | background | worldview` (`@comicai/types`).
 
-| Method | Route                                 | Handler                                                                             |
-| ------ | ------------------------------------- | ----------------------------------------------------------------------------------- |
-| GET    | `/v1/projects/:pid/consistency?type=` | `list` (`consistency.controller.ts:47-51`)                                          |
-| POST   | `/v1/projects/:pid/consistency`       | `create` (`:53-57`)                                                                 |
-| PATCH  | `/v1/consistency/:id`                 | `patch` (`:59-62`)                                                                  |
-| DELETE | `/v1/consistency/:id`                 | `remove` (`:64-68`)                                                                 |
-| POST   | `/v1/consistency/:id/images`          | `uploadImages` (`:74-89`) — multipart `files`, 최대 12개, 파일당 `MAX_UPLOAD_BYTES` |
+| Method | Route                                 | Handler                                                                                                                                    |
+| ------ | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/v1/projects/:pid/consistency?type=` | `list` (`consistency.controller.ts:59-63`)                                                                                                 |
+| POST   | `/v1/projects/:pid/consistency`       | `create` (`:65-69`)                                                                                                                        |
+| PATCH  | `/v1/consistency/:id`                 | `patch` (`:71-74`)                                                                                                                         |
+| DELETE | `/v1/consistency/:id`                 | `remove` (`:76-80`) — style 삭제 시 트랜잭션으로 `Project.defaultStyleId`/`Panel.styleId` dangling 정리 (`consistency.service.ts:141-156`) |
+| POST   | `/v1/consistency/:id/images`          | `uploadImages` (`:86-101`) — multipart `files`, 최대 12개, 파일당 `MAX_UPLOAD_BYTES`                                                       |
+| POST   | `/v1/consistency/:id/generate`        | `generate` (`:104-107`) — AI 모델로 참조 이미지 1장 생성 (storage 업로드만, refImages 미등록). style 엔티티는 거부                         |
+| POST   | `/v1/consistency/:id/images/attach`   | `attach` (`:110-113`) — `generate` 결과의 storageKey 를 refImages 에 등록 (key prefix 검증)                                                |
+
+AI 생성 로직은 `consistency.service.ts:190-248` (`generateImage`) / `:254-284` (`attachImage`). 엔티티 타입별 system prompt (`ENTITY_SYSTEM_PROMPTS`, `:40-47`) 와 출력 비율(`ENTITY_OUTPUT_SHAPE`, `:26-33`)이 적용되어 패널-룰 대신 캐릭터 시트/환경 콘셉트/세계관 무드 보드 톤을 강제한다. style 은 그림체 자체가 다른 패널 결과의 일관성 기준이라 `generate` 자체를 거부 (`CONSISTENCY_GENERATE_UNSUPPORTED`).
 
 ### 3.5 PagesModule (`pages/pages.controller.ts`)
 
-| Method | Route                     | Handler                              |
-| ------ | ------------------------- | ------------------------------------ |
-| GET    | `/v1/projects/:pid/pages` | `list` (`pages.controller.ts:33-36`) |
-| POST   | `/v1/projects/:pid/pages` | `create` (`:38-42`)                  |
-| GET    | `/v1/pages/:id`           | `get` (`:44-47`)                     |
-| PATCH  | `/v1/pages/:id`           | `patch` (`:49-52`)                   |
-| DELETE | `/v1/pages/:id`           | `remove` (`:54-58`)                  |
+| Method | Route                             | Handler                                                                |
+| ------ | --------------------------------- | ---------------------------------------------------------------------- |
+| GET    | `/v1/projects/:pid/pages`         | `list` (`pages.controller.ts:38-41`)                                   |
+| POST   | `/v1/projects/:pid/pages`         | `create` (`:43-47`)                                                    |
+| POST   | `/v1/projects/:pid/pages/reorder` | `reorder` (`:49-52`) — body `{ pageIds: string[] }`로 페이지 순서 갱신 |
+| GET    | `/v1/pages/:id`                   | `get` (`:54-57`)                                                       |
+| PATCH  | `/v1/pages/:id`                   | `patch` (`:59-62`) — `order?`, `size?`, `name?`, `backgroundColor?`    |
+| DELETE | `/v1/pages/:id`                   | `remove` (`:64-68`)                                                    |
 
 ### 3.6 PanelsModule (`panels/panels.controller.ts`)
 
-| Method | Route                      | Handler                                                    |
-| ------ | -------------------------- | ---------------------------------------------------------- |
-| GET    | `/v1/pages/:pageid/panels` | `list` (`panels.controller.ts:37-40`)                      |
-| POST   | `/v1/pages/:pageid/panels` | `create` (`:42-46`)                                        |
-| PATCH  | `/v1/panels/:id`           | `patch` (`:48-51`)                                         |
-| DELETE | `/v1/panels/:id`           | `remove` (`:53-57`)                                        |
-| GET    | `/v1/panels/:id/history`   | `history` (`:59-62`)                                       |
-| POST   | `/v1/panels/:id/upload`    | `upload` (`:64-72`) — multipart `file`, `MAX_UPLOAD_BYTES` |
+| Method | Route                      | Handler                                                                               |
+| ------ | -------------------------- | ------------------------------------------------------------------------------------- |
+| GET    | `/v1/pages/:pageid/panels` | `list` (`panels.controller.ts:38-41`)                                                 |
+| POST   | `/v1/pages/:pageid/panels` | `create` (`:43-47`)                                                                   |
+| PATCH  | `/v1/panels/:id`           | `patch` (`:49-52`)                                                                    |
+| DELETE | `/v1/panels/:id`           | `remove` (`:54-58`)                                                                   |
+| GET    | `/v1/panels/:id/history`   | `history` (`:60-63`)                                                                  |
+| POST   | `/v1/panels/:id/upload`    | `upload` (`:65-73`) — multipart `file`, `MAX_UPLOAD_BYTES` — 패널 refImages 에 append |
+| POST   | `/v1/panels/:id/conti`     | `setConti` (`:75-83`) — multipart `file`, 콘티(러프 스케치) 단일 슬롯 교체            |
+| DELETE | `/v1/panels/:id/conti`     | `clearConti` (`:85-88`) — 콘티 제거                                                   |
 
 업로드는 `FileInterceptor`로 메모리 버퍼 수신 → `PanelsService.appendUpload` → `StorageService.storeUploadedImage`(검증+썸네일+패널 refImages append).
 
-리스트 응답은 currentRender의 presign URL을 동봉 — `panels/panels.service.ts:55-80`.
+리스트 응답은 currentRender의 presign URL + 콘티의 `contiUrl`을 동봉 — `panels/panels.service.ts`.
 
 ### 3.6b SpeechBubblesModule (`speech-bubbles/*`)
 
-페이지 직속 말풍선의 CRUD + reorder. 패널과 독립이며 렌더에는 영향 없고 export 합성에서만 사용된다.
+페이지 직속 말풍선의 CRUD + reorder. 패널과 독립이며 렌더에는 영향 없고 export 합성에서만 사용된다. 말풍선은 모양/선/채움만 담당하고 텍스트는 [[page-text]] 오브젝트로 분리되었다(2026-05-19 migration 이후).
 
-| Method | Route                                      | Handler                                 |
-| ------ | ------------------------------------------ | --------------------------------------- |
-| GET    | `/v1/pages/:pageid/speech-bubbles`         | `list` (`speech-bubbles.controller.ts`) |
-| POST   | `/v1/pages/:pageid/speech-bubbles`         | `create` — `order`는 MAX+1 자동 할당    |
-| POST   | `/v1/pages/:pageid/speech-bubbles/reorder` | `reorder` — body `{ ids: string[] }`    |
-| PATCH  | `/v1/speech-bubbles/:id`                   | `patch` — variant/shape/text/style      |
-| DELETE | `/v1/speech-bubbles/:id`                   | `remove`                                |
+| Method | Route                                      | Handler                                                 |
+| ------ | ------------------------------------------ | ------------------------------------------------------- |
+| GET    | `/v1/pages/:pageid/speech-bubbles`         | `list` (`speech-bubbles.controller.ts:48-51`)           |
+| POST   | `/v1/pages/:pageid/speech-bubbles`         | `create` (`:53-57`) — `order`는 MAX+1 자동 할당         |
+| POST   | `/v1/pages/:pageid/speech-bubbles/reorder` | `reorder` (`:59-62`) — body `{ ids: string[] }`         |
+| PATCH  | `/v1/speech-bubbles/:id`                   | `patch` (`:64-67`) — `variant`/`shape`/`style` (text X) |
+| DELETE | `/v1/speech-bubbles/:id`                   | `remove` (`:69-73`)                                     |
 
 소유 검증은 `page→project→userId` 체인을 `PagesService.findOwned` 와 자체 `assertOwned`로 처리 — `panels.service.ts` 패턴과 동일.
+
+### 3.6c PageTextsModule (`page-texts/*`)
+
+페이지 직속 자유 텍스트 박스 (만화 효과음/자막/내레이션 등). 말풍선과 마찬가지로 패널·렌더와 독립이며, export 단계에서 말풍선 위·자유 직선 아래 레이어로 합성된다(`apps/api/src/export/page-text.render.ts`).
+
+| Method | Route                                  | Handler                                                   |
+| ------ | -------------------------------------- | --------------------------------------------------------- |
+| GET    | `/v1/pages/:pageid/page-texts`         | `list` (`page-texts.controller.ts:52-55`)                 |
+| POST   | `/v1/pages/:pageid/page-texts`         | `create` (`:57-61`) — `order`는 MAX+1 자동 할당           |
+| POST   | `/v1/pages/:pageid/page-texts/reorder` | `reorder` (`:63-66`) — body `{ ids: string[] }`           |
+| PATCH  | `/v1/page-texts/:id`                   | `patch` (`:68-71`) — `x/y/w/h`, `text`, `style` 부분 갱신 |
+| DELETE | `/v1/page-texts/:id`                   | `remove` (`:73-77`)                                       |
+
+`text` 는 단순 평문(줄바꿈만 보존, TipTap 미사용), `style` 은 `PageTextStyle` (fontSize/fontFamily/color/textAlign) 의 partial 머지로 정규화 — `page-texts.service.ts:67-89` (`create`) / `:91-105` (`patch`). 소유 검증은 `PagesService.findOwned` 와 자체 `assertOwned`로 동일 패턴.
+
+### 3.6d PageLinesModule (`page-lines/*`)
+
+페이지 직속 자유 직선 (가이드선/말풍선 연결선/패널 구분선 등). 패널·렌더와 독립이며, export 단계에서 최상단(말풍선·자유 텍스트 위) 레이어로 합성된다(`apps/api/src/export/page-line.render.ts`).
+
+| Method | Route                                  | Handler                                               |
+| ------ | -------------------------------------- | ----------------------------------------------------- |
+| GET    | `/v1/pages/:pageid/page-lines`         | `list` (`page-lines.controller.ts:51-54`)             |
+| POST   | `/v1/pages/:pageid/page-lines`         | `create` (`:56-60`) — `order`는 MAX+1 자동 할당       |
+| POST   | `/v1/pages/:pageid/page-lines/reorder` | `reorder` (`:62-65`) — body `{ ids: string[] }`       |
+| PATCH  | `/v1/page-lines/:id`                   | `patch` (`:67-70`) — `x1/y1/x2/y2`, `style` 부분 갱신 |
+| DELETE | `/v1/page-lines/:id`                   | `remove` (`:72-76`)                                   |
+
+좌표는 페이지 좌표계 절대값 두 점(x1/y1/x2/y2)으로 저장된다. tldraw 측은 BaseBoxShape 패턴(bbox + bbox 내 normalized 두 끝점)으로 표현하며, sync hook(`apps/web/components/editor/tldraw/use-page-line-sync.ts`)이 두 표현을 양방향 변환한다. `style` 은 `PageLineStyle` (`strokeWidth/strokeColor/strokeStyle='solid'|'dashed'`) 의 partial 머지로 정규화 — `page-lines.service.ts:63-84` (`create`) / `:86-99` (`patch`).
 
 ### 3.7 RenderModule (`render/*`)
 
@@ -210,7 +247,7 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 | ------ | ---------------------- | --------------------------------------- |
 | POST   | `/v1/pages/:id/export` | `export` — `export.controller.ts:17-20` |
 
-`sharp`로 캔버스(페이지 size, alpha)를 만들고, 각 패널의 `currentRender` 결과를 패널 shape 마스크(SVG)로 잘라 `composite` — `export/export.service.ts:55-90`. dpi는 `withMetadata({ density: dpi })`(기본 150)로 박힌다. 결과는 S3에 `exports/{userId}/{pageId}/{ulid}.{ext}` 키로 업로드 후 presign URL 반환 — `:94-110`.
+각 패널의 `currentRender` 결과를 패널 shape 마스크(SVG)로 잘라 `composite` — `export/export.service.ts:78-125`. 그 위로 말풍선(`:127-138`) → 자유 텍스트(`:140-153`) → 자유 직선(`:155-167`) 레이어가 순서대로 쌓인다. `sharp`로 캔버스(페이지 size, alpha)를 만들어 전체를 합성하며 dpi는 `withMetadata({ density: dpi })`(기본 150)로 박힌다 — `:169-179`. 결과는 S3에 `exports/{userId}/{pageId}/{ulid}.{ext}` 키로 업로드 후 presign URL 반환 — `:181-189`.
 
 ### 3.9 HealthController / MetricsController
 
@@ -300,12 +337,13 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 - 환경 변수: `S3_ENDPOINT(=http://localhost:9000)`, `S3_PUBLIC_ENDPOINT`, `S3_REGION(=us-east-1)`, `S3_BUCKET(=comicai)`, `S3_ACCESS_KEY(=minioadmin)`, `S3_SECRET_KEY(=minioadmin)` — `:41-48`
 - 부팅 시 `HeadBucketCommand` → 없으면 `CreateBucketCommand` (`STORAGE_AUTO_CREATE_BUCKET=0`이면 skip) — `:56-71`
 - presign TTL: 15분 — `:23`
-- 키 스킴 (`buildKey`, `:167-184`):
+- 키 스킴 (`buildKey`, `:168-187`):
   - `projects/_/renders/{renderJobId}.{ext}` — render 결과
-  - `projects/{projectId}/refs/{entityId}/{ulid}.{ext}` — consistency 참조 이미지
+  - `projects/{projectId}/refs/{entityId}/{ulid}.{ext}` — consistency 참조 이미지 (수동 업로드 + AI generate 결과)
   - `projects/{projectId}/panels/{panelId}/upload/{ulid}.{ext}` — 패널 업로드
-  - `projects/{projectId}/panels/{panelId}/conti/{ulid}.{ext}` — 콘티 스케치
+  - `projects/{projectId}/panels/{panelId}/conti/{ulid}.{ext}` — 콘티 스케치 (POST `/v1/panels/:id/conti`)
   - `projects/{projectId}/thumbnail/{ulid}.{ext}` — 프로젝트 썸네일 (POST `/v1/projects/:id/thumbnail`)
+  - `users/{userId}/avatar/{ulid}.{ext}` — 사용자 아바타 자체 업로드 (POST `/v1/me/avatar`)
   - `exports/{userId}/{pageId}/{ulid}.{ext}` — 페이지 내보내기
 - 업로드는 `validateAndNormalizeImage`(`storage/image-validator.ts`)로 검증 후 sharp로 256×256 webp 썸네일 자동 생성 — `:106-121`
 - `presignIfSucceeded`: render status가 `succeeded`일 때만 presign URL 반환 — `:131-137`
@@ -325,7 +363,7 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
   - `classifyError(err)` → `RenderError { category, ... }`
 - `AdapterContext.loadReference`는 워커가 `StorageService.getBytes`로 주입 — `apps/api/src/render/render.worker.ts:69`
 - API → adapters 호출 경로는 오직 `RenderWorker.process`뿐 (`render.worker.ts:73-77`). 컨트롤러는 큐에 enqueue만 한다.
-- BYOK 키 선택 규칙: 모델 ID가 `gemini`로 시작하면 provider=`gemini`, 그 외 `openai` — `render.worker.ts:131-134`. 키가 없으면 `RenderApiKeyMissing`(category=`auth`)로 throw하여 즉시 실패 처리(retry limit 1).
+- BYOK 키 선택 규칙: 모델 ID가 `gemini`로 시작하면 provider=`gemini`, 그 외 `openai` — `render.worker.ts:137-144`. 키가 없으면 `RenderApiKeyMissing`(category=`auth`)로 throw하여 즉시 실패 처리(retry limit 1).
 
 ---
 
@@ -338,12 +376,12 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 | `API_PUBLIC_URL`                                                                                     | `oauth.service.ts:104`                                                                                          | OAuth callback base                  |
 | `REDIS_URL`                                                                                          | `session.service.ts:30`, `oauth.service.ts:27`, `render.queue.ts:23`, `sse.hub.ts:48`, `api-keys.breaker.ts:23` | `redis://localhost:6379`             |
 | `DATABASE_URL`                                                                                       | `schema.prisma:9`                                                                                               | Postgres                             |
-| `S3_ENDPOINT` / `S3_PUBLIC_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `storage.service.ts:41-48`                                                                                      | MinIO 기본값                         |
-| `STORAGE_AUTO_CREATE_BUCKET`                                                                         | `storage.service.ts:56`                                                                                         | `'0'`이면 자동 생성 skip             |
+| `S3_ENDPOINT` / `S3_PUBLIC_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `storage.service.ts:43-50`                                                                                      | MinIO 기본값                         |
+| `STORAGE_AUTO_CREATE_BUCKET`                                                                         | `storage.service.ts:58`                                                                                         | `'0'`이면 자동 생성 skip             |
 | `MASTER_KEY`                                                                                         | `api-keys/crypto.ts:8-14`                                                                                       | base64 32B, BYOK AES-GCM 봉인 키     |
 | `COOKIE_SECURE`                                                                                      | `session.service.ts:129-132`                                                                                    | secure 쿠키 토글                     |
 | `RENDER_WORKER_DISABLED`                                                                             | `render.worker.ts:30`, `sse.hub.ts:49`                                                                          | `'1'`이면 API 프로세스에서 워커 분리 |
-| `RENDER_CONCURRENCY`                                                                                 | `render.worker.ts:38`                                                                                           | 기본 2                               |
+| `RENDER_CONCURRENCY`                                                                                 | `render.worker.ts:37`                                                                                           | 기본 2                               |
 | `SSE_HUB_DISABLED`                                                                                   | `sse.hub.ts:47`                                                                                                 | 테스트용                             |
 | `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET`, `GITHUB_OAUTH_CLIENT_ID`/`_SECRET`                               | `oauth.service.ts:96-99`                                                                                        | 둘 다 있어야 provider 활성           |
 | `LOG_LEVEL`, `NODE_ENV`                                                                              | `app.module.ts:26-33`                                                                                           | pino 레벨/포맷                       |

@@ -2,9 +2,11 @@
 
 패널의 사용자 입력과 일관성 정보가 어떻게 합쳐져 이미지 생성 모델로 전달되는지 정리한다. 본 문서는 `apps/api/src/render/ir.builder.ts`와 `packages/adapters/src/{gemini,openai,priority}.ts`를 기준으로 한다.
 
+말풍선(SpeechBubble) 과 자유 텍스트(PageText) 는 페이지 직속 오브젝트로, **렌더 IR에는 포함되지 않는다** — export 합성 단계에서만 SVG 오버레이로 합성된다 (`docs/06-render-pipeline.md` §6.5 참조).
+
 ## 1. 입력 소스
 
-`apps/api/src/render/ir.builder.ts:20`의 `buildRenderIR(panelId, seed?)`은 다음 데이터를 한 번에 모은다.
+`apps/api/src/render/ir.builder.ts:21`의 `buildRenderIR(panelId, seed?)`은 다음 데이터를 한 번에 모은다.
 
 | 출처                     | 내용                                                                                   |
 | ------------------------ | -------------------------------------------------------------------------------------- |
@@ -19,14 +21,14 @@
 ## 2. 조립 단계 (`ir.builder.ts`)
 
 ```
-panel + page + project  ← prisma.panel.findUnique({include:{page:{include:{project}}}}) (ir.builder.ts:21)
+panel + page + project  ← prisma.panel.findUnique({include:{page:{include:{project}}}}) (ir.builder.ts:22-25)
         │
         ▼
-effectiveStyleId = panel.styleId ?? project.defaultStyleId            (ir.builder.ts:24)
+effectiveStyleId = panel.styleId ?? project.defaultStyleId            (ir.builder.ts:35)
 mentionIds       = resolveMentionIds(panel.text)                      (packages/events/src/mention.ts:4)
         │
         ▼
-entities         = ConsistencyEntity.findMany({ id ∈ mentionIds ∪ {effectiveStyleId} })
+entities         = ConsistencyEntity.findMany({ id ∈ mentionIds ∪ {effectiveStyleId} })  (ir.builder.ts:41-43)
 userPrompt       = serializeTextWithNameReplacement(panel.text, nameById)
                                                                       (packages/events/src/mention.ts:20)
         │
@@ -84,9 +86,9 @@ RenderIR {
 
 순서 의미: 일관성 메타데이터 → 레퍼런스 이미지들 → 마지막 텍스트 파트(시스템성 지시 + 사용자 본문). 마지막 파트에 사용자 본문과 시스템 지시가 함께 들어가는 이유는 Gemini가 마지막 텍스트 파트의 의도를 강하게 따르기 때문이다.
 
-레퍼런스 이미지는 빌드 단계에서 `__storageKey` 플레이스홀더로만 보관하고, `call()` 직전에 R2에서 base64로 치환한다 (`gemini.ts:76`).
+레퍼런스 이미지는 빌드 단계에서 `__storageKey` 플레이스홀더로만 보관하고, `call()` 직전에 R2에서 base64로 치환한다 (`gemini.ts:86-95`).
 
-### 3.2 OpenAI (`packages/adapters/src/openai.ts:30`, `:111`)
+### 3.2 OpenAI (`packages/adapters/src/openai.ts:31`, `:111`)
 
 `gpt-image-2`는 단일 `prompt` 문자열만 받는다. `buildPrompt(ir)`이 다음 순서로 줄을 합쳐 보낸다.
 
@@ -106,7 +108,7 @@ seed=<N>                          ← seed가 있을 때만
 - 참조 이미지가 없는 경우 → `POST /v1/images/generations` (JSON `{model, prompt, n, size}`)
 - 참조 이미지가 있는 경우 → `POST /v1/images/edits` (multipart `image[]`, `prompt`, `size`)
 
-`size`는 `aspectToSize()`가 `1024x1024 / 1024x1536 / 1536x1024` 중 가까운 값으로 매핑한다 (`openai.ts:125`).
+`size`는 `aspectToSize()`가 `1024x1024 / 1024x1536 / 1536x1024` 중 가까운 값으로 매핑한다 (`openai.ts:149-156`).
 
 ### 3.3 레퍼런스 이미지 선택 (`packages/adapters/src/priority.ts`)
 
@@ -139,8 +141,8 @@ seed=<N>                          ← seed가 있을 때만
 
 비율은 텍스트로 알리는 동시에 가능한 곳에서는 API 파라미터로도 지정한다.
 
-- Gemini: `generationConfig.imageConfig.aspectRatio` (`gemini.ts:66`)
-- OpenAI: `size`를 가장 가까운 허용값으로 매핑 (`openai.ts:125`)
+- Gemini: `generationConfig.imageConfig.aspectRatio` (`gemini.ts:74-76`)
+- OpenAI: `size`를 가장 가까운 허용값으로 매핑 (`openai.ts:149-156`)
 
 ## 5. End-to-End 예시
 

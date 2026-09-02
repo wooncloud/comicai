@@ -125,6 +125,7 @@ model Page {
   panels        Panel[]
   speechBubbles SpeechBubble[]
   pageTexts     PageText[]
+  pageLines     PageLine[]
 
   @@index([projectId, order])
   @@map("pages")
@@ -163,6 +164,25 @@ model PageText {
 
   @@index([pageId, order])
   @@map("page_texts")
+}
+
+model PageLine {
+  id        String   @id
+  pageId    String   @map("page_id")
+  // 두 끝점 (페이지 좌표계 절대값).
+  x1        Float
+  y1        Float
+  x2        Float
+  y2        Float
+  style     Json     @default("{}") // PageLineStyle (strokeWidth/strokeColor/strokeStyle)
+  order     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, order])
+  @@map("page_lines")
 }
 
 model Panel {

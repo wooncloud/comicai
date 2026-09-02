@@ -53,9 +53,9 @@ ComicAI의 인프라/운영 자산은 세 위치에 모여 있다.
 | `cloudflared` (`:169`)     | `cloudflare/cloudflared:latest`                                                 | —               | web, api (profile `tunnel`)        |
 | `backup` (`:183`)          | `../backup`                                                                     | —               | postgres, minio (profile `backup`) |
 
-`migrate`는 `prisma migrate deploy` 실행 후 종료(`restart: "no"`, `:92`), `api`/`worker`는 `service_completed_successfully` 조건으로 대기(`:107`, `:142`).
+`migrate`는 `prisma migrate deploy` 실행 후 종료(`restart: "no"`, `:92`), `api`/`worker`는 `service_completed_successfully` 조건으로 대기(`:107`, `:143`).
 
-`api` 컨테이너는 `RENDER_WORKER_DISABLED=1`로 BullMQ consumer를 끄고(`full.yml:114`), `worker` 컨테이너에서만 렌더링 큐를 처리(`RENDER_WORKER_DISABLED=0`, `:146`). `RENDER_CONCURRENCY` 기본 2 (`:147`).
+`api` 컨테이너는 `RENDER_WORKER_DISABLED=1`로 BullMQ consumer를 끄고(`full.yml:114`), `worker` 컨테이너에서만 렌더링 큐를 처리(`RENDER_WORKER_DISABLED=0`, `:147`). `RENDER_CONCURRENCY` 기본 2 (`:148`).
 
 #### Profiles
 
@@ -84,14 +84,14 @@ docker compose -f infra/compose/full.yml --profile backup up -d --build
 
 ### 2.1 `infra/docker/api.Dockerfile` (api + worker 공용)
 
-3-stage 빌드 (`api.Dockerfile:1-58`).
+3-stage 빌드 (`api.Dockerfile:1-60`).
 
 1. **`deps`** (`:8`) — `node:20-alpine` 베이스. `python3 make g++ libc6-compat openssl` 설치(네이티브 모듈/Prisma 용). `pnpm@9.12.0`을 corepack으로 활성화 후 워크스페이스 `package.json`만 복사하여 `pnpm install --frozen-lockfile` (`:22`) — 의존성 캐시 레이어 최적화.
 2. **`builder`** (`:25`) — `packages/`, `apps/api/` 소스 복사. 순서대로:
    - `prisma generate` (`:31`)
    - 워크스페이스 패키지 빌드 `@comicai/types`, `events`, `db`, `adapters` (`:32`)
    - `nest build` (`:33`)
-3. **`runner`** (`:36`) — `openssl libc6-compat dumb-init` + 비루트 사용자 `comicai:1001` (`:42`). 루트 `node_modules`(.pnpm 스토어)와 워크스페이스별 `node_modules` 심볼릭 링크를 모두 복사(`:46-51`). 기본 CMD는 `node apps/api/dist/main.js`; worker는 compose에서 `command` override.
+3. **`runner`** (`:36`) — `openssl libc6-compat dumb-init font-noto-cjk fontconfig` 설치(`:39`) + 비루트 사용자 `comicai:1001` (`:44`). **font-noto-cjk** 는 sharp 가 export SVG 의 CJK 글리프(특히 한국어 PageText) 를 렌더링하는 데 필요 — 미설치 시 페이지 자유 텍스트의 한글이 PNG 결과에서 사라진다. 루트 `node_modules`(.pnpm 스토어)와 워크스페이스별 `node_modules` 심볼릭 링크를 모두 복사(`:48-53`). 기본 CMD는 `node apps/api/dist/main.js`; worker는 compose에서 `command` override.
 
 EXPOSE `4000`.
 

@@ -11,8 +11,9 @@
 - **TailwindCSS 3.4** + `tailwindcss-animate`, `tailwind-merge`, `class-variance-authority`
 - **tldraw 3.15** — 캔버스/도형/도구 시스템. 패널 편집의 핵심
 - **TipTap 2.8** — `@tiptap/react` + `starter-kit` + `extension-mention` + `suggestion`/`pm`/`core` (패널 내부 텍스트 + `@`멘션)
-- **Radix UI** — `react-avatar`, `react-dialog`, `react-dropdown-menu`, `react-radio-group`, `react-select`, `react-slot`
-- **@tanstack/react-query 5.100** — 신규 도입. 서버 상태 관리
+- **Radix UI** — `react-avatar`, `react-dialog`, `react-dropdown-menu`, `react-radio-group`, `react-select`, `react-slot`, `react-tooltip`
+- **@tanstack/react-query 5.100** — 서버 상태 관리
+- **sonner** — 토스트 라이브러리. `components/ui/toast.tsx` 가 sonner의 `Toaster` + `toast()` 를 기존 `useToast()` 시그니처로 래핑해 마이그레이션 비용 없이 전체 호출부 호환
 - `lucide-react` 아이콘, `clsx` (`lib/cn.ts`로 래핑)
 
 Playwright(`e2e/`)와 typecheck(`tsc --noEmit`)는 dev tooling.
@@ -36,7 +37,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 | `/settings/(profile\|api-keys\|security)` | `app/settings/...`                             | `settings/layout.tsx:13`이 탭 네비 + `AppShell` 공통 적용                                                                   |
 | `/health`                                 | `app/health/page.tsx:17`                       | **서버 컴포넌트**. `INTERNAL_API_URL`/`NEXT_PUBLIC_API_URL`로 `/healthz` 호출 후 JSON 덤프                                  |
 
-루트 레이아웃 `app/layout.tsx:27`은 Pretendard(local woff2) + Inter를 주입하고 `<Providers><ToastProvider>` 순으로 감싼다 (`app/layout.tsx:31-33`).
+루트 레이아웃 `app/layout.tsx:9-21`은 Pretendard(local woff2) + Inter를 주입하고 `<Providers><ToastProvider>` 순으로 감싼다 (`app/layout.tsx:37-39`).
 
 ## 3. Providers 와 전역 셸
 
@@ -50,7 +51,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 
 ### components/shell/app-shell.tsx
 
-`AppShell`(`app-shell.tsx:25`)은 `Topbar` + `<main>` 레이아웃. `Topbar`(`app-shell.tsx:34`)는 다음을 담당.
+`AppShell`(`app-shell.tsx:27`)은 `Topbar` + `<main>` 레이아웃. `Topbar`(`app-shell.tsx:36`)는 다음을 담당.
 
 - `useQuery<SessionUser>({ queryKey: ['me'], retry: false })` (`app-shell.tsx:38-42`) — 401 발생 시 로그인이 아닌 경로에서 `/login`으로 redirect (`:44-55`)
 - 로그아웃은 `POST /logout` 후 `queryClient.setQueryData(['me'], null)`로 캐시 무효화 (`:57-64`)
@@ -61,6 +62,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 ### components/shell
 
 - `app-shell.tsx` — 위 참고. `AppShell`, `Topbar` 두 export
+- `mobile-blocker.tsx` — 좁은 뷰포트(모바일) 진입 시 데스크탑 권장 오버레이. `app/layout.tsx:40`에서 항상 마운트되어 viewport 폭에 따라 자동 노출
 
 ### components/dashboard
 
@@ -71,30 +73,49 @@ App Router 구조. 모든 `page.tsx` 파일.
 
 - `entity-card.tsx` — 일관성 엔티티(캐릭터/배경/세계관/그림체) 카드와 인라인 편집 UI. style 탭에서는 `isDefault?`/`onSetDefault?` props로 대표 그림체 배지·"대표로 지정" 버튼 노출(`entity-card.tsx:12-15, 57-61, 85-88`). 목록 페이지는 `app/projects/[id]/consistency/page.tsx`에서 `useState`로 직접 관리(React Query 미사용)
 
-### components/editor (TipTap 측)
+### components/editor (TipTap 측 + 인스펙터 + 공용 입력)
 
-- `panel-editor.tsx:15` — TipTap `useEditor`로 `StarterKit`(heading/codeBlock/blockquote off) + `ComicMention`. `onUpdate`에서 `editor.getJSON()`을 `TipTapDoc`으로 콜백. `immediatelyRender: false` (SSR 호환)
+- `panel-editor.tsx` — TipTap `useEditor`로 `StarterKit`(heading/codeBlock/blockquote off) + `ComicMention`. `onUpdate`에서 `editor.getJSON()`을 `TipTapDoc`으로 콜백. `immediatelyRender: false` (SSR 호환)
 - `mention-extension.ts:8` — `@tiptap/extension-mention` 확장, attrs `{ id, label, version, deleted }`를 직렬화. 렌더는 `<span data-mention-id=…>@label</span>`
 - `mention-suggestion.tsx` — `@` 트리거 후 일관성 엔티티 검색·삽입 팝업
-- `panel-inspector.tsx` — 우측 인스펙터. 후술
+- 인스펙터:
+  - `panel-inspector.tsx` — 패널 선택 시 우측 인스펙터. 콘티/모델/렌더 액션. 후술
+  - `page-inspector.tsx` — 패널이 선택되지 않았을 때 페이지 단위(크기/배경색) 인스펙터
+  - `page-text-inspector.tsx` — `page-text` shape 선택 시. fontSize/fontFamily/color/textAlign 편집
+  - `page-line-inspector.tsx` — `page-line` shape 선택 시. strokeWidth/strokeColor/strokeStyle(solid/dashed) 편집
+  - `speech-bubble-inspector.tsx` — `speech-bubble` shape 선택 시. variant/strokeWidth/strokeColor/fillColor 만 (텍스트 키 없음)
+- 공용 입력:
+  - `number-field.tsx` — 디바운스 + 화살표 조정이 있는 숫자 입력. 인스펙터 전반에서 재사용
+  - `hex-color-field.tsx` — `#RRGGBB` 컬러 입력 + 라이브 검증 + commit
+  - `align-toggle.tsx` — `TextAlign` 토글 (left/center/right). PageText/SpeechBubble 공유
+  - `section-label.tsx` — 아이콘 + 캡션 섹션 헤더
+  - `collapse-button.tsx` / `collapse-rail.tsx` — 좌/우 사이드바 접기/펴기
+  - `tool-rail.tsx` — 캔버스 좌측 도구 레일(`select`/`hand`/`comic-panel`/`page-text`/`page-line`/말풍선 진입). 한글 IME 안전을 위해 `KeyboardEvent.code` 매핑(예: `KeyL` → `page-line`)
+  - `conti-dialog.tsx` — 콘티 업로드/제거 다이얼로그 (POST/DELETE `/v1/panels/:id/conti`)
 - `history-tray.tsx` — 패널별 렌더 히스토리 그리드. 후술
-- `panel-shape-picker.tsx`, `panel-status-badge.tsx`, `save-status.tsx`, `tool-toggle.tsx`, `page-sidebar.tsx`, `page-size-select.tsx`, `export-dialog.tsx` — 보조 UI
+- `panel-shape-picker.tsx`, `panel-status-badge.tsx`, `save-status.tsx`, `page-sidebar.tsx`, `page-size-select.tsx`, `export-dialog.tsx` — 보조 UI
 
 ### components/editor/tldraw (tldraw 측)
 
-- `comic-editor.tsx:119` — `<Tldraw>` 마운트. `shapeUtils=[ComicPanelShapeUtil, PageFrameShapeUtil, SpeechBubbleShapeUtil]`, `tools=[ComicPanelTool, PolygonPanelTool, ...ALL_BUBBLE_TOOLS]`. `uiOverrides`로 `comic-panel`(키 `p`), `polygon-panel`(키 `g`) 툴바 등록 (`:16-36`). `components`로 모든 UI 슬롯(Toolbar/MenuPanel/StylePanel/…)을 null 처리해 자체 사이드바/툴레일로 대체하면서도 `useKeyboardShortcuts`(=Backspace 삭제/Cmd+Z 등)는 유지한다 — `hideUi` prop을 쓰면 `TldrawUiContent`가 통째로 안 마운트되어 단축키도 비활성되므로 사용 금지 (`:41-67`)
+- `comic-editor.tsx` — `<Tldraw>` 마운트. `shapeUtils=[ComicPanelShapeUtil, PageFrameShapeUtil, SpeechBubbleShapeUtil, PageTextShapeUtil, PageLineShapeUtil]`, `tools=[ComicPanelTool, PolygonPanelTool, PageTextTool, PageLineTool, ...ALL_BUBBLE_TOOLS]`. `uiOverrides`로 `comic-panel`(`p`), `polygon-panel`(`g`), `page-text`(`t`), `page-line`(`l`) 툴바 등록. `components`로 모든 UI 슬롯(Toolbar/MenuPanel/StylePanel/…)을 null 처리해 자체 사이드바/툴레일로 대체하면서도 `useKeyboardShortcuts`(=Backspace 삭제/Cmd+Z 등)는 유지한다 — `hideUi` prop을 쓰면 `TldrawUiContent`가 통째로 안 마운트되어 단축키도 비활성되므로 사용 금지
+- `comic-editor.tsx:onMount` — store listener에서 모든 `speech-bubble` + `page-text` + `page-line` shape를 항상 `bringToFront`로 패널 위에 유지. 호출 순서 = z-order 끝(말풍선 → 텍스트 → 직선 — 직선이 가장 위)
 - `comic-panel-shape.tsx:13` — `BaseBoxShapeUtil` 기반 `comic-panel` shape (props: w, h, panelId, status, resultImageUrl, variant, polygonPoints). 클립패스로 polygon/oval 등 외형 적용
 - `comic-panel-tool.tsx:4` — `BaseBoxShapeTool` 상속 rect 드래그 도구
-- `polygon-panel-tool.tsx:3` — `StateNode` 기반 자유 polygon 도구. 첫 vertex 근처 클릭/더블클릭/Enter로 닫음, Escape 취소
+- `polygon-panel-tool.tsx` — `StateNode` 기반 자유 polygon 도구. 첫 vertex 근처 클릭/더블클릭/Enter로 닫음, Escape 취소. 말풍선 polygon 도구와 공유 베이스는 `polygon-tool-base.ts`
 - `polygon-preview.tsx`, `polygon-state.ts` — 드로잉 중 미리보기 (jotai-style atom 패턴)
 - `page-frame-shape.tsx:13` — 페이지 캔버스 영역을 표시하는 잠금 frame shape
 - `panel-geometry.ts` — `clipPathFor` / `outlinePathFor` / `NormalizedPoint` 헬퍼
 - `use-panel-sync.ts` — 패널 ↔ tldraw 양방향 동기화 훅 (후술)
 - `use-page-frame.ts` — 페이지 frame 자동 생성/갱신 훅 (후술)
-- `speech-bubble-shape.tsx` — `BaseBoxShapeUtil` 기반 `speech-bubble` shape. `canEdit()=true`로 더블클릭 시 inline 텍스트 편집. variant `ellipse/rect/cloud/spike/thought/polygon` 별 SVG path + 꼬리(tail) 옵션
-- `speech-bubble-tools.tsx` — variant별 box 도구 5종(ellipse/rect/cloud/spike/thought, 자체 `StateNode` + Idle/Pointing children — click은 default 160×100, drag는 사용자 bbox)과 `BubblePolygonTool`(polygon-panel과 동일 인터랙션). tldraw `BaseBoxShapeTool`은 click-only 경로에서 `onCreate`를 호출하지 않아 variant 패치가 누락되므로 사용하지 않는다
+- `speech-bubble-shape.tsx` — `BaseBoxShapeUtil` 기반 `speech-bubble` shape. **텍스트 편집 모드 제거됨** (텍스트는 PageText 로 분리). variant `ellipse/rect/spike/polygon` 별 SVG path(`@comicai/types`의 `bubbleBodyPath`) + 꼬리(tail) 옵션
+- `speech-bubble-tools.tsx` — variant별 box 도구 3종(ellipse/rect/spike, 자체 `StateNode` + Idle/Pointing children — click은 default 160×100, drag는 사용자 bbox)과 `BubblePolygonTool`(polygon-tool-base 공유). tldraw `BaseBoxShapeTool`은 click-only 경로에서 `onCreate`를 호출하지 않아 variant 패치가 누락되므로 사용하지 않는다
 - `use-speech-bubble-sync.ts` — 말풍선 ↔ tldraw 양방향 동기화 (use-panel-sync 패턴, 1.5초 디바운스, mergeRemoteChanges 보호)
-- `comic-editor.tsx:onMount` — store listener에서 모든 `speech-bubble` shape를 항상 `bringToFront`로 패널 위에 유지(재귀 방지 microtask + mergeRemoteChanges)
+- `page-text-shape.tsx` — `BaseBoxShapeUtil` 기반 `page-text` shape. props: w, h, textId, text, fontSize, fontFamily, color, textAlign. `canEdit()=true` 로 더블클릭 시 inline 텍스트 편집(IME 안전 처리)
+- `page-text-tool.tsx` — `StateNode` 기반 텍스트 박스 도구. click 시 default 200×60, drag 시 사용자 bbox
+- `use-page-text-sync.ts` — PageText ↔ tldraw 양방향 동기화 (1.5초 디바운스). 신규 shape 생성 시 `POST /v1/pages/:id/page-texts` 로 백엔드 id 채움
+- `page-line-shape.tsx` — `BaseBoxShapeUtil` 기반 `page-line` shape. props: w, h, lineId, x1Norm/y1Norm/x2Norm/y2Norm(bbox 내 0..1), strokeWidth, strokeColor, strokeStyle(`'solid'|'dashed'`). 내부 `<svg><line>` 으로 렌더, `canEdit=false`, `hideRotateHandle=true`
+- `page-line-tool.tsx` — drag로 두 점을 지정해 만드는 `StateNode` 도구 (Idle/Pointing/Dragging 3-state). Shift 누르면 시작점 기준 8방향(45°) 스냅, 너무 짧으면(< 4px) 무효화. 단일 클릭은 무시
+- `use-page-line-sync.ts` — PageLine ↔ tldraw 양방향 동기화. DB는 절대좌표 두 점, shape은 bbox+normalized — 양 방향 모두 `boxFromPoints`/역변환으로 정규화. 1.5초 디바운스
 
 ### components/ui (Radix 래퍼 + cva)
 
@@ -102,9 +123,9 @@ App Router 구조. 모든 `page.tsx` 파일.
 
 - `button.tsx:7` — `cva` 기반. variant `default/destructive/outline/secondary/ghost/link`, size `default/sm/lg/icon`. `asChild`는 `@radix-ui/react-slot`
 - `dialog.tsx:7` — `@radix-ui/react-dialog` 래퍼 (Overlay/Content/Header/Footer/Title/Description/Close)
-- `dropdown-menu.tsx`, `select.tsx`, `avatar.tsx`, `radio-group.tsx` — 동명 Radix 패키지 래퍼
+- `dropdown-menu.tsx`, `select.tsx`, `avatar.tsx`, `radio-group.tsx`, `tooltip.tsx` — 동명 Radix 패키지 래퍼
 - `input.tsx`, `breadcrumb.tsx` — 순수 컴포넌트 (Radix 미사용)
-- `toast.tsx` — 후술 (Context 기반 자작 토스트)
+- `toast.tsx` — 후술 (sonner 래퍼)
 
 ### components 루트
 
@@ -116,13 +137,13 @@ App Router 구조. 모든 `page.tsx` 파일.
 
 현재 코드에 등장하는 쿼리 키는 5개뿐이다.
 
-| 쿼리 키                      | 위치                                       | 용도                                                                                                                          |
-| ---------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `['me']`                     | `components/shell/app-shell.tsx:39`        | 현재 세션 사용자. `retry: false`, 401 시 `/login` redirect. 로그아웃 시 `setQueryData(['me'], null)`                          |
-| `['projects']`               | `app/dashboard/page.tsx:14`                | 프로젝트 목록. 생성/패치/삭제는 모두 `queryClient.setQueryData<ProjectDTO[]>(['projects'], ...)`로 옵티미스틱 갱신 (`:19-33`) |
-| `['project', id]`            | `lib/use-project.ts:8`                     | 단일 프로젝트. `enabled: !!projectId`                                                                                         |
-| `['panel-history', panelId]` | `components/editor/history-tray.tsx:16`    | 패널의 렌더 잡 목록. `restore` mutation 성공 시 `invalidateQueries` (`:25`)                                                   |
-| `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:59` | 단일 렌더 잡. `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치 (후술)                               |
+| 쿼리 키                      | 위치                                          | 용도                                                                                                                          |
+| ---------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `['me']`                     | `components/shell/app-shell.tsx:39`           | 현재 세션 사용자. `retry: false`, 401 시 `/login` redirect. 로그아웃 시 `setQueryData(['me'], null)`                          |
+| `['projects']`               | `app/dashboard/page.tsx:14`                   | 프로젝트 목록. 생성/패치/삭제는 모두 `queryClient.setQueryData<ProjectDTO[]>(['projects'], ...)`로 옵티미스틱 갱신 (`:19-33`) |
+| `['project', id]`            | `lib/use-project.ts:8`                        | 단일 프로젝트. `enabled: !!projectId`                                                                                         |
+| `['panel-history', panelId]` | `components/editor/history-tray.tsx:16`       | 패널의 렌더 잡 목록. `restore` mutation 성공 시 `invalidateQueries` (`:25`)                                                   |
+| `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:72-76` | 단일 렌더 잡. `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치 (후술)                               |
 
 뮤테이션은 `useMutation`을 두 곳에서 사용한다.
 
@@ -154,9 +175,9 @@ App Router 구조. 모든 `page.tsx` 파일.
 
 `components/editor/tldraw/use-page-frame.ts:22` — `page-frame` shape를 0,0에 자동 생성, 잠금(`isLocked: true`), `index: 'a0'`로 항상 최하단. 사이즈·라벨 변경 시 삭제 후 재생성으로 BaseBoxShape geometry 강제 갱신. `sendToBack` 폴백은 mergeRemoteChanges 밖에서 호출 (`:50-52`). 신규 frame 생성 시 `zoomToFit`.
 
-### 5.4 토스트 — Context
+### 5.4 토스트 — sonner
 
-`components/ui/toast.tsx:15` — 자작 `ToastProvider`. `push(kind, message)`로 `items` 배열에 추가, 5초 후 자동 제거. 외부 라이브러리(`sonner`/`react-hot-toast` 등) 미사용. `useToast()`는 Provider 미장착 환경에서 `console.log` 폴백 (`:48-58`). 보너스 훅 `useEffectToastOnError`(`:61`) 제공.
+`components/ui/toast.tsx` — **sonner** 의 `Toaster` + `toast()` 를 얇게 래핑한다. `ToastProvider`(`:11-27`)는 sonner `<Toaster>` 를 mount(`position="bottom-right"`, `richColors`, `closeButton`, 카드 스타일 toast classNames). `useToast()` 훅은 sonner 호출을 `push(kind, message)` 시그니처로 감싸 기존 호출부 호환을 유지한다 — 마이그레이션 시 호출 코드 수정 없이 자작 토스트를 교체. `useEffectToastOnError` 같은 보조 훅도 함께 노출.
 
 ## 6. API 클라이언트 (lib/api.ts)
 
@@ -175,7 +196,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 
 ### lib/use-debounced.ts
 
-`useDebounced<T>(value, delay, cb)` (`lib/use-debounced.ts:5`) — 첫 마운트는 무시(`first` ref), 이후 `value` 변경 + `delay`ms 무변화 시 `cb(value)` 호출. 콜백은 ref로 캡쳐해 최신 클로저 유지. `panel-inspector.tsx:72`에서 TipTap doc → `PATCH /panels/:id`를 800ms 디바운스로 저장하는 데 사용.
+`useDebounced<T>(value, delay, cb)` (`lib/use-debounced.ts:5`) — 첫 마운트는 무시(`first` ref), 이후 `value` 변경 + `delay`ms 무변화 시 `cb(value)` 호출. 콜백은 ref로 캡쳐해 최신 클로저 유지. `panel-inspector.tsx:98`에서 TipTap doc → `PATCH /panels/:id`를 800ms 디바운스로 저장하는 데 사용.
 
 ### lib/use-project.ts
 
@@ -218,18 +239,29 @@ apps/web/
 │   └── health/                 # 서버 컴포넌트
 ├── components/
 │   ├── shell/app-shell.tsx     # Topbar + useQuery(['me'])
+│   ├── shell/mobile-blocker.tsx
 │   ├── dashboard/              # project-card, project-create-dialog
 │   ├── consistency/entity-card.tsx
 │   ├── editor/
-│   │   ├── panel-inspector.tsx # SSE ↔ React Query 브리지
-│   │   ├── history-tray.tsx    # useQuery(['panel-history', id])
-│   │   ├── panel-editor.tsx    # TipTap
+│   │   ├── panel-inspector.tsx       # SSE ↔ React Query 브리지
+│   │   ├── page-inspector.tsx        # 페이지 단위(크기/배경색)
+│   │   ├── page-text-inspector.tsx   # PageText shape
+│   │   ├── page-line-inspector.tsx   # PageLine shape
+│   │   ├── speech-bubble-inspector.tsx
+│   │   ├── history-tray.tsx          # useQuery(['panel-history', id])
+│   │   ├── panel-editor.tsx          # TipTap
 │   │   ├── mention-{extension,suggestion}.{ts,tsx}
-│   │   ├── (page-sidebar|page-size-select|export-dialog|save-status|tool-toggle|panel-status-badge|panel-shape-picker).tsx
+│   │   ├── conti-dialog.tsx          # 콘티 업/다운/삭제
+│   │   ├── (number-field|hex-color-field|align-toggle|section-label|collapse-button|collapse-rail|tool-rail).tsx
+│   │   ├── (page-sidebar|page-size-select|export-dialog|save-status|panel-status-badge|panel-shape-picker).tsx
 │   │   └── tldraw/             # comic-editor, comic-panel-{shape,tool},
-│   │                           # polygon-{tool,preview,state}, page-frame-shape,
-│   │                           # panel-geometry, use-panel-sync, use-page-frame
-│   └── ui/                     # Radix 래퍼 + toast(context) + breadcrumb/input
+│   │                           # polygon-{panel-tool,preview,state}, polygon-tool-base,
+│   │                           # speech-bubble-{shape,tools}, use-speech-bubble-sync,
+│   │                           # page-text-{shape,tool}, use-page-text-sync,
+│   │                           # page-line-{shape,tool}, use-page-line-sync,
+│   │                           # page-frame-shape, panel-geometry,
+│   │                           # use-panel-sync, use-page-frame
+│   └── ui/                     # Radix 래퍼 + toast(sonner) + tooltip/breadcrumb/input
 └── lib/
     ├── api.ts                  # envelope/CSRF/credentials
     ├── cn.ts                   # clsx + tailwind-merge

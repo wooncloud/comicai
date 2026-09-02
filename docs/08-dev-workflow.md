@@ -126,23 +126,30 @@ pnpm --filter @comicai/db migrate
 
 ## 5. CI
 
-`.github/workflows/ci.yml:1-39`
+`.github/workflows/ci.yml:1-53`
 
 - 트리거: `push` → `main`, 모든 `pull_request`
 - concurrency: 동일 ref의 이전 실행을 취소 (`ci.yml:8-10`)
-- 단일 job `build` (ubuntu-latest, 15분 타임아웃):
+- 러너: **`[self-hosted, comicai]`** 라벨의 셀프호스티드 러너 (`ci.yml:15`, `:45`). 액션은 모두 v6 라인 (`actions/checkout@v6`, `pnpm/action-setup@v6`, `actions/setup-node@v6`).
+- `build` job (15분 타임아웃):
   1. checkout
   2. pnpm 9.12.0 / Node 20 (`pnpm` 캐시)
   3. `pnpm install --frozen-lockfile`
   4. `pnpm -r --filter "./packages/*" build` — 워크스페이스 패키지 선빌드
   5. `pnpm typecheck`
   6. `pnpm test`
+- `deploy` job (`ci.yml:41-53`, 20분 타임아웃): `needs: build`, **`main` push 일 때만** 실행. `secrets.PROD_REPO_PATH` 디렉터리에서 `git fetch --prune && git reset --hard origin/main` 후 `docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup up -d --build --force-recreate web api worker` 로 web/api/worker 컨테이너 재기동.
+
+별도 워크플로우:
+
+- `.github/workflows/docs-drift.yml` — `docs/**/*.md` · `apps/**` · `packages/**` 변경 시 `pnpm verify:docs` 로 인용 정합성 검사.
+- `.github/workflows/docs-nudge.yml` — PR 코드 영역이 50줄 이상 바뀌었는데 짝이 되는 `docs/*.md` 가 그대로면 PR 코멘트로 nudge (`/sync-docs <영역>` 권장). 절대 fail 하지 않음.
 
 > 주의: CI는 현재 **lint, E2E, integration 테스트를 실행하지 않는다.** 통합 테스트는 Docker 데몬이 필요하고, E2E는 별도 인프라가 필요해 로컬·온디맨드로 돌리는 구조다. 계획서 `develop-docs/40-ops/06-git-workflow.md:147`이 명시한 "lint/typecheck/unit/integration 통과"와는 차이가 있으니, 머지 전엔 로컬에서 누락 단계를 직접 돌릴 것.
 
 ## 6. Git 훅
 
-- 도구: **Husky v9** (`package.json:24`). `prepare` 스크립트가 `husky`를 호출 (`package.json:16`).
+- 도구: **Husky v9** (`package.json:49`). `prepare` 스크립트가 `husky`를 호출 (`package.json:31`).
 - `pre-commit` 훅: `.husky/pre-commit:1`
   ```sh
   pnpm exec lint-staged
@@ -169,7 +176,7 @@ pnpm --filter @comicai/db migrate
   - `refactor(simplify): P7B — 패널 모양/도구 묶음 리뷰 반영`
   - `fix(export): 패널 알파 마스크가 적용되지 않던 버그`
   - `feat(p6): Ops - 워커 분리 / cloudflared / 백업 cron / 테스트 인프라`
-- **금지 사항**(글로벌 지침 `~/.claude/CLAUDE.md` 및 `develop-docs/40-ops/06-git-workflow.md:171-176`):
+- **금지 사항**(글로벌 지침 `~/.claude/CLAUDE.md` 및 `develop-docs/40-ops/06-git-workflow.md:187-188`):
   - `Co-Authored-By` 라인 금지
   - `🤖 Generated with …` 자동 서명 금지
 
@@ -211,12 +218,12 @@ pnpm --filter @comicai/web e2e
 
 ## 10. 참고 파일
 
-- 루트 스크립트: `/Users/wooncloud/project/comicai/package.json`
-- Turbo 파이프라인: `/Users/wooncloud/project/comicai/turbo.json`
-- CI: `/Users/wooncloud/project/comicai/.github/workflows/ci.yml`
-- Husky: `/Users/wooncloud/project/comicai/.husky/pre-commit`
-- API Vitest: `/Users/wooncloud/project/comicai/apps/api/vitest.config.ts`, `vitest.integration.config.ts`
-- Web Playwright: `/Users/wooncloud/project/comicai/apps/web/playwright.config.ts`
-- Compose: `/Users/wooncloud/project/comicai/infra/compose/dev.yml`, `full.yml`
-- 환경 변수: `/Users/wooncloud/project/comicai/.env.example`
-- 커밋/PR 규칙(계획): `/Users/wooncloud/project/comicai/docs/develop-docs/40-ops/06-git-workflow.md`
+- 루트 스크립트: `package.json`
+- Turbo 파이프라인: `turbo.json`
+- CI: `.github/workflows/ci.yml`
+- Husky: `.husky/pre-commit`
+- API Vitest: `apps/api/vitest.config.ts`, `vitest.integration.config.ts`
+- Web Playwright: `apps/web/playwright.config.ts`
+- Compose: `infra/compose/dev.yml`, `full.yml`
+- 환경 변수: `.env.example`
+- 커밋/PR 규칙(계획): `docs/develop-docs/40-ops/06-git-workflow.md`

@@ -12,6 +12,7 @@ import {
   ApiPaths,
   pageLabel,
   type PageDTO,
+  type PageLineDTO,
   type PageTextDTO,
   type PanelDTO,
   type SpeechBubbleDTO,
@@ -19,6 +20,7 @@ import {
 import { PanelInspector } from '@/components/editor/panel-inspector';
 import { SpeechBubbleInspector } from '@/components/editor/speech-bubble-inspector';
 import { PageTextInspector } from '@/components/editor/page-text-inspector';
+import { PageLineInspector } from '@/components/editor/page-line-inspector';
 import { PageSidebar } from '@/components/editor/page-sidebar';
 import { ToolRail } from '@/components/editor/tool-rail';
 import { SaveStatus } from '@/components/editor/save-status';
@@ -28,10 +30,12 @@ import { CollapseRail } from '@/components/editor/collapse-rail';
 import { usePanelSync } from '@/components/editor/tldraw/use-panel-sync';
 import { useSpeechBubbleSync } from '@/components/editor/tldraw/use-speech-bubble-sync';
 import { usePageTextSync } from '@/components/editor/tldraw/use-page-text-sync';
+import { usePageLineSync } from '@/components/editor/tldraw/use-page-line-sync';
 import { usePageFrame } from '@/components/editor/tldraw/use-page-frame';
 import type { ComicPanelShape } from '@/components/editor/tldraw/comic-panel-shape';
 import type { SpeechBubbleShape } from '@/components/editor/tldraw/speech-bubble-shape';
 import type { PageTextShape } from '@/components/editor/tldraw/page-text-shape';
+import type { PageLineShape } from '@/components/editor/tldraw/page-line-shape';
 
 const ComicEditor = dynamic(
   () => import('@/components/editor/tldraw/comic-editor').then((m) => m.ComicEditor),
@@ -42,6 +46,7 @@ type Selection =
   | { kind: 'panel'; id: string }
   | { kind: 'bubble'; shape: SpeechBubbleShape }
   | { kind: 'text'; shape: PageTextShape }
+  | { kind: 'line'; shape: PageLineShape }
   | null;
 
 function CanvasFallback() {
@@ -60,6 +65,7 @@ export default function PageEditor() {
   const [panels, setPanels] = useState<PanelDTO[]>([]);
   const [bubbles, setBubbles] = useState<SpeechBubbleDTO[]>([]);
   const [texts, setTexts] = useState<PageTextDTO[]>([]);
+  const [lines, setLines] = useState<PageLineDTO[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -71,16 +77,18 @@ export default function PageEditor() {
   useEffect(() => {
     if (!pageId) return;
     void (async () => {
-      const [p, list, bubs, txs] = await Promise.all([
+      const [p, list, bubs, txs, lns] = await Promise.all([
         api<PageDTO>(ApiPaths.page(pageId)),
         api<PanelDTO[]>(ApiPaths.pagePanels(pageId)),
         api<SpeechBubbleDTO[]>(ApiPaths.pageSpeechBubbles(pageId)),
         api<PageTextDTO[]>(ApiPaths.pagePageTexts(pageId)),
+        api<PageLineDTO[]>(ApiPaths.pagePageLines(pageId)),
       ]);
       setPage(p);
       setPanels(list);
       setBubbles(bubs);
       setTexts(txs);
+      setLines(lns);
     })();
   }, [pageId]);
 
@@ -118,6 +126,15 @@ export default function PageEditor() {
     onSaveError,
   });
 
+  usePageLineSync({
+    editor,
+    pageId,
+    lines,
+    onLinesChanged: setLines,
+    onSavingChange,
+    onSaveError,
+  });
+
   usePageFrame({
     editor,
     pageId,
@@ -138,6 +155,8 @@ export default function PageEditor() {
         setSelection({ kind: 'bubble', shape: shape as SpeechBubbleShape });
       } else if (shape?.type === 'page-text') {
         setSelection({ kind: 'text', shape: shape as PageTextShape });
+      } else if (shape?.type === 'page-line') {
+        setSelection({ kind: 'line', shape: shape as PageLineShape });
       } else {
         setSelection(null);
       }
@@ -221,6 +240,14 @@ export default function PageEditor() {
           />
         ) : selection?.kind === 'text' && editor ? (
           <PageTextInspector
+            key={selection.shape.id}
+            editor={editor}
+            shapeId={selection.shape.id}
+            shape={selection.shape}
+            onCollapse={() => setRightCollapsed(true)}
+          />
+        ) : selection?.kind === 'line' && editor ? (
+          <PageLineInspector
             key={selection.shape.id}
             editor={editor}
             shapeId={selection.shape.id}

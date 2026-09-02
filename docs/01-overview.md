@@ -79,9 +79,12 @@ NestJS 10 기반 단일 프로세스로 두 가지 엔트리포인트를 가진�
 | `MeModule`                                        | `me/`                          | `/me`, 비밀번호 변경, 세션 목록                              |
 | `ApiKeysModule`                                   | `api-keys/`                    | BYOK 키 등록·검증(argon2/AES)                                |
 | `ProjectsModule` / `PagesModule` / `PanelsModule` | `projects/` `pages/` `panels/` | 작품 트리 CRUD                                               |
+| `SpeechBubblesModule`                             | `speech-bubbles/`              | 페이지 직속 말풍선 CRUD                                      |
+| `PageTextsModule`                                 | `page-texts/`                  | 페이지 직속 자유 텍스트 CRUD                                 |
+| `PageLinesModule`                                 | `page-lines/`                  | 페이지 직속 자유 직선 CRUD                                   |
 | `ConsistencyModule`                               | `consistency/`                 | 일관성 엔티티 + 참조 이미지 업로드                           |
 | `RenderModule`                                    | `render/`                      | IR 빌더, BullMQ 큐, 워커, SSE 허브                           |
-| `ExportModule`                                    | `export/`                      | 페이지 PNG/PDF 내보내기, 패널 알파 마스크 합성               |
+| `ExportModule`                                    | `export/`                      | 페이지 PNG/JPG 내보내기, 패널 마스크 + 오버레이 레이어 합성  |
 
 지원 디렉토리: `common/` (예외 필터, Zod 파이프, 응답 envelope 인터셉터, CSRF, 업로드 유틸), `storage/` (S3/MinIO + 이미지 검증).
 

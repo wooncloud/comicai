@@ -208,6 +208,36 @@ export const PageTextReorderSchema = z.object({
   ids: z.array(z.string().min(1)).min(1).max(500),
 });
 
+// ─── 페이지 직선 ──────────────────────────────
+export const PAGE_LINE_STROKE_STYLES = ['solid', 'dashed'] as const;
+export const PageLineStrokeStyleSchema = z.enum(PAGE_LINE_STROKE_STYLES);
+
+export const PageLineStyleSchema = z.object({
+  strokeWidth: z.number().positive().max(40).default(2),
+  strokeColor: z.string().max(32).default('#111111'),
+  strokeStyle: PageLineStrokeStyleSchema.default('solid'),
+});
+
+export const PageLineCreateSchema = z.object({
+  x1: z.number(),
+  y1: z.number(),
+  x2: z.number(),
+  y2: z.number(),
+  style: PageLineStyleSchema.partial().optional(),
+});
+
+export const PageLinePatchSchema = z.object({
+  x1: z.number().optional(),
+  y1: z.number().optional(),
+  x2: z.number().optional(),
+  y2: z.number().optional(),
+  style: PageLineStyleSchema.partial().optional(),
+});
+
+export const PageLineReorderSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(500),
+});
+
 // ─── 일관성 ───────────────────────────────────
 export const EntityTypeSchema = z.enum(['style', 'character', 'background', 'worldview']);
 export const ConsistencyCreateSchema = z.object({

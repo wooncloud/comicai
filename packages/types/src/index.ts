@@ -219,6 +219,39 @@ export interface PageTextDTO {
   updatedAt: string;
 }
 
+// ─── 페이지 직선 ───────────────────────────────
+// 페이지 위에 그리는 자유 직선(가이드/말풍선 연결선/패널 구분선 등).
+// 두 끝점 (x1,y1)-(x2,y2)는 페이지 좌표계 절대값.
+export const PAGE_LINE_STROKE_STYLES = ['solid', 'dashed'] as const;
+export type PageLineStrokeStyle = (typeof PAGE_LINE_STROKE_STYLES)[number];
+
+export interface PageLineStyle {
+  strokeWidth: number;
+  strokeColor: string;
+  strokeStyle: PageLineStrokeStyle;
+}
+
+export function defaultPageLineStyle(): PageLineStyle {
+  return {
+    strokeWidth: 2,
+    strokeColor: '#111111',
+    strokeStyle: 'solid',
+  };
+}
+
+export interface PageLineDTO {
+  id: string;
+  pageId: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  style: PageLineStyle;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── TipTap 문서 (멘션 노드) ────────────────────
 export interface TipTapMentionAttrs {
   id: string;

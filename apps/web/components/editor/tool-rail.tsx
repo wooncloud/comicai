@@ -7,6 +7,7 @@ import {
   MessageCircle,
   MousePointer2,
   Pentagon,
+  Slash,
   Square,
   Star,
   Type,
@@ -30,6 +31,7 @@ const TOOLS: readonly Tool[] = [
   { id: 'hand', kbd: 'h', label: '손', icon: Hand },
   { id: 'comic-panel', kbd: 'p', label: '패널', icon: Square, aliases: ['polygon-panel'] },
   { id: 'page-text', kbd: 't', label: '텍스트', icon: Type },
+  { id: 'page-line', kbd: 'l', label: '직선', icon: Slash },
   {
     id: 'bubble-ellipse',
     kbd: 'b',

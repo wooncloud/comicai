@@ -1,7 +1,7 @@
 # 06 · 렌더 파이프라인 (End-to-End)
 
 패널 인스펙터의 "생성하기" 버튼부터 결과 이미지가 캔버스에 반영되기까지의 흐름.
-파일은 모두 절대경로(`/Users/wooncloud/project/comicai` 기준)와 라인을 함께 표기한다.
+파일은 모두 리포지토리 루트 기준 상대경로와 라인을 함께 표기한다.
 
 ---
 
@@ -43,14 +43,14 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
 
 ### 2.1 UI 트리거 — `startRender` mutation
 
-- 버튼: `apps/web/components/editor/panel-inspector.tsx:222`
+- 버튼: `apps/web/components/editor/panel-inspector.tsx:365`
   - `onClick={() => startRender.mutate()}` — `status`가 `queued`/`running`이면 비활성.
-- mutation 정의: `panel-inspector.tsx:87`
+- mutation 정의: `panel-inspector.tsx:113`
   - `POST ApiPaths.panelRender(panel.id)` (`/panels/:id/render`)
   - body: `{ model }` — Gemini/OpenAI ModelId.
   - `onSuccess({ jobId })`: jobId를 상태로 두고 `subscribeJob`을 호출
-    (`panel-inspector.tsx:96-106`).
-- 라우트 정의: `packages/types/src/paths.ts:35` (`panelRender`).
+    (`panel-inspector.tsx:122-132`).
+- 라우트 정의: `packages/types/src/paths.ts:48` (`panelRender`).
 
 ### 2.2 API 컨트롤러 — 큐 등록
 
@@ -68,7 +68,7 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
 1. `panels.assertOwned` — 소유권 확인 (`:23`).
 2. `buildRenderIR(panel.id, seed)` — 텍스트/콘티/참조이미지를 IR로 직렬화. 그림체는
    `panel.styleId ?? project.defaultStyleId`를 `effectiveStyleId`로 자동 주입하며 멘션 대상이 아님
-   (`apps/api/src/render/ir.builder.ts:21, 34-36, 61-63`).
+   (`apps/api/src/render/ir.builder.ts:21, 35, 62-64`).
 3. 입력 검증 — 본문/콘티/참조 중 하나도 없으면
    `BadRequestException({ code: 'RENDER_INVALID_INPUT' })` (`:25-30`).
 4. **Idempotency key** = `sha256({ ir, userId, model }).slice(0,32)` →
@@ -92,26 +92,29 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
   4. `getAdapter(model)` — `packages/adapters/src/index.ts:30` 디스패치
      (`gemini-*` → GeminiAdapter, `gpt-image-*` → OpenAIAdapter, `mock` → MockAdapter).
   5. `resolveApiKey(userId, model)` — DB의 활성 API 키를 가져와 `crypto.open`으로 복호화
-     (`:127-139`). 키 없음 → `RenderApiKeyMissing`(category=`auth`, `:142`).
+     (`:133-145`). 키 없음 → `RenderApiKeyMissing`(category=`auth`, `:148-150`).
   6. `AbortController` + `setTimeout(MODEL_CALL_TIMEOUT_MS = 60_000)` — 어댑터 호출 데드라인 (`:67-68, 15`).
   7. `adapter.buildRequest(ir, apiKey)` → `adapter.call(req, signal, ctx)` (`:74-75`).
   8. 성공:
      - `storage.putImage({kind:'render', renderJobId}, bytes, mime, w, h)` →
-       MinIO/S3 PUT, ImageRef 반환 (`apps/api/src/storage/storage.service.ts:73-94`).
+       MinIO/S3 PUT, ImageRef 반환 (`apps/api/src/storage/storage.service.ts:75-96`).
      - `prisma.renderJob.update({ status:'succeeded', resultImage, finishedAt })` (`render.worker.ts:83-90`).
-     - `SseHub.publish({ type:'status', status:'succeeded', resultImage })` (`:91-96`).
-     - `breaker.recordSuccess(apiKeyId)` — 회로차단기 카운터 리셋 (`:97`).
+     - **콘티 자동 정리**: `prisma.panel.update({ data: { conti: Prisma.JsonNull } })` —
+       역할을 다한 콘티가 다음 렌더에 잔존하지 않도록 자동 null화. R2 오브젝트는 그대로 두고 포인터만 끊음
+       (추후 GC 대상, `render.worker.ts:91-96`).
+     - `SseHub.publish({ type:'status', status:'succeeded', resultImage })` (`:97-102`).
+     - `breaker.recordSuccess(apiKeyId)` — 회로차단기 카운터 리셋 (`:103`).
   9. 예외:
      - `adapter.classifyError(err)` → `RenderError` (category: `transient|auth|quota|safety|invalid|timeout`)
-       (`render.worker.ts:100`, 타입 `packages/types/src/index.ts:211-217`).
-     - `auth`면 `ApiKeyBreaker.recordAuthFailure` (`:102-104`).
+       (`render.worker.ts:106`, 타입 `packages/types/src/index.ts:379-385`).
+     - `auth`면 `ApiKeyBreaker.recordAuthFailure` (`:108-110`).
      - 재시도 한도(`retryLimitFor`)에 못 미치면 `throw err` → BullMQ가 backoff로 재시도
-       (`:106-108, 146-150`): transient=3, timeout=2, 그 외=1(즉시 실패).
+       (`:112-114, 152-156`): transient=3, timeout=2, 그 외=1(즉시 실패).
      - 한도 도달 시 `status` = `timeout` 또는 `failed`로 fix, `error` 컬럼에 분류 결과 저장
-       (`:109-117`).
+       (`:115-123`).
      - `SseHub.publish({ type:'error', error })` + `{ type:'status', status }` 두 번 발행
-       (`:118-119`).
-  10. `finally`: timer/metric 정리 (`:120-124`).
+       (`:124-125`).
+  10. `finally`: timer/metric 정리 (`:126-130`).
 
 ### 2.4 SSE 허브 — 실시간 fan-out
 
@@ -137,7 +140,7 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 
 ### 2.5 브라우저 수신
 
-`apps/web/components/editor/panel-inspector.tsx:112-155`
+`apps/web/components/editor/panel-inspector.tsx:138-184`
 
 - `new EventSource(`${API_BASE}${ApiPaths.renderJobEvents(jobId)}`, { withCredentials: true })`.
 - `'status'` 리스너 (`:118`):
@@ -190,8 +193,8 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 
 ### 4.1 GET `/panels/:id/history`
 
-- 라우트: `apps/api/src/panels/panels.controller.ts:59-62`.
-- 서비스: `apps/api/src/panels/panels.service.ts:149-176`
+- 라우트: `apps/api/src/panels/panels.controller.ts:60-63`.
+- 서비스: `apps/api/src/panels/panels.service.ts:208-235`
   - 해당 패널의 최근 RenderJob 20개(`orderBy createdAt desc`)를 가져와 각각 `resultImage` 키를
     `presignDownload`로 URL화한 `RenderJobDTO[]` 반환.
 - 클라이언트: `apps/web/components/editor/history-tray.tsx:15-18`에서 useQuery로 그리드 표시.
@@ -200,14 +203,14 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 
 - 라우트: `apps/api/src/render/render.controller.ts:42-45` →
   `PanelsService.restoreRender` 위임.
-- 동작: `panels.service.ts:178-198`
+- 동작: `panels.service.ts:237-261`
   1. `prisma.renderJob.findUnique` — 소유자 확인.
   2. `job.status !== 'succeeded'` → `ForbiddenException({ code:'CONFLICT' })`
-     ("성공한 렌더만 복원할 수 있습니다", `:186-191`).
+     ("성공한 렌더만 복원할 수 있습니다", `:245-249`).
   3. `prisma.panel.update({ currentRenderId: job.id })` — **history 배열은 변경 없음**, 단지 포인터만 교체.
   4. 갱신된 `PanelDTO`를 반환 (presigned URL 포함).
 - 클라이언트: `history-tray.tsx:20-27` — 성공 시 `onRestored(panel)` 콜백으로 부모(panel-inspector)에
-  새 PanelDTO를 흘려보낸다. `panel-inspector.tsx:54-56`의 useEffect가 `panel.currentRenderId` 변경을
+  새 PanelDTO를 흘려보낸다. `panel-inspector.tsx:68-70`의 useEffect가 `panel.currentRenderId` 변경을
   감지해 `activeJobId`를 동기화하여 인스펙터 미리보기가 즉시 교체된다.
 
 요약: 복원은 **새 RenderJob을 만들지 않고** `panel.currentRenderId` 포인터만 과거 jobId로 되돌린다.
@@ -244,7 +247,7 @@ UI에서 취소 버튼은 현재 panel-inspector에 노출되어 있지 않다 (
 
 ### 6.1 분류 (`RenderError`)
 
-`packages/types/src/index.ts:211-217`:
+`packages/types/src/index.ts:379-385`:
 
 ```ts
 type RenderErrorCategory = 'transient' | 'auth' | 'quota' | 'safety' | 'invalid' | 'timeout';
@@ -259,7 +262,7 @@ interface RenderError {
 
 ### 6.2 재시도 & 종결 매핑
 
-`render.worker.ts:146-150` `retryLimitFor`:
+`render.worker.ts:152-156` `retryLimitFor`:
 
 | category  | retry limit | 최종 status       |
 | --------- | ----------- | ----------------- |
@@ -271,28 +274,28 @@ interface RenderError {
 | invalid   | 1 (즉시)    | `failed`          |
 
 `auth` 카테고리는 추가로 `ApiKeyBreaker.recordAuthFailure`로 회로차단기 카운터를 누적시킨다
-(`render.worker.ts:102-104`).
+(`render.worker.ts:108-110`).
 
 ### 6.3 전파 경로
 
-1. **워커 → SSE**: `{ type:'error', error: RenderError }`(`render.worker.ts:118`) +
-   `{ type:'status', status:'failed'|'timeout' }` (`:119`).
-2. **DB**: `RenderJob.error` JSON 컬럼에 `RenderError` 저장 (`:110-115`).
+1. **워커 → SSE**: `{ type:'error', error: RenderError }`(`render.worker.ts:124`) +
+   `{ type:'status', status:'failed'|'timeout' }` (`:125`).
+2. **DB**: `RenderJob.error` JSON 컬럼에 `RenderError` 저장 (`:116-123`).
 3. **GET /render-jobs/:id 응답**: `RenderJobDTO.error`로 노출 (`render.service.ts:72`).
 4. **UI**:
-   - `panel-inspector.tsx:149-154` `'error'` 이벤트 리스너가 `setError(payload.error.message)`로
-     배너 표시 (`:201-205`).
+   - `panel-inspector.tsx:178-183` `'error'` 이벤트 리스너가 `setError(payload.error.message)`로
+     배너 표시 (`:305-309`).
    - `'status'` 이벤트의 terminal 도달 시 토스트:
-     `failed` → "렌더 실패", `canceled` → "렌더 취소됨" (`:138-141`).
+     `failed` → "렌더 실패", `canceled` → "렌더 취소됨" (`:167-172`).
    - PanelStatusBadge가 색상으로 상태 시각화.
 
 ### 6.4 컨트롤러 단의 동기 에러
 
-- `RENDER_INVALID_INPUT` (`render.service.ts:26`) — 본문/콘티/참조 비어있음. HTTP 400.
-- `RESOURCE_NOT_FOUND` (`render.service.ts:60, 85; panels.service.ts:184`).
+- `RENDER_INVALID_INPUT` (`render.service.ts:27`) — 본문/콘티/참조 비어있음. HTTP 400.
+- `RESOURCE_NOT_FOUND` (`render.service.ts:60, 85; panels.service.ts:243`).
 - `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:88`),
-  성공 아닌 잡 restore 시도(`panels.service.ts:188`).
-- `PANEL_NOT_FOUND`/`RESOURCE_FORBIDDEN` — `panels.service.ts:213-215`.
+  성공 아닌 잡 restore 시도(`panels.service.ts:245-249`).
+- `PANEL_NOT_FOUND`/`RESOURCE_FORBIDDEN` — `panels.service.ts:276-278`.
 
 API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생하며 `category:'auth'`로 분류되어
 위 경로를 거쳐 SSE로 전달된다.
@@ -309,10 +312,10 @@ API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생�
 
 | 관심사                                           | 위치                                                      |
 | ------------------------------------------------ | --------------------------------------------------------- |
-| 버튼 onClick                                     | `apps/web/components/editor/panel-inspector.tsx:222`      |
-| startRender mutation                             | `apps/web/components/editor/panel-inspector.tsx:87`       |
-| EventSource subscribe                            | `apps/web/components/editor/panel-inspector.tsx:112`      |
-| API 경로 헬퍼                                    | `packages/types/src/paths.ts:35-45`                       |
+| 버튼 onClick                                     | `apps/web/components/editor/panel-inspector.tsx:365`      |
+| startRender mutation                             | `apps/web/components/editor/panel-inspector.tsx:113`      |
+| EventSource subscribe                            | `apps/web/components/editor/panel-inspector.tsx:140`      |
+| API 경로 헬퍼                                    | `packages/types/src/paths.ts:48,56-60`                    |
 | 컨트롤러 (POST render/get/cancel/restore/events) | `apps/api/src/render/render.controller.ts:25,31,36,42,47` |
 | `RenderService.startRender`                      | `apps/api/src/render/render.service.ts:17`                |
 | `RenderService.getJob`                           | `apps/api/src/render/render.service.ts:57`                |
@@ -320,11 +323,11 @@ API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생�
 | BullMQ enqueue & idempotency                     | `apps/api/src/render/render.queue.ts:34,56`               |
 | Worker process loop                              | `apps/api/src/render/render.worker.ts:46`                 |
 | Adapter 디스패치                                 | `packages/adapters/src/index.ts:30`                       |
-| 스토리지 업로드                                  | `apps/api/src/storage/storage.service.ts:73`              |
-| presign                                          | `apps/api/src/storage/storage.service.ts:123,131`         |
+| 스토리지 업로드                                  | `apps/api/src/storage/storage.service.ts:75`              |
+| presign                                          | `apps/api/src/storage/storage.service.ts:125,133`         |
 | SSE Hub publish/subscribe                        | `apps/api/src/render/sse.hub.ts:95,76`                    |
 | SSE wire 포맷                                    | `packages/events/src/index.ts:25`                         |
-| RenderStatus enum                                | `packages/types/src/index.ts:13`                          |
-| RenderError 타입                                 | `packages/types/src/index.ts:211`                         |
-| 패널 히스토리 (list/restore)                     | `apps/api/src/panels/panels.service.ts:149,178`           |
+| RenderStatus enum                                | `packages/types/src/index.ts:15-25`                       |
+| RenderError 타입                                 | `packages/types/src/index.ts:381-385`                     |
+| 패널 히스토리 (list/restore)                     | `apps/api/src/panels/panels.service.ts:208,237`           |
 | 히스토리 UI                                      | `apps/web/components/editor/history-tray.tsx:15,20`       |
