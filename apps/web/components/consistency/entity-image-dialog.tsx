@@ -20,24 +20,26 @@ import {
 } from '@comicai/types';
 import { cn } from '@/lib/cn';
 
+const GENERATE_FALLBACK = '이미지 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+
+/** 워커가 RenderError.category 로 분류해 내려준다. packages/types 의 RenderErrorCategory 참고. */
+const REASON_BY_CATEGORY: Record<string, string> = {
+  timeout: 'AI 응답이 너무 오래 걸려 중단되었습니다 (120초 초과)',
+  auth: 'API 키가 올바르지 않습니다. 설정 → API 키에서 확인해 주세요',
+  quota: 'API 호출 한도에 도달했습니다',
+  safety: 'AI가 안전 정책상 생성을 거부했습니다. 설명을 바꿔 다시 시도해 주세요',
+  invalid: '요청이 거부되었습니다. 설명이나 API 키를 확인해 주세요',
+  transient: '일시적인 오류입니다. 잠시 후 다시 시도해 주세요',
+};
+
 function formatGenerateError(err: unknown): string {
-  if (!(err instanceof ApiError)) return '이미지 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.';
-  const details = err.details as { category?: string } | undefined;
-  const category = details?.category;
-  const reasonByCategory: Record<string, string> = {
-    timeout: 'AI 응답이 너무 오래 걸려 중단되었습니다 (120초 초과)',
-    auth: 'API 키가 올바르지 않습니다. 설정 → API 키에서 확인해 주세요',
-    quota: 'API 호출 한도에 도달했습니다',
-    safety: 'AI가 안전 정책상 생성을 거부했습니다. 설명을 바꿔 다시 시도해 주세요',
-    invalid: '요청이 거부되었습니다. 설명이나 API 키를 확인해 주세요',
-    transient: '일시적인 오류입니다. 잠시 후 다시 시도해 주세요',
-  };
-  const hint = category && reasonByCategory[category];
+  if (!(err instanceof ApiError)) return GENERATE_FALLBACK;
   if (err.code === 'API_KEY_NOT_FOUND') {
     return 'API 키가 등록돼 있지 않습니다. 설정 → API 키에서 등록하세요.';
   }
-  if (hint) return `이미지 생성 실패 — ${hint}`;
-  return '이미지 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+  const category = (err.details as { category?: string } | undefined)?.category;
+  const hint = category && REASON_BY_CATEGORY[category];
+  return hint ? `이미지 생성 실패 — ${hint}` : GENERATE_FALLBACK;
 }
 
 const MODEL_OPTIONS: { id: ModelId; label: string }[] = [

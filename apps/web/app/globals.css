@@ -70,17 +70,19 @@
    * 본문 대비를 해치지 않도록 알파를 낮게 유지한다(라이트 기준 최대 0.13).
    */
   .hero-ambient {
+    --amb-1: 0.13;
+    --amb-2: 0.1;
+    --amb-3: 0.07;
     background:
-      radial-gradient(46rem 30rem at 16% 18%, hsl(var(--primary) / 0.13), transparent 62%),
-      radial-gradient(40rem 30rem at 84% 34%, hsl(var(--primary) / 0.1), transparent 60%),
-      radial-gradient(34rem 20rem at 52% 104%, hsl(var(--primary) / 0.07), transparent 66%);
+      radial-gradient(46rem 30rem at 16% 18%, hsl(var(--primary) / var(--amb-1)), transparent 62%),
+      radial-gradient(40rem 30rem at 84% 34%, hsl(var(--primary) / var(--amb-2)), transparent 60%),
+      radial-gradient(34rem 20rem at 52% 104%, hsl(var(--primary) / var(--amb-3)), transparent 66%);
   }
 
   /* 어두운 바탕에서는 같은 알파가 거의 안 보여 조금 더 올린다. */
   [data-theme='dark'] .hero-ambient {
-    background:
-      radial-gradient(46rem 30rem at 16% 18%, hsl(var(--primary) / 0.18), transparent 62%),
-      radial-gradient(40rem 30rem at 84% 34%, hsl(var(--primary) / 0.14), transparent 60%),
-      radial-gradient(34rem 20rem at 52% 104%, hsl(var(--primary) / 0.1), transparent 66%);
+    --amb-1: 0.18;
+    --amb-2: 0.14;
+    --amb-3: 0.1;
   }
 }

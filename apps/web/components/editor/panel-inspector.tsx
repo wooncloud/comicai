@@ -226,7 +226,8 @@ export function PanelInspector({
             });
             onPanelUpdated(updated);
           } catch (err) {
-            if (err instanceof ApiError) toast.push('error', `저장 실패: ${err.code}`);
+            if (err instanceof ApiError)
+              toast.push('error', '콘티를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
           }
         }}
       />

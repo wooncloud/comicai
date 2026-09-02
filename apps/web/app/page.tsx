@@ -8,6 +8,7 @@ import { ApiPaths } from '@comicai/types';
 import { Topbar } from '@/components/shell/app-shell';
 import { SampleImage } from '@/components/landing/sample-image';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/cn';
 
 export default function HomePage() {
   const router = useRouter();
@@ -23,9 +24,7 @@ export default function HomePage() {
       <Topbar />
       <main>
         {/* Hero */}
-        <div className="relative isolate overflow-hidden">
-          {/* 초록 앰비언트. 장식이므로 스크린리더에서 감춘다. */}
-          <div className="hero-ambient pointer-events-none absolute inset-0 -z-10" aria-hidden />
+        <div className="hero-ambient overflow-hidden">
           <section className="mx-auto grid max-w-[1440px] items-center gap-12 px-6 py-16 lg:grid-cols-[minmax(0,592px)_minmax(0,1fr)] lg:py-24 lg:pr-0">
             <div className="flex flex-col items-start gap-7">
               <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-caption font-medium text-primary-strong">
@@ -63,7 +62,7 @@ export default function HomePage() {
                   id="hero-02"
                   alt="교실 창가에 앉아 밖을 바라보는 인물"
                   sizes="(min-width: 1024px) 55vw, 100vw"
-                  priority
+                  priority="lcp"
                   className="block aspect-[3/2] w-full object-cover lg:aspect-auto lg:h-[496px]"
                 />
               </div>
@@ -72,6 +71,7 @@ export default function HomePage() {
                   id="grid-02"
                   alt="복도에서 손을 흔드는 인물"
                   sizes="208px"
+                  priority="eager"
                   className="block h-[268px] w-full object-cover"
                 />
               </div>
@@ -100,35 +100,35 @@ export default function HomePage() {
                 id="hero-01"
                 alt="노을 지는 옥상 난간에 기대선 인물"
                 className="col-span-2 lg:row-span-2"
-                sizes="(min-width: 1024px) 46vw, 100vw"
+                sizes="(min-width: 1488px) 689px, (min-width: 1024px) 46vw, 100vw"
               />
               <GalleryTile
                 id="grid-06"
                 alt="밤 육교에서 야경을 내려다보는 인물"
                 className="row-span-2"
-                sizes="(min-width: 1024px) 23vw, 50vw"
+                sizes="(min-width: 1488px) 338px, (min-width: 1024px) 23vw, 50vw"
               />
               <GalleryTile
                 id="grid-04"
                 alt="도서관에서 졸고 있는 인물"
                 className="row-span-2"
-                sizes="(min-width: 1024px) 23vw, 50vw"
+                sizes="(min-width: 1488px) 338px, (min-width: 1024px) 23vw, 50vw"
               />
               <GalleryTile
                 id="grid-05"
                 alt="여름 축제 골목의 인물"
-                sizes="(min-width: 1024px) 23vw, 50vw"
+                sizes="(min-width: 1488px) 338px, (min-width: 1024px) 23vw, 50vw"
               />
               <GalleryTile
                 id="grid-01"
                 alt="벚꽃 흩날리는 등굣길"
-                sizes="(min-width: 1024px) 23vw, 50vw"
+                sizes="(min-width: 1488px) 338px, (min-width: 1024px) 23vw, 50vw"
               />
               <GalleryTile
                 id="grid-03"
                 alt="비 오는 거리에서 우산을 든 인물"
                 className="col-span-2"
-                sizes="(min-width: 1024px) 46vw, 100vw"
+                sizes="(min-width: 1488px) 689px, (min-width: 1024px) 46vw, 100vw"
               />
             </div>
           </div>
@@ -202,9 +202,12 @@ function GalleryTile({
   className?: string;
 }) {
   return (
-    <div className={`overflow-hidden rounded-xl bg-muted ${className ?? ''}`}>
-      <SampleImage id={id} alt={alt} sizes={sizes} className="block h-full w-full object-cover" />
-    </div>
+    <SampleImage
+      id={id}
+      alt={alt}
+      sizes={sizes}
+      className={cn('block h-full w-full rounded-xl object-cover', className)}
+    />
   );
 }
 

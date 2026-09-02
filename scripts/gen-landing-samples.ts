@@ -1,9 +1,10 @@
 /** 랜딩 샘플 세트 생성. STYLE/CHAR 고정, 배경·장면만 변주해 일관성을 보여준다. */
 import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { GeminiAdapter } from '@comicai/adapters';
 import type { RenderIR } from '@comicai/types';
 
-const ROOT = '/Users/wooncloud/project/comicai';
+const ROOT = resolve(__dirname, '..');
 const OUT = ROOT + '/apps/web/public/samples/_raw';
 mkdirSync(OUT, { recursive: true });
 const KEY = (readFileSync(ROOT + '/.env', 'utf8').match(/^GEMINI_API_KEY=(.+)$/m) ?? [])[1]?.trim();

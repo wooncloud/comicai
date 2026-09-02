@@ -1,0 +1,20 @@
+{
+  // scripts/ 는 워크스페이스가 아니라서(pnpm-workspace.yaml 은 apps/*, packages/* 만 포함)
+  // 어떤 tsconfig 에도 속하지 않았고, eslint 의 inferred default project 로 린트되어
+  // strictNullChecks 가 꺼진 채 type-aware 규칙 일부가 무력화됐다. 여기서 진짜 프로젝트를 준다.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmit": true,
+    // 일회성 개발 스크립트에는 앱 코드만큼의 인덱싱 엄격도가 이득보다 소음이 크다.
+    // (앱/패키지는 tsconfig.base.json 의 true 를 그대로 쓴다.)
+    "noUncheckedIndexedAccess": false,
+    "types": ["node"],
+    "paths": {
+      "@comicai/types": ["./packages/types/src/index.ts"],
+      "@comicai/adapters": ["./packages/adapters/src/index.ts"]
+    }
+  },
+  "include": ["scripts/**/*.ts"]
+}

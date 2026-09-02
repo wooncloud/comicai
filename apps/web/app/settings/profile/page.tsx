@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { ApiPaths, type SessionUser } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,10 +45,8 @@ export default function ProfileSettingsPage() {
       setAvatarUrl(updated.avatarUrl ?? '');
       setUrlDirty(false);
       toast.push('success', '프로필이 저장되었습니다.');
-    } catch (err) {
-      if (err instanceof ApiError)
-        toast.push('error', '프로필을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
-      else toast.push('error', '저장에 실패했습니다.');
+    } catch {
+      toast.push('error', '프로필을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       setPending(false);
     }
@@ -70,10 +68,8 @@ export default function ProfileSettingsPage() {
       setAvatarUrl(updated.avatarUrl ?? '');
       setUrlDirty(false);
       toast.push('success', '아바타가 업로드되었습니다.');
-    } catch (err) {
-      if (err instanceof ApiError)
-        toast.push('error', '이미지를 업로드하지 못했습니다. 파일 형식과 크기를 확인해 주세요.');
-      else toast.push('error', '업로드에 실패했습니다.');
+    } catch {
+      toast.push('error', '이미지를 업로드하지 못했습니다. 파일 형식과 크기를 확인해 주세요.');
     } finally {
       setUploading(false);
     }
@@ -87,10 +83,8 @@ export default function ProfileSettingsPage() {
       setAvatarUrl('');
       setUrlDirty(false);
       toast.push('success', '아바타가 제거되었습니다.');
-    } catch (err) {
-      if (err instanceof ApiError)
-        toast.push('error', '아바타를 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.');
-      else toast.push('error', '삭제에 실패했습니다.');
+    } catch {
+      toast.push('error', '아바타를 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       setUploading(false);
     }

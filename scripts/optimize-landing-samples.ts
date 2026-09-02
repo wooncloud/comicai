@@ -1,19 +1,19 @@
 /** 샘플 이미지 → WebP 반응형 세트 + LQIP(blur placeholder) 매니페스트 */
 import sharp from 'sharp';
 import { readdirSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
-const RAW = '/Users/wooncloud/project/comicai/apps/web/public/samples/_raw';
-const OUT = '/Users/wooncloud/project/comicai/apps/web/public/samples';
+const ROOT = resolve(__dirname, '..');
+const RAW = join(ROOT, 'apps/web/public/samples/_raw');
+const OUT = join(ROOT, 'apps/web/public/samples');
 mkdirSync(OUT, { recursive: true });
 
-const WIDTHS: Record<string, number[]> = { hero: [1920, 1280, 768], grid: [960, 640, 400] };
+const WIDTHS: Record<string, number[]> = { hero: [1920, 1280, 768], grid: [960, 640, 400, 224] };
 
 interface Entry {
   id: string;
   w: number;
   h: number;
-  ratio: number;
   srcSet: { w: number; file: string }[];
   blur: string;
 }
@@ -36,7 +36,7 @@ async function main() {
     // 갤러리에서 다른 full-bleed 컷과 섞이면 그 컷만 액자처럼 보이므로 잘라낸다.
     // 1차로 흰 여백, 2차로 테두리선을 지우고 실제로 유의미하게 줄었을 때만 채택한다.
     const orig = await sharp(src).metadata();
-    let body = await sharp(src).toBuffer();
+    let body: string | Buffer = src;
     try {
       const t = await sharp(await sharp(body).trim({ threshold: 12 }).toBuffer())
         .trim({ threshold: 30 })
@@ -72,7 +72,6 @@ async function main() {
       id,
       w: W,
       h: H,
-      ratio: +(W / H).toFixed(4),
       srcSet,
       blur: `data:image/webp;base64,${lq.toString('base64')}`,
     });
