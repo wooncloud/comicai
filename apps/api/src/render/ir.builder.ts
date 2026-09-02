@@ -9,6 +9,7 @@ import {
   type TipTapDoc,
   type ImageRef,
   type PanelShape,
+  type EntityType,
 } from '@comicai/types';
 import { resolveMentionIds, serializeTextWithNameReplacement } from '@comicai/events';
 import { shapeBoundingBox } from '../common/bbox';
@@ -59,12 +60,27 @@ export async function buildRenderIR(panelId: string, seed?: number): Promise<Ren
       name: e.name,
       description: e.description,
     };
-    if (e.type === 'style') {
-      // style은 멘션이 아니라 effectiveStyleId로만 주입. 그 외 멘션된 style은 무시.
-      if (e.id === effectiveStyleId) styles.push({ ...common, images: refs });
-    } else if (e.type === 'character') characters.push({ ...common, images: refs });
-    else if (e.type === 'background') backgrounds.push({ ...common, images: refs });
-    else if (e.type === 'worldview') worldviews.push(common);
+    // EntityType 이 늘어났는데 여기를 안 고치면 그 엔티티는 프롬프트에서 조용히
+    // 사라진다(에러도 로그도 없다). exhaustive switch 로 컴파일 타임에 막는다.
+    switch (e.type as EntityType) {
+      case 'style':
+        // style은 멘션이 아니라 effectiveStyleId로만 주입. 그 외 멘션된 style은 무시.
+        if (e.id === effectiveStyleId) styles.push({ ...common, images: refs });
+        break;
+      case 'character':
+        characters.push({ ...common, images: refs });
+        break;
+      case 'background':
+        backgrounds.push({ ...common, images: refs });
+        break;
+      case 'worldview':
+        worldviews.push(common);
+        break;
+      default: {
+        const unhandled: never = e.type as never;
+        throw new Error(`처리되지 않은 엔티티 타입: ${String(unhandled)}`);
+      }
+    }
   }
 
   return {

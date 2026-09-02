@@ -97,8 +97,10 @@ export class PageTextsService {
     if (input.h !== undefined) data.h = input.h;
     if (input.text !== undefined) data.text = input.text;
     if (input.style) {
-      const merged = { ...defaultPageTextStyle(), ...input.style };
-      data.style = merged;
+      // PatchSchema 의 style 은 .partial() 이다. 기존 값을 빼먹으면 명시하지 않은
+      // 필드가 기본값으로 되돌아간다(굵기 8인 선의 색만 바꿔도 굵기가 리셋됨).
+      const current = (owned.style ?? {}) as Partial<PageTextStyle>;
+      data.style = { ...defaultPageTextStyle(), ...current, ...input.style };
     }
     const row = await prisma.pageText.update({ where: { id: owned.id }, data });
     return toDto(row);
@@ -128,18 +130,22 @@ export class PageTextsService {
     return this.list(userId, pageId);
   }
 
-  private async assertOwned(userId: string, id: string): Promise<{ id: string; pageId: string }> {
+  private async assertOwned(
+    userId: string,
+    id: string,
+  ): Promise<{ id: string; pageId: string; style: unknown }> {
     const row = await prisma.pageText.findUnique({
       where: { id },
       select: {
         id: true,
         pageId: true,
+        style: true,
         page: { select: { project: { select: { userId: true } } } },
       },
     });
     if (!row) throw new NotFoundException({ code: 'PAGE_TEXT_NOT_FOUND' });
     if (row.page.project.userId !== userId)
       throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
-    return { id: row.id, pageId: row.pageId };
+    return { id: row.id, pageId: row.pageId, style: row.style };
   }
 }
