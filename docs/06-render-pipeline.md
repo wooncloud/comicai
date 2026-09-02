@@ -304,7 +304,7 @@ API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생�
 
 ## 6.5 말풍선과의 관계
 
-말풍선(SpeechBubble)은 **렌더 파이프라인에 영향을 주지 않는다**. `buildRenderIR`(`apps/api/src/render/ir.builder.ts`)는 SpeechBubble을 읽지 않으며, 모델에는 패널 본문 텍스트와 일관성 엔티티만 전달된다. 말풍선은 export 단계(`apps/api/src/export/export.service.ts`)에서 SVG로 직렬화되어 최종 페이지 이미지 위에 오버레이된다 — `speech-bubble.render.ts:renderSpeechBubbleSvg`.
+말풍선(SpeechBubble)은 **렌더 파이프라인에 영향을 주지 않는다**. `buildRenderIR`(`apps/api/src/render/ir.builder.ts`)는 SpeechBubble을 읽지 않으며, 모델에는 패널 본문 텍스트와 일관성 엔티티만 전달된다. 말풍선은 export 단계(`apps/api/src/export/export.service.ts`)에서 SVG로 직렬화되어 최종 페이지 이미지 위에 오버레이된다 — `speech-bubble.render.ts:23` (`renderSpeechBubbleLayer`).
 
 ---
 

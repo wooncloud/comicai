@@ -59,7 +59,7 @@ ComicAI의 인프라/운영 자산은 세 위치에 모여 있다.
 
 #### Profiles
 
-- `tunnel` — Cloudflare Tunnel 활성화 (아래 §6 참조)
+- `tunnel` — Cloudflare Tunnel 활성화 (아래 §7 참조)
 - `backup` — 백업 사이드카 활성화
 
 #### 명령어
@@ -257,7 +257,48 @@ docker compose -f infra/compose/full.yml --profile tunnel up -d --build
 
 ---
 
-## 8. 파일 인덱스
+## 8. 프로덕션 배포
+
+### 8.1 자동 배포 — `main` push 트리거
+
+`.github/workflows/ci.yml:41-53` 의 `deploy` job 이 프로덕션 반영을 담당한다.
+
+- 조건: `needs: build` + `github.event_name == 'push' && github.ref == 'refs/heads/main'` (`ci.yml:43-44`). PR 에서는 실행되지 않고, `build`(typecheck + test) 가 통과해야만 진행한다.
+- 러너: `[self-hosted, comicai]` (`ci.yml:45`) — 프로덕션 호스트 자체가 러너다.
+- 작업 디렉터리: `secrets.PROD_REPO_PATH` (`ci.yml:49`). **GitHub Secrets 에 `PROD_REPO_PATH` 가 등록돼 있어야 한다.**
+- 수행 (`ci.yml:50-53`):
+
+```sh
+git fetch --prune origin
+git reset --hard origin/main
+docker compose -f infra/compose/full.yml --env-file .env \
+  --profile tunnel --profile backup up -d --build --force-recreate web api worker
+```
+
+`git reset --hard` 이므로 프로덕션 호스트에 남은 로컬 변경은 유실된다. `.env` 는 git 추적 대상이 아니라 보존된다.
+
+**마이그레이션 동반 실행**: `--force-recreate` 대상은 `web`/`api`/`worker` 3개지만, `api`·`worker` 가 `migrate` 를 `service_completed_successfully` 로 의존하므로(`full.yml:107`, `:143`) `migrate` 컨테이너가 함께 뜨며 `prisma migrate deploy` 가 실행된다(`full.yml:80-92`). 즉 **마이그레이션이 포함된 커밋을 `main` 에 push 하면 프로덕션 DB 스키마도 함께 변경된다.**
+
+`postgres`·`redis`·`minio`·`cloudflared`·`backup` 은 재생성 대상이 아니므로 그대로 유지된다.
+
+### 8.2 수동 배포 / 운영 명령
+
+`package.json:22-30` 의 `prod:*` 스크립트가 위와 동일한 compose 호출을 감싼다.
+
+| 명령                              | 동작                                                        |
+| --------------------------------- | ----------------------------------------------------------- |
+| `pnpm prod:up`                    | 전체 스택 기동 (tunnel + backup profile 포함)               |
+| `pnpm prod:up:app`                | `web`/`api`/`worker` 만 재빌드·재생성 — CI `deploy` 와 동일 |
+| `pnpm prod:restart`               | `api` 만 재기동                                             |
+| `pnpm prod:restart:web`           | `web` 만 재빌드·재기동                                      |
+| `pnpm prod:ps` / `pnpm prod:logs` | 상태 확인 / 로그 추적                                       |
+| `pnpm prod:down`                  | 전체 종료                                                   |
+
+`docker:*` 스크립트(`package.json:18-21`)는 같은 compose 파일을 profile 없이 다루는 로컬 검증용이다.
+
+---
+
+## 9. 파일 인덱스
 
 - `infra/compose/dev.yml` — 인프라만
 - `infra/compose/full.yml` — 전체 스택 + 옵션 profile (tunnel/backup)
