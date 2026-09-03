@@ -69,8 +69,8 @@ export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLD
 export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      // 모바일에서는 세로로 쌓이는데 space-x-2 는 가로 간격이라 적용되지 않아
-      // 버튼이 서로 맞붙었다. 확인 옆 취소를 잘못 누르기 쉬운 배치였다.
+      // 모바일에서는 세로로 쌓이는데 예전에 쓰던 가로 간격 유틸리티(space-x-*)는
+      // 그때 적용되지 않아 버튼이 서로 맞붙었다. 확인 옆 취소를 잘못 누르기 쉬웠다.
       className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
       {...props}
     />

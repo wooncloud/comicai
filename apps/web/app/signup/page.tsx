@@ -73,7 +73,7 @@ export default function SignupPage() {
       <OAuthButtons />
       <p className="mt-6 text-body-sm text-muted-foreground">
         이미 계정이 있나요?{' '}
-        <Link href="/login" className="-my-2 inline-flex min-h-11 items-center underline">
+        <Link href="/login" className="tap-link underline">
           로그인
         </Link>
       </p>

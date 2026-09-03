@@ -93,10 +93,10 @@ export default function LoginPage() {
       </div>
       <OAuthButtons />
       <div className="mt-6 flex items-center justify-between text-body-sm text-muted-foreground">
-        <Link href="/signup" className="-my-2 inline-flex min-h-11 items-center underline">
+        <Link href="/signup" className="tap-link underline">
           회원가입
         </Link>
-        <Link href="/forgot-password" className="-my-2 inline-flex min-h-11 items-center underline">
+        <Link href="/forgot-password" className="tap-link underline">
           비밀번호 찾기
         </Link>
       </div>

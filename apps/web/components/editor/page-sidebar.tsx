@@ -275,7 +275,7 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
               setEditing(true);
             }}
             title="이름 변경"
-            className="hidden h-4 w-4 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover:flex"
+            className="reveal-on-hover flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:text-foreground"
           >
             <Pencil className="h-3 w-3" />
           </button>

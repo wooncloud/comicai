@@ -174,7 +174,7 @@ export default function PageEditor() {
   );
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-dvh flex-col">
       {/* 캔버스 조작이 필요한 유일한 화면이라 여기서만 작은 화면을 막는다. */}
       <MobileBlocker backHref={`/projects/${projectId}`} />
       <header className="flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-2">

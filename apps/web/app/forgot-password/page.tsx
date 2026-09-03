@@ -52,7 +52,7 @@ export default function ForgotPasswordPage() {
         </form>
       )}
       <p className="mt-6 text-body-sm text-muted-foreground">
-        <Link href="/login" className="-my-2 inline-flex min-h-11 items-center underline">
+        <Link href="/login" className="tap-link underline">
           로그인으로 돌아가기
         </Link>
       </p>

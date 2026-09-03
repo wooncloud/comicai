@@ -20,7 +20,7 @@ export default function HomePage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-dvh">
       <Topbar />
       <main>
         {/* Hero */}

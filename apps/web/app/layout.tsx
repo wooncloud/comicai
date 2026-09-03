@@ -30,15 +30,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * Next.js 가 넣어 주는 기본값과 같은 내용이지만, 명시적으로 남겨 둔다.
- *
- * 입력 포커스 시 iOS 가 화면을 확대하는 문제를 `maximumScale: 1` 이나
- * `userScalable: false` 로 막고 싶어질 수 있는데, 그러면 저시력 사용자가
- * 핀치 줌으로 화면을 키우는 것까지 막혀 접근성 기준(WCAG 1.4.4)에 걸린다.
- * 자동 확대는 입력 폰트를 16px 이상으로 두어 해결했다 — globals.css 참고.
- *
- * viewport-fit: 'cover'(노치 뒤까지 그리기)는 넣지 않았다. safe-area 패딩을
- * 같이 넣지 않으면 하단 홈 인디케이터가 콘텐츠를 덮는다.
+ * Next.js 기본값과 같지만, 확대 관련 옵션을 여기 넣지 말라는 표시로 남겨 둔다.
+ * 자동 확대는 입력 폰트로 해결했다 — 근거는 globals.css 의 모바일 섹션.
  */
 export const viewport: Viewport = {
   width: 'device-width',

@@ -119,6 +119,20 @@
   .group:focus-within .reveal-on-hover {
     @apply pointer-events-auto opacity-100;
   }
+
+  /*
+   * 본문 문장 안에 놓인 링크("회원가입", "비밀번호 찾기", 브레드크럼)의 탭 영역.
+   * 글자 높이만으로는 20px 남짓이라 손가락으로 정확히 누르기 어렵다.
+   *
+   * 마우스 환경에서는 아무것도 하지 않는다 — 글자 높이 그대로가 맞고, 링크가
+   * 44px 로 커지면 문단 사이가 벌어진다. `-my-2` 는 늘어난 높이를 주변 여백에서
+   * 되돌려 터치 환경에서도 문단 흐름이 유지되게 한다.
+   */
+  @media (pointer: coarse) {
+    .tap-link {
+      @apply -my-2 inline-flex min-h-11 items-center;
+    }
+  }
 }
 
 /* ── 모바일 ─────────────────────────────────────────────
@@ -149,9 +163,16 @@
  * "가끔 확대됨" 으로 나타나 원인을 찾기 어렵다.
  */
 @media (pointer: coarse) {
-  /* 텍스트를 입력받지 않는 타입은 제외 — 확대 트리거가 아니고,
-     range/checkbox 는 font-size 가 렌더 크기에 영향을 준다. */
-  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  /*
+   * `:not()` 은 의미 필터가 아니라 명시도 장치다. 요소 선택자만으로는 (0,0,1)
+   * 이라 유틸리티에 밀리는데, `:not([attr])` 하나로 (0,1,1) 이 되어 이긴다.
+   * 그래서 배제 조건은 실제로 배제하고 싶은 것 하나씩만 남겼다.
+   *
+   * `select` 는 지금 이 앱에 네이티브 요소가 없다(Radix 는 button 을 쓴다).
+   * 그래도 남겨 둔다 — 네이티브 select 는 iOS 확대의 가장 전형적인 경우라,
+   * 나중에 하나 추가됐을 때 조용히 빠지는 편이 더 나쁘다.
+   */
+  input:not([type='range']),
   textarea:not([hidden]),
   select:not([hidden]),
   [contenteditable]:not([contenteditable='false']) {

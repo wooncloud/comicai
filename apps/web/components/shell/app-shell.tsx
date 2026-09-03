@@ -72,7 +72,7 @@ export function Topbar({ rightSlot }: { rightSlot?: React.ReactNode }) {
     <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:gap-6 sm:px-6">
       <Link
         href={me ? '/dashboard' : '/'}
-        className="flex h-11 shrink-0 items-center gap-2 text-title-md font-semibold"
+        className="flex shrink-0 items-center gap-2 text-title-md font-semibold touch:min-h-11"
       >
         <Image src="/brush.svg" alt="" width={26} height={26} priority />
         ComicAI
@@ -84,7 +84,7 @@ export function Topbar({ rightSlot }: { rightSlot?: React.ReactNode }) {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex h-11 items-center whitespace-nowrap rounded px-3 transition-colors',
+                'flex items-center whitespace-nowrap rounded px-3 py-1.5 transition-colors touch:min-h-11',
                 path?.startsWith(item.href)
                   ? 'bg-muted font-medium text-foreground'
                   : 'text-muted-foreground hover:text-foreground',
@@ -101,7 +101,7 @@ export function Topbar({ rightSlot }: { rightSlot?: React.ReactNode }) {
           <DropdownMenuTrigger asChild>
             <button
               aria-label="계정 메뉴"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex shrink-0 items-center justify-center rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 touch:h-11 touch:w-11"
             >
               <Avatar className="h-8 w-8">
                 {me.avatarUrl && <AvatarImage src={me.avatarUrl} alt="" />}

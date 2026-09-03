@@ -166,7 +166,7 @@ export default function ConsistencyPage() {
                 setTab(t.key);
                 resetForm();
               }}
-              className={`-mb-px flex h-11 shrink-0 items-center border-b-2 px-4 text-body-sm transition-colors ${
+              className={`-mb-px flex shrink-0 items-center whitespace-nowrap border-b-2 px-4 py-2 text-body-sm transition-colors touch:min-h-11 ${
                 tab === t.key
                   ? 'border-foreground font-medium text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
