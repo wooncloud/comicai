@@ -261,12 +261,13 @@ docker compose -f infra/compose/full.yml --profile tunnel up -d --build
 
 ### 8.1 자동 배포 — `main` push 트리거
 
-`.github/workflows/ci.yml:41-53` 의 `deploy` job 이 프로덕션 반영을 담당한다.
+`.github/workflows/deploy.yml:19-32` 의 `deploy` job 이 프로덕션 반영을 담당한다.
+CI 와 분리된 별도 워크플로다 — 이유는 `docs/08-dev-workflow.md` §5 참고.
 
-- 조건: `needs: build` + `github.event_name == 'push' && github.ref == 'refs/heads/main'` (`ci.yml:43-44`). PR 에서는 실행되지 않고, `build`(typecheck + test) 가 통과해야만 진행한다.
-- 러너: `[self-hosted, comicai]` (`ci.yml:45`) — 프로덕션 호스트 자체가 러너다.
-- 작업 디렉터리: `secrets.PROD_REPO_PATH` (`ci.yml:49`). **GitHub Secrets 에 `PROD_REPO_PATH` 가 등록돼 있어야 한다.**
-- 수행 (`ci.yml:50-53`):
+- 조건: `workflow_run` 으로 CI 를 받아 `conclusion == 'success'` 일 때만 (`deploy.yml:8-12`, `:22`). PR 에서는 실행되지 않고, CI(typecheck + test) 가 통과해야만 진행한다.
+- 러너: `[self-hosted, comicai]` (`deploy.yml:24`) — 프로덕션 호스트 자체가 러너다.
+- 작업 디렉터리: `secrets.PROD_REPO_PATH` (`deploy.yml:28`). **GitHub Secrets 에 `PROD_REPO_PATH` 가 등록돼 있어야 한다.**
+- 수행 (`deploy.yml:29-32`):
 
 ```sh
 git fetch --prune origin

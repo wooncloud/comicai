@@ -126,11 +126,11 @@ pnpm --filter @comicai/db migrate
 
 ## 5. CI
 
-`.github/workflows/ci.yml:1-53`
+`.github/workflows/ci.yml:1-43`
 
 - 트리거: `push` → `main`, 모든 `pull_request`
 - concurrency: 동일 ref의 이전 실행을 취소 (`ci.yml:8-10`)
-- 러너: `build`·docs 워크플로는 **GitHub 호스팅 `ubuntu-latest`** (`ci.yml:17`, `docs-drift.yml:25`, `docs-nudge.yml:20`), `deploy` 만 **`[self-hosted, comicai]`** (`ci.yml:48`). 액션은 모두 v6 라인 (`actions/checkout@v6`, `pnpm/action-setup@v6`, `actions/setup-node@v6`).
+- 러너: `build`·docs 워크플로는 **GitHub 호스팅 `ubuntu-latest`** (`ci.yml:17`, `docs-drift.yml:25`, `docs-nudge.yml:20`), `deploy` 만 **`[self-hosted, comicai]`** (`deploy.yml:24`). 액션은 모두 v6 라인 (`actions/checkout@v6`, `pnpm/action-setup@v6`, `actions/setup-node@v6`).
   - 원래는 전부 self-hosted 였는데, 러너가 내려가자 CI 가 통째로 멈추고 실행이 큐에서 취소됐다(2026-09). 저장소가 공개라 호스팅 러너는 무료이므로 검증은 러너 가동 여부와 무관하게 항상 돈다. 배포만 프로덕션 호스트의 compose 를 만져야 해서 self-hosted 로 남는다.
 - `build` job (15분 타임아웃):
   1. checkout
@@ -139,7 +139,9 @@ pnpm --filter @comicai/db migrate
   4. `pnpm -r --filter "./packages/*" build` — 워크스페이스 패키지 선빌드
   5. `pnpm typecheck`
   6. `pnpm test`
-- `deploy` job (`ci.yml:41-53`, 20분 타임아웃): `needs: build`, **`main` push 일 때만** 실행. `secrets.PROD_REPO_PATH` 디렉터리에서 `git fetch --prune && git reset --hard origin/main` 후 `docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup up -d --build --force-recreate web api worker` 로 web/api/worker 컨테이너 재기동.
+- 배포는 **별도 워크플로** `.github/workflows/deploy.yml` 이다. `workflow_run` 으로 CI 가 **성공한 커밋만** 받아 실행하며, `[self-hosted, comicai]` 에서 `secrets.PROD_REPO_PATH` 디렉터리를 `git reset --hard origin/main` 한 뒤 compose 를 재기동한다.
+  - CI 안의 job 이었을 때는, 러너가 없으면 `build` 가 통과했는데도 실행이 열린 채 남아 있다가 다음 push 의 `cancel-in-progress` 에 통째로 취소됐다 — 결과만 보면 테스트가 실패한 것처럼 보였다. 분리해서 검증 상태와 배포 상태를 따로 읽는다.
+  - `concurrency: cancel-in-progress: false` — 진행 중인 배포를 끊으면 컨테이너가 어중간한 상태로 남는다.
 
 별도 워크플로우:
 
