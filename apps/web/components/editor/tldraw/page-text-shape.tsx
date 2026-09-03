@@ -13,6 +13,7 @@ import {
   TEXT_ALIGNS,
   type PageTextFontFamily,
   type TextAlign,
+  defaultPageTextStyle,
 } from '@comicai/types';
 
 export type PageTextShape = TLBaseShape<
@@ -59,10 +60,8 @@ export class PageTextShapeUtil extends BaseBoxShapeUtil<PageTextShape> {
       h: 60,
       textId: null,
       text: '',
-      fontSize: 24,
-      fontFamily: 'sans-serif',
-      color: '#111111',
-      textAlign: 'left',
+      // 스타일 기본값은 packages/types 가 단일 출처다.
+      ...defaultPageTextStyle(),
     };
   }
 

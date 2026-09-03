@@ -6,6 +6,7 @@ import {
   SPEECH_BUBBLE_VARIANTS,
   type NormalizedPoint,
   type SpeechBubbleVariant,
+  defaultSpeechBubbleStyle,
 } from '@comicai/types';
 
 export type SpeechBubbleShape = TLBaseShape<
@@ -63,9 +64,8 @@ export class SpeechBubbleShapeUtil extends BaseBoxShapeUtil<SpeechBubbleShape> {
       polygonPoints: null,
       tailX: null,
       tailY: null,
-      strokeWidth: 2,
-      strokeColor: '#000000',
-      fillColor: '#ffffff',
+      // 스타일 기본값은 packages/types 가 단일 출처다.
+      ...defaultSpeechBubbleStyle(),
     };
   }
 

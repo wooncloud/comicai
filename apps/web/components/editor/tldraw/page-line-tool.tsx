@@ -1,5 +1,6 @@
 'use client';
 import { StateNode, createShapeId, type TLStateNodeConstructor } from 'tldraw';
+import { defaultPageLineStyle } from '@comicai/types';
 import type { PageLineShape } from './page-line-shape';
 
 /** drag로 두 점을 지정해 만든다. click(드래그 거의 없음)은 무시. */
@@ -11,9 +12,7 @@ function defaultLineProps(): Omit<
 > {
   return {
     lineId: null,
-    strokeWidth: 2,
-    strokeColor: '#111111',
-    strokeStyle: 'solid',
+    ...defaultPageLineStyle(),
   };
 }
 

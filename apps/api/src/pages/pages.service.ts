@@ -20,13 +20,25 @@ interface PageRow {
   createdAt: Date;
 }
 
+/**
+ * size 는 Json 컬럼이라 타입 캐스팅이 실제 값을 보장하지 않는다. 형태가 깨진 행이
+ * 하나 있으면 에디터가 통째로 죽으므로(page-size-select 가 value.w 를 그대로 읽는다)
+ * 경계에서 흡수한다. PageCreateSchema 의 기본값과 같은 값을 쓴다.
+ */
+function toSize(raw: unknown): { w: number; h: number } {
+  const s = raw as { w?: unknown; h?: unknown } | null | undefined;
+  const w = typeof s?.w === 'number' && s.w > 0 ? s.w : 800;
+  const h = typeof s?.h === 'number' && s.h > 0 ? s.h : 1200;
+  return { w, h };
+}
+
 function toDtoBase(row: PageRow): PageDTO {
   return {
     id: row.id,
     projectId: row.projectId,
     order: row.order,
     name: row.name,
-    size: row.size as { w: number; h: number },
+    size: toSize(row.size),
     background: (row.background as ImageRef) ?? null,
     backgroundColor: row.backgroundColor,
     createdAt: row.createdAt.toISOString(),

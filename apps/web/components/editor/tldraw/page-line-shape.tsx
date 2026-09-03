@@ -1,6 +1,10 @@
 'use client';
 import { BaseBoxShapeUtil, HTMLContainer, type RecordProps, T, type TLBaseShape } from 'tldraw';
-import { PAGE_LINE_STROKE_STYLES, type PageLineStrokeStyle } from '@comicai/types';
+import {
+  defaultPageLineStyle,
+  PAGE_LINE_STROKE_STYLES,
+  type PageLineStrokeStyle,
+} from '@comicai/types';
 
 /**
  * BaseBoxShape 위에 두 끝점을 bbox 정규화 좌표(0..1)로 얹어 표현한다.
@@ -63,9 +67,9 @@ export class PageLineShapeUtil extends BaseBoxShapeUtil<PageLineShape> {
       y1Norm: 0,
       x2Norm: 1,
       y2Norm: 1,
-      strokeWidth: 2,
-      strokeColor: '#111111',
-      strokeStyle: 'solid',
+      // 스타일 기본값은 packages/types 가 단일 출처다. 여기서 다시 적으면
+      // 공식 기본값을 바꿔도 새로 만드는 도형에는 반영되지 않는다.
+      ...defaultPageLineStyle(),
     };
   }
 
