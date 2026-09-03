@@ -1,0 +1,31 @@
+import type { EntityType } from '@comicai/types';
+
+/**
+ * react-query 캐시 키를 한 곳에서 만든다.
+ *
+ * 호출부마다 배열 리터럴을 적으면 읽는 쪽과 무효화하는 쪽의 키가 어긋나도
+ * 아무 에러가 없다 — 화면이 그냥 갱신되지 않고, 원인을 찾기 어렵다.
+ * (실제로 프로필을 저장해도 상단바 아바타가 그대로였던 적이 있다.)
+ *
+ * 키를 바꿔야 하면 여기만 고치면 되고, 오타는 컴파일 에러가 된다.
+ */
+export const qk = {
+  /** 로그인한 사용자. Topbar·설정 화면이 공유한다. */
+  me: () => ['me'] as const,
+
+  /** 대시보드의 프로젝트 목록. */
+  projects: () => ['projects'] as const,
+
+  /** 단일 프로젝트. 라우트 파라미터가 아직 없을 수 있어 undefined 를 받는다(enabled 로 막는다). */
+  project: (projectId: string | undefined) => ['project', projectId] as const,
+
+  /** 패널의 렌더 잡 이력. */
+  panelHistory: (panelId: string) => ['panel-history', panelId] as const,
+
+  /** 단일 렌더 잡. SSE 로 상태가 갱신된다. */
+  renderJob: (jobId: string | null) => ['render-job', jobId] as const,
+
+  /** 프로젝트의 일관성 엔티티. 타입을 주면 그 타입만. */
+  consistency: (projectId: string, type?: EntityType) =>
+    type ? (['consistency', projectId, type] as const) : (['consistency', projectId] as const),
+} as const;

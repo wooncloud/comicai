@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/cn';
+import { qk } from '@/lib/query-keys';
 
 const NAV = [
   { href: '/dashboard', label: '대시보드' },
@@ -38,7 +39,7 @@ export function Topbar({ rightSlot }: { rightSlot?: React.ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: me, error } = useQuery<SessionUser>({
-    queryKey: ['me'],
+    queryKey: qk.me(),
     queryFn: () => api<SessionUser>(ApiPaths.me),
     retry: false,
   });
@@ -60,7 +61,7 @@ export function Topbar({ rightSlot }: { rightSlot?: React.ReactNode }) {
     try {
       await api(ApiPaths.logout, { method: 'POST' });
     } finally {
-      queryClient.setQueryData(['me'], null);
+      queryClient.setQueryData(qk.me(), null);
       router.push('/');
     }
   }

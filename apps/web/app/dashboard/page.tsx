@@ -7,29 +7,30 @@ import { ApiPaths, type ProjectDTO } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { ProjectCreateDialog } from '@/components/dashboard/project-create-dialog';
 import { ProjectCard } from '@/components/dashboard/project-card';
+import { qk } from '@/lib/query-keys';
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
   const { data: items, isLoading } = useQuery<ProjectDTO[]>({
-    queryKey: ['projects'],
+    queryKey: qk.projects(),
     queryFn: () => api<ProjectDTO[]>(ApiPaths.projects),
   });
   const [createOpen, setCreateOpen] = useState(false);
 
   function appendItem(created: ProjectDTO) {
-    queryClient.setQueryData<ProjectDTO[]>(['projects'], (prev) =>
+    queryClient.setQueryData<ProjectDTO[]>(qk.projects(), (prev) =>
       prev ? [created, ...prev] : [created],
     );
   }
   function patchItem(next: ProjectDTO) {
     queryClient.setQueryData<ProjectDTO[]>(
-      ['projects'],
+      qk.projects(),
       (prev) => prev?.map((p) => (p.id === next.id ? next : p)) ?? prev,
     );
   }
   function removeItem(id: string) {
     queryClient.setQueryData<ProjectDTO[]>(
-      ['projects'],
+      qk.projects(),
       (prev) => prev?.filter((p) => p.id !== id) ?? prev,
     );
   }

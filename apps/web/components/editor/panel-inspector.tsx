@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { errorMessage } from '@/lib/error-message';
+import { qk } from '@/lib/query-keys';
 
 interface Props {
   projectId: string;
@@ -71,18 +72,18 @@ export function PanelInspector({
   }, [panel.currentRenderId]);
 
   const { data: job } = useQuery<RenderJobDTO>({
-    queryKey: ['render-job', activeJobId],
+    queryKey: qk.renderJob(activeJobId),
     queryFn: () => api<RenderJobDTO>(ApiPaths.renderJob(activeJobId!)),
     enabled: !!activeJobId,
   });
 
   // 프로젝트 대표 그림체와 등록된 style 엔티티 목록.
   const { data: project } = useQuery<ProjectDTO>({
-    queryKey: ['project', projectId],
+    queryKey: qk.project(projectId),
     queryFn: () => api<ProjectDTO>(ApiPaths.project(projectId)),
   });
   const { data: styles } = useQuery<ConsistencyEntityDTO[]>({
-    queryKey: ['consistency', projectId, 'style'],
+    queryKey: qk.consistency(projectId, 'style'),
     queryFn: () =>
       api<ConsistencyEntityDTO[]>(`${ApiPaths.projectConsistency(projectId)}?type=style`),
   });
@@ -123,7 +124,7 @@ export function PanelInspector({
     },
     onSuccess: ({ jobId }) => {
       setActiveJobId(jobId);
-      queryClient.setQueryData<RenderJobDTO>(['render-job', jobId], (prev) => ({
+      queryClient.setQueryData<RenderJobDTO>(qk.renderJob(jobId), (prev) => ({
         ...(prev ?? ({} as RenderJobDTO)),
         id: jobId,
         status: 'queued',
@@ -146,13 +147,13 @@ export function PanelInspector({
     es.addEventListener('status', (e) => {
       try {
         const { status: next } = JSON.parse(e.data) as { status: RenderStatus };
-        queryClient.setQueryData<RenderJobDTO>(['render-job', jobId], (prev) =>
+        queryClient.setQueryData<RenderJobDTO>(qk.renderJob(jobId), (prev) =>
           prev ? { ...prev, status: next } : ({ id: jobId, status: next } as RenderJobDTO),
         );
         if (next === 'succeeded') {
           api<RenderJobDTO>(ApiPaths.renderJob(jobId))
             .then((j) => {
-              queryClient.setQueryData<RenderJobDTO>(['render-job', jobId], j);
+              queryClient.setQueryData<RenderJobDTO>(qk.renderJob(jobId), j);
               // 백엔드 워커가 렌더 성공 시 panel.conti를 null화 하므로 클라이언트도 동기화.
               patchRender({
                 currentRenderStatus: 'succeeded',
@@ -163,13 +164,13 @@ export function PanelInspector({
             })
             .catch(() => {});
           toast.push('success', '이미지 생성 완료');
-          void queryClient.invalidateQueries({ queryKey: ['panel-history', panel.id] });
+          void queryClient.invalidateQueries({ queryKey: qk.panelHistory(panel.id) });
           es.close();
           esRef.current = null;
         } else if (next === 'failed' || next === 'canceled') {
           patchRender({ currentRenderStatus: next });
           toast.push('error', next === 'failed' ? '이미지 생성 실패' : '이미지 생성 취소됨');
-          void queryClient.invalidateQueries({ queryKey: ['panel-history', panel.id] });
+          void queryClient.invalidateQueries({ queryKey: qk.panelHistory(panel.id) });
           es.close();
           esRef.current = null;
         } else {

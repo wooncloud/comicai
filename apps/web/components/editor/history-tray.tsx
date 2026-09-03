@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { ApiPaths, type PanelDTO, type RenderJobDTO } from '@comicai/types';
 import { PanelStatusBadge } from './panel-status-badge';
+import { qk } from '@/lib/query-keys';
 
 interface Props {
   panelId: string;
@@ -13,7 +14,7 @@ interface Props {
 export function HistoryTray({ panelId, currentRenderId, onRestored }: Props) {
   const queryClient = useQueryClient();
   const { data: items } = useQuery<RenderJobDTO[]>({
-    queryKey: ['panel-history', panelId],
+    queryKey: qk.panelHistory(panelId),
     queryFn: () => api<RenderJobDTO[]>(ApiPaths.panelHistory(panelId)),
   });
 
@@ -22,7 +23,7 @@ export function HistoryTray({ panelId, currentRenderId, onRestored }: Props) {
       api<PanelDTO>(ApiPaths.renderJobRestore(jobId), { method: 'POST' }),
     onSuccess: (panel) => {
       onRestored?.(panel);
-      void queryClient.invalidateQueries({ queryKey: ['panel-history', panelId] });
+      void queryClient.invalidateQueries({ queryKey: qk.panelHistory(panelId) });
     },
   });
 

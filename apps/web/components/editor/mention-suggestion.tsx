@@ -1,7 +1,7 @@
 'use client';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import type { SuggestionOptions } from '@tiptap/suggestion';
-import type { ConsistencyEntityDTO } from '@comicai/types';
+import { ApiPaths, type ConsistencyEntityDTO } from '@comicai/types';
 import { api } from '@/lib/api';
 
 interface MentionItem {
@@ -82,7 +82,7 @@ export function createMentionSuggestion(
     char: '@',
     items: async ({ query }) => {
       try {
-        const list = await api<ConsistencyEntityDTO[]>(`/projects/${projectId}/consistency`);
+        const list = await api<ConsistencyEntityDTO[]>(ApiPaths.projectConsistency(projectId));
         const lower = query.toLowerCase();
         // 그림체(style)는 @멘션이 아니라 패널 인스펙터의 select로 주입되므로 후보에서 제외.
         const filtered = list.filter((e) => {

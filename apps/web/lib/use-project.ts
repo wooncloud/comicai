@@ -1,12 +1,13 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
 import { api } from './api';
-import type { ProjectDTO } from '@comicai/types';
+import { ApiPaths, type ProjectDTO } from '@comicai/types';
+import { qk } from '@/lib/query-keys';
 
 export function useProject(projectId: string | undefined) {
   const { data } = useQuery({
-    queryKey: ['project', projectId],
-    queryFn: () => api<ProjectDTO>(`/projects/${projectId}`),
+    queryKey: qk.project(projectId),
+    queryFn: () => api<ProjectDTO>(ApiPaths.project(projectId!)),
     enabled: !!projectId,
   });
   return data ?? null;

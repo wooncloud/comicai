@@ -271,6 +271,7 @@ apps/web/
     ├── api.ts                  # envelope/CSRF/credentials
     ├── cn.ts                   # clsx + tailwind-merge
     ├── error-message.ts        # ErrorCode → 사용자 문구 (단일 출처)
+    ├── query-keys.ts           # react-query 캐시 키 (단일 출처)
     ├── theme.ts
     ├── use-debounced.ts
     └── use-project.ts          # useQuery(['project', id])

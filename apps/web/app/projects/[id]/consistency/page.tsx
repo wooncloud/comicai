@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { EntityCard } from '@/components/consistency/entity-card';
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
+import { qk } from '@/lib/query-keys';
 
 const TABS: { key: EntityType; label: string }[] = [
   { key: 'style', label: '그림체' },
@@ -49,7 +50,7 @@ export default function ConsistencyPage() {
         method: 'PATCH',
         body: JSON.stringify({ defaultStyleId: id }),
       });
-      queryClient.setQueryData(['project', projectId], updated);
+      queryClient.setQueryData(qk.project(projectId), updated);
       toast.push('success', '대표 그림체로 지정했습니다.');
     } catch (err) {
       toast.push('error', errorMessage(err, '대표 그림체로 지정'));
