@@ -62,9 +62,10 @@ App Router 구조. 모든 `page.tsx` 파일.
 ### components/shell
 
 - `app-shell.tsx` — 위 참고. `AppShell`, `Topbar` 두 export
-- `mobile-blocker.tsx` — 768px 미만 뷰포트를 풀스크린으로 차단하는 오버레이(`md:hidden`). `app/layout.tsx:41`에서 항상 마운트되어 모든 라우트를 덮는다. CSS-only 라 JS 비활성·하이드레이션 전에도 걸린다
-  - **예외**: 모바일에서도 열려야 하는 라우트는 같은 파일의 `AllowMobileView`(`mobile-blocker.tsx:43`)를 렌더해 자기 라우트에서만 해제한다. 현재 랜딩(`app/page.tsx:26`) 한 곳뿐이며, 로그인 이후 화면은 계속 차단된다
-  - `usePathname()` 으로 라우트를 판별하지 않는 이유: 차단이 하이드레이션 전에도 걸려 있어야 하는데, JS 로 판별하면 그 사이 랜딩에서 차단이 깜빡이거나 보호 라우트가 잠깐 열린다
+- `mobile-blocker.tsx` — 768px 미만 뷰포트를 풀스크린으로 차단하는 오버레이(`md:hidden`). CSS-only 라 JS 비활성·하이드레이션 전에도 걸린다
+  - **페이지 에디터에서만 마운트한다**(`app/projects/[id]/pages/[pageid]/page.tsx:178`). 작은 화면에서 정말 못 쓰는 것은 tldraw 캔버스뿐이고, 목록·결과 확인 화면은 모바일에서도 쓸모가 있다
+  - 예전에는 루트 레이아웃에서 전 라우트를 덮고 랜딩만 예외로 뺐는데, 그러면 사용자가 폰으로 자기 작품을 볼 수 없다. 제약이 있는 화면에 차단을 두는 쪽으로 뒤집었다
+  - `backHref` 로 돌아갈 곳을 받는다(에디터라면 해당 프로젝트). 예전에는 빠져나갈 링크가 없어 막다른 길이었다
 
 ### components/dashboard
 

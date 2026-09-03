@@ -102,9 +102,11 @@ export default function ProjectDetail() {
   return (
     <AppShell>
       <div className="mx-auto max-w-6xl px-6 py-10">
-        <div className="flex items-baseline justify-between gap-3">
-          <h1 className="text-display-md font-semibold">{project?.name ?? '불러오는 중…'}</h1>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between">
+          <h1 className="text-display-md font-semibold [text-wrap:balance]">
+            {project?.name ?? '불러오는 중…'}
+          </h1>
+          <div className="flex flex-wrap items-center gap-2">
             <label className="text-caption text-muted-foreground">기본 AI 서비스</label>
             <Select
               value={project?.defaultModel ?? '__none__'}

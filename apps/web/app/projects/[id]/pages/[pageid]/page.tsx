@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { useProject } from '@/lib/use-project';
 import { useLocalStorageBoolean } from '@/lib/use-local-storage-state';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
+import { MobileBlocker } from '@/components/shell/mobile-blocker';
 import { Button } from '@/components/ui/button';
 import {
   ApiPaths,
@@ -174,6 +175,8 @@ export default function PageEditor() {
 
   return (
     <div className="flex h-screen flex-col">
+      {/* 캔버스 조작이 필요한 유일한 화면이라 여기서만 작은 화면을 막는다. */}
+      <MobileBlocker backHref={`/projects/${projectId}`} />
       <header className="flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-2">
         <div className="flex items-center gap-3">
           <Breadcrumb
