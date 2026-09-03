@@ -37,7 +37,9 @@ App Router 구조. 모든 `page.tsx` 파일.
 | `/settings/(profile\|api-keys\|security)` | `app/settings/...`                             | `settings/layout.tsx:13`이 탭 네비 + `AppShell` 공통 적용                                                                   |
 | `/health`                                 | `app/health/page.tsx:17`                       | **서버 컴포넌트**. `INTERNAL_API_URL`/`NEXT_PUBLIC_API_URL`로 `/healthz` 호출 후 JSON 덤프                                  |
 
-루트 레이아웃 `app/layout.tsx:9-21`은 Pretendard(local woff2) + Inter를 주입하고 `<Providers><ToastProvider>` 순으로 감싼다 (`app/layout.tsx:37-39`).
+루트 레이아웃 `app/layout.tsx:9-21`은 Pretendard(local woff2) + Inter를 주입하고 `<Providers><ToastProvider>` 순으로 감싼다 (`app/layout.tsx:52-54`).
+
+`viewport` export(`app/layout.tsx:42-45`)는 Next.js 기본값과 같은 값을 **의도적으로** 다시 적어 둔 것이다. 입력 포커스 시 iOS 가 화면을 확대하는 문제를 `maximumScale: 1` 로 막고 싶어지는데, 그러면 저시력 사용자의 핀치 줌까지 막혀 WCAG 1.4.4 에 걸린다. 그 판단을 주석으로 남겨 두는 자리다.
 
 ## 3. Providers 와 전역 셸
 
@@ -62,8 +64,9 @@ App Router 구조. 모든 `page.tsx` 파일.
 ### components/shell
 
 - `app-shell.tsx` — 위 참고. `AppShell`, `Topbar` 두 export
-- `mobile-blocker.tsx` — 768px 미만 뷰포트를 풀스크린으로 차단하는 오버레이(`md:hidden`). CSS-only 라 JS 비활성·하이드레이션 전에도 걸린다
-  - **페이지 에디터에서만 마운트한다**(`app/projects/[id]/pages/[pageid]/page.tsx:178`). 작은 화면에서 정말 못 쓰는 것은 tldraw 캔버스뿐이고, 목록·결과 확인 화면은 모바일에서도 쓸모가 있다
+- `mobile-blocker.tsx` — 에디터를 쓸 수 없는 뷰포트를 풀스크린으로 차단하는 오버레이. CSS-only 라 JS 비활성·하이드레이션 전에도 걸린다
+  - 조건은 **폭 768px 이상 AND 높이 600px 이상일 때만 숨김**(`mobile-blocker.tsx:33`). 폭만 보던 `md:hidden` 으로는 폰을 가로로 눕혔을 때(iPhone 14 Pro Max = 932×430) 차단이 풀려서, 높이 430px 화면에 사이드바·툴바·인스펙터가 다 들어간 에디터가 그대로 열렸다. 600px 은 가장 작은 태블릿(iPad mini 가로 744px)과 가장 큰 폰(가로 430px) 사이를 가른다
+  - **페이지 에디터에서만 마운트한다**(`app/projects/[id]/pages/[pageid]/page.tsx:179`). 작은 화면에서 정말 못 쓰는 것은 tldraw 캔버스뿐이고, 목록·결과 확인 화면은 모바일에서도 쓸모가 있다
   - 예전에는 루트 레이아웃에서 전 라우트를 덮고 랜딩만 예외로 뺐는데, 그러면 사용자가 폰으로 자기 작품을 볼 수 없다. 제약이 있는 화면에 차단을 두는 쪽으로 뒤집었다
   - `backHref` 로 돌아갈 곳을 받는다(에디터라면 해당 프로젝트). 예전에는 빠져나갈 링크가 없어 막다른 길이었다
 
@@ -278,6 +281,39 @@ apps/web/
 ```
 
 ## 10. 관찰된 패턴 / 제약
+
+### 모바일/터치는 브레이크포인트가 아니라 `pointer: coarse` 로 가른다
+
+폰에서 입력 칸을 누르면 화면이 멋대로 확대되고 되돌아오지 않는다는 제보에서 시작해 정리한
+규칙들이다. 공통점은 **갈라야 할 축이 화면 폭이 아니라 입력 방식**이라는 것이다 — iPad 는
+768px 을 넘지만 여전히 손가락으로 누르고 hover 가 없다. `md:` 로 나누면 태블릿이 항상 틀린
+쪽에 떨어진다.
+
+- **입력 폰트 하한 16px** (`app/globals.css:151`). iOS Safari 는 폰트가 16px 미만인 입력에
+  포커스되면 페이지를 강제로 확대하고, blur 해도 되돌리지 않는다. 로그인 칸을 한 번 누르면
+  그 뒤로 화면이 어긋난 채 남았다. `viewport` 에 `maximum-scale=1` 을 박으면 막히지만 핀치
+  줌까지 막혀 WCAG 1.4.4 위반이라, 원인 쪽(폰트 크기)에서 해결했다.
+  - `@layer` 밖에 두고 `:not()` 으로 명시도를 올린 이유가 있다. Tailwind v3 의 `@tailwind`
+    디렉티브는 네이티브 cascade layer 가 아니라 그냥 펼쳐진 CSS 라서, `.text-sm`(0,1,0) 같은
+    유틸리티를 이기려면 선택자 명시도가 더 높아야 한다. 요소 선택자만으로는 **조용히** 무시된다.
+- **터치 최소 높이 44px** — `button.tsx:17`, `input.tsx:13`, `select.tsx:18`·`:110` 이
+  `[@media(pointer:coarse)]:min-h-11` 을 base 클래스에 달고 있다. `h-8`/`h-9` 는 그대로 두고
+  `min-height` 로 덮으므로 마우스 환경의 밀도는 바뀌지 않는다. 호출부 20여 곳의 `size="sm"` 을
+  각각 고치는 대신 프리미티브에 둔 것은 새로 추가되는 버튼까지 자동으로 적용되게 하기 위해서다.
+- **`.reveal-on-hover`** (`app/globals.css:115-121`) — hover 로만 드러나는 보조 액션(썸네일 변경,
+  이름/삭제, 드래그 핸들)의 공용 클래스. `opacity-0 group-hover:opacity-100` 만 쓰면 안 된다:
+  opacity 는 히트테스트를 끄지 않아서 hover 가 없는 기기에서 **영원히 안 보이는데 탭은 먹는**
+  버튼이 된다. 카드 빈 곳을 눌렀는데 삭제 confirm 이 뜨거나 파일 선택창이 열리는 오탭이
+  여기서 나왔다. `pointer-events` 를 같이 끄고, 키보드 Tab 이 보이지 않는 버튼에서 멈추지
+  않도록 `focus-within` 도 받는다.
+- **다이얼로그** (`dialog.tsx:43`) — `max-h-[calc(100dvh-2rem)]` + `overflow-y-auto`. 예전에는
+  높이 상한이 아예 없어서 내용이 길면 위아래로 잘렸고, 잘린 자리에 확인/취소가 있으면 아무것도
+  할 수 없었다. `100vh` 가 아니라 `100dvh` 인 이유는 iOS 주소창이 접혔다 펴져도 실제 보이는
+  높이를 따라가야 하기 때문이다. 닫기 버튼(`:56`)은 아이콘 16px 을 유지한 채 탭 영역만 44×44 다.
+- **`color-scheme`** (`app/globals.css:8`) 은 `light` 다. `light dark` 로 두면 OS 가 다크 모드일 때
+  브라우저가 자기 몫(자동완성 배경, 스크롤바)만 어둡게 칠하는데, 팔레트는 `[data-theme='dark']`
+  에서만 바뀌고 그 속성을 켜는 코드가 아직 없어서 흰 배경 위에 검은 자동완성 칸이 떴다.
+  다크 모드 토글을 붙일 때 `dark` 를 되돌리면 된다.
 
 ### 에러 문구는 `lib/error-message.ts` 한 곳에서 나온다
 

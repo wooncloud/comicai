@@ -4,7 +4,18 @@
 
 @layer base {
   :root {
-    color-scheme: light dark;
+    /*
+     * 페이지가 실제로 그리는 색만 선언한다.
+     *
+     * `light dark` 로 두면 OS 가 다크 모드일 때 브라우저는 자기가 칠하는 부분
+     * (입력 자동완성 배경, 스크롤바, 기본 폼 컨트롤)만 어둡게 바꾼다. 그런데
+     * 아래 팔레트는 [data-theme='dark'] 에서만 바뀌고 그 속성을 켜는 코드가
+     * 아직 없어서(tailwind.config.ts:5 의 darkMode 설정만 준비된 상태),
+     * 흰 배경 위에 검은 자동완성 칸이 뜨는 상태가 된다.
+     *
+     * 다크 모드 토글을 붙일 때 여기에 `dark` 를 되돌리면 된다.
+     */
+    color-scheme: light;
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
@@ -31,6 +42,7 @@
   }
 
   [data-theme='dark'] {
+    color-scheme: dark;
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
     --card: 240 10% 3.9%;
@@ -84,5 +96,65 @@
     --amb-1: 0.18;
     --amb-2: 0.14;
     --amb-3: 0.1;
+  }
+
+  /*
+   * 마우스를 올렸을 때만 드러나는 보조 액션(썸네일 변경, 이름/삭제, 드래그 핸들).
+   *
+   * `opacity-0 group-hover:opacity-100` 만 쓰면 안 된다. opacity 는 히트테스트를
+   * 끄지 않아서, hover 가 없는 기기(터치 폰·태블릿)에서는 **영원히 안 보이는데
+   * 탭은 그대로 먹는** 버튼이 된다. 카드 빈 곳을 눌렀는데 삭제 confirm 이 뜨거나
+   * 파일 선택창이 열리는 오탭이 여기서 나왔다.
+   *
+   * 그래서 pointer-events 를 같이 끈다. 브레이크포인트(md:)로 가르지 않은 이유는
+   * 갈라야 할 축이 화면 폭이 아니라 hover 지원 여부이기 때문이다 — iPad 는 768px
+   * 이상이지만 hover 가 없어서, 폭으로 나누면 태블릿에서 똑같은 유령 버튼이 남는다.
+   *
+   * focus-within 도 같이 받는다. 안 그러면 키보드 Tab 이 보이지 않는 버튼에서 멈춘다.
+   */
+  .reveal-on-hover {
+    @apply pointer-events-none opacity-0 transition;
+  }
+  .group:hover .reveal-on-hover,
+  .group:focus-within .reveal-on-hover {
+    @apply pointer-events-auto opacity-100;
+  }
+}
+
+/* ── 모바일 ─────────────────────────────────────────────
+ *
+ * 여기서 다루지 않는 것: iOS 회전 시 글자 부풀림(text inflation)과 탭 하이라이트는
+ * Tailwind preflight 가 이미 처리한다(-webkit-text-size-adjust: 100%,
+ * -webkit-tap-highlight-color: transparent). 중복 선언하지 말 것.
+ */
+
+/*
+ * 터치 기기에서 입력 폰트 하한 16px.
+ *
+ * iOS Safari 는 폰트가 16px 미만인 입력에 포커스되면 그 입력이 읽을 만해질
+ * 때까지 페이지 전체를 강제로 확대한다. 확대는 blur 해도 되돌아오지 않아서,
+ * 로그인 칸을 한 번 누르면 그 뒤로 화면이 어긋난 채 남는다.
+ *
+ * viewport 에 maximum-scale=1 을 박으면 확대가 막히지만 저시력 사용자가
+ * 핀치 줌으로 화면을 키우는 것까지 막힌다(WCAG 1.4.4 위반). 그래서 원인 쪽,
+ * 즉 폰트 크기로 해결한다.
+ *
+ * @layer 밖에 두고 :not() 으로 명시도를 올린 이유: Tailwind v3 의 @tailwind
+ * 디렉티브는 네이티브 cascade layer 가 아니라 그냥 펼쳐진 CSS 다. 그래서
+ * `.text-sm`(0,1,0) 같은 유틸리티를 이기려면 선택자 명시도가 더 높아야 한다.
+ * 요소 선택자만으로는 조용히 무시된다.
+ *
+ * 개별 컴포넌트에 `text-base md:text-sm` 을 붙이는 대신 여기 한 곳에 둔 것은,
+ * 앞으로 추가되는 입력까지 자동으로 덮기 위해서다 — 빠뜨리면 증상이
+ * "가끔 확대됨" 으로 나타나 원인을 찾기 어렵다.
+ */
+@media (pointer: coarse) {
+  /* 텍스트를 입력받지 않는 타입은 제외 — 확대 트리거가 아니고,
+     range/checkbox 는 font-size 가 렌더 크기에 영향을 준다. */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  textarea:not([hidden]),
+  select:not([hidden]),
+  [contenteditable]:not([contenteditable='false']) {
+    font-size: 1rem;
   }
 }

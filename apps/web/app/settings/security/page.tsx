@@ -63,8 +63,8 @@ function EmailVerificationSection({ me }: { me: SessionUser | null }) {
   return (
     <section className="space-y-3">
       <h2 className="text-title-lg font-semibold">이메일</h2>
-      <div className="flex items-center gap-3 text-body-sm">
-        <span>{me.email}</span>
+      <div className="flex flex-wrap items-center gap-3 text-body-sm">
+        <span className="min-w-0 break-all">{me.email}</span>
         <Button variant="outline" size="sm" disabled={pending || done} onClick={resend}>
           {done ? '발송됨' : pending ? '발송 중…' : '인증 메일 재발송'}
         </Button>

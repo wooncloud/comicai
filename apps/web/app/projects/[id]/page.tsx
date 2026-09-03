@@ -103,7 +103,7 @@ export default function ProjectDetail() {
     <AppShell>
       <div className="mx-auto max-w-6xl px-6 py-10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between">
-          <h1 className="text-display-md font-semibold [text-wrap:balance]">
+          <h1 className="min-w-0 break-words text-title-lg font-semibold [text-wrap:balance] sm:text-display-md">
             {project?.name ?? '불러오는 중…'}
           </h1>
           <div className="flex flex-wrap items-center gap-2">
@@ -249,14 +249,14 @@ function SortablePageCard({
         aria-label="드래그하여 순서 변경"
         {...attributes}
         {...listeners}
-        className="absolute left-1/2 top-1.5 -translate-x-1/2 cursor-grab rounded bg-background/80 p-1 text-foreground opacity-0 shadow-sm transition active:cursor-grabbing group-hover:opacity-100 hover:bg-background"
+        className="reveal-on-hover absolute left-1/2 top-1.5 -translate-x-1/2 cursor-grab rounded bg-background/80 p-1 text-foreground shadow-sm active:cursor-grabbing hover:bg-background"
       >
         <GripVertical className="h-3.5 w-3.5" />
       </button>
       <button
         onClick={remove}
         title="삭제"
-        className="absolute right-1.5 top-1.5 rounded bg-background/80 px-1.5 py-0.5 text-caption text-destructive opacity-0 shadow-sm transition group-hover:opacity-100 hover:bg-background"
+        className="reveal-on-hover absolute right-1.5 top-1.5 rounded bg-background/80 px-1.5 py-0.5 text-caption text-destructive shadow-sm hover:bg-background"
       >
         삭제
       </button>

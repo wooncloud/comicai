@@ -62,12 +62,19 @@ export default function LoginPage() {
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <label className="block space-y-1">
           <span className="text-caption text-muted-foreground">이메일</span>
-          <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input
+            type="email"
+            autoComplete="username"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </label>
         <label className="block space-y-1">
           <span className="text-caption text-muted-foreground">비밀번호</span>
           <Input
             type="password"
+            autoComplete="current-password"
             required
             minLength={10}
             value={password}
@@ -86,10 +93,10 @@ export default function LoginPage() {
       </div>
       <OAuthButtons />
       <div className="mt-6 flex items-center justify-between text-body-sm text-muted-foreground">
-        <Link href="/signup" className="underline">
+        <Link href="/signup" className="-my-2 inline-flex min-h-11 items-center underline">
           회원가입
         </Link>
-        <Link href="/forgot-password" className="underline">
+        <Link href="/forgot-password" className="-my-2 inline-flex min-h-11 items-center underline">
           비밀번호 찾기
         </Link>
       </div>

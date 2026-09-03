@@ -5,7 +5,16 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/cn';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  // `[@media(pointer:coarse)]:min-h-11` — 손가락으로 누르는 기기에서만 최소 44px
+  // (Apple HIG 권장 최소 터치 크기)를 보장한다. size 별 h-8/h-9/h-10 은 그대로 두고
+  // min-height 로 덮으므로 마우스 환경의 밀도는 전혀 바뀌지 않는다.
+  //
+  // 브레이크포인트가 아니라 pointer 로 가른 이유는, 터치 여부는 화면 폭과 무관하기
+  // 때문이다 — iPad 는 넓지만 여전히 손가락으로 누른다.
+  //
+  // 호출부 20여 곳의 size="sm" 을 각각 고치는 대신 여기 한 곳에 둔 것은, 새로
+  // 추가되는 버튼까지 자동으로 적용되게 하기 위해서다.
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [@media(pointer:coarse)]:min-h-11',
   {
     variants: {
       variant: {

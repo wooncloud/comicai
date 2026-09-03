@@ -38,7 +38,13 @@ export default function ForgotPasswordPage() {
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <label className="block space-y-1">
             <span className="text-caption text-muted-foreground">이메일</span>
-            <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </label>
           <Button type="submit" disabled={pending} className="w-full">
             {pending ? '전송 중…' : '재설정 링크 받기'}
@@ -46,7 +52,7 @@ export default function ForgotPasswordPage() {
         </form>
       )}
       <p className="mt-6 text-body-sm text-muted-foreground">
-        <Link href="/login" className="underline">
+        <Link href="/login" className="-my-2 inline-flex min-h-11 items-center underline">
           로그인으로 돌아가기
         </Link>
       </p>

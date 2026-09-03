@@ -75,7 +75,7 @@ export function HistoryTray({ panelId, currentRenderId, onRestored }: Props) {
                   <button
                     onClick={() => restore.mutate(j.id)}
                     disabled={isBusy}
-                    className="absolute inset-0 flex items-center justify-center bg-black/60 text-caption font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 disabled:opacity-100"
+                    className="reveal-on-hover absolute inset-0 flex items-center justify-center bg-black/60 text-caption font-medium text-white disabled:pointer-events-auto disabled:opacity-100"
                   >
                     {isBusy ? '복원 중…' : '이 결과로 복원'}
                   </button>

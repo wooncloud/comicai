@@ -27,7 +27,7 @@ const NAV = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-dvh flex-col">
       <Topbar />
       <main className="flex-1">{children}</main>
     </div>
@@ -69,10 +69,10 @@ export function Topbar({ rightSlot }: { rightSlot?: React.ReactNode }) {
   const initials = (me?.displayName ?? me?.email ?? '··').slice(0, 2).toUpperCase();
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-6 border-b border-border bg-background/95 px-6 backdrop-blur">
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:gap-6 sm:px-6">
       <Link
         href={me ? '/dashboard' : '/'}
-        className="flex items-center gap-2 text-title-md font-semibold"
+        className="flex h-11 shrink-0 items-center gap-2 text-title-md font-semibold"
       >
         <Image src="/brush.svg" alt="" width={26} height={26} priority />
         ComicAI
@@ -84,7 +84,7 @@ export function Topbar({ rightSlot }: { rightSlot?: React.ReactNode }) {
               key={item.href}
               href={item.href}
               className={cn(
-                'rounded px-3 py-1.5 transition-colors',
+                'flex h-11 items-center whitespace-nowrap rounded px-3 transition-colors',
                 path?.startsWith(item.href)
                   ? 'bg-muted font-medium text-foreground'
                   : 'text-muted-foreground hover:text-foreground',
@@ -99,7 +99,10 @@ export function Topbar({ rightSlot }: { rightSlot?: React.ReactNode }) {
       {me ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            <button
+              aria-label="계정 메뉴"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
               <Avatar className="h-8 w-8">
                 {me.avatarUrl && <AvatarImage src={me.avatarUrl} alt="" />}
                 <AvatarFallback>{initials}</AvatarFallback>

@@ -38,7 +38,13 @@ export default function SignupPage() {
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <label className="block space-y-1">
           <span className="text-caption text-muted-foreground">이메일</span>
-          <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input
+            type="email"
+            autoComplete="username"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </label>
         <label className="block space-y-1">
           <span className="text-caption text-muted-foreground">
@@ -46,6 +52,7 @@ export default function SignupPage() {
           </span>
           <Input
             type="password"
+            autoComplete="new-password"
             required
             minLength={10}
             pattern="(?=.*[A-Za-z])(?=.*\d).{10,}"
@@ -66,7 +73,7 @@ export default function SignupPage() {
       <OAuthButtons />
       <p className="mt-6 text-body-sm text-muted-foreground">
         이미 계정이 있나요?{' '}
-        <Link href="/login" className="underline">
+        <Link href="/login" className="-my-2 inline-flex min-h-11 items-center underline">
           로그인
         </Link>
       </p>

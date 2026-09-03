@@ -102,7 +102,7 @@ export function ProjectCard({ project, onPatched, onRemoved }: Props) {
         }}
         disabled={busy}
         title="썸네일 변경"
-        className="absolute right-2 top-2 rounded bg-background/80 px-2 py-1 text-caption opacity-0 shadow-sm transition group-hover:opacity-100 hover:bg-background"
+        className="reveal-on-hover absolute right-2 top-2 rounded bg-background/80 px-2 py-1 text-caption shadow-sm hover:bg-background"
       >
         썸네일
       </button>
@@ -143,7 +143,7 @@ export function ProjectCard({ project, onPatched, onRemoved }: Props) {
             </Button>
           </>
         ) : (
-          <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
+          <div className="reveal-on-hover flex gap-1">
             <Button
               size="sm"
               variant="ghost"

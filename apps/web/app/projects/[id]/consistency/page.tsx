@@ -158,7 +158,7 @@ export default function ConsistencyPage() {
         />
         <h1 className="mt-2 text-display-md font-semibold">일관성 정보</h1>
 
-        <div className="mt-6 flex gap-1 border-b border-border">
+        <div className="mt-6 flex gap-1 overflow-x-auto border-b border-border">
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -166,7 +166,7 @@ export default function ConsistencyPage() {
                 setTab(t.key);
                 resetForm();
               }}
-              className={`-mb-px border-b-2 px-4 py-2 text-body-sm transition-colors ${
+              className={`-mb-px flex h-11 shrink-0 items-center border-b-2 px-4 text-body-sm transition-colors ${
                 tab === t.key
                   ? 'border-foreground font-medium text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -181,7 +181,7 @@ export default function ConsistencyPage() {
           <section className="space-y-4">
             {items.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border p-12 text-center text-body-sm text-muted-foreground">
-                항목이 없습니다. 오른쪽 입력란에서 추가해 보세요.
+                항목이 없습니다. 입력란에서 추가해 보세요.
               </div>
             ) : (
               <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -252,7 +252,7 @@ export default function ConsistencyPage() {
                             onClick={() =>
                               setPendingImages((prev) => prev.filter((_, idx) => idx !== i))
                             }
-                            className="text-muted-foreground hover:text-foreground"
+                            className="-my-1 flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
                             title="제거"
                           >
                             <X className="h-3 w-3" />

@@ -46,6 +46,7 @@ function ResetPasswordForm() {
         </span>
         <Input
           type="password"
+          autoComplete="new-password"
           required
           minLength={PASSWORD_MIN_LENGTH}
           pattern={PASSWORD_PATTERN}
@@ -70,7 +71,7 @@ export default function ResetPasswordPage() {
         <ResetPasswordForm />
       </Suspense>
       <p className="mt-6 text-body-sm text-muted-foreground">
-        <Link href="/login" className="underline">
+        <Link href="/login" className="-my-2 inline-flex min-h-11 items-center underline">
           로그인으로 돌아가기
         </Link>
       </p>

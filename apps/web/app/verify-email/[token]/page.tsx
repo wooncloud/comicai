@@ -31,7 +31,10 @@ export default function VerifyEmailPage() {
     <main className="mx-auto max-w-sm px-6 py-16 text-center">
       <h1 className="text-display-md font-semibold">이메일 인증</h1>
       <div className="mt-6 text-body-sm text-muted-foreground">{statusText(status)}</div>
-      <Link href="/projects" className="mt-6 inline-block text-body-sm underline">
+      <Link
+        href="/projects"
+        className="mt-6 inline-flex min-h-11 items-center text-body-sm underline"
+      >
         프로젝트로 이동
       </Link>
     </main>

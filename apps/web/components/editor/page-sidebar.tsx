@@ -256,7 +256,7 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
           aria-label="드래그하여 순서 변경"
           {...attributes}
           {...listeners}
-          className="flex h-5 w-3 flex-none cursor-grab items-center justify-center text-muted-foreground/60 opacity-0 transition active:cursor-grabbing group-hover:opacity-100 hover:text-foreground"
+          className="reveal-on-hover flex h-5 w-3 flex-none cursor-grab items-center justify-center text-muted-foreground/60 active:cursor-grabbing hover:text-foreground"
         >
           <GripVertical className="h-3 w-3" />
         </button>
