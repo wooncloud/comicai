@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
 import { ApiPaths } from '@comicai/types';
+import { FEATURES } from './features';
 import { qk } from './query-keys';
 
 /**
@@ -39,11 +40,17 @@ export const PRIMARY_NAV = [
  * 정확 일치로 판정한다 — `startsWith` 를 쓰면 앞으로 `/settings/profile/...` 같은
  * 하위 경로가 생겼을 때 두 항목이 동시에 켜진다.
  */
-export const SETTINGS_NAV = [
+export const SETTINGS_NAV: readonly { href: string; label: string }[] = [
   { href: '/settings/profile', label: '프로필' },
-  { href: '/settings/api-keys', label: 'API 키' },
+  // 꺼져 있으면 탭 자체가 없다. 링크만 숨기고 라우트를 남겨 두면 주소를 아는
+  // 사람에게는 그대로 열려 있게 된다 — 실제 차단은 서버 가드가 하지만,
+  // 화면도 존재하지 않는 편이 일관적이다.
+  ...(FEATURES.apiKeys ? [{ href: '/settings/api-keys', label: 'AI 서비스 키' }] : []),
   { href: '/settings/security', label: '계정 및 보안' },
-] as const;
+];
+
+/** 운영자에게만 보이는 항목. 서버가 내려준 `isAdmin` 이 참일 때만 붙인다. */
+export const ADMIN_NAV = { href: '/admin', label: '운영 현황' } as const;
 
 /**
  * 로그아웃. 상단바 드롭다운과 모바일 드로어가 **같은 함수**를 써야 한다.

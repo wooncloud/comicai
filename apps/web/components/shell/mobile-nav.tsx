@@ -7,7 +7,7 @@ import type { SessionUser } from '@comicai/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
-import { PRIMARY_NAV, SETTINGS_NAV, useLogout } from '@/lib/nav';
+import { ADMIN_NAV, PRIMARY_NAV, SETTINGS_NAV, useLogout } from '@/lib/nav';
 
 /**
  * 좁은 화면용 내비게이션 드로어.
@@ -96,6 +96,19 @@ export function MobileNav({ me }: { me: SessionUser }) {
               </div>
             );
           })}
+          {me.isAdmin && (
+            <Link
+              href={ADMIN_NAV.href}
+              className={cn(
+                'flex min-h-11 items-center rounded-md px-3 text-body-sm transition-colors',
+                path === ADMIN_NAV.href
+                  ? 'bg-muted font-medium text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {ADMIN_NAV.label}
+            </Link>
+          )}
         </nav>
 
         <div className="border-t border-border p-2">

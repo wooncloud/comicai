@@ -1,14 +1,20 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { ApiPaths, type ApiKeySummary, type ModelProvider } from '@comicai/types';
 import { ApiKeyList } from '@/components/api-key-list';
 import { ApiKeyForm } from '@/components/api-key-form';
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
+import { FEATURES } from '@/lib/features';
 
 export default function ApiKeysSettingsPage() {
+  // 탭에서 링크를 빼도 주소를 직접 치면 들어와진다. 라우트에서도 막는다.
+  // (서버 API 는 별도로 404 를 던지므로, 여기가 뚫려도 데이터는 나가지 않는다.)
+  if (!FEATURES.apiKeys) notFound();
+
   const router = useRouter();
   const [keys, setKeys] = useState<ApiKeySummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);

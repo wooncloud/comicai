@@ -19,6 +19,9 @@ export const ApiPaths = {
   meSessions: '/me/sessions',
   meSession: (sid: string) => `/me/sessions/${sid}`,
 
+  adminOverview: '/admin/overview',
+  adminUsers: '/admin/users',
+
   apiKeys: '/api-keys',
   apiKey: (id: string) => `/api-keys/${id}`,
   apiKeyVerify: (id: string) => `/api-keys/${id}/verify`,

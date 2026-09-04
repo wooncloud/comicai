@@ -5,6 +5,7 @@ import type { TextAlign } from './schemas';
 export * from './envelope';
 export * from './schemas';
 export * from './paths';
+export * from './features';
 
 export type ModelProvider = 'gemini' | 'openai' | 'mock';
 export type ModelId = 'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock';
@@ -63,6 +64,11 @@ export interface SessionUser {
   displayName?: string | null;
   avatarUrl?: string | null;
   oauthProviders?: ('google' | 'github')[];
+  /**
+   * 관리자인가. **서버가 계산해서 내려준다** — 클라이언트가 만들어내지 않는다.
+   * 화면을 숨기는 용도일 뿐이고, 실제 차단은 서버 가드가 한다.
+   */
+  isAdmin?: boolean;
 }
 
 // ─── 미디어 ─────────────────────────────────────
@@ -453,4 +459,29 @@ export interface RenderJobDTO {
   attempts: number;
   createdAt: string;
   finishedAt?: string | null;
+}
+
+// ─── 운영자 ────────────────────────────────────
+/** 관리자 현황 화면의 집계. 전부 카운트라 개인정보가 들어가지 않는다. */
+export interface AdminOverview {
+  users: number;
+  verifiedUsers: number;
+  projects: number;
+  pages: number;
+  panels: number;
+  renderJobs: number;
+  renderJobsLast24h: number;
+  /** 상태별 렌더 잡 수. 키는 RenderStatus. */
+  renderJobsByStatus: Record<string, number>;
+}
+
+/** 관리자 사용자 목록의 한 행. 비밀번호 해시·API 키는 포함하지 않는다. */
+export interface AdminUserRow {
+  id: string;
+  email: string;
+  displayName: string | null;
+  emailVerified: boolean;
+  createdAt: string;
+  projects: number;
+  renderJobs: number;
 }

@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { cn } from '@/lib/cn';
-import { PRIMARY_NAV, useLogout } from '@/lib/nav';
+import { ADMIN_NAV, PRIMARY_NAV, useLogout } from '@/lib/nav';
 import { qk } from '@/lib/query-keys';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -120,6 +120,11 @@ export function Topbar() {
             <DropdownMenuItem asChild>
               <Link href="/settings/profile">설정</Link>
             </DropdownMenuItem>
+            {me.isAdmin && (
+              <DropdownMenuItem asChild>
+                <Link href={ADMIN_NAV.href}>{ADMIN_NAV.label}</Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={logout}>로그아웃</DropdownMenuItem>
           </DropdownMenuContent>

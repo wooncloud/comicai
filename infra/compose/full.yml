@@ -24,6 +24,9 @@ x-api-env: &api-env
   NODE_ENV: production
   REDIS_URL: redis://redis:6379
   MASTER_KEY: ${MASTER_KEY:?MASTER_KEY 필수 — .env에 설정하세요}
+  # 관리자 허용 목록과 기능 플래그. 비어 있으면 각각 "관리자 없음", "기능 꺼짐".
+  ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+  FEATURE_API_KEYS: ${FEATURE_API_KEYS:-0}
 
 services:
   postgres:
@@ -154,6 +157,8 @@ services:
       dockerfile: infra/docker/web.Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+        # 빌드 시점에 번들에 박힌다. 값을 바꾸면 web 을 다시 빌드해야 한다.
+        NEXT_PUBLIC_FEATURE_API_KEYS: ${NEXT_PUBLIC_FEATURE_API_KEYS:-0}
     container_name: comicai-web
     restart: unless-stopped
     depends_on:

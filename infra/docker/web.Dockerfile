@@ -28,6 +28,10 @@ COPY apps/web apps/web
 # 호스트 머신의 브라우저가 접근하므로 호스트 포트 사용.
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# NEXT_PUBLIC_ 값은 next build 가 번들에 그대로 박아 넣는다. 런타임 환경변수로는
+# 바뀌지 않으므로 반드시 build arg 로 받아야 하고, 값을 바꾸려면 다시 빌드해야 한다.
+ARG NEXT_PUBLIC_FEATURE_API_KEYS=0
+ENV NEXT_PUBLIC_FEATURE_API_KEYS=$NEXT_PUBLIC_FEATURE_API_KEYS
 
 # 워크스페이스 패키지 빌드 후 next build
 RUN pnpm -r --filter '@comicai/types' run build \

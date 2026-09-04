@@ -12,6 +12,7 @@ import {
 import { ApiKeyCreateSchema } from '@comicai/types';
 import { ApiKeysService } from './api-keys.service';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { ApiKeysFeatureGuard } from '../common/feature-flag.guard';
 
 class CreateApiKeyDto {
   static zodSchema = ApiKeyCreateSchema;
@@ -21,7 +22,8 @@ class CreateApiKeyDto {
 }
 
 @Controller('api-keys')
-@UseGuards(SessionGuard)
+// 플래그를 먼저 본다 — 꺼져 있으면 로그인 여부와 무관하게 없는 기능이다.
+@UseGuards(ApiKeysFeatureGuard, SessionGuard)
 export class ApiKeysController {
   constructor(private readonly svc: ApiKeysService) {}
 

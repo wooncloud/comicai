@@ -120,12 +120,19 @@
 
 BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 
+> **기능 플래그 뒤에 있다.** `FEATURE_API_KEYS` 가 켜져 있지 않으면 이 컨트롤러의 모든
+> 라우트가 404 를 돌려준다(`api-keys.controller.ts:26` 의 `ApiKeysFeatureGuard`).
+> 403 이 아니라 404 인 이유는, 403 은 "그 기능이 존재한다" 는 정보를 주기 때문이다.
+> 결제 + 사용량 과금으로 방향을 바꾸는 중이라 기본은 꺼짐이며, **끄면 그림 생성이 멈춘다** —
+> 렌더 워커가 사용자 키를 찾아 쓰는데(`render/render.worker.ts:140-153` 의 `resolveApiKey`)
+> 키를 등록할 경로가 사라진다.
+
 | Method | Route                     | Handler                                 |
 | ------ | ------------------------- | --------------------------------------- |
-| GET    | `/v1/api-keys`            | `list` (`api-keys.controller.ts:28-31`) |
-| POST   | `/v1/api-keys`            | `create` (`:33-37`)                     |
-| POST   | `/v1/api-keys/:id/verify` | `verify` (`:39-42`)                     |
-| DELETE | `/v1/api-keys/:id`        | `remove` (`:44-48`)                     |
+| GET    | `/v1/api-keys`            | `list` (`api-keys.controller.ts:30-33`) |
+| POST   | `/v1/api-keys`            | `create` (`:35-39`)                     |
+| POST   | `/v1/api-keys/:id/verify` | `verify` (`:41-44`)                     |
+| DELETE | `/v1/api-keys/:id`        | `remove` (`:46-50`)                     |
 
 - 키 평문은 AES-256-GCM 봉인: `MASTER_KEY`(base64 32B) + 랜덤 nonce 12B + authTag 16B 이어붙임 — `api-keys/crypto.ts:1-40`
 - `ApiKeyBreaker` (Redis): 1시간 윈도우 내 동일 키 5회 auth 실패 시 `isActive=false`로 비활성화 — `api-keys/api-keys.breaker.ts:7-47`
@@ -269,6 +276,29 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 - `EmailService.sendVerification / sendPasswordReset`는 `${WEB_ORIGIN}/verify-email/{token}` 또는 `${WEB_ORIGIN}/reset-password?token=...`로 링크 구성 — `email/email.provider.ts:37-53`
 
 ---
+
+### 3.11 AdminModule (`admin/admin.controller.ts`)
+
+운영자용 **읽기 전용** 현황. 쓰기 동작은 일부러 넣지 않았다 — 운영 화면에서 지울 수 있게
+만드는 순간 실수 한 번의 대가가 커진다.
+
+| Method | Path                 | Handler                               |
+| ------ | -------------------- | ------------------------------------- |
+| GET    | `/v1/admin/overview` | `overview` (`admin.controller.ts:19`) |
+| GET    | `/v1/admin/users`    | `users` (`:54`)                       |
+
+- 가드는 `SessionGuard` → `AdminGuard` 순서다(`admin.controller.ts:17`). `req.user` 를
+  채우는 것이 `SessionGuard` 이므로 순서가 뒤바뀌면 안 된다.
+- 허용 목록은 환경변수 `ADMIN_EMAILS`(쉼표 구분)에서만 온다 — **이 저장소는 공개라**
+  코드에 이메일을 적으면 그대로 공개된다. 모듈 로드 시 한 번 파싱한다
+  (`auth/admin.guard.ts:13`), 값을 바꾸면 재기동이 필요하다.
+- **목록이 비어 있으면 아무도 관리자가 아니다**(`packages/types/src/features.ts` 의
+  `isAdminEmail`). 설정을 깜빡했을 때 전원이 관리자가 되는 것보다 안전하다.
+  이 경계는 `features.spec.ts` 와 `auth/admin.guard.spec.ts` 가 고정한다.
+- `/me` 응답의 `isAdmin`(`me/me.controller.ts:86`)은 **화면을 숨기는 용도일 뿐**이다.
+  클라이언트 판정은 우회할 수 있으므로 실제 차단은 위 가드가 한다.
+- 사용자 목록에 비밀번호 해시·API 키·아바타 저장 키는 넣지 않는다. 운영 화면에서 볼 이유가
+  없고, 한 번 응답에 실리면 브라우저 캐시·로그·스크린샷을 타고 퍼진다.
 
 ## 4. 영속 계층 (Prisma)
 

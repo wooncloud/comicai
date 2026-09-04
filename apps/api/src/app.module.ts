@@ -11,6 +11,7 @@ import { OAuthModule } from './auth/oauth/oauth.module';
 import { EmailModule } from './email/email.module';
 import { MeModule } from './me/me.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
+import { AdminModule } from './admin/admin.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ConsistencyModule } from './consistency/consistency.module';
 import { PagesModule } from './pages/pages.module';
@@ -64,6 +65,7 @@ import { ExportModule } from './export/export.module';
     OAuthModule,
     MeModule,
     ApiKeysModule,
+    AdminModule,
     ProjectsModule,
     ConsistencyModule,
     PagesModule,

@@ -25,6 +25,7 @@ import {
   type SessionUser,
 } from '@comicai/types';
 import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { isAdmin } from '../auth/admin.guard';
 import { SessionService } from '../auth/session.service';
 import { StorageService } from '../storage/storage.service';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
@@ -80,6 +81,9 @@ export class MeController {
       displayName: u.displayName,
       avatarUrl,
       oauthProviders: (u.oauthProviders as ('google' | 'github')[]) ?? [],
+      // 서버에서만 계산한다. 클라이언트는 이 값을 화면 숨김에만 쓰고,
+      // 실제 차단은 AdminGuard 가 한다.
+      isAdmin: isAdmin(u.email),
     };
   }
 
