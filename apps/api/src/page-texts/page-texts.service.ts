@@ -1,15 +1,22 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { newId, prisma, Prisma } from '@comicai/db';
 import {
   coercePageTextFontFamily,
   defaultPageTextStyle,
   type PageTextDTO,
   type PageTextStyle,
+  type PageTextCreateInput,
+  type PageTextPatchInput,
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { isReorderPermutation } from '../common/reorder';
 import { mergeStyle } from '../common/style-merge';
+import { assertPageChildOwned, nextOrder, PAGE_CHILD_SELECT } from '../common/page-child';
 import { apiError } from '../common/api-error';
+
+/** 입력 모양은 Zod 스키마가 단일 출처다 — 여기서 다시 선언하지 않는다. */
+type CreateInput = PageTextCreateInput;
+type PatchInput = PageTextPatchInput;
 
 interface PageTextRow {
   id: string;
@@ -51,24 +58,6 @@ function toDto(row: PageTextRow): PageTextDTO {
   };
 }
 
-export interface CreateInput {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  text?: string;
-  style?: Partial<PageTextStyle>;
-}
-
-export interface PatchInput {
-  x?: number;
-  y?: number;
-  w?: number;
-  h?: number;
-  text?: string;
-  style?: Partial<PageTextStyle>;
-}
-
 @Injectable()
 export class PageTextsService {
   constructor(private readonly pages: PagesService) {}
@@ -84,11 +73,9 @@ export class PageTextsService {
 
   async create(userId: string, pageId: string, input: CreateInput): Promise<PageTextDTO> {
     await this.pages.findOwned(userId, pageId);
-    const max = await prisma.pageText.aggregate({
-      where: { pageId },
-      _max: { order: true },
-    });
-    const order = (max._max.order ?? -1) + 1;
+    const order = nextOrder(
+      await prisma.pageText.aggregate({ where: { pageId }, _max: { order: true } }),
+    );
     const style = normalizeStyle(input.style);
     const row = await prisma.pageText.create({
       data: {
@@ -151,22 +138,8 @@ export class PageTextsService {
     return this.list(userId, pageId);
   }
 
-  private async assertOwned(
-    userId: string,
-    id: string,
-  ): Promise<{ id: string; pageId: string; style: unknown }> {
-    const row = await prisma.pageText.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        pageId: true,
-        style: true,
-        page: { select: { project: { select: { userId: true } } } },
-      },
-    });
-    // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
-    if (row?.page.project.userId !== userId)
-      throw new NotFoundException(apiError({ code: 'PAGE_TEXT_NOT_FOUND' }));
-    return { id: row.id, pageId: row.pageId, style: row.style };
+  private async assertOwned(userId: string, id: string) {
+    const row = await prisma.pageText.findUnique({ where: { id }, select: PAGE_CHILD_SELECT });
+    return assertPageChildOwned(row, userId, 'PAGE_TEXT_NOT_FOUND');
   }
 }

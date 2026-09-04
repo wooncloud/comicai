@@ -1,10 +1,21 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { newId, prisma, Prisma } from '@comicai/db';
-import { defaultPageLineStyle, type PageLineDTO, type PageLineStyle } from '@comicai/types';
+import {
+  defaultPageLineStyle,
+  type PageLineCreateInput,
+  type PageLineDTO,
+  type PageLinePatchInput,
+  type PageLineStyle,
+} from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { isReorderPermutation } from '../common/reorder';
 import { mergeStyle } from '../common/style-merge';
+import { assertPageChildOwned, nextOrder, PAGE_CHILD_SELECT } from '../common/page-child';
 import { apiError } from '../common/api-error';
+
+/** 입력 모양은 Zod 스키마가 단일 출처다 — 여기서 다시 선언하지 않는다. */
+type CreateInput = PageLineCreateInput;
+type PatchInput = PageLinePatchInput;
 
 interface PageLineRow {
   id: string;
@@ -34,22 +45,6 @@ function toDto(row: PageLineRow): PageLineDTO {
   };
 }
 
-export interface CreateInput {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  style?: Partial<PageLineStyle>;
-}
-
-export interface PatchInput {
-  x1?: number;
-  y1?: number;
-  x2?: number;
-  y2?: number;
-  style?: Partial<PageLineStyle>;
-}
-
 @Injectable()
 export class PageLinesService {
   constructor(private readonly pages: PagesService) {}
@@ -65,11 +60,9 @@ export class PageLinesService {
 
   async create(userId: string, pageId: string, input: CreateInput): Promise<PageLineDTO> {
     await this.pages.findOwned(userId, pageId);
-    const max = await prisma.pageLine.aggregate({
-      where: { pageId },
-      _max: { order: true },
-    });
-    const order = (max._max.order ?? -1) + 1;
+    const order = nextOrder(
+      await prisma.pageLine.aggregate({ where: { pageId }, _max: { order: true } }),
+    );
     const style = mergeStyle(defaultPageLineStyle(), input.style);
     const row = await prisma.pageLine.create({
       data: {
@@ -131,22 +124,8 @@ export class PageLinesService {
     return this.list(userId, pageId);
   }
 
-  private async assertOwned(
-    userId: string,
-    id: string,
-  ): Promise<{ id: string; pageId: string; style: unknown }> {
-    const row = await prisma.pageLine.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        pageId: true,
-        style: true,
-        page: { select: { project: { select: { userId: true } } } },
-      },
-    });
-    // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
-    if (row?.page.project.userId !== userId)
-      throw new NotFoundException(apiError({ code: 'PAGE_LINE_NOT_FOUND' }));
-    return { id: row.id, pageId: row.pageId, style: row.style };
+  private async assertOwned(userId: string, id: string) {
+    const row = await prisma.pageLine.findUnique({ where: { id }, select: PAGE_CHILD_SELECT });
+    return assertPageChildOwned(row, userId, 'PAGE_LINE_NOT_FOUND');
   }
 }

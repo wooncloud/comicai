@@ -350,6 +350,12 @@ patch 는 **기본값 → 기존 값 → 입력** 3항 병합이어야 한다. �
 규칙을 지킨다는 보장이 없었던 셈이다. 지금 spec 은 서비스가 쓰는 바로 그 함수를 가져온다.
 PageText 만 병합 뒤에 폰트 보정이 한 겹 더 붙는다(`page-texts.service.ts:33`).
 
+세 모듈은 소유권 판정·순서 채번도 공유한다 — `assertPageChildOwned` · `nextOrder` ·
+`PAGE_CHILD_SELECT` (`common/page-child.ts`). **조회 자체는 각 서비스에 남는다**:
+Prisma 델리게이트는 모델마다 다른 제네릭 타입이라 셋을 한 파라미터로 받으려면 캐스트가
+필요한데, 소유권 검사 경로에서 타입을 느슨하게 만들 이유가 없다. 그래서 조회 결과의
+모양(`PageChildRow`)과 판정 규칙만 공유한다.
+
 좌표는 페이지 좌표계 절대값 두 점(x1/y1/x2/y2)으로 저장된다. tldraw 측은 BaseBoxShape 패턴(bbox + bbox 내 normalized 두 끝점)으로 표현하며, sync hook(`apps/web/components/editor/tldraw/use-page-line-sync.ts`)이 두 표현을 양방향 변환한다. `style` 은 `PageLineStyle` (`strokeWidth/strokeColor/strokeStyle='solid'|'dashed'`) 의 partial 머지로 정규화 — `page-lines.service.ts:63-84` (`create`) / `:86-99` (`patch`).
 
 ### 3.7 RenderModule (`render/*`)
