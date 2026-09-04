@@ -30,6 +30,14 @@
 - 글로벌 필터: `AllExceptionsFilter`
   - `ZodError → 400 VALIDATION_ERROR(details.issues)`, `HttpException → 매핑된 code/message`, 그 외 → `500 INTERNAL_ERROR` — `common/all-exceptions.filter.ts:42-97`
   - 상태→코드 매핑은 `STATUS_TO_CODE` 테이블, 코드→한국어 메시지는 `CODE_TO_MESSAGE` 매핑(`common/all-exceptions.filter.ts:20-36`).
+    `CODE_TO_MESSAGE` 는 **응답 본문의 `message` 만** 채운다 — 웹은 자기 문구 표를 쓰고 서버
+    message 를 읽지 않는다(`apps/web/lib/error-message.ts:85`). 그래도 두는 이유는, 지우면
+    그 코드들의 `message` 가 NestJS 기본 영문("Unauthorized")이 되어 응답과 로그가 나빠지기
+    때문이다. 화면 문구의 단일 출처는 웹 표 쪽이다.
+  - **던지는 코드는 `apiError()` 로 묶인다** (`common/api-error.ts:23`). 예외 인자가 그냥
+    객체라 아무 문자열이나 통과하던 것을 막는다 — 자세한 이유는 docs/04-shared-packages.md
+    의 `ErrorCode` 절. 예외 클래스는 그대로 쓴다: 상태 코드를 고르는 것은 호출부의 판단이고,
+    헬퍼가 대신 정하면 옮기는 과정에서 상태가 바뀔 수 있다.
 
 ### 1.3 워커 엔트리 (`worker.ts`)
 
@@ -261,7 +269,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 | Method | Route                             | Handler                                                                                                                                        |
 | ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/v1/projects/:pid/pages`         | `list` (`pages.controller.ts:38-41`)                                                                                                           |
+| GET    | `/v1/projects/:pid/pages`         | `list` (`pages.controller.ts:25-28`)                                                                                                           |
 | POST   | `/v1/projects/:pid/pages`         | `create` (`:43-47`)                                                                                                                            |
 | POST   | `/v1/projects/:pid/pages/reorder` | `reorder` (`:49-52`) — body `{ pageIds: string[] }`로 페이지 순서 갱신. **순서를 바꾸는 유일한 경로다** (`PagePatchSchema` 에 `order` 가 없다) |
 | GET    | `/v1/pages/:id`                   | `get` (`:54-57`)                                                                                                                               |
@@ -291,7 +299,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 | Method | Route                                      | Handler                                                 |
 | ------ | ------------------------------------------ | ------------------------------------------------------- |
-| GET    | `/v1/pages/:pageid/speech-bubbles`         | `list` (`speech-bubbles.controller.ts:48-51`)           |
+| GET    | `/v1/pages/:pageid/speech-bubbles`         | `list` (`speech-bubbles.controller.ts:36-39`)           |
 | POST   | `/v1/pages/:pageid/speech-bubbles`         | `create` (`:53-57`) — `order`는 MAX+1 자동 할당         |
 | POST   | `/v1/pages/:pageid/speech-bubbles/reorder` | `reorder` (`:59-62`) — body `{ ids: string[] }`         |
 | PATCH  | `/v1/speech-bubbles/:id`                   | `patch` (`:64-67`) — `variant`/`shape`/`style` (text X) |
@@ -305,7 +313,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 | Method | Route                                  | Handler                                                   |
 | ------ | -------------------------------------- | --------------------------------------------------------- |
-| GET    | `/v1/pages/:pageid/page-texts`         | `list` (`page-texts.controller.ts:52-55`)                 |
+| GET    | `/v1/pages/:pageid/page-texts`         | `list` (`page-texts.controller.ts:40-43`)                 |
 | POST   | `/v1/pages/:pageid/page-texts`         | `create` (`:57-61`) — `order`는 MAX+1 자동 할당           |
 | POST   | `/v1/pages/:pageid/page-texts/reorder` | `reorder` (`:63-66`) — body `{ ids: string[] }`           |
 | PATCH  | `/v1/page-texts/:id`                   | `patch` (`:68-71`) — `x/y/w/h`, `text`, `style` 부분 갱신 |
@@ -319,7 +327,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 | Method | Route                                  | Handler                                         |
 | ------ | -------------------------------------- | ----------------------------------------------- |
-| GET    | `/v1/pages/:pageid/page-lines`         | `list` (`page-lines.controller.ts:51-54`)       |
+| GET    | `/v1/pages/:pageid/page-lines`         | `list` (`page-lines.controller.ts:38-41`)       |
 | POST   | `/v1/pages/:pageid/page-lines`         | `create` (`:56-60`) — `order`는 MAX+1 자동 할당 |
 | POST   | `/v1/pages/:pageid/page-lines/reorder` | `reorder` (`:62-65`) — body `{ ids: string[] }` |
 

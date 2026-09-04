@@ -13,6 +13,7 @@ import {
 import { PagesService } from '../pages/pages.service';
 import { StoragePrefix, StorageService } from '../storage/storage.service';
 import { appendPanelRefImages } from '../common/ref-images';
+import { apiError } from '../common/api-error';
 
 interface RenderRef {
   status: RenderStatus | null;
@@ -143,7 +144,7 @@ export class PanelsService {
      */
     if (patch.stroke) {
       const cur = await prisma.panel.findUnique({ where: { id }, select: { shape: true } });
-      if (!cur) throw new NotFoundException({ code: 'PANEL_NOT_FOUND' });
+      if (!cur) throw new NotFoundException(apiError({ code: 'PANEL_NOT_FOUND' }));
       data.shape = { ...(cur.shape as unknown as PanelShape), ...patch.stroke };
     }
     if (patch.text) data.text = patch.text;
@@ -266,15 +267,17 @@ export class PanelsService {
       select: { id: true, panelId: true, userId: true, status: true, resultImage: true },
     });
     if (job?.userId !== userId) {
-      throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
+      throw new NotFoundException(apiError({ code: 'RESOURCE_NOT_FOUND' }));
     }
     if (job.status !== 'succeeded') {
       // 403 + code:'CONFLICT' 였다 — 상태 코드와 코드가 서로 다른 말을 했다.
       // 같은 상황을 다루는 render.service.cancel 과 같은 모양으로 맞춘다.
-      throw new BadRequestException({
-        code: 'CONFLICT',
-        message: '성공한 렌더만 복원할 수 있습니다.',
-      });
+      throw new BadRequestException(
+        apiError({
+          code: 'CONFLICT',
+          message: '성공한 렌더만 복원할 수 있습니다.',
+        }),
+      );
     }
     await this.assertOwned(userId, job.panelId);
     const row = await prisma.panel.update({
@@ -303,7 +306,7 @@ export class PanelsService {
     });
     // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
     if (row?.page.project.userId !== userId)
-      throw new NotFoundException({ code: 'PANEL_NOT_FOUND' });
+      throw new NotFoundException(apiError({ code: 'PANEL_NOT_FOUND' }));
     return {
       id: row.id,
       pageId: row.pageId,

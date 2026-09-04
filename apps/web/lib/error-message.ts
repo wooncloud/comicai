@@ -43,6 +43,8 @@ const BY_CODE: Record<Code, string | null> = {
   OAUTH_PROVIDER_DISABLED: '지금은 이 방법으로는 로그인할 수 없습니다. 이메일로 로그인해 주세요.',
   OAUTH_PROVIDER_ERROR: '로그인 정보를 받지 못했습니다. 다시 시도해 주세요.',
   OAUTH_STATE_INVALID: '로그인 시간이 만료되었습니다. 다시 시도해 주세요.',
+  OAUTH_EMAIL_UNVERIFIED:
+    '이 계정의 이메일이 아직 인증되지 않아 연결할 수 없습니다. 제공자에서 이메일을 인증한 뒤 다시 시도해 주세요.',
   // me.controller.ts:148 — 비밀번호가 없는(소셜 전용) 계정이 비밀번호 변경을 시도한 경우.
   PASSWORD_REQUIRED: '구글·깃허브 로그인으로 가입한 계정입니다. 비밀번호 설정은 준비 중입니다.',
 
@@ -55,6 +57,17 @@ const BY_CODE: Record<Code, string | null> = {
   API_KEY_NOT_FOUND: '지금은 그림을 만들 수 없습니다. 잠시 후 다시 시도해 주세요.',
   API_KEY_VERIFY_FAILED: '키 검증에 실패했습니다. 키가 올바른지 확인해 주세요.',
   CONSISTENCY_NOT_FOUND: '항목을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
+  SPEECH_BUBBLE_NOT_FOUND: '말풍선을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
+  PAGE_TEXT_NOT_FOUND: '텍스트를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
+  PAGE_LINE_NOT_FOUND: '직선을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
+  // 그림체 엔티티는 텍스트→이미지 생성 의미가 달라 서버가 거부한다.
+  CONSISTENCY_GENERATE_UNSUPPORTED: '그림체는 AI 생성 대상이 아닙니다. 이미지를 직접 올려 주세요.',
+  // 실제 사유는 details.category 에 있고 renderErrorMessage 가 그걸 먼저 쓴다.
+  CONSISTENCY_GENERATE_FAILED: null,
+  CONSISTENCY_ATTACH_INVALID_KEY: '이 항목에 등록할 수 없는 이미지입니다. 다시 생성해 주세요.',
+  // 화면이 목록을 통째로 보내므로, 어긋났다면 다른 탭에서 이미 바뀐 것이다.
+  INVALID_REORDER: '순서가 이미 바뀌었습니다. 새로고침한 뒤 다시 시도해 주세요.',
+  PAGE_REORDER_MISMATCH: '순서가 이미 바뀌었습니다. 새로고침한 뒤 다시 시도해 주세요.',
 
   // ── 이미지 생성 ─────────────────────────────────
   RENDER_QUOTA_EXCEEDED: '오늘 만들 수 있는 그림 수를 다 썼습니다. 내일 다시 시도해 주세요.',
@@ -69,6 +82,7 @@ const BY_CODE: Record<Code, string | null> = {
   UPLOAD_TYPE_NOT_ALLOWED: '지원하지 않는 파일 형식입니다. PNG·JPG·WebP 를 올려 주세요.',
   UPLOAD_TOO_LARGE: '파일이 너무 큽니다. 10MB 이하로 올려 주세요.',
   UPLOAD_DIMENSIONS_INVALID: '이미지 크기가 허용 범위를 벗어났습니다.',
+  UPLOAD_FILE_MISSING: '파일을 선택해 주세요.',
 
   // ── 그 외 ───────────────────────────────────────
   HTTP_ERROR: null, // 네트워크 단절 등 — 문맥이 더 유용하다.

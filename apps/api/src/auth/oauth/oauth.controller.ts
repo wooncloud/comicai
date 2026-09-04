@@ -13,6 +13,7 @@ import {
 import { sessionMetaFromRequest } from '../session.helpers';
 import { issueCsrfToken } from '../../common/csrf.middleware';
 import { Public } from '../public.decorator';
+import { apiError } from '../../common/api-error';
 
 @Controller('auth/oauth')
 @Public()
@@ -104,7 +105,7 @@ function ensureSupported(provider: string): OAuthProvider {
      * 에러 로그를 부풀릴 수 있었다. 콜백 경로에서는 try 밖이라 로그인 화면 리다이렉트
      * 대신 500 JSON 이 나갔다.
      */
-    throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
+    throw new NotFoundException(apiError({ code: 'RESOURCE_NOT_FOUND' }));
   }
   return provider as OAuthProvider;
 }

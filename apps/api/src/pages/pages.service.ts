@@ -4,6 +4,7 @@ import type { PageDTO, ImageRef } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
 import { StoragePrefix, StorageService } from '../storage/storage.service';
 import { isReorderPermutation } from '../common/reorder';
+import { apiError } from '../common/api-error';
 
 interface PageRow {
   id: string;
@@ -128,10 +129,12 @@ export class PagesService {
     });
     const currentIds = new Set(current.map((p) => p.id));
     if (!isReorderPermutation(pageIds, currentIds)) {
-      throw new BadRequestException({
-        code: 'PAGE_REORDER_MISMATCH',
-        message: '프로젝트의 모든 페이지를 순서대로 지정해야 합니다.',
-      });
+      throw new BadRequestException(
+        apiError({
+          code: 'PAGE_REORDER_MISMATCH',
+          message: '프로젝트의 모든 페이지를 순서대로 지정해야 합니다.',
+        }),
+      );
     }
     await prisma.$transaction(
       pageIds.map((id, order) => prisma.page.update({ where: { id }, data: { order } })),
@@ -157,7 +160,8 @@ export class PagesService {
       include: { project: { select: { userId: true } } },
     });
     // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
-    if (row?.project.userId !== userId) throw new NotFoundException({ code: 'PAGE_NOT_FOUND' });
+    if (row?.project.userId !== userId)
+      throw new NotFoundException(apiError({ code: 'PAGE_NOT_FOUND' }));
     return row;
   }
 

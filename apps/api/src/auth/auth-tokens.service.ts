@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { newId, prisma } from '@comicai/db';
 import { sha256Hex, urlSafeToken } from '../common/tokens';
+import { apiError } from '../common/api-error';
 
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
 const RESET_TTL_MS = 30 * 60 * 1000;
@@ -87,10 +88,11 @@ export class AuthTokensService {
        * 만료와 그 밖(없음·이미 씀)을 구분하는 이유는 문구가 다르기 때문이다 —
        * 만료면 "다시 요청하세요" 가 실행 가능한 안내이고, 나머지는 그렇지 않다.
        */
-      if (row && row.expiresAt < now) throw new BadRequestException({ code: 'TOKEN_EXPIRED' });
-      throw new BadRequestException({ code: 'TOKEN_INVALID' });
+      if (row && row.expiresAt < now)
+        throw new BadRequestException(apiError({ code: 'TOKEN_EXPIRED' }));
+      throw new BadRequestException(apiError({ code: 'TOKEN_INVALID' }));
     }
-    if (!row) throw new BadRequestException({ code: 'TOKEN_INVALID' });
+    if (!row) throw new BadRequestException(apiError({ code: 'TOKEN_INVALID' }));
     return { userId: row.userId };
   }
 }

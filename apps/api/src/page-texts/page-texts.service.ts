@@ -8,6 +8,7 @@ import {
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { isReorderPermutation } from '../common/reorder';
+import { apiError } from '../common/api-error';
 
 interface PageTextRow {
   id: string;
@@ -134,10 +135,12 @@ export class PageTextsService {
     });
     const existingIds = new Set(existing.map((r) => r.id));
     if (!isReorderPermutation(ids, existingIds)) {
-      throw new ForbiddenException({
-        code: 'INVALID_REORDER',
-        message: 'ids 목록이 현재 페이지의 텍스트와 일치하지 않습니다.',
-      });
+      throw new ForbiddenException(
+        apiError({
+          code: 'INVALID_REORDER',
+          message: 'ids 목록이 현재 페이지의 텍스트와 일치하지 않습니다.',
+        }),
+      );
     }
     await prisma.$transaction(
       ids.map((id, i) => prisma.pageText.update({ where: { id }, data: { order: i } })),
@@ -160,7 +163,7 @@ export class PageTextsService {
     });
     // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
     if (row?.page.project.userId !== userId)
-      throw new NotFoundException({ code: 'PAGE_TEXT_NOT_FOUND' });
+      throw new NotFoundException(apiError({ code: 'PAGE_TEXT_NOT_FOUND' }));
     return { id: row.id, pageId: row.pageId, style: row.style };
   }
 }

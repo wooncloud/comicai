@@ -25,6 +25,7 @@ import { classifyModelError } from '../render/model-error';
 import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
 import { MetricsService } from '../metrics/metrics.service';
 import { open } from '../api-keys/crypto';
+import { apiError } from '../common/api-error';
 
 const GENERATE_TIMEOUT_MS = 120_000;
 
@@ -224,7 +225,7 @@ export class ConsistencyService {
   ): Promise<ImageRef & { url: string; expiresAt: string }> {
     const owned = await this.findOwnedFull(userId, entityId);
     if (owned.type === 'style' || !(owned.type in ENTITY_SYSTEM_PROMPTS)) {
-      throw new BadRequestException({ code: 'CONSISTENCY_GENERATE_UNSUPPORTED' });
+      throw new BadRequestException(apiError({ code: 'CONSISTENCY_GENERATE_UNSUPPORTED' }));
     }
     const adapter = getAdapter(model);
     const entityType = owned.type as GenerableEntityType;
@@ -281,11 +282,11 @@ export class ConsistencyService {
         'consistency generate failed',
       );
       throw new HttpException(
-        {
+        apiError({
           code: 'CONSISTENCY_GENERATE_FAILED',
           category: classified.category,
           message: classified.message,
-        },
+        }),
         statusForCategory(classified.category),
       );
     } finally {
@@ -308,7 +309,7 @@ export class ConsistencyService {
     const owned = await this.findOwnedFull(userId, entityId);
     const expectedPrefix = `projects/${owned.projectId}/refs/${owned.id}/`;
     if (!storageKey.startsWith(expectedPrefix)) {
-      throw new BadRequestException({ code: 'CONSISTENCY_ATTACH_INVALID_KEY' });
+      throw new BadRequestException(apiError({ code: 'CONSISTENCY_ATTACH_INVALID_KEY' }));
     }
     const { bytes, mimeType } = await this.storage.getBytes(storageKey);
     let width = 0;
@@ -341,7 +342,7 @@ export class ConsistencyService {
     });
     // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
     if (row?.project.userId !== userId)
-      throw new NotFoundException({ code: 'CONSISTENCY_NOT_FOUND' });
+      throw new NotFoundException(apiError({ code: 'CONSISTENCY_NOT_FOUND' }));
     return row;
   }
 
@@ -357,7 +358,7 @@ export class ConsistencyService {
     });
     // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
     if (row?.project.userId !== userId)
-      throw new NotFoundException({ code: 'CONSISTENCY_NOT_FOUND' });
+      throw new NotFoundException(apiError({ code: 'CONSISTENCY_NOT_FOUND' }));
     return row;
   }
 }

@@ -30,6 +30,7 @@ import { StorageService } from '../storage/storage.service';
 import { AuthTokensService } from '../auth/auth-tokens.service';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
 import { requireUploadedFile } from '../common/upload';
+import { apiError } from '../common/api-error';
 
 const USER_SELECT = {
   id: true,
@@ -173,13 +174,15 @@ export class MeController {
       select: { passwordHash: true },
     });
     if (!user.passwordHash) {
-      throw new BadRequestException({
-        code: 'PASSWORD_REQUIRED',
-        message: '비밀번호가 설정되지 않은 계정입니다.',
-      });
+      throw new BadRequestException(
+        apiError({
+          code: 'PASSWORD_REQUIRED',
+          message: '비밀번호가 설정되지 않은 계정입니다.',
+        }),
+      );
     }
     const ok = await argon2.verify(user.passwordHash, body.currentPassword);
-    if (!ok) throw new UnauthorizedException({ code: 'INVALID_PASSWORD' });
+    if (!ok) throw new UnauthorizedException(apiError({ code: 'INVALID_PASSWORD' }));
     const newHash = await argon2.hash(body.newPassword, { type: argon2.argon2id });
     await prisma.user.update({ where: { id: req.user.id }, data: { passwordHash: newHash } });
     await this.sessions.destroyAllExcept(req.user.id, req.sid);
@@ -210,7 +213,7 @@ export class MeController {
   @HttpCode(204)
   async revokeSession(@Req() req: AuthedRequest, @Param('sid') sid: string): Promise<void> {
     const owns = await this.sessions.belongsTo(req.user.id, sid);
-    if (!owns) throw new NotFoundException({ code: 'SESSION_NOT_FOUND' });
+    if (!owns) throw new NotFoundException(apiError({ code: 'SESSION_NOT_FOUND' }));
     await this.sessions.destroy(sid);
   }
 }

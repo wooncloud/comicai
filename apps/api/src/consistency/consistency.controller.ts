@@ -26,6 +26,7 @@ import {
 import { ConsistencyService } from './consistency.service';
 import { AuthedRequest } from '../auth/session.guard';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
+import { apiError } from '../common/api-error';
 
 class CreateDto {
   static zodSchema = ConsistencyCreateSchema;
@@ -89,7 +90,9 @@ export class ConsistencyController {
     @UploadedFiles() files: Express.Multer.File[] = [],
   ) {
     if (!files.length) {
-      throw new BadRequestException({ code: 'UPLOAD_FILE_MISSING', message: '파일이 없습니다.' });
+      throw new BadRequestException(
+        apiError({ code: 'UPLOAD_FILE_MISSING', message: '파일이 없습니다.' }),
+      );
     }
     return this.svc.appendImages(
       req.user.id,

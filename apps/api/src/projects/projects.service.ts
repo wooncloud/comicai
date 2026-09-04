@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { newId, prisma } from '@comicai/db';
 import type { ImageRef, ModelId, ProjectDTO } from '@comicai/types';
 import { StoragePrefix, StorageService } from '../storage/storage.service';
+import { apiError } from '../common/api-error';
 
 interface ProjectRow {
   id: string;
@@ -61,7 +62,8 @@ export class ProjectsService {
       include: { pages: { select: { id: true, order: true }, orderBy: { order: 'asc' } } },
     });
     // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
-    if (row?.userId !== userId) throw new NotFoundException({ code: 'PROJECT_NOT_FOUND' });
+    if (row?.userId !== userId)
+      throw new NotFoundException(apiError({ code: 'PROJECT_NOT_FOUND' }));
     const dto = await this.withThumbnailUrl(row);
     return { ...dto, pages: row.pages };
   }
@@ -129,7 +131,8 @@ export class ProjectsService {
      * `RESOURCE_NOT_FOUND` 는 null(문구 없음)이라 호출부 문맥에 기대게 되는데,
      * 도메인 코드는 "프로젝트를 찾을 수 없습니다" 처럼 그 자체로 안내가 된다.
      */
-    if (row?.userId !== userId) throw new NotFoundException({ code: 'PROJECT_NOT_FOUND' });
+    if (row?.userId !== userId)
+      throw new NotFoundException(apiError({ code: 'PROJECT_NOT_FOUND' }));
     return { thumbnail: row.thumbnail };
   }
 

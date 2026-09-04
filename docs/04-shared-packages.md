@@ -74,15 +74,23 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 
 성공: `{ data: T }`, 실패: `{ error: { code, message, details? } }` (`src/envelope.ts:48-60`).
 
-`ErrorCode` 카테고리(`src/envelope.ts:4-47`):
+`ErrorCode` 카테고리(`src/envelope.ts:11-63`):
+
+**이 유니온 밖의 코드는 API 가 던질 수 없다.** 서비스가 `apiError()`
+(`apps/api/src/common/api-error.ts:23`)를 거쳐서만 던지므로, 목록에 없는 코드는 API 쪽
+컴파일 에러가 되고, 유니온에 넣는 순간 이번엔 웹의 문구 표(`Record<ErrorCode, …>`,
+`apps/web/lib/error-message.ts:21`)가 컴파일 에러를 낸다 — 두 방어가 이어진다.
+예전에는 예외 인자가 그냥 객체라 아무 문자열이나 통과했고, 그래서 9종이 유니온 밖에
+있었다. 그 코드들은 문구 표에도 없어 사용자가 전부 "요청을 처리하지 못했습니다" 만 봤다.
+표가 "빠지면 컴파일 에러" 를 선언하는데 **애초에 유니온 밖이라 그 방어가 발동하지 않았다.**
 
 - 공통: `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `BAD_REQUEST`, `RATE_LIMITED`, `INTERNAL_ERROR`, `CSRF_INVALID`.
-- 인증: `NO_SESSION`, `SESSION_EXPIRED`, `SESSION_NOT_FOUND`, `INVALID_CREDENTIALS`, `INVALID_PASSWORD`, `EMAIL_TAKEN`, `EMAIL_NOT_VERIFIED`, `TOKEN_INVALID`, `TOKEN_EXPIRED`, `OAUTH_PROVIDER_DISABLED`, `OAUTH_PROVIDER_ERROR`, `OAUTH_STATE_INVALID`, `PASSWORD_REQUIRED`.
-- 도메인: `RESOURCE_NOT_FOUND`, `RESOURCE_FORBIDDEN`, `PROJECT_NOT_FOUND`, `PANEL_NOT_FOUND`, `PAGE_NOT_FOUND`, `API_KEY_NOT_FOUND`, `API_KEY_VERIFY_FAILED`, `CONSISTENCY_NOT_FOUND`.
+- 인증: `NO_SESSION`, `SESSION_EXPIRED`, `SESSION_NOT_FOUND`, `INVALID_CREDENTIALS`, `INVALID_PASSWORD`, `EMAIL_TAKEN`, `EMAIL_NOT_VERIFIED`, `TOKEN_INVALID`, `TOKEN_EXPIRED`, `OAUTH_PROVIDER_DISABLED`, `OAUTH_PROVIDER_ERROR`, `OAUTH_STATE_INVALID`, `OAUTH_EMAIL_UNVERIFIED`, `PASSWORD_REQUIRED`.
+- 도메인: `RESOURCE_NOT_FOUND`, `RESOURCE_FORBIDDEN`, `PROJECT_NOT_FOUND`, `PANEL_NOT_FOUND`, `PAGE_NOT_FOUND`, `API_KEY_NOT_FOUND`, `API_KEY_VERIFY_FAILED`, `CONSISTENCY_NOT_FOUND`, `CONSISTENCY_GENERATE_UNSUPPORTED`, `CONSISTENCY_GENERATE_FAILED`, `CONSISTENCY_ATTACH_INVALID_KEY`, `SPEECH_BUBBLE_NOT_FOUND`, `PAGE_TEXT_NOT_FOUND`, `PAGE_LINE_NOT_FOUND`, `INVALID_REORDER`, `PAGE_REORDER_MISMATCH`.
   `RESOURCE_FORBIDDEN` 은 이제 API 가 던지지 않는다 — 소유권 실패는 전부 도메인별 404 다
   (존재 여부가 새지 않도록). 유니온에는 남겨 둔다: 옛 클라이언트가 아직 이 코드를 해석한다.
 - 렌더: `RENDER_QUOTA_EXCEEDED`, `RENDER_INVALID_INPUT`, `RENDER_ENQUEUE_FAILED`, `RENDER_SAFETY_BLOCK`, `RENDER_AUTH_FAILED`, `RENDER_TIMEOUT`.
-- 업로드: `UPLOAD_TYPE_NOT_ALLOWED`, `UPLOAD_TOO_LARGE`, `UPLOAD_DIMENSIONS_INVALID`.
+- 업로드: `UPLOAD_TYPE_NOT_ALLOWED`, `UPLOAD_TOO_LARGE`, `UPLOAD_DIMENSIONS_INVALID`, `UPLOAD_FILE_MISSING`.
 
 타입 가드: `isApiFailure(env)` (`src/envelope.ts:62-64`).
 
