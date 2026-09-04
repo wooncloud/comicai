@@ -11,7 +11,10 @@ datasource db {
 
 model User {
   id              String    @id
-  email           String    @unique
+  /// citext 다. text 로 두면 `Admin@x.com` 과 `admin@x.com` 이 서로 다른 계정이
+  /// 되는데, 운영자 판정은 소문자로 비교해서 대소문자만 바꾼 가입으로 운영자
+  /// 권한을 가져갈 수 있었다. 앱(Zod EmailSchema)에서도 정규화하지만 DB 에서 한 번 더 막는다.
+  email           String    @unique @db.Citext
   passwordHash    String?
   displayName     String?   @map("display_name")
   avatarUrl       String?   @map("avatar_url")

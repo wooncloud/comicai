@@ -90,9 +90,13 @@
 ### 2.5 OAuth (`auth/oauth/*`)
 
 - 지원 provider: `google`, `github` — `auth/oauth/oauth.providers.ts:138-141`
-- 활성화 조건: `${PROVIDER}_OAUTH_CLIENT_ID` + `_CLIENT_SECRET` env 둘 다 존재 — `auth/oauth/oauth.service.ts:95-101`
-- state는 Redis에 `oauth_state:{state}`로 10분 TTL — `auth/oauth/oauth.service.ts:14-15, 41-46`
-- 콜백 URI: `${API_PUBLIC_URL ?? 'http://localhost:${API_PORT}'}/v1/auth/oauth/${provider}/callback` — `auth/oauth/oauth.service.ts:103-108`
+- 활성화 조건: `${PROVIDER}_OAUTH_CLIENT_ID` + `_CLIENT_SECRET` env 둘 다 존재 — `auth/oauth/oauth.service.ts:116-123`
+- state는 Redis에 `oauth_state:{state}`로 10분 TTL — `auth/oauth/oauth.service.ts:14-15, 51-56`.
+  **여기에 더해 같은 값을 `comicai_oauth_state` 쿠키로도 심고**(`oauth.controller.ts:40`), 콜백에서
+  쿠키와 쿼리 state 가 일치할 때만 진행한다(`oauth.service.ts:76-78`). Redis 만 보면 "발급된 적
+  있는 값인가" 만 확인하게 되는데, 그건 **누가** 시작했는지를 묻지 않는다 — 공격자가 자기 계정으로
+  동의까지 마친 콜백 URL 을 피해자에게 열게 하면 피해자 브라우저에 공격자 세션이 심긴다(로그인 CSRF)
+- 콜백 URI: `${API_PUBLIC_URL ?? 'http://localhost:${API_PORT}'}/v1/auth/oauth/${provider}/callback` — `auth/oauth/oauth.service.ts:124-129`
 - 라우트:
   - GET `/v1/auth/oauth/providers` → 켜져 있는 provider 목록 — `oauth.controller.ts:28`.
     웹은 **이 목록에 있는 버튼만 그린다**. 예전에는 환경변수와 무관하게 항상 보여서, 설정하지
@@ -103,10 +107,15 @@
     throttler 카운터를 쓴다
   - GET `/v1/auth/oauth/:provider` → 302 authorize URL — `oauth.controller.ts:32-42`
   - GET `/v1/auth/oauth/:provider/callback` → 세션 발급 + CSRF 발급 후 `${WEB_ORIGIN}${returnTo || '/projects'}`로 302 — `oauth.controller.ts:43-79`
-- 사용자 매칭: 이메일 기준 link-or-create. `oauthProviders` JSON 배열에 provider 추가, `emailVerified`면 `emailVerifiedAt` 채움 — `auth/oauth/oauth.service.ts:110-158`
-- **약관 동의는 계정 생성 지점에 기록한다.** `termsAgreedAt`(`oauth.service.ts:153`)은 신규 생성
-  경로에만 붙고, 기존 계정 링크 경로(`:117-134`)는 건드리지 않는다. 계정을 만드는 경로는 둘
-  뿐이고(`auth.service.ts:13`, `oauth.service.ts:145`) 한쪽에만 붙이면 다른 경로로 만들어진
+- 사용자 매칭: 이메일 기준 link-or-create. `oauthProviders` JSON 배열에 provider 추가, `emailVerified`면 `emailVerifiedAt` 채움 — `auth/oauth/oauth.service.ts:131-201`.
+  제공자 이메일도 소문자로 정규화한다(`oauth.service.ts:137`) — GitHub 은 대소문자를 섞어 주므로
+  그대로 쓰면 같은 사람에게 계정이 두 벌 생긴다
+- **기존 계정에 붙이려면 제공자가 이메일 소유를 증명해야 한다**(`oauth.service.ts:157`). 예전에는
+  이메일이 같기만 하면 그 계정의 세션을 발급했다 — 어떤 제공자에서 남의 이메일을 소유 증명 없이
+  등록할 수 있으면 비밀번호를 모르는 채 남의 계정을 가져갈 수 있었다. 신규 생성은 막지 않는다
+- **약관 동의는 계정 생성 지점에 기록한다.** `termsAgreedAt`(`oauth.service.ts:196`)은 신규 생성
+  경로에만 붙고, 기존 계정 링크 경로(`:161-178`)는 건드리지 않는다. 계정을 만드는 경로는 둘
+  뿐이고(`auth.service.ts:13`, `oauth.service.ts:188`) 한쪽에만 붙이면 다른 경로로 만들어진
   계정에 기록이 없어 재동의 대상을 가려낼 수 없다. 소셜 가입에는 체크박스를 놓을 자리가 없어
   (버튼을 누르는 순간 계정이 생긴다) 웹의 `OAuthButtons` 가 버튼 아래 띄우는 "계속하면 …동의하는
   것으로 봅니다" 문구가 이 기록의 근거다
@@ -280,7 +289,15 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 ### 3.9 HealthController / MetricsController
 
 - `GET /healthz` (글로벌 prefix 제외, `@SkipThrottle`) — `health/health.controller.ts:7-11`
-- `GET /v1/metrics` (`@SkipThrottle`) — `metrics/metrics.controller.ts:11-15`
+- `GET /v1/metrics` (`@SkipThrottle` + `MetricsGuard`) — `metrics/metrics.controller.ts:14-18`
+  - **`METRICS_TOKEN` Bearer 토큰이 있어야 열린다**(`metrics/metrics.guard.ts:22`).
+    토큰이 설정되지 않았으면 **아무도 못 본다** — 깜빡했을 때 전체 공개가 되는 것보다
+    스크레이퍼가 404 를 받는 쪽이 안전하다(`AdminGuard` 와 같은 판단).
+  - 403 이 아니라 404 인 이유: 인증 실패를 알려 주면 "여기에 메트릭이 있다" 는 사실을
+    확인해 준다. `FeatureFlagGuard` 도 같은 이유로 404 를 쓴다.
+  - 공개하면 안 되는 이유는 프로세스 상태만이 아니다. `http_requests_total` 로 엔드포인트별
+    실패율이, `render_attempts_total` 로 모델별 총 생성 건수(= 사업 지표)가 그대로 나간다.
+  - 스크레이핑: `curl -H "Authorization: Bearer $METRICS_TOKEN" .../v1/metrics`
 - Prometheus 메트릭: `http_requests_total`, `http_request_duration_seconds`, `render_attempts_total{model,outcome}`, `render_duration_seconds{model}` + `comicai_` 프리픽스의 default metrics — `metrics/metrics.service.ts:15-46`
 
 ### 3.10 EmailModule
@@ -337,6 +354,16 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 - **목록이 비어 있으면 아무도 관리자가 아니다**(`packages/types/src/features.ts` 의
   `isAdminEmail`). 설정을 깜빡했을 때 전원이 관리자가 되는 것보다 안전하다.
   이 경계는 `features.spec.ts` 와 `auth/admin.guard.spec.ts` 가 고정한다.
+- **이메일 인증을 마친 계정만 관리자가 된다**(`auth/admin.guard.ts:26`). 목록에 적힌
+  이메일에 아직 계정이 없으면 그 주소를 아는 사람이 **먼저 가입해 선점**할 수 있고,
+  공개 저장소라 운영자 이메일은 `git log` 에 그대로 보인다. 메일함을 실제로 가진 사람만
+  통과하게 해야 그 경로가 닫힌다. 그래서 가드는 세션의 이메일이 아니라 DB 의 계정을
+  다시 읽는다(`auth/admin.guard.ts:52`) — 세션에는 인증 시각이 없다.
+- 이메일은 DB 에서 `citext` 다(`packages/db/prisma/schema.prisma:17`). `text` 로 두면
+  `Admin@x.com` 과 `admin@x.com` 이 서로 다른 계정이 되는데 운영자 판정은 소문자로
+  비교하므로, **대소문자만 바꿔 가입하면 그대로 운영자가 됐다.** 앱 쪽에서도
+  `EmailSchema`(`packages/types/src/schemas.ts:32`)가 정규화하지만, 앱을 우회하는 경로가
+  생겨도 안전해야 하므로 DB 에서 한 번 더 막는다.
 - `/me` 응답의 `isAdmin`(`me/me.controller.ts:86`)은 **화면을 숨기는 용도일 뿐**이다.
   클라이언트 판정은 우회할 수 있으므로 실제 차단은 위 가드가 한다.
 - 사용자 목록에 비밀번호 해시·API 키·아바타 저장 키는 넣지 않는다. 운영 화면에서 볼 이유가
@@ -453,7 +480,7 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
 | `API_PORT`                                                                                           | `main.ts:20`                                                                                                    | `4000`                               |
 | `WEB_ORIGIN`                                                                                         | `main.ts:16`, `oauth.controller.ts:39`, `email.provider.ts:34`                                                  | `http://localhost:3000`              |
-| `API_PUBLIC_URL`                                                                                     | `oauth.service.ts:104`                                                                                          | OAuth callback base                  |
+| `API_PUBLIC_URL`                                                                                     | `oauth.service.ts:125`                                                                                          | OAuth callback base                  |
 | `REDIS_URL`                                                                                          | `session.service.ts:30`, `oauth.service.ts:27`, `render.queue.ts:23`, `sse.hub.ts:48`, `api-keys.breaker.ts:23` | `redis://localhost:6379`             |
 | `DATABASE_URL`                                                                                       | `schema.prisma:9`                                                                                               | Postgres                             |
 | `S3_ENDPOINT` / `S3_PUBLIC_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `storage.service.ts:43-50`                                                                                      | MinIO 기본값                         |

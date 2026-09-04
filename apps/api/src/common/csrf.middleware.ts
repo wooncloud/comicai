@@ -43,15 +43,27 @@ export class CsrfMiddleware implements NestMiddleware {
   }
 }
 
-export function issueCsrfToken(res: Response, secure: boolean): string {
-  const token = hexToken();
+/**
+ * CSRF 쿠키 옵션. **발급과 삭제가 같은 값을 써야 한다.**
+ *
+ * 예전에는 로그아웃이 `{ path, maxAge: 0 }` 만 넘겨서, 운영처럼 `COOKIE_DOMAIN`
+ * 이 설정된 환경에서는 브라우저가 다른 쿠키로 보고 지우지 않았다 — 공용 PC 에서
+ * 로그아웃해도 이전 사용자의 토큰이 남았다.
+ */
+export function csrfCookieOptions(secure: boolean) {
   const domain = process.env.COOKIE_DOMAIN || undefined;
-  res.cookie(CSRF_COOKIE, token, {
+  return {
+    // 웹 JS 가 읽어 헤더로 되돌려 보내야 하므로 httpOnly 가 아니다(이중 제출 패턴).
     httpOnly: false,
     secure,
-    sameSite: 'lax',
+    sameSite: 'lax' as const,
     path: '/',
     ...(domain ? { domain } : {}),
-  });
+  };
+}
+
+export function issueCsrfToken(res: Response, secure: boolean): string {
+  const token = hexToken();
+  res.cookie(CSRF_COOKIE, token, csrfCookieOptions(secure));
   return token;
 }

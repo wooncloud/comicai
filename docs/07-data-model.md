@@ -64,7 +64,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | ------------------ | --------- | -------- | --------------------------------------------------------- |
 | id                 | String PK | no       | —                                                         |
 | userId             | String    | no       | FK→users (cascade)                                        |
-| provider           | String    | no       | `'gemini' \| 'openai'` (Zod에서 enum, `schemas.ts:62-66`) |
+| provider           | String    | no       | `'gemini' \| 'openai'` (Zod에서 enum, `schemas.ts:77-81`) |
 | label              | String    | no       | —                                                         |
 | ciphertext / nonce | String    | no       | KMS 봉투암호화 결과                                       |
 | lastVerifiedAt     | DateTime  | yes      | —                                                         |
@@ -77,7 +77,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 
 - 필드: id, userId, name, thumbnail?, defaultStyleId?, defaultModel?, createdAt, updatedAt.
 - `defaultStyleId` (`schema.prisma:87`): 패널 렌더 시 자동 주입되는 대표 그림체 엔티티 id. **FK 없음** — ConsistencyEntity 삭제 시 정합성은 애플리케이션 레벨로 처리.
-- `defaultModel` (`schema.prisma:88`): 패널 인스펙터에서 모델 select의 초기값으로 사용. 값은 `ModelId` 문자열. **enum 강제 없음** — 검증은 `ProjectPatchSchema` 의 `defaultModel` 필드(`schemas.ts:77-80`).
+- `defaultModel` (`schema.prisma:88`): 패널 인스펙터에서 모델 select의 초기값으로 사용. 값은 `ModelId` 문자열. **enum 강제 없음** — 검증은 `ProjectPatchSchema` 의 `defaultModel` 필드(`schemas.ts:92-95`).
 - 인덱스: `@@index([userId, createdAt])` (`:92`).
 - 관계: 1:N → Page, ConsistencyEntity.
 
@@ -100,7 +100,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 ### 2.7 Page — `pages` (`schema.prisma:118-136`)
 
 - 필드: id, projectId, order(Int), name?(String), size(Json `{w,h}`), background?(Json `ImageRef`), backgroundColor?(String, `#RRGGBB[AA]`), createdAt.
-- `backgroundColor` (`schema.prisma:125`): 페이지 단색 배경. null이면 투명. `background` 이미지가 있을 땐 그 아래에 깔린다. 검증은 `PagePatchSchema.backgroundColor` (`schemas.ts:103-108`).
+- `backgroundColor` (`schema.prisma:125`): 페이지 단색 배경. null이면 투명. `background` 이미지가 있을 땐 그 아래에 깔린다. 검증은 `PagePatchSchema.backgroundColor` (`schemas.ts:118-123`).
 - 인덱스: `@@index([projectId, order])` (`:130`).
 - 1:N 관계: Panel, SpeechBubble, PageText, PageLine (모두 cascade on Page 삭제).
 
@@ -183,7 +183,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | id          | String PK             | no       | —                                           |
 | panelId     | String                | no       | **FK 없음**, 인덱스만                       |
 | userId      | String                | no       | FK→users (cascade)                          |
-| model       | String                | no       | `RenderModelSchema` enum (`schemas.ts:117`) |
+| model       | String                | no       | `RenderModelSchema` enum (`schemas.ts:132`) |
 | ir          | Json                  | no       | `RenderIR` (`index.ts:426`)                 |
 | status      | String                | no       | `RENDER_STATUSES` (`index.ts:26`)           |
 | resultImage | Json (`result_image`) | yes      | `ImageRef`                                  |
@@ -207,9 +207,9 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | PANEL_SHAPE_PRESETS         | `rect, rounded, oval, diamond, parallelogram` (polygon 제외) | `index.ts:119`                   |
 | SPEECH_BUBBLE_VARIANTS      | `ellipse, rect, spike, polygon` (cloud/thought 제거됨)       | `index.ts:153`                   |
 | PAGE_TEXT_FONT_FAMILIES     | `sans-serif, serif, monospace, Pretendard, Inter`            | `index.ts:183`                   |
-| EntityType                  | `style, character, background, worldview`                    | `index.ts:85` / `schemas.ts:224` |
+| EntityType                  | `style, character, background, worldview`                    | `index.ts:85` / `schemas.ts:239` |
 | ModelProvider               | `gemini, openai, mock`                                       | `index.ts:9`                     |
-| ModelId                     | `gemini-3.1-flash-image-preview, gpt-image-2, mock`          | `index.ts:10`, `schemas.ts:117`  |
+| ModelId                     | `gemini-3.1-flash-image-preview, gpt-image-2, mock`          | `index.ts:10`, `schemas.ts:132`  |
 | OAUTH_PROVIDERS             | `google, github`                                             | `index.ts:23`                    |
 | RenderErrorCategory         | `transient, auth, quota, safety, invalid, timeout`           | `index.ts:396`                   |
 | PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                              | `index.ts:242`                   |
@@ -224,7 +224,7 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 | DB 모델                           | DTO / Zod              | 위치           | 형태 불일치 / 주의점                                                                                                                                                                          |
 | --------------------------------- | ---------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | User                              | `SessionUser`          | `index.ts:60`  | DTO에는 `passwordHash`, `emailVerifiedAt`, `createdAt`/`updatedAt`, `avatarStorageKey` 없음. `oauthProviders`는 DB Json → DTO `('google'\|'github')[]`.                                       |
-| ApiKey                            | `ApiKeySummary`        | `index.ts:51`  | `ciphertext`/`nonce`는 DTO 미노출. `provider` DTO는 `ModelProvider`(mock 포함)이지만 Zod 생성 스키마(`ApiKeyCreateSchema`, `schemas.ts:62`)는 `'gemini'\|'openai'`만 허용 — 약간의 불일치.    |
+| ApiKey                            | `ApiKeySummary`        | `index.ts:51`  | `ciphertext`/`nonce`는 DTO 미노출. `provider` DTO는 `ModelProvider`(mock 포함)이지만 Zod 생성 스키마(`ApiKeyCreateSchema`, `schemas.ts:77`)는 `'gemini'\|'openai'`만 허용 — 약간의 불일치.    |
 | Project                           | `ProjectDTO`           | `index.ts:350` | `defaultStyleId` / `defaultModel` / `thumbnailUrl`(파생, presigned URL) 포함.                                                                                                                 |
 | ConsistencyEntity                 | `ConsistencyEntityDTO` | `index.ts:87`  | DB `refImages`(Json) → DTO `ImageRef[]`. DTO에 **`refImageUrls`(presigned URL 배열)** 가 추가됨 — 응답 직전에 생성되는 파생 필드.                                                             |
 | Page                              | `PageDTO`              | `index.ts:329` | DB `size`(Json) → `{w,h}`. `name` 동일. `pageLabel()` 헬퍼가 `name ?? '페이지 {order+1}'` 라벨 산출 (`index.ts:350-354`). 파생 필드: `backgroundUrl`(presign). `backgroundColor`는 동일 노출. |
@@ -237,18 +237,18 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 
 ### Zod 입력 스키마 (생성/수정 페이로드)
 
-- 인증: `CredentialsSchema`, `PasswordResetRequestSchema`, `PasswordResetConfirmSchema`, `PasswordChangeSchema` (`schemas.ts:19-47`).
-- 프로필: `MePatchSchema` (`schemas.ts:54-57`).
-- API Key 생성: `ApiKeyCreateSchema` (`schemas.ts:62-66`).
-- 프로젝트: `ProjectCreateSchema`, `ProjectPatchSchema` (`schemas.ts:70-81`).
-- 페이지: `PageCreateSchema`, `PagePatchSchema`, `PageSizeSchema`, `PageReorderSchema` (`schemas.ts:84-114`).
-- 패널: `PanelShapeSchema`(points 3–64), `PanelCreateSchema`, `PanelPatchSchema` (`schemas.ts:134-146`).
-- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`schemas.ts:150-183`).
-- 페이지 텍스트: `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`schemas.ts:194-221`).
-- 페이지 직선: `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`schemas.ts:224-253`).
-- 렌더: `RenderModelSchema`, `RenderStartSchema` (`schemas.ts:117-122`).
-- 내보내기: `ExportFormatSchema`, `ExportRequestSchema` (`schemas.ts:125-130`).
-- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`, `ConsistencyAttachSchema` (`schemas.ts:254-272`).
+- 인증: `CredentialsSchema`, `PasswordResetRequestSchema`, `PasswordResetConfirmSchema`, `PasswordChangeSchema` (`schemas.ts:34-62`).
+- 프로필: `MePatchSchema` (`schemas.ts:69-72`).
+- API Key 생성: `ApiKeyCreateSchema` (`schemas.ts:77-81`).
+- 프로젝트: `ProjectCreateSchema`, `ProjectPatchSchema` (`schemas.ts:85-96`).
+- 페이지: `PageCreateSchema`, `PagePatchSchema`, `PageSizeSchema`, `PageReorderSchema` (`schemas.ts:99-129`).
+- 패널: `PanelShapeSchema`(points 3–64), `PanelCreateSchema`, `PanelPatchSchema` (`schemas.ts:149-161`).
+- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`schemas.ts:165-198`).
+- 페이지 텍스트: `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`schemas.ts:209-236`).
+- 페이지 직선: `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`schemas.ts:239-268`).
+- 렌더: `RenderModelSchema`, `RenderStartSchema` (`schemas.ts:132-137`).
+- 내보내기: `ExportFormatSchema`, `ExportRequestSchema` (`schemas.ts:140-145`).
+- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`, `ConsistencyAttachSchema` (`schemas.ts:269-287`).
 
 ### 미디어 공통
 

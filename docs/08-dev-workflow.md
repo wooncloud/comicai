@@ -126,7 +126,7 @@ pnpm --filter @comicai/db migrate
 
 ## 5. CI
 
-`.github/workflows/ci.yml:1-43`
+`.github/workflows/ci.yml:1-55`
 
 - 트리거: `push` → `main`, 모든 `pull_request`
 - concurrency: 동일 ref의 이전 실행을 취소 (`ci.yml:8-10`)

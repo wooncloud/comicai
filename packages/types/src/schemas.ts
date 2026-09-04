@@ -16,8 +16,23 @@ const PasswordSchema = z
   .max(PASSWORD_MAX_LENGTH)
   .regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, '영문과 숫자를 각각 1자 이상 포함해야 합니다.');
 
+/**
+ * 이메일. **반드시 정규화한다.**
+ *
+ * 정규화 없이는 `Admin@x.com` 과 `admin@x.com` 이 Postgres 의 text unique 에서
+ * 서로 다른 값이라 계정이 두 개 생긴다. 그런데 운영자 판정(`isAdminEmail`)은
+ * 소문자로 비교하므로, 운영자 이메일의 대소문자만 바꿔 가입하면 그대로 운영자가
+ * 됐다 — 공개 저장소의 `git log` 에 운영자 이메일이 그대로 보이므로 누구나
+ * 실행할 수 있는 경로였다. 이메일 인증조차 필요 없었다.
+ *
+ * 이 transform 은 파이프가 `parsed.data` 를 쓰기 때문에 컨트롤러까지 전달된다
+ * (`apps/api/src/common/zod-validation.pipe.ts`). DB 쪽은 `users.email` 을
+ * citext 로 바꿔 한 번 더 막는다 — 앱을 우회해 들어오는 경로가 생겨도 안전해야 한다.
+ */
+export const EmailSchema = z.string().trim().toLowerCase().email().max(255);
+
 export const CredentialsSchema = z.object({
-  email: z.string().email().max(255),
+  email: EmailSchema,
   password: PasswordSchema,
 });
 export type Credentials = z.infer<typeof CredentialsSchema>;
@@ -36,7 +51,7 @@ export const SignupSchema = CredentialsSchema.extend({
 export type SignupInput = z.infer<typeof SignupSchema>;
 
 export const PasswordResetRequestSchema = z.object({
-  email: z.string().email().max(255),
+  email: EmailSchema,
 });
 export const PasswordResetConfirmSchema = z.object({
   token: z.string().min(16).max(200),

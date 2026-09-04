@@ -22,7 +22,7 @@ import { AuthService } from './auth.service';
 import { AuthTokensService } from './auth-tokens.service';
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS, SessionService } from './session.service';
 import { sessionMetaFromRequest } from './session.helpers';
-import { CSRF_COOKIE, issueCsrfToken } from '../common/csrf.middleware';
+import { CSRF_COOKIE, csrfCookieOptions, issueCsrfToken } from '../common/csrf.middleware';
 import { EmailService } from '../email/email.provider';
 
 class CredentialsDto {
@@ -102,7 +102,10 @@ export class AuthController {
     const sid = req.cookies?.[SESSION_COOKIE];
     if (sid) await this.sessions.destroy(sid);
     res.clearCookie(SESSION_COOKIE, { ...SESSION_COOKIE_OPTIONS, maxAge: 0 });
-    res.clearCookie(CSRF_COOKIE, { path: '/', maxAge: 0 });
+    res.clearCookie(CSRF_COOKIE, {
+      ...csrfCookieOptions(SESSION_COOKIE_OPTIONS.secure),
+      maxAge: 0,
+    });
   }
 
   @Post('verify-email/request')

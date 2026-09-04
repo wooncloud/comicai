@@ -55,6 +55,17 @@ export function Topbar({ authed = false }: { authed?: boolean }) {
     queryKey: qk.me(),
     queryFn: () => api<SessionUser>(ApiPaths.me),
     retry: false,
+    /*
+     * 이 조회는 오류 경계로 던지지 않는다.
+     *
+     * Topbar 는 랜딩(app/page.tsx)도 쓴다. API 가 죽었을 때 여기서 던지면
+     * 처음 온 비로그인 방문자에게 히어로·가입 버튼 대신 오류 화면이 뜬다 —
+     * 로그인할 수도 없는 사람에게 "내 프로젝트로" 버튼만 남는 막다른 길이다.
+     *
+     * 401 은 아래 useEffect 가 /login 으로 보내는 자기 복구 경로가 있고,
+     * 그 밖의 실패는 아바타 자리가 비는 정도로 끝나는 게 맞다.
+     */
+    throwOnError: false,
   });
 
   useEffect(() => {

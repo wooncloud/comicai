@@ -3,7 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { OAUTH_PROVIDERS, type OAuthProvider } from '@comicai/types';
 import { OAuthService } from './oauth.service';
-import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS, SessionService } from '../session.service';
+import {
+  OAUTH_STATE_COOKIE,
+  OAUTH_STATE_COOKIE_OPTIONS,
+  SESSION_COOKIE,
+  SESSION_COOKIE_OPTIONS,
+  SessionService,
+} from '../session.service';
 import { sessionMetaFromRequest } from '../session.helpers';
 import { issueCsrfToken } from '../../common/csrf.middleware';
 
@@ -36,7 +42,10 @@ export class OAuthController {
     @Res() res: Response,
   ): Promise<void> {
     const p = ensureSupported(provider);
-    const url = await this.oauth.startAuth(p, returnTo);
+    const { url, state } = await this.oauth.startAuth(p, returnTo);
+    // 콜백이 "이 브라우저가 시작한 것" 임을 증명할 쿠키. sameSite=lax 여야 한다 —
+    // strict 면 제공자에서 돌아오는 top-level 이동에 쿠키가 실리지 않아 항상 실패한다.
+    res.cookie(OAUTH_STATE_COOKIE, state, OAUTH_STATE_COOKIE_OPTIONS);
     res.redirect(302, url);
   }
 
@@ -60,7 +69,13 @@ export class OAuthController {
       return;
     }
     try {
-      const result = await this.oauth.completeAuth(p, code, state);
+      const result = await this.oauth.completeAuth(
+        p,
+        code,
+        state,
+        req.cookies?.[OAUTH_STATE_COOKIE],
+      );
+      res.clearCookie(OAUTH_STATE_COOKIE, OAUTH_STATE_COOKIE_OPTIONS);
       const sid = await this.sessions.create(
         { userId: result.userId, email: result.email },
         sessionMetaFromRequest(req),
@@ -70,6 +85,7 @@ export class OAuthController {
       const dest = result.returnTo && safeReturnTo(result.returnTo) ? result.returnTo : '/projects';
       res.redirect(302, `${webOrigin}${dest}`);
     } catch (err) {
+      res.clearCookie(OAUTH_STATE_COOKIE, OAUTH_STATE_COOKIE_OPTIONS);
       const errCode = (
         (err as { response?: { code?: string } }).response?.code ?? 'oauth_failed'
       ).toLowerCase();

@@ -51,8 +51,12 @@ export default function DashboardPage() {
         </header>
 
         {/*
-          조회 실패는 여기서 다루지 않는다 — app/providers.tsx 가 던지고
-          app/error.tsx 가 받는다. 그래서 여기 세 상태는 서로 배타적이다.
+          5xx·네트워크 실패는 여기서 다루지 않는다 — app/providers.tsx 가 던지고
+          app/error.tsx 가 받는다.
+
+          다만 401 은 던지지 않기로 했으므로(Topbar 가 /login 으로 보낸다) `items` 가
+          undefined 인 채로 여기 도달할 수 있다. 그때 목록 분기로 떨어지면 테두리만
+          있는 빈 상자가 보인다 — 마지막 분기를 `items` 가 있을 때로 좁힌다.
         */}
         {isLoading ? (
           <p className="mt-10 text-body-sm text-muted-foreground">불러오는 중…</p>
@@ -67,13 +71,13 @@ export default function DashboardPage() {
               + 새 프로젝트 만들기
             </Button>
           </div>
-        ) : (
+        ) : items ? (
           <ul className="mt-10 divide-y divide-border overflow-hidden rounded-lg border border-border">
-            {items?.map((p) => (
+            {items.map((p) => (
               <ProjectRow key={p.id} project={p} onPatched={patchItem} onRemoved={removeItem} />
             ))}
           </ul>
-        )}
+        ) : null}
 
         <ProjectCreateDialog
           open={createOpen}

@@ -14,9 +14,12 @@ interface Props {
 
 export function HistoryTray({ panelId, currentRenderId, onRestored }: Props) {
   const queryClient = useQueryClient();
-  const { data: items } = useQuery<RenderJobDTO[]>({
+  const { data: items, isError } = useQuery<RenderJobDTO[]>({
     queryKey: qk.panelHistory(panelId),
     queryFn: () => api<RenderJobDTO[]>(ApiPaths.panelHistory(panelId)),
+    // 에디터는 오류 경계로 던지지 않는다 — 라우트가 교체되면 캔버스가 언마운트되고
+    // 디바운스 중인 편집이 사라진다. 기록은 이 트레이 안에서만 실패를 말한다.
+    throwOnError: false,
   });
 
   const restore = useMutation({

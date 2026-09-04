@@ -35,7 +35,19 @@ export class OAuthService implements OnModuleDestroy {
     return this.providerConfig(provider) !== null;
   }
 
-  async startAuth(provider: OAuthProvider, returnTo?: string): Promise<string> {
+  /**
+   * 인가 URL과 그 요청을 시작한 브라우저를 묶을 값을 함께 돌려준다.
+   *
+   * 컨트롤러가 `state` 를 쿠키로도 심어야 한다. Redis 에만 두면 "이 state 가
+   * 발급된 적이 있는가" 만 확인하게 되는데, 그건 **누가** 시작했는지를 묻지 않는다.
+   * 공격자가 자기 계정으로 동의까지 마친 뒤 콜백 URL 을 열지 않고 피해자에게
+   * 보내면, 피해자 브라우저에 공격자 계정의 세션이 심긴다(로그인 CSRF).
+   * 그 뒤 피해자가 만드는 작업물은 전부 공격자 계정에 쌓인다.
+   */
+  async startAuth(
+    provider: OAuthProvider,
+    returnTo?: string,
+  ): Promise<{ url: string; state: string }> {
     const cfg = this.requireProvider(provider);
     const state = urlSafeToken();
     await this.redis.set(
@@ -44,19 +56,28 @@ export class OAuthService implements OnModuleDestroy {
       'EX',
       STATE_TTL_SECONDS,
     );
-    return ADAPTERS[provider].authorizationUrl({
+    const url = ADAPTERS[provider].authorizationUrl({
       clientId: cfg.clientId,
       redirectUri: this.redirectUri(provider),
       state,
     });
+    return { url, state };
   }
 
   async completeAuth(
     provider: OAuthProvider,
     code: string,
     state: string,
+    cookieState: string | undefined,
   ): Promise<{ userId: string; email: string; returnTo: string | null }> {
     const cfg = this.requireProvider(provider);
+
+    // 이 콜백을 시작한 브라우저가 맞는가. 쿠키는 이 브라우저에만 있으므로,
+    // 남이 만든 콜백 URL 을 열어도 여기서 걸린다.
+    if (!cookieState || cookieState !== state) {
+      throw new BadRequestException({ code: 'OAUTH_STATE_INVALID' });
+    }
+
     const rawState = await this.redis.get(STATE_PREFIX + state);
     if (!rawState) throw new BadRequestException({ code: 'OAUTH_STATE_INVALID' });
     await this.redis.del(STATE_PREFIX + state);
@@ -111,10 +132,32 @@ export class OAuthService implements OnModuleDestroy {
     provider: OAuthProvider,
     profile: OAuthProfile,
   ): Promise<{ id: string; email: string }> {
+    /*
+     * 제공자가 준 이메일도 정규화한다. GitHub 처럼 대소문자를 섞어 주는 곳이 있어
+     * 그대로 쓰면 같은 사람에게 계정이 두 벌 생긴다. 웹 폼 쪽은 Zod EmailSchema 가
+     * 하지만 이 경로는 폼을 거치지 않는다.
+     */
+    const email = profile.email.trim().toLowerCase();
+
     const existing = await prisma.user.findUnique({
-      where: { email: profile.email },
+      where: { email },
       select: { id: true, email: true, oauthProviders: true, emailVerifiedAt: true },
     });
+
+    /*
+     * **제공자가 이메일 소유를 증명해 준 경우에만** 기존 계정에 붙인다.
+     *
+     * 예전에는 이메일이 같기만 하면 그 계정의 세션을 발급했다. 어떤 제공자에서
+     * 남의 이메일을 소유 증명 없이 등록할 수 있으면, 그 계정으로 소셜 로그인해
+     * 비밀번호를 모르는 채 남의 계정을 통째로 가져갈 수 있었다.
+     *
+     * 신규 생성은 막지 않는다 — 그 이메일로 된 계정이 아직 없으니 뺏을 것이 없고,
+     * `emailVerifiedAt` 은 null 로 남아 인증 메일을 따로 받게 된다.
+     */
+    if (existing && !profile.emailVerified) {
+      throw new BadRequestException({ code: 'OAUTH_EMAIL_UNVERIFIED' });
+    }
+
     if (existing) {
       const providers = new Set(
         ((existing.oauthProviders as OAuthProvider[]) ?? []).filter(Boolean),
@@ -145,7 +188,7 @@ export class OAuthService implements OnModuleDestroy {
     const created = await prisma.user.create({
       data: {
         id: newId('user'),
-        email: profile.email,
+        email,
         displayName: profile.displayName,
         avatarUrl: profile.avatarUrl,
         oauthProviders: [provider],

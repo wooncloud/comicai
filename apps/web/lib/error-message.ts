@@ -114,6 +114,10 @@ const BY_OAUTH_REASON: Record<string, string> = {
   oauth_provider_disabled: '지금은 이 방법으로는 로그인할 수 없습니다. 이메일로 로그인해 주세요.',
   oauth_state_invalid: '로그인 시간이 만료되었습니다. 다시 시도해 주세요.',
   oauth_missing_params: '로그인 정보를 받지 못했습니다. 다시 시도해 주세요.',
+  // 제공자가 이메일 소유를 증명해 주지 않았는데 같은 이메일의 계정이 이미 있는 경우.
+  // 여기서 통과시키면 남의 계정을 비밀번호 없이 가져갈 수 있다.
+  oauth_email_unverified:
+    '해당 서비스에서 이메일이 인증되지 않았습니다. 그쪽에서 이메일을 인증한 뒤 다시 시도하거나, 이메일로 로그인해 주세요.',
 };
 
 export function oauthErrorMessage(reason: string): string {

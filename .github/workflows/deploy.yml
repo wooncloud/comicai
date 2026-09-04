@@ -15,11 +15,24 @@ concurrency:
   # 진행 중인 배포는 취소하지 않는다. 중간에 끊기면 컨테이너가 어중간한 상태로 남는다.
   cancel-in-progress: false
 
+# 저장소를 읽는 것 말고는 필요 없다.
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: deploy to prod
-    # CI 가 통과한 커밋만 배포한다.
-    if: github.event.workflow_run.conclusion == 'success'
+    # CI 가 통과한 **이 저장소 main 브랜치로의 push** 만 배포한다.
+    #
+    # `branches: [main]` 만으로는 부족하다 — 그건 트리거한 워크플로의 head branch 를
+    # 보는데, 저장소가 공개라 누구나 포크에서 브랜치 이름을 `main` 으로 만들어 PR 을
+    # 열 수 있다. 그러면 CI 가 통과하는 순간 외부인이 프로덕션 재기동을 트리거하게 된다.
+    # (코드 주입까지는 아니다 — 아래에서 업스트림 main 을 reset 해 받는다. 다만
+    #  원치 않는 재배포와 다운타임은 그대로 외부인 손에 들어간다.)
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     # 이 호스트의 compose 를 재기동하는 게 일이라 다른 곳에서 돌 수 없다.
     runs-on: [self-hosted, comicai]
     timeout-minutes: 20

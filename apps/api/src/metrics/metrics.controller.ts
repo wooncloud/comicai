@@ -1,10 +1,12 @@
-import { Controller, Get, Res } from '@nestjs/common';
+import { Controller, Get, Res, UseGuards } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { MetricsService } from './metrics.service';
+import { MetricsGuard } from './metrics.guard';
 
 @Controller()
 @SkipThrottle()
+@UseGuards(MetricsGuard)
 export class MetricsController {
   constructor(private readonly metrics: MetricsService) {}
 

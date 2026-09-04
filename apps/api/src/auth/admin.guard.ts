@@ -1,4 +1,5 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import { prisma } from '@comicai/db';
 import { isAdminEmail, parseAdminEmails } from '@comicai/types';
 import type { AuthedRequest } from './session.guard';
 
@@ -12,7 +13,18 @@ import type { AuthedRequest } from './session.guard';
  */
 const ADMIN_EMAILS = parseAdminEmails(process.env.ADMIN_EMAILS);
 
-export function isAdmin(email: string): boolean {
+/**
+ * 운영자인가. **이메일 인증을 마친 계정만** 인정한다.
+ *
+ * 목록에 적힌 이메일에 아직 계정이 없으면, 그 주소를 아는 사람이 **먼저 가입해
+ * 선점**할 수 있다. 저장소가 공개라 운영자 이메일은 `git log` 에 그대로 보이므로
+ * 이건 이론이 아니다. 메일함을 실제로 가진 사람만 통과하게 해야 그 경로가 닫힌다.
+ *
+ * 그래서 운영자는 한 번은 인증 메일을 받아야 한다 — 목록에 이름이 올랐다는 것만으로는
+ * 부족하다.
+ */
+export function isAdmin(email: string, emailVerifiedAt: Date | null): boolean {
+  if (!emailVerifiedAt) return false;
   return isAdminEmail(email, ADMIN_EMAILS);
 }
 
@@ -28,12 +40,19 @@ export function isAdmin(email: string): boolean {
  */
 @Injectable()
 export class AdminGuard implements CanActivate {
-  canActivate(ctx: ExecutionContext): boolean {
+  async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest<Partial<AuthedRequest>>();
-    const email = req.user?.email;
+    const userId = req.user?.id;
     // 관리자가 아닌 것과 목록이 비어 있는 것을 구분해 알려 주지 않는다.
     // 어느 쪽인지 알려 주면 설정 상태를 탐색할 수 있다.
-    if (!email || !isAdmin(email)) {
+    if (!userId) throw new ForbiddenException({ code: 'FORBIDDEN' });
+
+    // 세션에는 인증 시각이 없다. 운영자 라우트에서만 도는 쿼리 한 번이다.
+    const row = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, emailVerifiedAt: true },
+    });
+    if (!row || !isAdmin(row.email, row.emailVerifiedAt)) {
       throw new ForbiddenException({ code: 'FORBIDDEN' });
     }
     return true;

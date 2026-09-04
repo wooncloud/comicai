@@ -192,7 +192,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 뮤테이션은 `useMutation`을 두 곳에서 사용한다.
 
 - `panel-inspector.tsx:113-136` `startRender` — `POST /panels/:id/render` 후 `setQueryData(['render-job', jobId], ...)`로 낙관적 'queued' 상태를 캐시에 시드하고 `subscribeJob(jobId)`로 SSE 연결
-- `history-tray.tsx:20` `restore` — `POST /render-jobs/:id/restore` 후 부모 콜백 + `invalidateQueries`
+- `history-tray.tsx:25` `restore` — `POST /render-jobs/:id/restore` 후 부모 콜백 + `invalidateQueries`
 
 기타 뮤테이션 성격의 작업(`POST /projects`, `PATCH /projects/:id`, `DELETE /projects/:id`, `PATCH /panels/:id`, `POST /pages` 등)은 **`useMutation`을 쓰지 않고 직접 `api()`를 호출한 뒤 부모로 콜백**해 React Query 캐시는 부모가 `setQueryData`로 직접 갱신하는 패턴이다 (예: `app/dashboard/page.tsx:19-33`).
 
@@ -352,7 +352,7 @@ apps/web/
   page.tsx 에 두면 빌드가 막힌다 — Next 는 페이지 파일에서 `default`·`metadata` 등
   정해진 것 외의 export 를 허용하지 않고, 타입 에러로 실패한다.
 - 동의는 **가입 시점에만** 받고 서버가 시각을 기록한다
-  (`packages/types/src/schemas.ts:31` 의 `SignupSchema`, `User.termsAgreedAt`).
+  (`packages/types/src/schemas.ts:46` 의 `SignupSchema`, `User.termsAgreedAt`).
   `z.literal(true)` 라서 값이 없거나 false 면 검증에서 막힌다 — 화면의 체크박스를
   우회해 직접 요청해도 동의 없이 계정이 만들어지지 않는다.
 - 불리언이 아니라 **시각**을 저장하는 이유: "동의했다" 만으로는 언제·어느 판본에

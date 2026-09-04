@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '@/components/shell/app-shell';
 import { PageContainer } from '@/components/shell/page-container';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { ApiPaths, type AdminOverview, type AdminUserRow, type SessionUser } from '@comicai/types';
 import { qk } from '@/lib/query-keys';
 
@@ -14,12 +14,19 @@ import { qk } from '@/lib/query-keys';
  * 우회해도 API 가 403 을 준다. 클라이언트 판정을 신뢰해서는 안 된다.
  */
 export default function AdminPage() {
-  const { data: me, isLoading: meLoading } = useQuery<SessionUser>({
+  const {
+    data: me,
+    isLoading: meLoading,
+    error: meError,
+  } = useQuery<SessionUser>({
     queryKey: qk.me(),
     queryFn: () => api<SessionUser>(ApiPaths.me),
     retry: false,
   });
   const allowed = me?.isAdmin === true;
+  // 401 은 오류 경계로 던지지 않기로 했으므로(Topbar 가 /login 으로 보낸다) 여기까지
+  // 온다. 구분하지 않으면 세션이 만료된 운영자에게 "권한이 없다" 고 말하게 된다.
+  const sessionExpired = meError instanceof ApiError && meError.status === 401;
 
   const { data: overview } = useQuery<AdminOverview>({
     queryKey: qk.adminOverview(),
@@ -46,9 +53,13 @@ export default function AdminPage() {
     return (
       <AppShell>
         <PageContainer className="py-20 text-center">
-          <h1 className="text-title-lg font-semibold">접근할 수 없는 화면입니다</h1>
+          <h1 className="text-title-lg font-semibold">
+            {sessionExpired ? '로그인이 만료되었습니다' : '접근할 수 없는 화면입니다'}
+          </h1>
           <p className="mt-2 text-body-sm text-muted-foreground">
-            운영자 계정으로 로그인해야 볼 수 있습니다.
+            {sessionExpired
+              ? '로그인 화면으로 이동합니다.'
+              : '운영자 계정으로 로그인해야 볼 수 있습니다.'}
           </p>
         </PageContainer>
       </AppShell>

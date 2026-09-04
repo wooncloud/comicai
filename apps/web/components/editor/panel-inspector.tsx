@@ -76,15 +76,24 @@ export function PanelInspector({
     throwOnError: false,
   });
 
-  // 프로젝트 대표 그림체와 등록된 style 엔티티 목록.
+  /*
+   * 프로젝트 대표 그림체와 등록된 style 엔티티 목록.
+   *
+   * 둘 다 오류 경계로 던지지 않는다. 여기서 던지면 라우트 전체가 오류 화면으로
+   * 교체되면서 tldraw 캔버스가 언마운트되는데, 셰이프 저장은 1.5초 디바운스라
+   * **그 창 안의 편집이 그대로 사라진다.** 사이드 패널의 선택지 목록 하나를 못
+   * 불러온 대가로 사용자의 그림을 잃는 것은 어떤 경우에도 맞지 않는다.
+   */
   const { data: project } = useQuery<ProjectDTO>({
     queryKey: qk.project(projectId),
     queryFn: () => api<ProjectDTO>(ApiPaths.project(projectId)),
+    throwOnError: false,
   });
   const { data: styles } = useQuery<ConsistencyEntityDTO[]>({
     queryKey: qk.consistency(projectId, 'style'),
     queryFn: () =>
       api<ConsistencyEntityDTO[]>(`${ApiPaths.projectConsistency(projectId)}?type=style`),
+    throwOnError: false,
   });
   const effectiveStyleId = panel.styleId ?? project?.defaultStyleId ?? null;
   const model: ModelId = userModel ?? project?.defaultModel ?? 'gemini-3.1-flash-image-preview';

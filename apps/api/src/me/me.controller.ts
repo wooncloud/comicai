@@ -38,6 +38,8 @@ const USER_SELECT = {
   avatarUrl: true,
   avatarStorageKey: true,
   oauthProviders: true,
+  // isAdmin 판정에 쓴다 — 인증하지 않은 계정은 운영자가 될 수 없다.
+  emailVerifiedAt: true,
 } as const;
 
 type UserRow = {
@@ -47,6 +49,7 @@ type UserRow = {
   avatarUrl: string | null;
   avatarStorageKey: string | null;
   oauthProviders: unknown;
+  emailVerifiedAt: Date | null;
 };
 
 class MePatchDto {
@@ -83,7 +86,7 @@ export class MeController {
       oauthProviders: (u.oauthProviders as ('google' | 'github')[]) ?? [],
       // 서버에서만 계산한다. 클라이언트는 이 값을 화면 숨김에만 쓰고,
       // 실제 차단은 AdminGuard 가 한다.
-      isAdmin: isAdmin(u.email),
+      isAdmin: isAdmin(u.email, u.emailVerifiedAt),
     };
   }
 

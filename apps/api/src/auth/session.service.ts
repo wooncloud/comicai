@@ -148,3 +148,25 @@ export const SESSION_COOKIE_OPTIONS = {
   path: '/',
   ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
 };
+
+/**
+ * OAuth 인가 요청을 시작한 브라우저를 식별하는 쿠키.
+ *
+ * Redis 의 state 만으로는 "발급된 적 있는 값인가" 만 확인할 수 있고 **누가**
+ * 시작했는지는 묻지 못한다. 공격자가 자기 계정으로 동의까지 마친 콜백 URL 을
+ * 피해자에게 열게 하면 피해자 브라우저에 공격자 세션이 심긴다(로그인 CSRF).
+ *
+ * `sameSite: 'lax'` 여야 한다 — strict 로 두면 제공자에서 돌아오는 top-level
+ * 이동에 쿠키가 실리지 않아 정상 로그인이 항상 실패한다.
+ *
+ * 삭제할 때도 같은 옵션을 넘겨야 브라우저가 같은 쿠키로 알아본다(특히 domain).
+ */
+export const OAUTH_STATE_COOKIE = 'comicai_oauth_state';
+export const OAUTH_STATE_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: boolEnv(process.env.COOKIE_SECURE) ?? process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  maxAge: 10 * 60 * 1000,
+  path: '/',
+  ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
+};
