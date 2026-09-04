@@ -25,7 +25,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 | 경로                                      | 파일                                           | 렌더                                                                                                                        |
 | ----------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `/`                                       | `app/page.tsx:10`                              | 랜딩. `useEffect`로 `GET /me` 시도해 성공 시 `/dashboard`로 replace, 실패 시 히어로 + STEP 3개 + BYOK 안내. `Topbar`만 사용 |
-| `/dashboard`                              | `app/dashboard/page.tsx:11`                    | 내 프로젝트 목록. `useQuery(['projects'])`로 로딩, `ProjectCard` 그리드 + `ProjectCreateDialog`                             |
+| `/dashboard`                              | `app/dashboard/page.tsx:12`                    | 내 프로젝트 목록. `useQuery(['projects'])`로 로딩, `ProjectRow` 리스트(`:61`) + `ProjectCreateDialog`                       |
 | `/projects`                               | `app/projects/page.tsx:1`                      | 서버 컴포넌트. `redirect('/dashboard')`                                                                                     |
 | `/projects/[id]`                          | `app/projects/[id]/page.tsx:10`                | 프로젝트 상세 — 페이지 목록과 페이지 추가. `useState`/`useEffect`로 로딩 (React Query 미사용)                               |
 | `/projects/[id]/pages/[pageid]`           | `app/projects/[id]/pages/[pageid]/page.tsx:45` | **에디터 본체**. `dynamic(..., { ssr: false })`로 `ComicEditor` 로드. 좌 사이드바·캔버스·우 인스펙터 3분할                  |
@@ -34,7 +34,8 @@ App Router 구조. 모든 `page.tsx` 파일.
 | `/forgot-password`, `/reset-password`     | 비밀번호 재설정 요청/확정 폼                   |
 | `/verify-email/[token]`                   | `app/verify-email/[token]/page.tsx:10`         | 토큰으로 `POST /verify-email/:token`, 상태별 메시지                                                                         |
 | `/settings`                               | `app/settings/page.tsx:1`                      | `redirect('/settings/profile')`                                                                                             |
-| `/settings/(profile\|api-keys\|security)` | `app/settings/...`                             | `settings/layout.tsx:13`이 탭 네비 + `AppShell` 공통 적용                                                                   |
+| `/settings/(profile\|api-keys\|security)` | `app/settings/...`                             | 계정 설정. `settings/layout.tsx:13`이 탭 네비 + `AppShell` 공통 적용                                                        |
+| `/projects/[id]/settings`                 | `app/projects/[id]/settings/page.tsx:42`       | 프로젝트 설정. 이름·기본 AI 서비스·삭제 + 캐릭터·설정 관리로 가는 링크                                                      |
 | `/health`                                 | `app/health/page.tsx:17`                       | **서버 컴포넌트**. `INTERNAL_API_URL`/`NEXT_PUBLIC_API_URL`로 `/healthz` 호출 후 JSON 덤프                                  |
 
 루트 레이아웃 `app/layout.tsx:9-21`은 Pretendard(local woff2) + Inter를 주입하고 `<Providers><ToastProvider>` 순으로 감싼다 (`app/layout.tsx:45-47`).
@@ -53,9 +54,9 @@ App Router 구조. 모든 `page.tsx` 파일.
 
 ### components/shell/app-shell.tsx
 
-`AppShell`(`app-shell.tsx:27`)은 `Topbar` + `<main>` 레이아웃. `Topbar`(`app-shell.tsx:36`)는 다음을 담당.
+`AppShell`(`app-shell.tsx:25`)은 `Topbar` + `<main>` 레이아웃. `Topbar`(`app-shell.tsx:34`)는 다음을 담당.
 
-- `useQuery<SessionUser>({ queryKey: ['me'], retry: false })` (`app-shell.tsx:38-42`) — 401 발생 시 로그인이 아닌 경로에서 `/login`으로 redirect (`:44-55`)
+- `useQuery<SessionUser>({ queryKey: ['me'], retry: false })` (`app-shell.tsx:37-41`) — 401 발생 시 로그인이 아닌 경로에서 `/login`으로 redirect (`:43-54`)
 - 로그아웃은 `POST /logout` 후 `queryClient.setQueryData(['me'], null)`로 캐시 무효화 (`:57-64`)
 - Avatar 드롭다운으로 설정·로그아웃 메뉴 노출
 
@@ -64,6 +65,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 ### components/shell
 
 - `app-shell.tsx` — 위 참고. `AppShell`, `Topbar` 두 export
+- `mobile-nav.tsx` — 좁은 화면용 햄버거 + 사이드 드로어(`mobile-nav.tsx:22`). `md` 미만에서만 트리거가 보이고, 그때 상단바 nav 와 아바타 드롭다운은 숨는다 — 같은 항목이 두 벌 존재하지 않게 하기 위해서다
 - `mobile-blocker.tsx` — 에디터를 쓸 수 없는 뷰포트를 풀스크린으로 차단하는 오버레이. CSS-only 라 JS 비활성·하이드레이션 전에도 걸린다
   - 조건은 `editor:hidden`(`mobile-blocker.tsx:25`) — **폭 768px 이상 AND 높이 600px 이상일 때만 숨긴다**(`tailwind.config.ts:24` 의 `editor` screen). 폭만 보던 예전 규칙으로는 폰을 가로로 눕혔을 때(iPhone 14 Pro Max = 932×430) 차단이 풀려서, 높이 430px 화면에 사이드바·툴바·인스펙터가 다 들어간 에디터가 그대로 열렸다. 600px 은 가장 작은 태블릿(iPad mini 가로 744px)과 가장 큰 폰(가로 430px) 사이를 가른다
   - **페이지 에디터에서만 마운트한다**(`app/projects/[id]/pages/[pageid]/page.tsx:179`). 작은 화면에서 정말 못 쓰는 것은 tldraw 캔버스뿐이고, 목록·결과 확인 화면은 모바일에서도 쓸모가 있다
@@ -72,7 +74,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 
 ### components/dashboard
 
-- `project-card.tsx` — 카드 + 컨텍스트 메뉴(이름 변경/삭제). 부모(`/dashboard`)가 React Query 캐시를 직접 수정하므로 카드 자체는 mutation 콜백 호출만
+- `project-row.tsx` — 목록 한 행(`project-row.tsx:38`). 왼쪽 작은 표지 + 이름/수정일 + 상시 노출 `⋯` 메뉴(이름 변경/표지 변경/설정/삭제). 부모(`/dashboard`)가 React Query 캐시를 직접 수정하므로 행 자체는 mutation 콜백 호출만
 - `project-create-dialog.tsx` — Radix Dialog 기반 신규 프로젝트 모달
 
 ### components/consistency
@@ -231,7 +233,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 
 ```
 apps/web/
-├── app/                        # App Router (16 routes)
+├── app/                        # App Router (17 routes)
 │   ├── layout.tsx              # Providers + ToastProvider
 │   ├── providers.tsx           # QueryClient 생성
 │   ├── page.tsx                # 랜딩
@@ -245,8 +247,9 @@ apps/web/
 │   └── health/                 # 서버 컴포넌트
 ├── components/
 │   ├── shell/app-shell.tsx     # Topbar + useQuery(['me'])
+│   ├── shell/mobile-nav.tsx    # 햄버거 + 사이드 드로어(md 미만)
 │   ├── shell/mobile-blocker.tsx
-│   ├── dashboard/              # project-card, project-create-dialog
+│   ├── dashboard/              # project-row, project-create-dialog
 │   ├── consistency/entity-card.tsx
 │   ├── editor/
 │   │   ├── panel-inspector.tsx       # SSE ↔ React Query 브리지
@@ -281,6 +284,42 @@ apps/web/
 ```
 
 ## 10. 관찰된 패턴 / 제약
+
+### 목록은 리스트, 보조 액션은 상시 노출 `⋯`
+
+대시보드(프로젝트)와 프로젝트 상세(페이지) 둘 다 카드 그리드였다가 리스트로 바뀌었다.
+
+- 카드의 대부분이 썸네일 자리인데, 그림이 없는 프로젝트에서는 그 면적이 이니셜 두 글자만
+  띄운 빈 사각형이었다. 훑어보고 고르는 화면이라 밀도가 더 중요하다.
+- 다만 썸네일을 버리지는 않았다. 서버가 프로젝트 썸네일이 없으면 첫 페이지 배경을 폴백으로
+  presign 해 주므로(`apps/api/src/projects/projects.service.ts` 의 `withThumbnailUrl`),
+  한 번이라도 렌더한 프로젝트에는 실제 그림이 있다. 행 왼쪽 작은 슬롯으로 남겼다
+  (`project-row.tsx:38`, `app/projects/[id]/page.tsx:154`). 나중에 카드 뷰를 옵션으로
+  되살릴 때도 같은 데이터를 그대로 쓴다.
+- 이름 변경·표지·삭제는 **항상 보이는 `⋯` 메뉴**다. 예전에는 `reveal-on-hover` 라
+  hover 가 없는 기기에서 영영 보이지 않았고, 그래서 터치 사용자는 프로젝트 이름 변경도
+  삭제도 할 수 없었다. `DropdownMenuItem` 에 `touch:min-h-11` 을 붙인 것(`ui/dropdown-menu.tsx:35`)이
+  이 변경의 선행 조건이었다 — 그게 없으면 hover 문제를 고치자마자 탭 정확도 문제로 갈아탄다.
+- 페이지 목록의 드래그 핸들도 상시 노출로 바꾸고 `touch-none` 을 붙였다
+  (`app/projects/[id]/page.tsx:206`). 예전에는 핸들이 투명한 데다 `touch-action` 이 없어
+  **터치로는 페이지 순서를 아예 바꿀 수 없었다**. 정렬 전략도 그리드용
+  `rectSortingStrategy` 에서 `verticalListSortingStrategy` 로 같이 바꿔야 한다.
+
+### 내비게이션 항목은 `lib/nav.ts` 한 곳에서 나온다
+
+상단바·아바타 드롭다운·설정 탭이 각자 목록을 들고 있어서 같은 목적지가 여러 번 나타났다.
+겉보기에 다른 항목도 실은 같은 곳이었다 — `/projects` 는 `/dashboard` 로,
+`/settings` 는 `/settings/profile` 로 redirect 한다.
+
+- `PRIMARY_NAV`(`lib/nav.ts:22`) — 최상위. 데스크톱 상단바와 모바일 드로어가 공유한다.
+  각 항목이 `match(path)` 를 직접 들고 있다: `/projects/*` 안에서도 "내 프로젝트" 가
+  켜져야 하는데, 단순 `startsWith(href)` 로는 표현되지 않는다.
+- `SETTINGS_NAV`(`:42`) — 계정 설정 하위. `app/settings/layout.tsx` 의 탭과 드로어가 공유.
+  활성 판정은 **정확 일치**다. `startsWith` 를 쓰면 하위 경로가 생기는 순간 두 탭이 동시에 켜진다.
+- `useLogout()`(`:54`) — 드롭다운과 드로어가 같은 함수를 쓴다. 두 벌로 두면
+  `setQueryData(qk.me(), null)` 같은 뒷정리를 한쪽에서만 빠뜨리기 쉽다.
+- 좁은 화면에서는 드로어 하나만 남긴다(`app-shell.tsx:61`, `:76`). 상단바 nav 와 아바타
+  드롭다운은 `md` 미만에서 숨는다 — 같은 항목이 화면 양쪽에 두 벌 있으면 안 된다.
 
 ### 모바일/터치는 브레이크포인트가 아니라 `pointer: coarse` 로 가른다
 

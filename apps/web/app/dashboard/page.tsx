@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { ApiPaths, type ProjectDTO } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { ProjectCreateDialog } from '@/components/dashboard/project-create-dialog';
-import { ProjectCard } from '@/components/dashboard/project-card';
+import { ProjectRow } from '@/components/dashboard/project-row';
 import { qk } from '@/lib/query-keys';
 
 export default function DashboardPage() {
@@ -58,9 +58,9 @@ export default function DashboardPage() {
         )}
 
         {items && items.length > 0 && (
-          <ul className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <ul className="mt-8 divide-y divide-border overflow-hidden rounded-lg border border-border">
             {items.map((p) => (
-              <ProjectCard key={p.id} project={p} onPatched={patchItem} onRemoved={removeItem} />
+              <ProjectRow key={p.id} project={p} onPatched={patchItem} onRemoved={removeItem} />
             ))}
           </ul>
         )}

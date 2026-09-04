@@ -14,30 +14,25 @@ import {
 import {
   SortableContext,
   arrayMove,
-  rectSortingStrategy,
   sortableKeyboardCoordinates,
   useSortable,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, MoreHorizontal, Settings } from 'lucide-react';
 import { AppShell } from '@/components/shell/app-shell';
 import { api } from '@/lib/api';
-import { ApiPaths, pageLabel, type ModelId, type PageDTO, type ProjectDTO } from '@comicai/types';
+import { ApiPaths, pageLabel, type PageDTO, type ProjectDTO } from '@comicai/types';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
-
-const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
-  { id: 'gemini-3.1-flash-image-preview', label: 'Gemini' },
-  { id: 'gpt-image-2', label: 'OpenAI' },
-];
 
 export default function ProjectDetail() {
   const params = useParams<{ id: string }>();
@@ -101,66 +96,45 @@ export default function ProjectDetail() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between">
+      <div className="mx-auto max-w-4xl px-6 py-10">
+        <Breadcrumb
+          items={[{ label: '대시보드', href: '/dashboard' }, { label: project?.name ?? '…' }]}
+        />
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="min-w-0 break-words text-title-lg font-semibold [text-wrap:balance] sm:text-display-md">
             {project?.name ?? '불러오는 중…'}
           </h1>
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="text-caption text-muted-foreground">기본 AI 서비스</label>
-            <Select
-              value={project?.defaultModel ?? '__none__'}
-              onValueChange={async (v) => {
-                const next = v === '__none__' ? null : (v as ModelId);
-                try {
-                  const updated = await api<ProjectDTO>(ApiPaths.project(projectId), {
-                    method: 'PATCH',
-                    body: JSON.stringify({ defaultModel: next }),
-                  });
-                  setProject(updated);
-                } catch (err) {
-                  toast.push('error', errorMessage(err, '설정을 저장'));
-                }
-              }}
-            >
-              <SelectTrigger className="h-8 w-32">
-                <SelectValue placeholder="기본값" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">기본값(Gemini)</SelectItem>
-                {MODEL_OPTIONS.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/projects/${projectId}/consistency`}>일관성 관리</Link>
-            </Button>
-          </div>
+          <Button asChild variant="outline" size="sm" className="shrink-0 self-start sm:self-auto">
+            <Link href={`/projects/${projectId}/settings`}>
+              <Settings className="h-4 w-4 shrink-0" />
+              프로젝트 설정
+            </Link>
+          </Button>
         </div>
 
         <section className="mt-10">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <h2 className="text-title-lg font-semibold">페이지</h2>
-            <Button onClick={addPage} variant="outline" size="sm">
+            <Button onClick={addPage} variant="outline" size="sm" className="shrink-0">
               + 페이지 추가
             </Button>
           </div>
           {pages.length === 0 ? (
-            <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-12 text-center text-body-sm text-muted-foreground">
-              아직 페이지가 없습니다.
-              <button onClick={addPage} className="ml-2 text-foreground underline">
+            <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-12 text-center">
+              <p className="text-body-sm text-muted-foreground">아직 페이지가 없습니다.</p>
+              <Button className="mt-4" onClick={addPage} variant="outline" size="sm">
                 첫 페이지 만들기
-              </button>
+              </Button>
             </div>
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-              <SortableContext items={pages.map((p) => p.id)} strategy={rectSortingStrategy}>
-                <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              <SortableContext
+                items={pages.map((p) => p.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <ul className="mt-4 divide-y divide-border overflow-hidden rounded-lg border border-border">
                   {pages.map((p) => (
-                    <SortablePageCard
+                    <SortablePageRow
                       key={p.id}
                       projectId={projectId}
                       page={p}
@@ -177,7 +151,7 @@ export default function ProjectDetail() {
   );
 }
 
-function SortablePageCard({
+function SortablePageRow({
   projectId,
   page,
   onChanged,
@@ -194,72 +168,80 @@ function SortablePageCard({
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 10 : undefined,
-    opacity: isDragging ? 0.85 : undefined,
   };
 
-  async function remove(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
+  async function remove() {
     if (!confirm(`페이지 ${page.order + 1}을(를) 삭제하시겠습니까?`)) return;
     try {
       await api(ApiPaths.page(page.id), { method: 'DELETE' });
       onChanged();
-      toast.push('success', '페이지가 삭제되었습니다.');
+      toast.push('success', '페이지를 삭제했습니다.');
     } catch (err) {
-      toast.push('error', errorMessage(err, '프로젝트를 삭제'));
+      toast.push('error', errorMessage(err, '페이지를 삭제'));
     }
   }
+
   const thumb = page.backgroundUrl ?? null;
   const label = pageLabel(page);
+
   return (
     <li
       ref={setNodeRef}
       style={style}
-      className={`group relative ${isDragging ? 'cursor-grabbing' : ''}`}
+      className={`flex items-center gap-3 bg-background px-3 py-2.5 transition-colors ${
+        isDragging ? 'shadow-md' : 'hover:bg-muted/40'
+      }`}
     >
-      <Link
-        href={`/projects/${projectId}/pages/${page.id}`}
-        className="relative block aspect-[2/3] overflow-hidden rounded-lg border border-border bg-card shadow-sm transition hover:border-foreground/30 hover:shadow-md"
-      >
-        {thumb ? (
-          <>
-            <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-              <div className="truncate text-body-sm font-medium text-white">{label}</div>
-              <div className="text-[10px] text-white/70">
-                {page.size.w}×{page.size.h}
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center text-foreground">
-            <div className="text-3xl font-semibold">{page.order + 1}</div>
-            <div className="mt-1 truncate px-2 text-caption text-muted-foreground">{label}</div>
-            <div className="mt-1 text-[10px] text-muted-foreground">
-              {page.size.w}×{page.size.h}
-            </div>
-          </div>
-        )}
-        <div className="absolute left-1.5 top-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
-          #{page.order + 1}
-        </div>
-      </Link>
+      {/*
+        핸들은 항상 보인다. 예전에는 `reveal-on-hover` 라 hover 가 없는 기기에서는
+        투명한 채로 남아, 터치로는 페이지 순서를 아예 바꿀 수 없었다.
+        `touch-none` 은 dnd-kit 이 포인터 드래그를 받으려면 필수다 —
+        없으면 브라우저가 그 제스처를 스크롤로 가로챈다.
+      */}
       <button
         type="button"
-        aria-label="드래그하여 순서 변경"
+        aria-label={`${label} 순서 변경`}
         {...attributes}
         {...listeners}
-        className="reveal-on-hover absolute left-1/2 top-1.5 -translate-x-1/2 cursor-grab rounded bg-background/80 p-1 text-foreground shadow-sm active:cursor-grabbing hover:bg-background"
+        className="flex h-9 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground/60 hover:text-foreground active:cursor-grabbing touch:h-11"
       >
-        <GripVertical className="h-3.5 w-3.5" />
+        <GripVertical className="h-4 w-4" />
       </button>
-      <button
-        onClick={remove}
-        title="삭제"
-        className="reveal-on-hover absolute right-1.5 top-1.5 rounded bg-background/80 px-1.5 py-0.5 text-caption text-destructive shadow-sm hover:bg-background"
+
+      <Link
+        href={`/projects/${projectId}/pages/${page.id}`}
+        className="flex min-w-0 flex-1 items-center gap-3 py-1"
       >
-        삭제
-      </button>
+        <span className="flex h-10 w-[1.75rem] shrink-0 items-center justify-center overflow-hidden rounded bg-muted text-caption font-semibold text-muted-foreground/70">
+          {thumb ? (
+            <img src={thumb} alt="" className="h-full w-full object-cover" />
+          ) : (
+            page.order + 1
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-body-sm font-medium">{label}</span>
+          <span className="mt-0.5 block text-caption text-muted-foreground">
+            {page.order + 1}번째 · {page.size.w}×{page.size.h}
+          </span>
+        </span>
+      </Link>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" aria-label={`${label} 메뉴`} className="shrink-0 px-2">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem asChild>
+            <Link href={`/projects/${projectId}/pages/${page.id}`}>편집</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem className="text-destructive" onSelect={remove}>
+            삭제
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </li>
   );
 }
