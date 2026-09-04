@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
 import { prisma, Prisma } from '@comicai/db';
@@ -13,6 +13,7 @@ import {
 import { RENDER_QUEUE_NAME, parseRedis, type RenderJobData } from './render.queue';
 import { SseHub } from './sse.hub';
 import { ModelCredentials } from './model-credentials';
+import { classifyModelError } from './model-error';
 import { StorageService } from '../storage/storage.service';
 import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
 import { MetricsService } from '../metrics/metrics.service';
@@ -22,6 +23,7 @@ const MODEL_CALL_TIMEOUT_MS = 60_000;
 
 @Injectable()
 export class RenderWorker implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(RenderWorker.name);
   private worker?: Worker<RenderJobData>;
 
   constructor(
@@ -83,8 +85,11 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
       if (count === 0) return;
       this.hub.publish(renderJobId, { type: 'error', jobId: renderJobId, error });
       this.hub.publish(renderJobId, { type: 'status', jobId: renderJobId, status: 'failed' });
-    } catch {
+    } catch (finalizeErr) {
       // 마감 자체가 실패해도 워커를 죽이지 않는다. 다음 잡은 계속 처리돼야 한다.
+      // 다만 조용히 삼키면 안 된다 — 여기까지 실패하면 그 행은 'running' 으로 남고
+      // 사용자는 영원히 '생성 중…' 을 보는데, 단서가 한 줄도 남지 않는다.
+      this.logger.error({ err: finalizeErr, renderJobId }, 'render 잡 마감 실패');
     }
   }
 
@@ -96,7 +101,15 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
     const { renderJobId, userId, model } = data;
     const row = await prisma.renderJob.findUnique({ where: { id: renderJobId } });
     if (!row) return; // 취소 또는 삭제됨
-    if (row.status === 'canceled') return;
+    /*
+     * **종결된 잡은 무엇이든 다시 처리하지 않는다.** 'canceled' 만 걸러서는 부족하다.
+     *
+     * 워커가 succeeded 를 DB 에 쓴 직후, BullMQ 의 moveToCompleted 전에 죽으면 —
+     * 배포 때마다 일어난다 — 잡이 stalled 로 재큐된다(lockDuration 30s,
+     * maxStalledCount 1). 그때 succeeded 행을 그대로 통과시키면 running 으로
+     * 되돌리고 **모델을 한 번 더 호출·과금**한 뒤 결과를 덮어쓴다.
+     */
+    if (row.status !== 'queued' && row.status !== 'running') return;
 
     await prisma.renderJob.update({
       where: { id: renderJobId },
@@ -136,14 +149,27 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
         raw.width,
         raw.height,
       );
-      await prisma.renderJob.update({
-        where: { id: renderJobId },
+      // 확정 갱신에는 **반드시 status 조건이 붙어야 한다.** 조건 없이 쓰면, 사용자가
+      // 그 사이 취소해서 render.service.cancel 이 'canceled' 로 바꿔 둔 행을 워커가
+      // 'succeeded' 로 덮어쓴다. 새로고침하면 취소했다고 믿은 컷에 그림이 들어와 있다.
+      // finalizeOrphan 이 이미 같은 방어를 하고 있다(:78) — 정상 경로도 같아야 한다.
+      const { count } = await prisma.renderJob.updateMany({
+        where: { id: renderJobId, status: { in: ['queued', 'running'] } },
         data: {
           status: 'succeeded',
           resultImage: stored as unknown as Prisma.InputJsonValue,
           finishedAt: new Date(),
         },
       });
+      // 모델이 응답했다면 키는 멀쩡하다. 아래에서 결과를 버리더라도 차단기
+      // streak 은 리셋하는 것이 맞다.
+      if (apiKeyId) await this.breaker.recordSuccess(apiKeyId);
+      if (count === 0) {
+        // 취소된(또는 이미 종결된) 잡이다. 그림은 나왔고 비용도 나갔지만 사용자가
+        // 취소한 컷에 결과를 밀어 넣지는 않는다. 낭비된 호출은 지표로 남긴다.
+        outcome = 'discarded';
+        return;
+      }
       // 렌더 성공 시 콘티는 역할을 다했으므로 자동 제거(다음 렌더에 잔존하지 않도록).
       // R2 오브젝트는 일단 그대로 두고 panel.conti만 null화 — 추후 GC 대상.
       await prisma.panel.update({
@@ -156,19 +182,9 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
         status: 'succeeded',
         resultImage: stored,
       });
-      if (apiKeyId) await this.breaker.recordSuccess(apiKeyId);
       outcome = 'succeeded';
     } catch (err) {
-      /*
-       * 우리가 던진 예외는 이미 자기 분류를 알고 있다(키 없음 = auth,
-       * 상한 초과 = quota). 어댑터의 classifyError 는 프로바이더의 HTTP 응답만
-       * 볼 줄 알아서, 이걸 넘기면 전부 'transient' 로 떨어진다 —
-       * 그러면 재시도해도 소용없는 실패에 "잠시 후 다시" 라고 안내하게 된다.
-       */
-      const own = (err as { category?: RenderError['category'] })?.category;
-      const classified: RenderError = own
-        ? { category: own, message: err instanceof Error ? err.message : String(err) }
-        : adapter.classifyError(err);
+      const classified = classifyModelError(err, adapter);
       outcome = classified.category;
       if (classified.category === 'auth' && apiKeyId) {
         await this.breaker.recordAuthFailure(apiKeyId);
@@ -177,15 +193,27 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
       if (attemptsMade + 1 < retryLimitFor(classified.category)) {
         throw err;
       }
+      /*
+       * 여기 로그가 없으면 프로덕션에서 컷이 실패했을 때 단서가 DB 행의 error.message
+       * 뿐이다. 정책 거부(auth/quota/safety/invalid)는 정상 동작이라 warn 이다 —
+       * ERROR 로 쌓으면 진짜 장애 신호를 덮는다.
+       */
+      const level = POLICY_CATEGORIES.has(classified.category) ? 'warn' : 'error';
+      this.logger[level](
+        { err, renderJobId, model, category: classified.category, attempts: attemptsMade + 1 },
+        'render 실패',
+      );
       const finalStatus: RenderStatus = classified.category === 'timeout' ? 'timeout' : 'failed';
-      await prisma.renderJob.update({
-        where: { id: renderJobId },
+      // 성공 경로와 같은 이유로 조건부다 — 취소한 잡을 실패로 되살리지 않는다.
+      const { count } = await prisma.renderJob.updateMany({
+        where: { id: renderJobId, status: { in: ['queued', 'running'] } },
         data: {
           status: finalStatus,
           error: classified as unknown as Prisma.InputJsonValue,
           finishedAt: new Date(),
         },
       });
+      if (count === 0) return;
       this.hub.publish(renderJobId, { type: 'error', jobId: renderJobId, error: classified });
       this.hub.publish(renderJobId, { type: 'status', jobId: renderJobId, status: finalStatus });
     } finally {
@@ -195,6 +223,9 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
     }
   }
 }
+
+/** 사용자 입력·설정 문제라 서버 장애가 아닌 분류. 로그 레벨을 가르는 기준이다. */
+const POLICY_CATEGORIES = new Set<RenderError['category']>(['auth', 'quota', 'safety', 'invalid']);
 
 function retryLimitFor(category: RenderError['category']): number {
   if (category === 'transient') return 3;

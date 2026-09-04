@@ -34,8 +34,12 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - `IN_PROGRESS_RENDER_STATUSES`, `TERMINAL_RENDER_STATUSES`, `isInProgressRender()` 헬퍼 (`src/index.ts:35-40`).
 - `PANEL_SHAPE_TYPES = ['rect','rounded','oval','diamond','parallelogram','polygon']` (`src/index.ts:108-116`). 인스펙터 picker용 `PANEL_SHAPE_PRESETS`는 polygon 제외(`src/index.ts:119-120`).
 - `SPEECH_BUBBLE_VARIANTS = ['ellipse','rect','spike','polygon']` (`src/index.ts:153`). cloud/thought 는 2026-05-19 migration에서 제거되어 ellipse 로 일괄 변환됨.
-- `PAGE_TEXT_FONT_FAMILIES = ['sans-serif','serif','monospace','Pretendard','Inter']` (`src/index.ts:183-189`).
-- `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/index.ts:242`). PageLine 의 선 종류.
+- `PAGE_TEXT_FONT_FAMILIES = ['sans-serif','serif','monospace']` (`src/schemas.ts:232`) — 캔버스(CSS)와
+  export(SVG) 양쪽에서 실제로 해석되는 것만. `index.ts` 는 여기서 타입만 파생시킨다
+  (`PageTextFontFamily`, `src/index.ts:203`). 값을 양쪽에 두면 지역 선언이 `export *` 를 가려
+  **컴파일 에러 없이** 소비자와 Zod 검증기가 서로 다른 목록을 본다.
+- `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/schemas.ts:266`). PageLine 의 선 종류.
+  폰트와 같은 이유로 값은 `schemas.ts` 에만 있고, `index.ts:246` 은 타입만 파생시킨다.
 - `RenderErrorCategory = 'transient'|'auth'|'quota'|'safety'|'invalid'|'timeout'` (`src/index.ts:396`).
 - `EntityType = 'style'|'character'|'background'|'worldview'` (`src/index.ts:85`).
 - `OAUTH_PROVIDERS = ['google','github']` (`src/index.ts:23`).
@@ -51,10 +55,10 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 | `PanelShape`                                                             | `src/index.ts:125-130` | `type, points[], strokeColor, strokeWidth`                                                                                                                                                   |
 | `SpeechBubbleDTO`                                                        | `src/index.ts:181-190` | `id, pageId, variant(ellipse/rect/spike/polygon), shape{x,y,w,h,points?,tail?}, style, order` — Page 직속, 패널과 독립. **text 필드는 더 이상 존재하지 않음** (PageText 로 분리)             |
 | `SpeechBubbleStyle`                                                      | `src/index.ts:167-171` | `strokeWidth, strokeColor, fillColor` — `defaultSpeechBubbleStyle()` 헬퍼 (`:162-168`). 텍스트 관련 필드는 모두 제거됨                                                                       |
-| `PageTextDTO`                                                            | `src/index.ts:225-237` | `id, pageId, x, y, w, h, text(평문), style(PageTextStyle), order` — Page 직속 자유 텍스트 박스                                                                                               |
-| `PageTextStyle`                                                          | `src/index.ts:209-214` | `fontSize, fontFamily, color, textAlign` — `defaultPageTextStyle()` 헬퍼 (`:199-206`)                                                                                                        |
-| `PageLineDTO`                                                            | `src/index.ts:259-270` | `id, pageId, x1, y1, x2, y2, style(PageLineStyle), order` — Page 직속 자유 직선                                                                                                              |
-| `PageLineStyle`                                                          | `src/index.ts:245-249` | `strokeWidth, strokeColor, strokeStyle('solid'\|'dashed')` — `defaultPageLineStyle()` 헬퍼 (`:234-240`)                                                                                      |
+| `PageTextDTO`                                                            | `src/index.ts:228-240` | `id, pageId, x, y, w, h, text(평문), style(PageTextStyle), order` — Page 직속 자유 텍스트 박스                                                                                               |
+| `PageTextStyle`                                                          | `src/index.ts:212-217` | `fontSize, fontFamily, color, textAlign` — `defaultPageTextStyle()` 헬퍼 (`:219-226`)                                                                                                        |
+| `PageLineDTO`                                                            | `src/index.ts:262-273` | `id, pageId, x1, y1, x2, y2, style(PageLineStyle), order` — Page 직속 자유 직선                                                                                                              |
+| `PageLineStyle`                                                          | `src/index.ts:248-252` | `strokeWidth, strokeColor, strokeStyle('solid'\|'dashed')` — `defaultPageLineStyle()` 헬퍼 (`:254-260`)                                                                                      |
 | `ConsistencyEntityDTO`                                                   | `src/index.ts:87-100`  | `type, name, aliases[], description, refImages[], refImageUrls[](presigned), version`                                                                                                        |
 | `RenderJobDTO`                                                           | `src/index.ts:443-456` | `id, panelId, userId, model, status, resultImage?, resultImageUrl?(presigned), error?, attempts, finishedAt?`                                                                                |
 | `RenderIR`                                                               | `src/index.ts:420-441` | 워커에 전달되는 입력 IR: `styles/characters/backgrounds/worldviews`, `contiSketch?, userImages, userPrompt, aspectRatio, panelSize, seed?, outputMode?('panel'\|'entity'), systemPrompt?`    |
@@ -62,7 +66,7 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 | `ImageRef`                                                               | `src/index.ts:69-74`   | `storageKey, width, height, mimeType` — 모든 저장된 이미지 참조의 표준형                                                                                                                     |
 | `AdapterImage`                                                           | `src/index.ts:77-82`   | 모델 응답 raw 이미지(워커가 업로드)                                                                                                                                                          |
 | `SessionInfo` / `SessionUser` / `ApiKeySummary`                          | `src/index.ts:42-66`   | 인증 관련                                                                                                                                                                                    |
-| `TipTapDoc` / `TipTapNode` / `TipTapMentionAttrs`                        | `src/index.ts:273-326` | 패널 본문(mention 노드 포함). `emptyDoc()`, `flattenTipTapToText()`, `textToTipTapDoc()` 헬퍼 제공                                                                                           |
+| `TipTapDoc` / `TipTapNode` / `TipTapMentionAttrs`                        | `src/index.ts:276-330` | 패널 본문(mention 노드 포함). `emptyDoc()`, `flattenTipTapToText()`, `textToTipTapDoc()` 헬퍼 제공                                                                                           |
 | `BoundingBox`, `shapeBoundingBox()`, `pointsBoundingBox()`               | `src/index.ts:369-394` | polygon 등 좌표 헬퍼                                                                                                                                                                         |
 | `StylePayload / CharacterPayload / BackgroundPayload / WorldviewPayload` | `src/index.ts:404-418` | `RenderIR` 컴포넌트                                                                                                                                                                          |
 
@@ -70,12 +74,12 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 
 성공: `{ data: T }`, 실패: `{ error: { code, message, details? } }` (`src/envelope.ts:48-60`).
 
-`ErrorCode` 카테고리(`src/envelope.ts:4-46`):
+`ErrorCode` 카테고리(`src/envelope.ts:4-47`):
 
 - 공통: `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `BAD_REQUEST`, `RATE_LIMITED`, `INTERNAL_ERROR`, `CSRF_INVALID`.
 - 인증: `NO_SESSION`, `SESSION_EXPIRED`, `SESSION_NOT_FOUND`, `INVALID_CREDENTIALS`, `INVALID_PASSWORD`, `EMAIL_TAKEN`, `EMAIL_NOT_VERIFIED`, `TOKEN_INVALID`, `TOKEN_EXPIRED`, `OAUTH_PROVIDER_DISABLED`, `OAUTH_PROVIDER_ERROR`, `OAUTH_STATE_INVALID`, `PASSWORD_REQUIRED`.
 - 도메인: `RESOURCE_NOT_FOUND`, `RESOURCE_FORBIDDEN`, `PROJECT_NOT_FOUND`, `PANEL_NOT_FOUND`, `PAGE_NOT_FOUND`, `API_KEY_NOT_FOUND`, `API_KEY_VERIFY_FAILED`, `CONSISTENCY_NOT_FOUND`.
-- 렌더: `RENDER_QUOTA_EXCEEDED`, `RENDER_INVALID_INPUT`, `RENDER_SAFETY_BLOCK`, `RENDER_AUTH_FAILED`, `RENDER_TIMEOUT`.
+- 렌더: `RENDER_QUOTA_EXCEEDED`, `RENDER_INVALID_INPUT`, `RENDER_ENQUEUE_FAILED`, `RENDER_SAFETY_BLOCK`, `RENDER_AUTH_FAILED`, `RENDER_TIMEOUT`.
 - 업로드: `UPLOAD_TYPE_NOT_ALLOWED`, `UPLOAD_TOO_LARGE`, `UPLOAD_DIMENSIONS_INVALID`.
 
 타입 가드: `isApiFailure(env)` (`src/envelope.ts:62-64`).
@@ -105,14 +109,14 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - 프로필: `MePatchSchema` (`src/schemas.ts:69-73`).
 - API 키: `ApiKeyCreateSchema` — provider는 `gemini`/`openai`만, key는 8~500자 (`src/schemas.ts:77-81`).
 - 프로젝트: `ProjectCreateSchema`, `ProjectPatchSchema`(`defaultModel` 포함) (`src/schemas.ts:85-96`).
-- 페이지: `PageSizeSchema`(기본 800×1200), `PageCreateSchema`, `PagePatchSchema`(`backgroundColor` 포함), `PageReorderSchema`, `HEX_COLOR_REGEX`/`isHexColor` (`src/schemas.ts:99-129`).
-- 렌더: `RenderModelSchema`(ModelId enum과 동일), `RenderStartSchema` (`src/schemas.ts:132-137`).
-- 내보내기: `ExportFormatSchema = 'png'|'jpg'`, `ExportRequestSchema`(dpi 72~600, 기본 150) (`src/schemas.ts:140-145`).
-- 패널: `PanelShapeSchema` — points 3~64개, strokeColor 기본 `#000000`, strokeWidth 기본 2 (`src/schemas.ts:149-161`).
-- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림 — strokeWidth/Color/fillColor 만), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts:180-213`).
-- 페이지 텍스트: `PAGE_TEXT_FONT_FAMILIES`, `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`src/schemas.ts:216-251`).
-- 페이지 직선: `PAGE_LINE_STROKE_STYLES`, `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`src/schemas.ts:254-281`).
-- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`(`prompt+model`), `ConsistencyAttachSchema`(`storageKey`) (`src/schemas.ts:284-302`).
+- 페이지: `PageSizeSchema`(기본 800×1200, 한 변 `MAX_PAGE_DIMENSION`=4096 상한), `PageCreateSchema`, `PagePatchSchema`(`backgroundColor` 포함), `PageReorderSchema`, `HEX_COLOR_REGEX`/`isHexColor` (`src/schemas.ts:99-141`).
+- 렌더: `RenderModelSchema`(ModelId enum과 동일), `RenderStartSchema` (`src/schemas.ts:144-149`).
+- 내보내기: `ExportFormatSchema = 'png'|'jpg'`, `ExportRequestSchema`(dpi 72~600, 기본 150) (`src/schemas.ts:152-157`).
+- 패널: `PanelShapeSchema` — points 3~64개, 좌표는 ±`MAX_PANEL_COORD`(=페이지 상한×2) 범위, strokeColor 기본 `#000000`, strokeWidth 기본 2 (`src/schemas.ts:163-197`).
+- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림 — strokeWidth/Color/fillColor 만), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts:201-235`).
+- 페이지 텍스트: `PAGE_TEXT_FONT_FAMILIES`, `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`src/schemas.ts:250-280`).
+- 페이지 직선: `PAGE_LINE_STROKE_STYLES`, `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`src/schemas.ts:283-311`).
+- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`(`prompt+model`), `ConsistencyAttachSchema`(`storageKey`) (`src/schemas.ts:313-332`).
 
 ### Panel path 헬퍼 (panel-path.ts)
 
@@ -289,8 +293,15 @@ availableModels(): ModelId[]
 - `MAX_REF_IMAGES = 16` (`:7`).
 - 요청 구조: `{ url, headers: { 'x-goog-api-key': apiKey }, body: { contents: [{role:'user', parts: GeminiPart[]}], generationConfig: { responseModalities: ['IMAGE','TEXT'], imageConfig: { aspectRatio } } } }` (`:16-26`, `:57-69`).
 - 프롬프트 빌드: styles/characters/backgrounds/worldviews를 각각 `[그림체: ...]`, `[캐릭터: ...]` 등 한국어 태그 텍스트 파트로, 그 뒤 reference 이미지 파트(placeholder), 마지막에 일관성 지시 + userPrompt + seed (`:42-55`).
-- 응답: `candidates[0].content.parts[*].inlineData{mimeType,data(base64)}`에서 첫 inlineData 추출, `promptFeedback.blockReason`은 `safety`로 분류 (`:101-115`).
-- 에러 분류 (`:118-135`): AbortError → `timeout`, `SAFETY:` 접두 → `safety`, 401/403 → `auth`, 429 → `quota`, 5xx → `transient`, 400 → `invalid`, ECONNRESET → `transient`.
+- 응답: `candidates[0].content.parts[*].inlineData{mimeType,data(base64)}`에서 첫 inlineData 추출 (`:127-149`).
+- **차단은 두 자리에서 온다.** 프롬프트가 막히면 `promptFeedback.blockReason` (`:135`), **결과
+  이미지**가 막히면 그 필드는 비어 있고 `candidates[0].finishReason` 에만 이유가 담긴 채 HTTP 200
+  이 온다 (`BLOCKED_FINISH_REASONS`, `:33-43`). 후자를 읽지 않으면 "이미지 없음"으로만 보여
+  `transient` 로 분류되고, `retryLimitFor` 가 3 이라 **통과할 수 없는 요청을 세 번 호출·세 번
+  과금**한 뒤 "잠시 후 다시" 를 안내하게 된다.
+- 에러 분류 (`classifyError`, `:153-177`): AbortError → `timeout`, `SAFETY:` 접두 → `safety`,
+  401/403 → `auth`, 429 → `quota`, 5xx → `transient`, 400 → `invalid`,
+  **400 미만(200 = 이미지 없는 응답, 0 = 요청 실패) → `invalid`**, ECONNRESET → `transient`.
 
 ### OpenAIAdapter (`src/openai.ts`)
 
@@ -302,7 +313,10 @@ availableModels(): ModelId[]
 - 요청 구조: `{ apiKey, prompt, size, referenceKeys[] }` (`:10-15`).
 - 프롬프트: 라인 단위 한국어 텍스트 직렬화(`그림체 X: ...`, `캐릭터 X: ...`, 등) + 패널 비율 안내 + seed + userPrompt (`:111-123`).
 - Aspect → size 매핑(`:125-132`): 정사각 `1024x1024`, 가로 `1536x1024`, 세로 `1024x1536`(gpt-image-2 허용 사이즈).
-- 응답: `{ data: [{ b64_json }] }`에서 첫 base64 추출, mimeType은 `image/png` 고정 (`:99-109`).
+- 응답: `{ data: [{ b64_json }] }`에서 첫 base64 추출, mimeType은 `image/png` 고정 (`:118-127`).
+- 에러 분류 (`classifyError`, `:92-116`): 400 + `content_policy` → `safety`, 그 외 400 → `invalid`,
+  401/403 → `auth`, 429 → `quota`, 5xx → `transient`. Gemini 와 같은 이유로 **400 미만(200 =
+  이미지 없는 응답) 도 `invalid`** 다 — `transient` 로 두면 소용없는 재시도를 3번 유료로 반복한다.
 - 에러 분류 (`:78-97`): AbortError → `timeout`, 401/403 → `auth`, 429 → `quota`, 5xx → `transient`, 400+`content_policy` → `safety`, 400 → `invalid`.
 
 ### MockAdapter (`src/mock.ts`)

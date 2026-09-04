@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   CredentialsSchema,
   ExportRequestSchema,
+  MAX_PAGE_DIMENSION,
+  MAX_PANEL_COORD,
+  PAGE_TEXT_FONT_FAMILIES,
+  PageTextStyleSchema,
   PageCreateSchema,
+  PagePatchSchema,
+  PanelShapeSchema,
   ProjectCreateSchema,
   RenderStartSchema,
 } from './schemas';
@@ -49,6 +55,46 @@ describe('PageCreateSchema', () => {
   });
 });
 
+/**
+ * 이 상한들은 취향이 아니라 **메모리 상한**이다. export 가 페이지 크기로 sharp 캔버스를
+ * 잡으므로, 상한이 없으면 size:{w:50000,h:50000} 하나로 프로세스를 죽이고 같은 컨테이너의
+ * 다른 사용자 요청까지 끊을 수 있다.
+ */
+describe('페이지·패널 좌표 상한', () => {
+  it('페이지 한 변이 상한을 넘으면 거부', () => {
+    expect(PagePatchSchema.safeParse({ size: { w: 50000, h: 50000 } }).success).toBe(false);
+    expect(PagePatchSchema.safeParse({ size: { w: MAX_PAGE_DIMENSION + 1, h: 100 } }).success).toBe(
+      false,
+    );
+  });
+
+  it('상한 이내는 그대로 통과', () => {
+    expect(
+      PagePatchSchema.safeParse({ size: { w: MAX_PAGE_DIMENSION, h: MAX_PAGE_DIMENSION } }).success,
+    ).toBe(true);
+    expect(PagePatchSchema.safeParse({ size: { w: 800, h: 1200 } }).success).toBe(true);
+  });
+
+  const shape = (x: number) => ({
+    type: 'rect' as const,
+    points: [
+      { x, y: 0 },
+      { x: x + 10, y: 0 },
+      { x: x + 10, y: 10 },
+    ],
+  });
+
+  it('패널 좌표가 범위를 벗어나면 거부', () => {
+    expect(PanelShapeSchema.safeParse(shape(MAX_PANEL_COORD + 1)).success).toBe(false);
+    expect(PanelShapeSchema.safeParse(shape(-MAX_PANEL_COORD - 1)).success).toBe(false);
+    expect(PanelShapeSchema.safeParse(shape(Infinity)).success).toBe(false);
+  });
+
+  it('페이지 밖으로 조금 밀어 둔 패널은 정상 편집이라 통과', () => {
+    expect(PanelShapeSchema.safeParse(shape(-100)).success).toBe(true);
+  });
+});
+
 describe('RenderStartSchema', () => {
   it('rejects unknown models', () => {
     expect(RenderStartSchema.safeParse({ model: 'foo' }).success).toBe(false);
@@ -65,5 +111,25 @@ describe('ExportRequestSchema', () => {
   });
   it('accepts in-range dpi', () => {
     expect(ExportRequestSchema.safeParse({ format: 'png', dpi: 300 }).success).toBe(true);
+  });
+});
+
+/**
+ * 폰트 목록은 **한 벌이어야 한다.** 예전에는 index.ts 가 같은 이름을 지역 선언해서
+ * (`export * from './schemas'` 보다 지역 선언이 우선한다) 소비자는 3개를, Zod 검증기는
+ * 5개를 봤다 — 컴파일 에러 없이. 검증기가 넓으면 컨테이너에 설치되지 않은 폰트가
+ * export SVG 의 font-family 로 나가고, 그때 한글이 통째로 사라진다.
+ */
+describe('PageTextStyleSchema fontFamily', () => {
+  it('실제로 렌더되는 3개만 받는다', () => {
+    expect([...PAGE_TEXT_FONT_FAMILIES]).toEqual(['sans-serif', 'serif', 'monospace']);
+    for (const f of PAGE_TEXT_FONT_FAMILIES) {
+      expect(PageTextStyleSchema.safeParse({ fontFamily: f }).success).toBe(true);
+    }
+  });
+
+  it('컨테이너에 없는 폰트는 거부한다', () => {
+    expect(PageTextStyleSchema.safeParse({ fontFamily: 'Pretendard' }).success).toBe(false);
+    expect(PageTextStyleSchema.safeParse({ fontFamily: 'Inter' }).success).toBe(false);
   });
 });

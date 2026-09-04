@@ -59,6 +59,8 @@ const BY_CODE: Record<Code, string | null> = {
   // ── 이미지 생성 ─────────────────────────────────
   RENDER_QUOTA_EXCEEDED: '오늘 만들 수 있는 그림 수를 다 썼습니다. 내일 다시 시도해 주세요.',
   RENDER_INVALID_INPUT: '본문, 콘티, 참조 이미지 중 하나는 있어야 생성할 수 있습니다.',
+  // 큐에 넣지 못해 그 자리에서 마감된 잡. 재시도하면 되는 상황이다.
+  RENDER_ENQUEUE_FAILED: `지금은 생성 요청을 받지 못했습니다. ${RETRY}`,
   RENDER_SAFETY_BLOCK: 'AI가 안전 정책상 생성을 거부했습니다. 내용을 바꿔 다시 시도해 주세요.',
   RENDER_AUTH_FAILED: '지금은 그림을 만들 수 없습니다. 잠시 후 다시 시도해 주세요.',
   RENDER_TIMEOUT: `생성이 시간을 초과했습니다. ${RETRY}`,

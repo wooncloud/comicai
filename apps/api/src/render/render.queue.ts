@@ -36,7 +36,7 @@ export class RenderQueue implements OnModuleDestroy {
    *
    * 예전에는 여기서 `idempotencyKey(ir, ...)` 를 다시 계산했다. 그러면 재시도로 만든
    * 행(`..._r3`)이 이미 끝난 원본 잡과 같은 BullMQ id 를 갖게 되고, BullMQ 는 같은
-   * id 의 add 를 조용히 무시한다(`removeOnFail: false` 라 실패 잡이 계속 남는다).
+   * id 의 add 를 조용히 무시한다(실패 잡은 아래 보존 기간 동안 Redis 에 남아 있다).
    * 결과는 DB 행만 'queued' 로 남고 워커가 영영 집어 가지 않는 상태다.
    */
   async enqueue(data: RenderJobData) {
@@ -46,7 +46,9 @@ export class RenderQueue implements OnModuleDestroy {
       attempts: 3,
       backoff: { type: 'exponential', delay: 2000 },
       removeOnComplete: { age: 86400 },
-      removeOnFail: false,
+      // 실패 잡은 사후 분석에 쓰이므로 남기되, false 로 두면 Redis 에 **영구 적재**된다.
+      // 7일이면 원인을 들여다보기에 충분하고, 개수 상한이 폭주도 막는다.
+      removeOnFail: { age: 7 * 86400, count: 1000 },
     });
     return jobId;
   }

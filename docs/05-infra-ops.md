@@ -55,7 +55,11 @@ ComicAI의 인프라/운영 자산은 세 위치에 모여 있다.
 
 `migrate`는 `prisma migrate deploy` 실행 후 종료(`restart: "no"`, `:92`), `api`/`worker`는 `service_completed_successfully` 조건으로 대기(`:107`, `:143`).
 
-`api` 컨테이너는 `RENDER_WORKER_DISABLED=1`로 BullMQ consumer를 끄고(`full.yml:114`), `worker` 컨테이너에서만 렌더링 큐를 처리(`RENDER_WORKER_DISABLED=0`, `:147`). `RENDER_CONCURRENCY` 기본 2 (`:148`).
+`api` 컨테이너는 `RENDER_WORKER_DISABLED=1`로 BullMQ consumer를 끄고(`full.yml:137`), `worker` 컨테이너에서만 렌더링 큐를 처리(`RENDER_WORKER_DISABLED=0`, `:184`). `RENDER_CONCURRENCY` 기본 2 (`:185`).
+
+`worker` 는 `stop_grace_period: 90s` 를 쓴다 (`full.yml:172`). SIGTERM 을 받으면 `worker.close()` 가
+처리 중인 잡을 기다리는데(`apps/api/src/worker.ts:14`), 도커 기본 유예 10초는 렌더 데드라인 60초보다
+짧아 배포마다 SIGKILL 로 끊긴다. 그러면 잡이 stalled 로 재큐되어 모델을 한 번 더 호출·과금한다.
 
 #### Profiles
 
@@ -256,11 +260,20 @@ minio(`:78,80`), api(`:142`). docker 의 publish 는 `0.0.0.0` 바인딩이고 i
 일으키므로 코드가 3상태로 읽는다(`apps/api/src/auth/session.service.ts:137`).
 이 경계는 `session-cookie.spec.ts` 가 고정한다.
 
-**`healthz` 는 의존성을 실제로 검사한다**(`apps/api/src/health/health.controller.ts:26`).
+**`healthz` 는 의존성을 실제로 검사한다**(`apps/api/src/health/health.controller.ts:44`).
 예전에는 상수만 돌려줘서, Postgres 가 죽어도 컨테이너는 영원히 healthy 였고 앞단은
 계속 트래픽을 밀어 넣었다. 지금은 db/redis/s3 를 병렬로 재고 하나라도 죽으면 503 이다.
 검사마다 2초 타임아웃이 걸려 있다 — 하나가 매달리면 "죽었다" 와 "응답이 없다" 를
 구분할 수 없기 때문이다.
+
+**응답 본문은 `{ ok, at }` 뿐이다.** 어느 의존성이 죽었는지는 서버 로그에만 남는다
+(`health.controller.ts:79`) — 인증 없이 열린 엔드포인트에 내부 구성을 실어 보낼 이유가 없다.
+운영 중 원인을 좁힐 때는 `docker compose logs api` 를 본다.
+
+**요청 수가 아니라 검사 자체에 상한이 있다.** 분당 60회 스로틀(`:32`)에 더해 검사 결과를
+2초간 재사용한다(`:16`). 무제한이었을 땐 이 엔드포인트가 요청마다 DB·Redis·S3 를 두드려
+증폭 벡터가 됐다. 도커 헬스체크는 5초 간격이라 이 캐시에 걸리지 않는다 —
+간격을 2초 아래로 줄인다면 이 값도 같이 봐야 한다(`infra/compose/full.yml:159`).
 
 ## 7. Cloudflare Tunnel
 

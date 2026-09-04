@@ -182,12 +182,22 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 | GET    | `/v1/projects/:pid/consistency?type=` | `list` (`consistency.controller.ts:59-63`)                                                                                                 |
 | POST   | `/v1/projects/:pid/consistency`       | `create` (`:65-69`)                                                                                                                        |
 | PATCH  | `/v1/consistency/:id`                 | `patch` (`:71-74`)                                                                                                                         |
-| DELETE | `/v1/consistency/:id`                 | `remove` (`:76-80`) — style 삭제 시 트랜잭션으로 `Project.defaultStyleId`/`Panel.styleId` dangling 정리 (`consistency.service.ts:141-156`) |
+| DELETE | `/v1/consistency/:id`                 | `remove` (`:76-80`) — style 삭제 시 트랜잭션으로 `Project.defaultStyleId`/`Panel.styleId` dangling 정리 (`consistency.service.ts:174-186`) |
 | POST   | `/v1/consistency/:id/images`          | `uploadImages` (`:86-101`) — multipart `files`, 최대 12개, 파일당 `MAX_UPLOAD_BYTES`                                                       |
 | POST   | `/v1/consistency/:id/generate`        | `generate` (`:104-107`) — AI 모델로 참조 이미지 1장 생성 (storage 업로드만, refImages 미등록). style 엔티티는 거부                         |
 | POST   | `/v1/consistency/:id/images/attach`   | `attach` (`:110-113`) — `generate` 결과의 storageKey 를 refImages 에 등록 (key prefix 검증)                                                |
 
-AI 생성 로직은 `consistency.service.ts:190-248` (`generateImage`) / `:254-284` (`attachImage`). 엔티티 타입별 system prompt (`ENTITY_SYSTEM_PROMPTS`, `:40-47`) 와 출력 비율(`ENTITY_OUTPUT_SHAPE`, `:26-33`)이 적용되어 패널-룰 대신 캐릭터 시트/환경 콘셉트/세계관 무드 보드 톤을 강제한다. style 은 그림체 자체가 다른 패널 결과의 일관성 기준이라 `generate` 자체를 거부 (`CONSISTENCY_GENERATE_UNSUPPORTED`).
+AI 생성 로직은 `consistency.service.ts:221-299` (`generateImage`) / `:305-335` (`attachImage`). 엔티티 타입별 system prompt (`ENTITY_SYSTEM_PROMPTS`, `:68-75`) 와 출력 비율(`ENTITY_OUTPUT_SHAPE`, `:54-61`)이 적용되어 패널-룰 대신 캐릭터 시트/환경 콘셉트/세계관 무드 보드 톤을 강제한다. style 은 그림체 자체가 다른 패널 결과의 일관성 기준이라 `generate` 자체를 거부 (`CONSISTENCY_GENERATE_UNSUPPORTED`).
+
+키 조회는 **`try` 안에 있다**(`consistency.service.ts:260`). 밖에 두면 쿼터 초과·키 없음 같은
+평범한 정책 거부가 `HttpException` 이 아닌 채로 예외 필터까지 올라가 500 `INTERNAL_ERROR` 가
+되고, 서버 로그에는 정상 거부가 `unhandled exception` ERROR 로 쌓여 진짜 장애 신호를 덮는다.
+실패는 전부 `CONSISTENCY_GENERATE_FAILED` + `details.category` 로 나가되 상태 코드만 분기한다 —
+`statusForCategory` (`consistency.service.ts:39`): quota → 429, auth → 402, 나머지 → 400.
+auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 보고 로그인 화면으로 보내기
+때문이다(`apps/web/app/providers.tsx:33`). 사용자 키로 호출했다가 auth 로 실패하면
+`ApiKeyBreaker.recordAuthFailure` 로 차단기 카운터도 누적된다 — 예전에는 이 경로가
+`resolved.id` 를 버려서 차단기와 `render_attempts_total` 을 함께 우회했다.
 
 ### 3.5 PagesModule (`pages/pages.controller.ts`)
 
@@ -284,11 +294,34 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 | ------ | ---------------------- | --------------------------------------- |
 | POST   | `/v1/pages/:id/export` | `export` — `export.controller.ts:17-20` |
 
-각 패널의 `currentRender` 결과를 패널 shape 마스크(SVG)로 잘라 `composite` — `export/export.service.ts:78-125`. 그 위로 말풍선(`:127-138`) → 자유 텍스트(`:140-153`) → 자유 직선(`:155-167`) 레이어가 순서대로 쌓인다. `sharp`로 캔버스(페이지 size, alpha)를 만들어 전체를 합성하며 dpi는 `withMetadata({ density: dpi })`(기본 150)로 박힌다 — `:169-179`. 결과는 S3에 `exports/{userId}/{pageId}/{ulid}.{ext}` 키로 업로드 후 presign URL 반환 — `:181-189`.
+각 패널의 `currentRender` 결과를 패널 shape 마스크(SVG)로 잘라 `composite` — `export/export.service.ts:113-153`. 그 위로 말풍선(`:157-166`) → 자유 텍스트(`:169-181`) → 자유 직선(`:184-195`) 레이어가 순서대로 쌓인다. `sharp`로 캔버스(페이지 size, alpha)를 만들어 전체를 합성하며 dpi는 `withMetadata({ density: dpi })`(기본 150)로 박힌다 — `:197-208`. 결과는 S3에 `exports/{userId}/{pageId}/{ulid}.{ext}` 키로 업로드 후 presign URL 반환 — `:210-218`.
+
+**캔버스 크기는 방어적으로 묶는다** — `clampDimension` (`export.service.ts:230`) 이 페이지 크기를
+`MAX_PAGE_DIMENSION`(4096) 이하로, 패널 bounding box 도 캔버스 크기로 자른다 (`:119-120`).
+`PageSizeSchema` 가 이제 상한을 걸지만 **이미 저장된 행은 그 검증을 거치지 않는다**. 묶지 않으면
+`size:{w:50000,h:50000}` 한 행으로 sharp 가 10GB 할당을 시도하다 프로세스가 죽고, 같은 컨테이너의
+다른 사용자 요청까지 함께 끊긴다.
+
+**패널 합성은 4개씩 끊어 돈다** — `mapLimit` (`export.service.ts:240`) +
+`PANEL_COMPOSITE_CONCURRENCY` (`:33`). 예전에는 `Promise.all` 로 전부 한꺼번에 돌려서
+**N개의 원본 바이트와 N개의 마스킹된 PNG 버퍼가 동시에 살아 있었다** — 1536×1024 RGBA 기준
+패널당 약 6MB 라 12컷 페이지면 마스킹본만 ~75MB 에 원본이 더 붙는다. 원본은
+`maskedPanelImage` (`:52`) 안에서만 살아 마스킹본과 겹쳐 붙들리지 않는다. 결과 순서는 입력
+순서를 유지한다 — 합성 순서가 곧 z-order 다.
 
 ### 3.9 HealthController / MetricsController
 
-- `GET /healthz` (글로벌 prefix 제외, `@SkipThrottle`) — `health/health.controller.ts:7-11`
+- `GET /healthz` (글로벌 prefix 제외) — `health/health.controller.ts:44`. 응답은 `{ ok, at }` 뿐이다.
+  **어떤 의존성이 죽었는지는 응답이 아니라 로그로 나간다** (`:79`) — 인증 없이 열린 엔드포인트라
+  내부 구성을 알려 줄 이유가 없다. 예전에는 `@SkipThrottle()` 에 `db/redis/s3` 를 그대로 실어
+  보냈고, 파일의 주석은 정반대를 선언하고 있었다.
+- 요청마다 Postgres 쿼리 1 + Redis ping + S3 `HeadBucket` 을 돌리므로 **무제한이면 그 자체가
+  증폭 벡터다** — 초당 수백 번이면 Prisma 커넥션 풀이 헬스체크로 차서 실제 요청이 밀린다.
+  `@Throttle` 분당 60회(`:32`)에 더해 검사 결과를 `PROBE_CACHE_MS`(2초, `:16`) 동안 재사용하고
+  진행 중인 검사는 공유한다(`checkDependencies`, `:62`). 스로틀만으로는 한 창 안의 버스트가
+  남고, 2초 타임아웃은 `Promise.race` 라 **밑에서 도는 작업을 취소하지 않기** 때문이다.
+  도커 헬스체크는 5초 간격(분당 12회)이고 컨테이너 안 localhost 에서 오므로 외부 트래픽과
+  스로틀 버킷도 다르다 — 캐시가 있어도 매 헬스체크는 새 검사를 본다.
 - `GET /v1/metrics` (`@SkipThrottle` + `MetricsGuard`) — `metrics/metrics.controller.ts:14-18`
   - **`METRICS_TOKEN` Bearer 토큰이 있어야 열린다**(`metrics/metrics.guard.ts:22`).
     토큰이 설정되지 않았으면 **아무도 못 본다** — 깜빡했을 때 전체 공개가 되는 것보다
@@ -312,17 +345,29 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 그림 생성에 쓸 키를 고르는 곳. 예전에는 이 로직이 렌더 워커와 일관성 서비스에
 **두 벌로 복제**돼 있어서, 한쪽만 고치면 컷 렌더는 되는데 참조 이미지 생성만 죽었다.
 
-- 우선순위는 **사용자 키 → 플랫폼 키**(`model-credentials.ts:44`). 사용자가 자기 키를
-  넣어 뒀다면 비용은 본인이 내는 것이므로 상한을 걸지 않는다.
+- 우선순위는 **사용자 키 → 플랫폼 키**(`resolve`, `model-credentials.ts:62`). 사용자가
+  자기 키를 넣어 뒀다면 비용은 본인이 내는 것이므로 상한을 걸지 않는다.
 - **플랫폼 키를 쓸 때만 하루 상한을 본다**(`PLATFORM_DAILY_RENDER_LIMIT`, 기본 20).
   이게 없으면 가입자 누구나 무제한으로 회사 키를 태울 수 있다 — ThrottlerModule 의
   rate limit 은 요청 빈도 제한이지 지출 상한이 아니다.
-- 세는 것은 성공이 아니라 **시도**다. 실패한 호출에도 대부분 비용이 청구되고, 실패를
-  공짜로 두면 무한 재시도로 우회할 수 있다. `mock` 은 외부 호출이 없어 제외한다.
+- **계량은 키를 내주는 자리에 있다** — `consumePlatformQuota` (`model-credentials.ts:110`)
+  가 Redis 카운터 `platform:usage:{userId}:{YYYY-MM-DD}` 를 INCR 하고 상한을 넘으면
+  `UsageLimitError` 를 던진다. 예전에는 `renderJob` 행 수를 셌는데, 그 테이블에 행을
+  넣는 곳이 컷 렌더 하나뿐이라 **같은 키를 받아 가는 참조 이미지 생성은 상한을 통째로
+  우회**했다(카운터를 읽기만 하고 올리지 않았다). 호출부가 늘어도 새지 않도록 키를
+  내주는 이 지점에서 센다.
+- 세는 것은 성공이 아니라 **키를 내준 것**이다. 실패한 호출에도 대부분 비용이 청구되고,
+  실패를 공짜로 두면 무한 재시도로 우회할 수 있다. 사용자 키 경로와 `mock` 은 카운터에
+  닿지 않는다 — 예전 카운터는 출처를 구분하지 않아서, 자기 키로만 그린 사람도 그 키가
+  차단되는 순간 플랫폼 키를 쓴 적 없이 "하루치를 다 썼다"는 이유로 막혔다.
+- Redis 가 죽으면 예외가 그대로 올라간다. 지출 상한은 열어 두는 쪽이 더 위험하고, 아직
+  모델을 부르기 전이라 실패해도 돈이 나가지 않는다.
 - 던지는 예외는 자기 분류를 들고 있다(`ApiKeyMissingError` = auth,
-  `UsageLimitError` = quota). 워커가 그걸 존중한다(`render.worker.ts:169`) —
-  어댑터의 `classifyError` 에 넘기면 프로바이더 HTTP 응답만 볼 줄 알아서 전부
-  `transient` 로 떨어지고, 재시도해도 소용없는 실패에 "잠시 후 다시"를 안내하게 된다.
+  `UsageLimitError` = quota). `classifyModelError` (`render/model-error.ts:14`) 가 그걸
+  존중한다 — 어댑터의 `classifyError` 에 넘기면 프로바이더 HTTP 응답만 볼 줄 알아서 전부
+  `transient` 로 떨어지고, 재시도해도 소용없는 실패를 유료로 3번 반복하게 된다.
+  워커(`render.worker.ts:163`)와 참조 이미지 생성(`consistency.service.ts:277`)이 같은
+  함수를 쓴다.
 
 ### 3.10c EmailModule (`email/email.module.ts`)
 
@@ -395,12 +440,18 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 - 큐 이름: `render` (`RENDER_QUEUE_NAME` = `:7`)
 - 연결: `parseRedis(REDIS_URL)` (`:47-54`)
 - `RenderQueue`는 `Queue<RenderJobData>`와 `QueueEvents`를 모두 보유 — `:24-27`
-- `enqueue`: `jobId = idempotencyKey(ir, userId, model)` = `'job_' + sha256(ir+userId+model).slice(0,32)` — `:34-44, 56-58`. `attempts: 3`, `exponential backoff 2s`, `removeOnComplete.age 86400`, `removeOnFail: false`.
+- `enqueue`: `jobId = idempotencyKey(ir, userId, model)` = `'job_' + sha256(ir+userId+model).slice(0,32)` — `:34-44, 56-58`. `attempts: 3`, `exponential backoff 2s`, `removeOnComplete.age 86400`,
+  `removeOnFail: { age: 7*86400, count: 1000 }` (`:51`) — `false` 로 두면 실패 잡이 Redis 에
+  **영구 적재**된다. 7일이면 사후 분석에 충분하고 개수 상한이 폭주를 막는다.
 
 ### 5.2 워커 (`render/render.worker.ts`)
 
-- 모듈 init에서 `RENDER_WORKER_DISABLED === '1'`이면 워커를 만들지 않음(즉 API 프로세스에서 워커 분리 가능) — `:29-40`
-- concurrency: `RENDER_CONCURRENCY ?? 2` — `:38`
+- 모듈 init에서 `RENDER_WORKER_DISABLED === '1'`이면 워커를 만들지 않음(즉 API 프로세스에서 워커 분리 가능) — `:39`
+- concurrency: `RENDER_CONCURRENCY ?? 2` — `:46`
+- **실패에는 반드시 로그가 남는다** (`:196-205`). 없으면 프로덕션에서 컷이 실패했을 때 단서가
+  DB 행의 `error.message` 뿐이다. 정책 거부(`auth`/`quota`/`safety`/`invalid`, `POLICY_CATEGORIES`)는
+  정상 동작이라 `warn`, 나머지는 `error` — 정상 거부를 ERROR 로 쌓으면 진짜 장애 신호를 덮는다.
+  마감 자체가 실패하는 경로(`finalizeOrphan` 의 catch, `:92`)도 더 이상 조용히 삼키지 않는다.
 - 모델 호출 데드라인 60s (`AbortController`) — `:15, 67-68`
 - 처리 흐름 (`:46-125`):
   1. `RenderJob` 행 로드, 취소 상태면 skip
@@ -476,22 +527,22 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 
 ## 8. 환경 변수 요약
 
-| 키                                                                                                   | 위치                                                                                                            | 기본/비고                            |
-| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| `API_PORT`                                                                                           | `main.ts:20`                                                                                                    | `4000`                               |
-| `WEB_ORIGIN`                                                                                         | `main.ts:16`, `oauth.controller.ts:39`, `email.provider.ts:34`                                                  | `http://localhost:3000`              |
-| `API_PUBLIC_URL`                                                                                     | `oauth.service.ts:125`                                                                                          | OAuth callback base                  |
-| `REDIS_URL`                                                                                          | `session.service.ts:30`, `oauth.service.ts:27`, `render.queue.ts:23`, `sse.hub.ts:48`, `api-keys.breaker.ts:23` | `redis://localhost:6379`             |
-| `DATABASE_URL`                                                                                       | `schema.prisma:9`                                                                                               | Postgres                             |
-| `S3_ENDPOINT` / `S3_PUBLIC_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `storage.service.ts:43-50`                                                                                      | MinIO 기본값                         |
-| `STORAGE_AUTO_CREATE_BUCKET`                                                                         | `storage.service.ts:58`                                                                                         | `'0'`이면 자동 생성 skip             |
-| `MASTER_KEY`                                                                                         | `api-keys/crypto.ts:8-14`                                                                                       | base64 32B, BYOK AES-GCM 봉인 키     |
-| `COOKIE_SECURE`                                                                                      | `session.service.ts:129-132`                                                                                    | secure 쿠키 토글                     |
-| `RENDER_WORKER_DISABLED`                                                                             | `render.worker.ts:30`, `sse.hub.ts:49`                                                                          | `'1'`이면 API 프로세스에서 워커 분리 |
-| `RENDER_CONCURRENCY`                                                                                 | `render.worker.ts:37`                                                                                           | 기본 2                               |
-| `SSE_HUB_DISABLED`                                                                                   | `sse.hub.ts:47`                                                                                                 | 테스트용                             |
-| `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET`, `GITHUB_OAUTH_CLIENT_ID`/`_SECRET`                               | `oauth.service.ts:96-99`                                                                                        | 둘 다 있어야 provider 활성           |
-| `LOG_LEVEL`, `NODE_ENV`                                                                              | `app.module.ts:26-33`                                                                                           | pino 레벨/포맷                       |
+| 키                                                                                                   | 위치                                                                                                                                       | 기본/비고                            |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| `API_PORT`                                                                                           | `main.ts:20`                                                                                                                               | `4000`                               |
+| `WEB_ORIGIN`                                                                                         | `main.ts:16`, `oauth.controller.ts:39`, `email.provider.ts:34`                                                                             | `http://localhost:3000`              |
+| `API_PUBLIC_URL`                                                                                     | `oauth.service.ts:125`                                                                                                                     | OAuth callback base                  |
+| `REDIS_URL`                                                                                          | `session.service.ts:30`, `oauth.service.ts:27`, `render.queue.ts:23`, `sse.hub.ts:48`, `api-keys.breaker.ts:23`, `model-credentials.ts:55` | `redis://localhost:6379`             |
+| `DATABASE_URL`                                                                                       | `schema.prisma:9`                                                                                                                          | Postgres                             |
+| `S3_ENDPOINT` / `S3_PUBLIC_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `storage.service.ts:43-50`                                                                                                                 | MinIO 기본값                         |
+| `STORAGE_AUTO_CREATE_BUCKET`                                                                         | `storage.service.ts:58`                                                                                                                    | `'0'`이면 자동 생성 skip             |
+| `MASTER_KEY`                                                                                         | `api-keys/crypto.ts:8-14`                                                                                                                  | base64 32B, BYOK AES-GCM 봉인 키     |
+| `COOKIE_SECURE`                                                                                      | `session.service.ts:129-132`                                                                                                               | secure 쿠키 토글                     |
+| `RENDER_WORKER_DISABLED`                                                                             | `render.worker.ts:30`, `sse.hub.ts:49`                                                                                                     | `'1'`이면 API 프로세스에서 워커 분리 |
+| `RENDER_CONCURRENCY`                                                                                 | `render.worker.ts:37`                                                                                                                      | 기본 2                               |
+| `SSE_HUB_DISABLED`                                                                                   | `sse.hub.ts:47`                                                                                                                            | 테스트용                             |
+| `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET`, `GITHUB_OAUTH_CLIENT_ID`/`_SECRET`                               | `oauth.service.ts:96-99`                                                                                                                   | 둘 다 있어야 provider 활성           |
+| `LOG_LEVEL`, `NODE_ENV`                                                                              | `app.module.ts:26-33`                                                                                                                      | pino 레벨/포맷                       |
 
 ---
 

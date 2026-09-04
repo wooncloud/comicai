@@ -97,9 +97,20 @@ export const ProjectPatchSchema = z.object({
 });
 
 // ─── 페이지 ───────────────────────────────────
+/**
+ * 페이지 한 변의 상한.
+ *
+ * export 가 이 값으로 sharp 캔버스를 만들므로 **곧 메모리 상한이다**(4096² RGBA ≈ 67MB).
+ * 상한이 없으면 `PATCH /v1/pages/{id}` 로 `size:{w:50000,h:50000}` 을 저장한 뒤 export 를
+ * 눌러 10GB 할당을 요구할 수 있고, 프로세스가 죽으면서 **같은 컨테이너의 다른 사용자 요청도
+ * 함께 끊긴다.** 값은 에디터의 직접 입력 상한과 같다
+ * (`apps/web/components/editor/page-size-select.tsx`).
+ */
+export const MAX_PAGE_DIMENSION = 4096;
+
 export const PageSizeSchema = z.object({
-  w: z.number().int().positive(),
-  h: z.number().int().positive(),
+  w: z.number().int().positive().max(MAX_PAGE_DIMENSION),
+  h: z.number().int().positive().max(MAX_PAGE_DIMENSION),
 });
 export const PageCreateSchema = z.object({
   size: PageSizeSchema.default({ w: 800, h: 1200 }),
@@ -146,7 +157,14 @@ export const ExportRequestSchema = z.object({
 export type ExportRequest = z.infer<typeof ExportRequestSchema>;
 
 // ─── 패널 ─────────────────────────────────────
-export const PanelPointSchema = z.object({ x: z.number(), y: z.number() });
+/**
+ * 패널 좌표 허용 범위. 페이지 좌표계 절대값이고, 편집 중 페이지 밖으로 조금 밀어 두는 것은
+ * 정상이라 페이지 상한의 2배까지 둔다. 무제한이면 패널 하나의 bounding box 가 export 에서
+ * 수 GB 버퍼를 요구한다 — 페이지 크기와 같은 이유로 막는다.
+ */
+export const MAX_PANEL_COORD = MAX_PAGE_DIMENSION * 2;
+const PanelCoordSchema = z.number().min(-MAX_PANEL_COORD).max(MAX_PANEL_COORD);
+export const PanelPointSchema = z.object({ x: PanelCoordSchema, y: PanelCoordSchema });
 export const PanelShapeSchema = z.object({
   type: z.enum(['rect', 'rounded', 'oval', 'diamond', 'parallelogram', 'polygon']),
   points: z.array(PanelPointSchema).min(3).max(64),
@@ -216,13 +234,20 @@ export const SpeechBubbleReorderSchema = z.object({
 });
 
 // ─── 페이지 텍스트 ────────────────────────────
-export const PAGE_TEXT_FONT_FAMILIES = [
-  'sans-serif',
-  'serif',
-  'monospace',
-  'Pretendard',
-  'Inter',
-] as const;
+/**
+ * 캔버스(CSS)와 export(SVG) **양쪽에서 실제로 해석되는 것만** 둔다.
+ *
+ * 'Pretendard'/'Inter' 가 있었지만 어느 쪽에도 그 이름의 패밀리가 없다: 웹은 next/font 가
+ * CSS 변수(`--font-pretendard`)만 만들고 패밀리명을 노출하지 않으며, export 컨테이너
+ * (`infra/docker/api.Dockerfile:39`)에는 `font-noto-cjk` 만 설치된다. 고르면 아무 일도
+ * 일어나지 않는 선택지였다.
+ *
+ * 이 배열이 값의 **유일한 출처다.** `index.ts` 가 같은 이름을 지역 선언하고 있었는데,
+ * `export * from './schemas'` 보다 지역 선언이 우선하므로 **컴파일 에러 없이** 소비자는 3개를,
+ * Zod 검증기는 5개를 보고 있었다. 검증기가 넓으면 컨테이너에 없는 폰트가 export SVG 의
+ * `font-family` 로 나가고, 커밋 571bda7 이 고친 "export 에서 한글이 사라지는" 버그가 돌아온다.
+ */
+export const PAGE_TEXT_FONT_FAMILIES = ['sans-serif', 'serif', 'monospace'] as const;
 
 export const PageTextStyleSchema = z.object({
   fontSize: z.number().min(6).max(200).default(24),
@@ -254,6 +279,7 @@ export const PageTextReorderSchema = z.object({
 });
 
 // ─── 페이지 직선 ──────────────────────────────
+/** 폰트 목록과 같은 이유로 여기가 유일한 출처다 — `index.ts` 는 타입만 파생시킨다. */
 export const PAGE_LINE_STROKE_STYLES = ['solid', 'dashed'] as const;
 export const PageLineStrokeStyleSchema = z.enum(PAGE_LINE_STROKE_STYLES);
 

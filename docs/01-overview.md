@@ -170,6 +170,7 @@ Prisma + ULID 유틸.
 - `src/gemini.ts` — Google Gemini.
 - `src/openai.ts` — OpenAI.
 - `src/priority.ts` — `selectReferences()` 참조 이미지 우선순위 선택.
+- `src/classify.spec.ts` — 응답 → `RenderError` 분류 고정. 여기가 틀리면 통과할 수 없는 요청이 유료로 재시도된다.
 - `src/_alias.ts` — 별칭/유틸.
 
 워커에서 주입되는 `AdapterContext.loadReference` 가 storageKey 를 실제 바이트로 로드한다 (Storage 서비스 경유).
