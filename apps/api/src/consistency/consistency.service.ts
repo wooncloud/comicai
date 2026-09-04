@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -13,14 +15,32 @@ import {
   type EntityType,
   type ImageRef,
   type ModelId,
+  type RenderError,
   type RenderIR,
 } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
 import { StorageService } from '../storage/storage.service';
 import { ModelCredentials } from '../render/model-credentials';
+import { classifyModelError } from '../render/model-error';
+import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
+import { MetricsService } from '../metrics/metrics.service';
 import { open } from '../api-keys/crypto';
 
 const GENERATE_TIMEOUT_MS = 120_000;
+
+/**
+ * 정책 거부를 사용자가 알아볼 수 있는 상태 코드로. 나머지(safety/invalid/transient/
+ * timeout)는 400 그대로다 — 5xx 로 올리면 예외 필터가 정상 거부까지 'unhandled
+ * exception' 으로 로깅한다.
+ *
+ * auth 에 401/403 을 쓰지 않는 이유: 웹이 401 을 "세션 만료" 로 보고 로그인 화면으로
+ * 보낸다(apps/web/app/providers.tsx). 여기서 필요한 안내는 "API 키를 등록하라" 다.
+ */
+function statusForCategory(category: RenderError['category']): number {
+  if (category === 'quota') return HttpStatus.TOO_MANY_REQUESTS;
+  if (category === 'auth') return HttpStatus.PAYMENT_REQUIRED;
+  return HttpStatus.BAD_REQUEST;
+}
 
 type GenerableEntityType = 'character' | 'background' | 'worldview';
 
@@ -92,6 +112,8 @@ export class ConsistencyService {
     private readonly projects: ProjectsService,
     private readonly storage: StorageService,
     private readonly credentials: ModelCredentials,
+    private readonly breaker: ApiKeyBreaker,
+    private readonly metrics: MetricsService,
   ) {}
 
   async list(
@@ -206,7 +228,6 @@ export class ConsistencyService {
     if (owned.type === 'style' || !(owned.type in ENTITY_SYSTEM_PROMPTS)) {
       throw new BadRequestException({ code: 'CONSISTENCY_GENERATE_UNSUPPORTED' });
     }
-    const apiKey = (await this.credentials.resolve(userId, model)).secret;
     const adapter = getAdapter(model);
     const entityType = owned.type as GenerableEntityType;
     const shape = ENTITY_OUTPUT_SHAPE[entityType];
@@ -228,8 +249,17 @@ export class ConsistencyService {
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), GENERATE_TIMEOUT_MS);
     const ctx: AdapterContext = { loadReference: (key) => this.storage.getBytes(key) };
+    // 키 조회는 **try 안에 있어야 한다.** 밖에 두면 쿼터 초과·키 없음 같은 평범한
+    // 정책 거부가 HttpException 이 아닌 채로 예외 필터까지 올라가 500 INTERNAL_ERROR 가
+    // 되고, 서버 로그에는 정상 거부가 'unhandled exception' ERROR 로 쌓여 진짜 장애
+    // 신호를 덮는다. 렌더 워커도 같은 이유로 같은 모양이다(render.worker.ts).
+    // apiKeyId 는 차단기 기록에만 쓰므로 catch 에서도 읽을 수 있도록 밖에 둔다.
+    let apiKeyId: string | null = null;
+    let outcome = 'unknown';
     try {
-      const req = adapter.buildRequest(ir, apiKey);
+      const resolved = await this.credentials.resolve(userId, model);
+      apiKeyId = resolved.id;
+      const req = adapter.buildRequest(ir, resolved.secret);
       const raw = await adapter.call(req, ac.signal, ctx);
       const stored = await this.storage.putImage(
         { kind: 'consistency-ref', projectId: owned.projectId, entityId: owned.id },
@@ -239,20 +269,32 @@ export class ConsistencyService {
         raw.height,
       );
       const presigned = await this.storage.presignDownload(stored.storageKey);
+      if (apiKeyId) await this.breaker.recordSuccess(apiKeyId);
+      outcome = 'succeeded';
       return { ...stored, url: presigned.url, expiresAt: presigned.expiresAt };
     } catch (err) {
-      const classified = adapter.classifyError(err);
+      const classified = classifyModelError(err, adapter);
+      outcome = classified.category;
+      if (classified.category === 'auth' && apiKeyId) {
+        await this.breaker.recordAuthFailure(apiKeyId);
+      }
       this.logger.error(
         { err, classified, model, entityId: owned.id },
         'consistency generate failed',
       );
-      throw new BadRequestException({
-        code: 'CONSISTENCY_GENERATE_FAILED',
-        category: classified.category,
-        message: classified.message,
-      });
+      throw new HttpException(
+        {
+          code: 'CONSISTENCY_GENERATE_FAILED',
+          category: classified.category,
+          message: classified.message,
+        },
+        statusForCategory(classified.category),
+      );
     } finally {
       clearTimeout(timer);
+      // 이 경로도 플랫폼 키로 유료 호출을 한다. 여기서 세지 않으면 지출 대시보드가
+      // 참조 이미지 생성분을 통째로 놓친다.
+      this.metrics.renderAttemptsTotal.inc({ model, outcome });
     }
   }
 

@@ -305,7 +305,7 @@ interface RenderError {
 
 ### 6.2 재시도 & 종결 매핑
 
-`render.worker.ts:199-203` `retryLimitFor`:
+`render.worker.ts:191-195` `retryLimitFor`:
 
 | category  | retry limit | 최종 status       |
 | --------- | ----------- | ----------------- |

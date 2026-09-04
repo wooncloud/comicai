@@ -13,6 +13,7 @@ import {
 import { RENDER_QUEUE_NAME, parseRedis, type RenderJobData } from './render.queue';
 import { SseHub } from './sse.hub';
 import { ModelCredentials } from './model-credentials';
+import { classifyModelError } from './model-error';
 import { StorageService } from '../storage/storage.service';
 import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
 import { MetricsService } from '../metrics/metrics.service';
@@ -159,16 +160,7 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
       if (apiKeyId) await this.breaker.recordSuccess(apiKeyId);
       outcome = 'succeeded';
     } catch (err) {
-      /*
-       * 우리가 던진 예외는 이미 자기 분류를 알고 있다(키 없음 = auth,
-       * 상한 초과 = quota). 어댑터의 classifyError 는 프로바이더의 HTTP 응답만
-       * 볼 줄 알아서, 이걸 넘기면 전부 'transient' 로 떨어진다 —
-       * 그러면 재시도해도 소용없는 실패에 "잠시 후 다시" 라고 안내하게 된다.
-       */
-      const own = (err as { category?: RenderError['category'] })?.category;
-      const classified: RenderError = own
-        ? { category: own, message: err instanceof Error ? err.message : String(err) }
-        : adapter.classifyError(err);
+      const classified = classifyModelError(err, adapter);
       outcome = classified.category;
       if (classified.category === 'auth' && apiKeyId) {
         await this.breaker.recordAuthFailure(apiKeyId);
