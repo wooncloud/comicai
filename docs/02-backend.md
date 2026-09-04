@@ -417,12 +417,18 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 - 큐 이름: `render` (`RENDER_QUEUE_NAME` = `:7`)
 - 연결: `parseRedis(REDIS_URL)` (`:47-54`)
 - `RenderQueue`는 `Queue<RenderJobData>`와 `QueueEvents`를 모두 보유 — `:24-27`
-- `enqueue`: `jobId = idempotencyKey(ir, userId, model)` = `'job_' + sha256(ir+userId+model).slice(0,32)` — `:34-44, 56-58`. `attempts: 3`, `exponential backoff 2s`, `removeOnComplete.age 86400`, `removeOnFail: false`.
+- `enqueue`: `jobId = idempotencyKey(ir, userId, model)` = `'job_' + sha256(ir+userId+model).slice(0,32)` — `:34-44, 56-58`. `attempts: 3`, `exponential backoff 2s`, `removeOnComplete.age 86400`,
+  `removeOnFail: { age: 7*86400, count: 1000 }` (`:51`) — `false` 로 두면 실패 잡이 Redis 에
+  **영구 적재**된다. 7일이면 사후 분석에 충분하고 개수 상한이 폭주를 막는다.
 
 ### 5.2 워커 (`render/render.worker.ts`)
 
-- 모듈 init에서 `RENDER_WORKER_DISABLED === '1'`이면 워커를 만들지 않음(즉 API 프로세스에서 워커 분리 가능) — `:29-40`
-- concurrency: `RENDER_CONCURRENCY ?? 2` — `:38`
+- 모듈 init에서 `RENDER_WORKER_DISABLED === '1'`이면 워커를 만들지 않음(즉 API 프로세스에서 워커 분리 가능) — `:39`
+- concurrency: `RENDER_CONCURRENCY ?? 2` — `:46`
+- **실패에는 반드시 로그가 남는다** (`:196-205`). 없으면 프로덕션에서 컷이 실패했을 때 단서가
+  DB 행의 `error.message` 뿐이다. 정책 거부(`auth`/`quota`/`safety`/`invalid`, `POLICY_CATEGORIES`)는
+  정상 동작이라 `warn`, 나머지는 `error` — 정상 거부를 ERROR 로 쌓으면 진짜 장애 신호를 덮는다.
+  마감 자체가 실패하는 경로(`finalizeOrphan` 의 catch, `:92`)도 더 이상 조용히 삼키지 않는다.
 - 모델 호출 데드라인 60s (`AbortController`) — `:15, 67-68`
 - 처리 흐름 (`:46-125`):
   1. `RenderJob` 행 로드, 취소 상태면 skip

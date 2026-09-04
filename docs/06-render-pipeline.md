@@ -199,7 +199,7 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 
 - **BullMQ 잡 id 는 DB 행 id 와 같아야 한다**(`render.queue.ts:43`). 여기서 IR 해시를
   다시 계산하면 재시도 잡이 이미 끝난 원본과 같은 큐 id 를 갖고, BullMQ 는 같은 id 의
-  add 를 조용히 무시한다(`removeOnFail: false` 라 실패 잡이 계속 남는다). 행만 `queued`
+  add 를 조용히 무시한다(실패 잡은 보존 기간 동안 Redis 에 남아 있다). 행만 `queued`
   로 남고 워커가 영영 집어 가지 않는다.
 - **합치는 기준은 baseId 가 아니라 "돌고 있는 잡"이다.** baseId 로만 보면 재시도 잡은
   id 가 달라서 요청할 때마다 새 잡이 쌓인다. 재시도 접미사도 개수가 아니라 난수다 —
@@ -327,7 +327,7 @@ interface RenderError {
 
 ### 6.2 재시도 & 종결 매핑
 
-`render.worker.ts:213-217` `retryLimitFor`:
+`render.worker.ts:230-234` `retryLimitFor`:
 
 | category  | retry limit | 최종 status       |
 | --------- | ----------- | ----------------- |
