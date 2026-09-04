@@ -8,6 +8,7 @@ import { newId, prisma } from '@comicai/db';
 import type { PageDTO, ImageRef } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
 import { StoragePrefix, StorageService } from '../storage/storage.service';
+import { isReorderPermutation } from '../common/reorder';
 
 interface PageRow {
   id: string;
@@ -93,7 +94,6 @@ export class PagesService {
     userId: string,
     id: string,
     patch: {
-      order?: number;
       size?: { w: number; h: number };
       name?: string | null;
       backgroundColor?: string | null;
@@ -133,7 +133,7 @@ export class PagesService {
       select: { id: true },
     });
     const currentIds = new Set(current.map((p) => p.id));
-    if (pageIds.length !== currentIds.size || !pageIds.every((id) => currentIds.has(id))) {
+    if (!isReorderPermutation(pageIds, currentIds)) {
       throw new BadRequestException({
         code: 'PAGE_REORDER_MISMATCH',
         message: '프로젝트의 모든 페이지를 순서대로 지정해야 합니다.',

@@ -7,6 +7,7 @@ import {
   type PageTextStyle,
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
+import { isReorderPermutation } from '../common/reorder';
 
 interface PageTextRow {
   id: string;
@@ -132,7 +133,7 @@ export class PageTextsService {
       select: { id: true },
     });
     const existingIds = new Set(existing.map((r) => r.id));
-    if (ids.length !== existing.length || !ids.every((id) => existingIds.has(id))) {
+    if (!isReorderPermutation(ids, existingIds)) {
       throw new ForbiddenException({
         code: 'INVALID_REORDER',
         message: 'ids 목록이 현재 페이지의 텍스트와 일치하지 않습니다.',

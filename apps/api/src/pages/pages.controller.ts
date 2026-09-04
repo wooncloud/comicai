@@ -20,7 +20,6 @@ class CreateDto {
 }
 class PatchDto {
   static zodSchema = PagePatchSchema;
-  order?: number;
   size?: { w: number; h: number };
   name?: string | null;
   backgroundColor?: string | null;

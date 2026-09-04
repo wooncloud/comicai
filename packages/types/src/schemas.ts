@@ -127,8 +127,13 @@ const ColorStringSchema = z
   .max(32)
   .regex(HEX_COLOR_REGEX, '#RRGGBB 형식이어야 합니다.');
 
+/**
+ * `order` 는 일부러 없다. 순서 변경은 `PageReorderSchema` 를 쓰는 재정렬 엔드포인트로만
+ * 받는다 — 거기서만 "요청이 현재 페이지 집합의 순열인가" 를 검사할 수 있기 때문이다.
+ * PATCH 로 한 페이지의 order 를 직접 넣으면 두 페이지가 같은 order 를 갖게 되고, 그때부터
+ * `orderBy: { order }` 의 타이브레이크가 요청마다 달라져 순서가 흔들린다.
+ */
 export const PagePatchSchema = z.object({
-  order: z.number().int().nonnegative().optional(),
   size: PageSizeSchema.optional(),
   name: z.string().trim().min(1).max(80).nullable().optional(),
   backgroundColor: ColorStringSchema.nullable().optional(),

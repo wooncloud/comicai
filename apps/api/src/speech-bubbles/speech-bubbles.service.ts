@@ -8,6 +8,7 @@ import {
   type SpeechBubbleVariant,
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
+import { isReorderPermutation } from '../common/reorder';
 
 interface BubbleRow {
   id: string;
@@ -106,7 +107,7 @@ export class SpeechBubblesService {
       select: { id: true },
     });
     const existingIds = new Set(existing.map((r) => r.id));
-    if (ids.length !== existing.length || !ids.every((id) => existingIds.has(id))) {
+    if (!isReorderPermutation(ids, existingIds)) {
       throw new ForbiddenException({
         code: 'INVALID_REORDER',
         message: 'ids 목록이 현재 페이지의 말풍선과 일치하지 않습니다.',
