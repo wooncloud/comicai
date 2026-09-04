@@ -13,7 +13,7 @@ import {
   type EntityType,
   type ProjectDTO,
 } from '@comicai/types';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EntityCard } from '@/components/consistency/entity-card';
@@ -37,7 +37,6 @@ export default function ConsistencyPage() {
   // 화면 문구에 쓰는 현재 탭 이름. 예전에는 전부 '항목' 이라 캐릭터 탭에서
   // "항목이 없습니다" 를 보면 무엇을 만들라는 건지 알 수 없었다.
   const tabLabel = TABS.find((t) => t.key === tab)?.label ?? '항목';
-  const [items, setItems] = useState<ConsistencyEntityDTO[]>([]);
   const [editing, setEditing] = useState<ConsistencyEntityDTO | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [pendingImages, setPendingImages] = useState<File[]>([]);
@@ -63,16 +62,28 @@ export default function ConsistencyPage() {
     }
   }
 
-  async function refresh() {
-    const list = await api<ConsistencyEntityDTO[]>(
-      `${ApiPaths.projectConsistency(projectId)}?type=${tab}`,
-    );
-    setItems(list);
-  }
+  /*
+   * 탭마다 키가 갈리는 것이 요점이다.
+   *
+   * 예전에는 `useState` + `useEffect` + 생 `api()` 였고 `catch` 도 취소 가드도
+   * 없었다. 그래서 (1) 탭을 바꿔도 응답이 올 때까지 **이전 탭의 카드가 그대로**
+   * 남아 그 상태에서 삭제를 누르면 엉뚱한 것을 지웠고, (2) 탭을 연달아 누르면
+   * 늦게 온 응답이 다른 탭에 붙었고, (3) 조회가 실패하면 "아직 등록한 …이 없습니다"
+   * 라고 말했다. 키를 탭별로 두면 셋이 한 번에 사라진다.
+   */
+  const { data: items, isLoading } = useQuery<ConsistencyEntityDTO[]>({
+    queryKey: qk.consistency(projectId, tab),
+    queryFn: () =>
+      api<ConsistencyEntityDTO[]>(`${ApiPaths.projectConsistency(projectId)}?type=${tab}`),
+    enabled: !!projectId,
+  });
 
-  useEffect(() => {
-    if (projectId) void refresh();
-  }, [projectId, tab]);
+  /** 낙관적 갱신은 부모가 캐시를 직접 고친다 — 이 저장소의 기존 패턴이다. */
+  function setItems(next: (prev: ConsistencyEntityDTO[]) => ConsistencyEntityDTO[]) {
+    queryClient.setQueryData<ConsistencyEntityDTO[]>(qk.consistency(projectId, tab), (prev) =>
+      next(prev ?? []),
+    );
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -282,7 +293,10 @@ export default function ConsistencyPage() {
         </section>
 
         <section className="mt-8 space-y-4">
-          {items.length === 0 ? (
+          {/* 로딩과 "정말 없음" 을 구분한다. 조회 실패는 오류 경계가 받는다. */}
+          {isLoading ? (
+            <p className="text-body-sm text-muted-foreground">불러오는 중…</p>
+          ) : items?.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border p-12 text-center">
               <p className="text-body-sm text-muted-foreground">
                 아직 등록한 {tabLabel}이(가) 없습니다.
@@ -302,7 +316,7 @@ export default function ConsistencyPage() {
             </div>
           ) : (
             <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {items.map((it) => (
+              {items?.map((it) => (
                 <EntityCard
                   key={it.id}
                   entity={it}

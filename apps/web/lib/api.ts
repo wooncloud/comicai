@@ -23,6 +23,24 @@ function readCsrfToken(): string | undefined {
   return match ? decodeURIComponent(match.slice(CSRF_COOKIE_NAME.length + 1)) : undefined;
 }
 
+/** 로그인 화면 자신과 그 주변에서는 되돌려 보내지 않는다 — 무한 루프가 된다. */
+const NO_REDIRECT_PATHS = [
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+];
+
+function redirectToLogin() {
+  if (typeof window === 'undefined') return;
+  const here = window.location.pathname;
+  if (here === '/' || NO_REDIRECT_PATHS.some((p) => here.startsWith(p))) return;
+  // location.href 를 쓴다. 라우터 인스턴스가 없는 자리(훅 밖)에서도 불리고,
+  // 세션이 끊긴 뒤에는 클라이언트 캐시를 통째로 버리는 편이 안전하다.
+  window.location.href = '/login';
+}
+
 export async function api<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method ?? 'GET').toUpperCase();
   const isFormData = HAS_FORM_DATA && init.body instanceof FormData;
@@ -57,6 +75,22 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}): Pr
       }
     } catch {
       // ignore
+    }
+    /*
+     * 세션이 없거나 만료됐으면 로그인으로 보낸다. **여기가 그 판단의 자리다.**
+     *
+     * 예전에는 이 처리가 Topbar 안에 있었다(그리고 API 키 화면에 손복사본이 하나
+     * 더 있었다). 그런데 에디터는 AppShell 을 쓰지 않아서, 세션이 만료된 채 에디터를
+     * 열면 다섯 요청이 전부 401 로 죽고 리다이렉트도 오류 화면도 없이 빈 캔버스만
+     * 남았다. 게다가 providers.tsx 의 오류 경계는 "401 은 Topbar 가 처리한다" 를
+     * 전제로 면제 조항을 두고 있어서, 그 전제가 성립하지 않는 화면에서는 근거 없는
+     * 면제가 됐다.
+     *
+     * `INVALID_CREDENTIALS` 는 제외한다 — 로그인 실패도 401 이지만, 그건 이미
+     * 로그인 화면에 있는 사람에게 문구로 알려 줄 일이지 이동시킬 일이 아니다.
+     */
+    if (res.status === 401 && (code === 'NO_SESSION' || code === 'SESSION_EXPIRED')) {
+      redirectToLogin();
     }
     throw new ApiError(res.status, code, message, details);
   }

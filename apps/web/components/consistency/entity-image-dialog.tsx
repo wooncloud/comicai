@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { api, ApiError } from '@/lib/api';
+import { api } from '@/lib/api';
 import {
   ApiPaths,
   type ConsistencyEntityDTO,

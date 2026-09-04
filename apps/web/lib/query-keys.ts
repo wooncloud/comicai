@@ -32,6 +32,12 @@ export const qk = {
   /** 단일 렌더 잡. SSE 로 상태가 갱신된다. */
   renderJob: (jobId: string | null) => ['render-job', jobId] as const,
 
+  /** 프로젝트의 페이지 목록. 상세 화면과 에디터 사이드바가 공유한다. */
+  projectPages: (projectId: string) => ['project-pages', projectId] as const,
+
+  /** 로그인된 기기 목록. */
+  meSessions: () => ['me-sessions'] as const,
+
   /** 프로젝트의 일관성 엔티티. 타입을 주면 그 타입만. */
   consistency: (projectId: string, type?: EntityType) =>
     type ? (['consistency', projectId, type] as const) : (['consistency', projectId] as const),

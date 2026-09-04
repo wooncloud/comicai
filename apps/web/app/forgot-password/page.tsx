@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { ApiPaths } from '@comicai/types';
+import { errorMessage } from '@/lib/error-message';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthHeader } from '@/components/auth/auth-header';
@@ -11,16 +12,25 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setPending(true);
+    setError(null);
     try {
       await api(ApiPaths.passwordResetRequest, {
         method: 'POST',
         body: JSON.stringify({ email }),
       });
       setDone(true);
+    } catch (err) {
+      /*
+       * 이 화면만 catch 가 없었다. 429(요청 과다)나 500 이면 버튼이 "전송 중…"
+       * 에서 원래대로 돌아올 뿐 성공 배너도 오류 문구도 없어서, 눌린 건지 아닌지
+       * 알 수 없어 계속 다시 누르게 되고 그럴수록 레이트리밋에 더 걸렸다.
+       */
+      setError(errorMessage(err, '재설정 링크를 요청'));
     } finally {
       setPending(false);
     }
@@ -46,6 +56,7 @@ export default function ForgotPasswordPage() {
               onChange={(e) => setEmail(e.target.value)}
             />
           </label>
+          {error && <p className="text-body-sm text-destructive">{error}</p>}
           <Button type="submit" disabled={pending} className="w-full">
             {pending ? '전송 중…' : '재설정 링크 받기'}
           </Button>

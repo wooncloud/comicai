@@ -23,6 +23,9 @@ import { GripVertical, MoreHorizontal, Settings } from 'lucide-react';
 import { AppShell } from '@/components/shell/app-shell';
 import { PageContainer } from '@/components/shell/page-container';
 import { api } from '@/lib/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useProject } from '@/lib/use-project';
+import { qk } from '@/lib/query-keys';
 import { ApiPaths, pageLabel, type PageDTO, type ProjectDTO } from '@comicai/types';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
@@ -38,22 +41,28 @@ import { errorMessage } from '@/lib/error-message';
 export default function ProjectDetail() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
-  const [project, setProject] = useState<ProjectDTO | null>(null);
-  const [pages, setPages] = useState<PageDTO[]>([]);
   const toast = useToast();
+  const queryClient = useQueryClient();
 
-  async function loadProject() {
-    setProject(await api<ProjectDTO>(ApiPaths.project(projectId)));
+  /*
+   * 예전에는 `useState` + `void load…()` 로 읽었고 `catch` 가 없었다. 조회가
+   * 실패하면 제목은 영원히 "불러오는 중…", 본문에는 **"아직 페이지가 없습니다"**
+   * 점선 박스가 떴다 — 페이지 10장짜리 작품을 가진 사람이 자기 작업이 날아갔다고
+   * 읽는다. react-query 안으로 들여보내면 실패가 오류 경계로 간다.
+   */
+  const project = useProject(projectId);
+  const { data: pages, isLoading: pagesLoading } = useQuery<PageDTO[]>({
+    queryKey: qk.projectPages(projectId),
+    queryFn: () => api<PageDTO[]>(ApiPaths.projectPages(projectId)),
+    enabled: !!projectId,
+  });
+
+  function setPages(next: PageDTO[]) {
+    queryClient.setQueryData(qk.projectPages(projectId), next);
   }
   async function loadPages() {
-    setPages(await api<PageDTO[]>(ApiPaths.projectPages(projectId)));
+    await queryClient.invalidateQueries({ queryKey: qk.projectPages(projectId) });
   }
-
-  useEffect(() => {
-    if (!projectId) return;
-    void loadProject();
-    void loadPages();
-  }, [projectId]);
 
   async function addPage() {
     try {
@@ -77,11 +86,11 @@ export default function ProjectDetail() {
   async function onDragEnd(e: DragEndEvent) {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    const oldIndex = pages.findIndex((p) => p.id === active.id);
-    const newIndex = pages.findIndex((p) => p.id === over.id);
+    const oldIndex = (pages ?? []).findIndex((p) => p.id === active.id);
+    const newIndex = (pages ?? []).findIndex((p) => p.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
-    const prev = pages;
-    const next = arrayMove(pages, oldIndex, newIndex).map((p, i) => ({ ...p, order: i }));
+    const prev = pages ?? [];
+    const next = arrayMove(pages ?? [], oldIndex, newIndex).map((p, i) => ({ ...p, order: i }));
     setPages(next);
     try {
       const fresh = await api<PageDTO[]>(ApiPaths.projectPagesReorder(projectId), {
@@ -124,7 +133,9 @@ export default function ProjectDetail() {
               + 페이지 추가
             </Button>
           </div>
-          {pages.length === 0 ? (
+          {pagesLoading ? (
+            <p className="mt-10 text-body-sm text-muted-foreground">불러오는 중…</p>
+          ) : pages?.length === 0 ? (
             <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-12 text-center">
               <p className="text-body-sm text-muted-foreground">아직 페이지가 없습니다.</p>
               <Button className="mt-4" onClick={addPage} variant="outline" size="sm">
@@ -134,11 +145,11 @@ export default function ProjectDetail() {
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext
-                items={pages.map((p) => p.id)}
+                items={(pages ?? []).map((p) => p.id)}
                 strategy={verticalListSortingStrategy}
               >
                 <ul className="mt-4 divide-y divide-border overflow-hidden rounded-lg border border-border">
-                  {pages.map((p) => (
+                  {(pages ?? []).map((p) => (
                     <SortablePageRow
                       key={p.id}
                       projectId={projectId}

@@ -44,6 +44,9 @@ export function ProjectRow({ project, onPatched, onRemoved }: Props) {
   const thumbUrl = project.thumbnailUrl ?? null;
 
   async function save() {
+    // Enter 는 버튼의 disabled 를 거치지 않는다. 연타하면 PATCH 가 두 번 나가고
+    // 성공 토스트도 두 번 떴다. 가드를 함수 안에 둔다 — 진입점이 둘이기 때문이다.
+    if (busy) return;
     const name = draft?.trim() ?? '';
     if (!name || name === project.name) {
       setDraft(null);

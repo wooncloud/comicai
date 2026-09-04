@@ -72,6 +72,21 @@ App Router 구조. 모든 `page.tsx` 파일.
 로그인까지 막을 이유가 없다), `panel-inspector.tsx:75`(렌더 잡 — 잡 하나를 못 읽었다고 에디터를
 통째로 오류 화면으로 바꿀 수 없다).
 
+### 401 은 `lib/api.ts` 가 처리한다
+
+`apps/web/lib/api.ts:37` — 응답이 401 이고 코드가 `NO_SESSION`·`SESSION_EXPIRED` 면
+`/login` 으로 보낸다. 로그인 화면 자신과 그 주변(`signup`·`forgot-password`·
+`reset-password`·`verify-email`·랜딩)은 제외한다 — 무한 루프가 된다. `INVALID_CREDENTIALS`
+도 401 이지만 제외한다: 이미 로그인 화면에 있는 사람에게 문구로 알려 줄 일이지
+이동시킬 일이 아니다.
+
+**왜 화면이 아니라 여기인가.** 예전에는 이 처리가 `Topbar` 안에 있었고 API 키 화면에
+손복사본이 하나 더 있었다. 그런데 **에디터는 `AppShell` 을 쓰지 않는다** — 세션이
+만료된 채 에디터를 열면 다섯 요청이 전부 401 로 죽고 리다이렉트도 오류 화면도 없이
+빈 캔버스만 남았다. 게다가 `providers.tsx` 의 `throwOnError` 는 "401 은 Topbar 가
+처리한다" 를 전제로 면제 조항을 두고 있어서, 그 전제가 성립하지 않는 화면에서는
+근거 없는 면제가 됐다. 이제 그 전제가 실제로 참이다.
+
 ### app/error.tsx
 
 `app/error.tsx:17` — 라우트 오류 경계. 문구는 `errorMessage(error)` 에서 나오고, `reset()` 버튼과
@@ -85,7 +100,9 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 `AppShell`(`app-shell.tsx:26`)은 `Topbar` + `<main>` + 푸터 레이아웃. `Topbar`(`app-shell.tsx:51`)는 다음을 담당.
 
-- `useQuery<SessionUser>({ queryKey: qk.me(), retry: false })` (`app-shell.tsx:54-58`) — 401 발생 시 로그인이 아닌 경로에서 `/login`으로 redirect (`:60-71`)
+- `useQuery<SessionUser>({ queryKey: qk.me(), retry: false, throwOnError: false })` (`app-shell.tsx:54-70`)
+  — 던지지 않는다. Topbar 는 랜딩도 쓰므로, API 가 죽었을 때 여기서 던지면 처음 온
+  비로그인 방문자에게 히어로 대신 오류 화면이 뜬다
 - 로그아웃은 `POST /logout` 후 `queryClient.setQueryData(qk.me(), null)`로 캐시 무효화 (`lib/nav.ts:69`)
 - Avatar 드롭다운으로 설정·로그아웃 메뉴 노출
 

@@ -1,6 +1,6 @@
 'use client';
 import { Ruler, Palette } from 'lucide-react';
-import { api, ApiError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { ApiPaths, type PageDTO } from '@comicai/types';
 import { PageSizeSelect } from './page-size-select';
 import { SectionLabel } from './section-label';

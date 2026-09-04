@@ -20,6 +20,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { api } from '@/lib/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '@/lib/query-keys';
 import { ApiPaths, pageLabel, type PageDTO } from '@comicai/types';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
@@ -37,20 +39,34 @@ interface Props {
 }
 
 export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse }: Props) {
-  const [pages, setPages] = useState<PageDTO[] | null>(null);
   const [adding, setAdding] = useState(false);
   const toast = useToast();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    api<PageDTO[]>(ApiPaths.projectPages(projectId))
-      .then(setPages)
-      .catch(() => setPages([]));
-  }, [projectId]);
+  /*
+   * 프로젝트 상세 화면과 **같은 캐시**를 본다. 예전에는 두 화면이 각자 로드해서,
+   * 사이드바에서 페이지를 추가해도 상세 화면은 몰랐다.
+   *
+   * 그리고 예전 `.catch(() => setPages([]))` 는 실패를 **"페이지가 없다" 로 명시적으로
+   * 번역**하고 있었다 — 조회가 죽으면 사이드바가 빈 목록을 보여 주고, 사용자는 자기
+   * 페이지가 사라진 줄 안다. 지금은 실패가 오류 경계로 간다.
+   */
+  const { data: pages } = useQuery<PageDTO[]>({
+    queryKey: qk.projectPages(projectId),
+    queryFn: () => api<PageDTO[]>(ApiPaths.projectPages(projectId)),
+    enabled: !!projectId,
+  });
+
+  function setPages(next: PageDTO[] | ((prev: PageDTO[]) => PageDTO[])) {
+    queryClient.setQueryData<PageDTO[]>(qk.projectPages(projectId), (prev) =>
+      typeof next === 'function' ? next(prev ?? []) : next,
+    );
+  }
 
   // 에디터에서 현재 페이지가 PATCH되면(size/name 변경) 리스트에도 반영.
   useEffect(() => {
     if (!currentPage) return;
-    setPages((prev) => prev?.map((p) => (p.id === currentPage.id ? currentPage : p)) ?? prev);
+    setPages((prev) => prev.map((p) => (p.id === currentPage.id ? currentPage : p)));
   }, [currentPage]);
 
   async function addPage() {
@@ -129,8 +145,21 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
         </div>
       </div>
       <ul className="flex-1 overflow-auto p-1">
-        {pages === null && <li className="text-caption text-muted-foreground">불러오는 중…</li>}
-        {pages && pages.length > 0 && (
+        {/* 세 상태는 서로 배타적이다. 삼항으로 쓰면 배타성을 손으로 지킬 필요가 없다. */}
+        {!pages ? (
+          <li className="text-caption text-muted-foreground">불러오는 중…</li>
+        ) : pages.length === 0 ? (
+          <li>
+            <button
+              onClick={addPage}
+              disabled={adding}
+              className="mt-1 flex w-full items-center justify-center gap-1 rounded border border-dashed border-border px-2 py-3 text-caption text-muted-foreground hover:border-foreground hover:text-foreground disabled:opacity-50"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>{adding ? '추가 중…' : '첫 페이지 만들기'}</span>
+            </button>
+          </li>
+        ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={pages.map((p) => p.id)} strategy={verticalListSortingStrategy}>
               {pages.map((p) => (
@@ -144,18 +173,6 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
               ))}
             </SortableContext>
           </DndContext>
-        )}
-        {pages?.length === 0 && (
-          <li>
-            <button
-              onClick={addPage}
-              disabled={adding}
-              className="mt-1 flex w-full items-center justify-center gap-1 rounded border border-dashed border-border px-2 py-3 text-caption text-muted-foreground hover:border-foreground hover:text-foreground disabled:opacity-50"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>{adding ? '추가 중…' : '첫 페이지 만들기'}</span>
-            </button>
-          </li>
         )}
       </ul>
     </aside>

@@ -2,10 +2,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { LogIn, UserPlus } from 'lucide-react';
-import { api, ApiError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { ApiPaths, type SessionUser } from '@comicai/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -51,7 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 export function Topbar({ authed = false }: { authed?: boolean }) {
   const path = usePathname();
   const logout = useLogout();
-  const { data: me, error } = useQuery<SessionUser>({
+  const { data: me } = useQuery<SessionUser>({
     queryKey: qk.me(),
     queryFn: () => api<SessionUser>(ApiPaths.me),
     retry: false,
@@ -62,24 +61,11 @@ export function Topbar({ authed = false }: { authed?: boolean }) {
      * 처음 온 비로그인 방문자에게 히어로·가입 버튼 대신 오류 화면이 뜬다 —
      * 로그인할 수도 없는 사람에게 "내 프로젝트로" 버튼만 남는 막다른 길이다.
      *
-     * 401 은 아래 useEffect 가 /login 으로 보내는 자기 복구 경로가 있고,
+     * 401 은 `lib/api.ts` 가 /login 으로 보내는 자기 복구 경로가 있고,
      * 그 밖의 실패는 아바타 자리가 비는 정도로 끝나는 게 맞다.
      */
     throwOnError: false,
   });
-
-  useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) {
-      if (
-        typeof window !== 'undefined' &&
-        !window.location.pathname.startsWith('/login') &&
-        !window.location.pathname.startsWith('/signup') &&
-        window.location.pathname !== '/'
-      ) {
-        window.location.href = '/login';
-      }
-    }
-  }, [error]);
 
   const initials = (me?.displayName ?? me?.email ?? '··').slice(0, 2).toUpperCase();
 

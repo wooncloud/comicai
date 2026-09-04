@@ -66,7 +66,16 @@ export function useLogout() {
     try {
       await api(ApiPaths.logout, { method: 'POST' });
     } finally {
-      queryClient.setQueryData(qk.me(), null);
+      /*
+       * 캐시를 **비운다**. 갱신이 아니라 제거여야 한다.
+       *
+       * `setQueryData(qk.me(), null)` 은 "로그아웃 시각에 신선하게 저장된 null" 을
+       * 남긴다. staleTime 30초 + refetchOnWindowFocus:false 라 그 30초 안에 다른
+       * 사람이 로그인하면 재조회가 일어나지 않아, 로그인했는데 상단바에 로그인/가입
+       * 버튼이 그대로 남았다. `qk.projects()` 도 지워지지 않아 대시보드에 **이전
+       * 사용자의 프로젝트 이름**이 먼저 그려졌다.
+       */
+      queryClient.clear();
       router.push('/');
     }
   };

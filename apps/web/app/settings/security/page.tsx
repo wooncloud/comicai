@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { api, API_BASE, ApiError } from '@/lib/api';
+import { api, API_BASE } from '@/lib/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { qk } from '@/lib/query-keys';
 import {
   ApiPaths,
   PASSWORD_MIN_LENGTH,
@@ -15,21 +17,32 @@ import { errorMessage } from '@/lib/error-message';
 import { PROVIDERS, useOAuthProviders } from '@/components/oauth-buttons';
 
 export default function SecurityPage() {
-  const [me, setMe] = useState<SessionUser | null>(null);
-  const [sessions, setSessions] = useState<SessionInfo[] | null>(null);
+  const queryClient = useQueryClient();
+
+  /*
+   * 예전에는 `useState` + `refresh().catch(() => {})` 였다. 조회가 하나라도 실패하면
+   * 오류가 **삼켜지고** 두 값이 null 로 남아, 네 섹션이 전부 `return null` 로 아무것도
+   * 그리지 않았다 — 사용자는 설정 탭만 있고 본문이 텅 빈 화면을 보고 "계정에 아무것도
+   * 없다" 로 읽는다. 로딩 표시도 오류 문구도 재시도 수단도 없었다.
+   *
+   * `me` 는 상단바와 같은 캐시(`qk.me()`)를 쓴다. 프로필에서 이름을 바꾸면 여기도
+   * 함께 최신이 된다 — 예전에는 이 화면만 동기화에서 빠져 옛 값을 계속 보여 줬다.
+   */
+  const { data: me } = useQuery<SessionUser>({
+    queryKey: qk.me(),
+    queryFn: () => api<SessionUser>(ApiPaths.me),
+  });
+  const { data: sessions } = useQuery<SessionInfo[]>({
+    queryKey: qk.meSessions(),
+    queryFn: () => api<SessionInfo[]>(ApiPaths.meSessions),
+  });
 
   async function refresh() {
-    const [u, list] = await Promise.all([
-      api<SessionUser>(ApiPaths.me),
-      api<SessionInfo[]>(ApiPaths.meSessions),
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.me() }),
+      queryClient.invalidateQueries({ queryKey: qk.meSessions() }),
     ]);
-    setMe(u);
-    setSessions(list);
   }
-
-  useEffect(() => {
-    refresh().catch(() => {});
-  }, []);
 
   return (
     <div className="space-y-12">
@@ -41,7 +54,7 @@ export default function SecurityPage() {
   );
 }
 
-function EmailVerificationSection({ me }: { me: SessionUser | null }) {
+function EmailVerificationSection({ me }: { me: SessionUser | undefined }) {
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
   const toast = useToast();
@@ -73,7 +86,13 @@ function EmailVerificationSection({ me }: { me: SessionUser | null }) {
   );
 }
 
-function PasswordSection({ me, onChanged }: { me: SessionUser | null; onChanged: () => void }) {
+function PasswordSection({
+  me,
+  onChanged,
+}: {
+  me: SessionUser | undefined;
+  onChanged: () => void;
+}) {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [pending, setPending] = useState(false);
@@ -129,7 +148,7 @@ function PasswordSection({ me, onChanged }: { me: SessionUser | null; onChanged:
   );
 }
 
-function OAuthSection({ me }: { me: SessionUser | null }) {
+function OAuthSection({ me }: { me: SessionUser | undefined }) {
   /*
    * 로그인 화면과 같은 목록을 본다. 예전에는 지원 가능한 제공자를 전부 그려서,
    * 꺼져 있는 제공자의 "연결" 버튼이 API 도메인의 JSON 에러 화면으로 떨어졌다.
@@ -176,7 +195,7 @@ function SessionsSection({
   sessions,
   onChanged,
 }: {
-  sessions: SessionInfo[] | null;
+  sessions: SessionInfo[] | undefined;
   onChanged: () => void;
 }) {
   const toast = useToast();

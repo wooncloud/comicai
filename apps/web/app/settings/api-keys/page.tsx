@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { notFound } from 'next/navigation';
-import { api, ApiError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { ApiPaths, type ApiKeySummary, type ModelProvider } from '@comicai/types';
 import { ApiKeyList } from '@/components/api-key-list';
 import { ApiKeyForm } from '@/components/api-key-form';
@@ -15,7 +14,6 @@ export default function ApiKeysSettingsPage() {
   // (서버 API 는 별도로 404 를 던지므로, 여기가 뚫려도 데이터는 나가지 않는다.)
   if (!FEATURES.apiKeys) notFound();
 
-  const router = useRouter();
   const [keys, setKeys] = useState<ApiKeySummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
@@ -25,10 +23,7 @@ export default function ApiKeysSettingsPage() {
       const list = await api<ApiKeySummary[]>(ApiPaths.apiKeys);
       setKeys(list);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        router.replace('/login');
-        return;
-      }
+      // 401 리다이렉트는 lib/api.ts 가 한다 — 화면마다 손으로 적을 일이 아니다.
       setError(errorMessage(err, 'API 키 목록을 조회'));
     }
   }

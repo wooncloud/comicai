@@ -364,7 +364,7 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
   비교하므로, **대소문자만 바꿔 가입하면 그대로 운영자가 됐다.** 앱 쪽에서도
   `EmailSchema`(`packages/types/src/schemas.ts:32`)가 정규화하지만, 앱을 우회하는 경로가
   생겨도 안전해야 하므로 DB 에서 한 번 더 막는다.
-- `/me` 응답의 `isAdmin`(`me/me.controller.ts:86`)은 **화면을 숨기는 용도일 뿐**이다.
+- `/me` 응답의 `isAdmin`(`me/me.controller.ts:89`)은 **화면을 숨기는 용도일 뿐**이다.
   클라이언트 판정은 우회할 수 있으므로 실제 차단은 위 가드가 한다.
 - 사용자 목록에 비밀번호 해시·API 키·아바타 저장 키는 넣지 않는다. 운영 화면에서 볼 이유가
   없고, 한 번 응답에 실리면 브라우저 캐시·로그·스크린샷을 타고 퍼진다.
