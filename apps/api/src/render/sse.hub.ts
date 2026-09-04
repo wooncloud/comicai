@@ -1,13 +1,16 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import type { Response } from 'express';
 import Redis from 'ioredis';
+import { isFlagOn, TERMINAL_RENDER_STATUSES } from '@comicai/types';
 import {
   decodePubSubEnvelope,
   encodePubSubEnvelope,
   formatSseEvent,
   type RenderSseEvent,
 } from '@comicai/events';
+import { redisUrl } from '../common/env';
 
 interface BufferedEvent {
   seq: number;
@@ -16,7 +19,7 @@ interface BufferedEvent {
 
 const BUFFER_LIMIT = 64;
 const TERMINAL_RETENTION_MS = 5 * 60_000;
-const TERMINAL_STATUSES = new Set(['succeeded', 'failed', 'timeout', 'canceled']);
+const TERMINAL_STATUSES = new Set<string>(TERMINAL_RENDER_STATUSES);
 const CHANNEL_PREFIX = 'render:events:';
 const CHANNEL_PATTERN = CHANNEL_PREFIX + '*';
 
@@ -43,10 +46,14 @@ export class SseHub implements OnModuleInit, OnModuleDestroy {
   private publisher?: Redis;
   private subscriber?: Redis;
 
+  constructor(private readonly config: ConfigService) {}
+
   async onModuleInit(): Promise<void> {
-    if (process.env.SSE_HUB_DISABLED === '1') return;
-    const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
-    const isApiOnly = process.env.RENDER_WORKER_DISABLED === '1';
+    // 예전에는 이 파일만 `process.env` 를 직접 읽었다 — 그러면 SSE 만 다른 Redis 를 볼 수
+    // 있고, 증상은 "워커 이벤트가 브라우저에 안 간다" 로 나타난다(common/env.ts 참고).
+    if (isFlagOn(process.env.SSE_HUB_DISABLED)) return;
+    const url = redisUrl(this.config);
+    const isApiOnly = isFlagOn(process.env.RENDER_WORKER_DISABLED);
 
     if (isApiOnly) {
       this.subscriber = new Redis(url, { lazyConnect: false, maxRetriesPerRequest: null });
@@ -73,7 +80,25 @@ export class SseHub implements OnModuleInit, OnModuleDestroy {
     await this.publisher?.quit();
   }
 
-  subscribe(jobId: string, res: Response, lastEventId?: string) {
+  /**
+   * @param snapshot 재생할 버퍼가 없을 때 대신 흘려보낼 현재 상태.
+   *
+   * Redis pub/sub 은 fire-and-forget 이라, api 프로세스가 죽어 있는 사이 워커가 발행한
+   * `succeeded` 는 **아무도 받지 못하고 사라진다.** 브라우저 EventSource 는 재연결하지만
+   * 새 프로세스의 버퍼는 비어 있어 재생할 것이 없다. 그러면 그림은 정상 생성됐는데
+   * 화면만 영원히 '생성 중…' 이다(프런트에 폴링도 없다).
+   *
+   * 컨트롤러는 권한 확인을 위해 이미 DB 에서 잡을 읽는다 — **알면서 버리던 그 값**을
+   * 여기로 넘겨 첫 프레임으로 쓴다.
+   *
+   * 재생할 것이 있으면 보내지 않는다. 이 프로세스가 그 잡을 지켜본 적이 있다는 뜻이고,
+   * 그때는 버퍼가 DB 보다 최신일 수 있다 — 둘을 섞으면 succeeded 뒤에 running 이
+   * 도착하는 순서 뒤집힘이 생긴다.
+   *
+   * `id:` 를 붙이지 않는 이유: 스냅샷은 스트림의 새 위치가 아니다. 붙이면 브라우저의
+   * Last-Event-ID 가 밀려 다음 재연결에서 진짜 이벤트를 건너뛴다.
+   */
+  subscribe(jobId: string, res: Response, lastEventId?: string, snapshot: RenderSseEvent[] = []) {
     let set = this.subs.get(jobId);
     if (!set) {
       set = new Set();
@@ -81,10 +106,15 @@ export class SseHub implements OnModuleInit, OnModuleDestroy {
     }
     set.add(res);
     const since = parseLastEventId(lastEventId);
+    let replayed = 0;
     for (const buffered of this.buffers.get(jobId) ?? []) {
       if (buffered.seq > since) {
         res.write(formatSseEvent(buffered.evt, buffered.seq));
+        replayed++;
       }
+    }
+    if (replayed === 0) {
+      for (const evt of snapshot) res.write(formatSseEvent(evt));
     }
     res.on('close', () => {
       set.delete(res);

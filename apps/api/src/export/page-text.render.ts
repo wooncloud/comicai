@@ -1,5 +1,5 @@
 import { defaultPageTextStyle, type PageTextStyle } from '@comicai/types';
-import { escapeAttr, escapeText } from './svg-escape';
+import { escapeAttr, escapeText, safeColor, svgLayer } from './svg';
 
 interface PageTextInput {
   x: number;
@@ -20,17 +20,14 @@ export function renderPageTextLayer(
   pageW: number,
   pageH: number,
 ): Buffer | null {
-  if (texts.length === 0) return null;
-  const fragments = texts.map(buildTextFragment).filter(Boolean).join('\n');
-  if (!fragments) return null;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${pageW}" height="${pageH}" viewBox="0 0 ${pageW} ${pageH}">${fragments}</svg>`;
-  return Buffer.from(svg, 'utf8');
+  return svgLayer(texts, buildTextFragment, pageW, pageH);
 }
 
 function buildTextFragment(t: PageTextInput): string {
   const text = (t.text ?? '').trim();
   if (!text) return '';
-  const style = { ...defaultPageTextStyle(), ...t.style };
+  const defaults = defaultPageTextStyle();
+  const style = { ...defaults, ...t.style };
   const W = Math.max(1, Math.round(t.w));
   const x = Math.round(t.x);
   const y = Math.round(t.y);
@@ -44,5 +41,5 @@ function buildTextFragment(t: PageTextInput): string {
   const tspans = lines
     .map((l, i) => `<tspan x="${cx}" y="${startY + i * lh}">${escapeText(l)}</tspan>`)
     .join('');
-  return `<g transform="translate(${x} ${y})"><text font-family="${escapeAttr(style.fontFamily)}" font-size="${style.fontSize}" fill="${escapeAttr(style.color)}" text-anchor="${anchor}" dominant-baseline="alphabetic">${tspans}</text></g>`;
+  return `<g transform="translate(${x} ${y})"><text font-family="${escapeAttr(style.fontFamily)}" font-size="${style.fontSize}" fill="${safeColor(style.color, defaults.color)}" text-anchor="${anchor}" dominant-baseline="alphabetic">${tspans}</text></g>`;
 }

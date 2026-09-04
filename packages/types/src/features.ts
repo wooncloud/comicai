@@ -14,6 +14,17 @@ export function isFlagOn(raw: string | undefined | null): boolean {
 }
 
 /**
+ * 기본이 **켜짐**인 플래그. 값이 없으면 켜짐이고, 명시적으로 껐을 때만 꺼진다.
+ *
+ * `isFlagOn` 을 그대로 쓰면 미설정이 꺼짐이 되어 기본값이 뒤집힌다. 그래서 이런 플래그는
+ * 호출부마다 `!== '0'` 같은 식으로 손으로 읽고 있었는데, 그러면 `'false'`·`'off'` 가
+ * **켜짐으로 읽힌다** — 끄려던 사람이 못 끈다.
+ */
+export function isFlagOnByDefault(raw: string | undefined | null): boolean {
+  return raw == null || raw.trim() === '' ? true : isFlagOn(raw);
+}
+
+/**
  * 관리자 이메일 허용 목록을 파싱한다.
  *
  * 값은 반드시 환경변수(`ADMIN_EMAILS`)로만 받는다 — 저장소가 공개라서 코드에 적으면

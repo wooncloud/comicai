@@ -4,6 +4,7 @@ import Redis from 'ioredis';
 import { prisma } from '@comicai/db';
 import { MODEL_PROVIDER, type ModelId, type ModelProvider } from '@comicai/types';
 import { open } from '../api-keys/crypto';
+import { redisUrl } from '../common/env';
 
 /** 그림 생성에 쓸 자격 증명. `id` 는 사용자 키일 때만 있다(차단기 기록용). */
 export interface ModelCredential {
@@ -52,7 +53,7 @@ export class ModelCredentials implements OnModuleDestroy {
   private readonly redis: Redis;
 
   constructor(config: ConfigService) {
-    this.redis = new Redis(config.get<string>('REDIS_URL') ?? 'redis://localhost:6379');
+    this.redis = new Redis(redisUrl(config));
   }
 
   async onModuleDestroy() {

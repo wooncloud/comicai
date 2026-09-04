@@ -11,10 +11,10 @@ import {
   type SpeechBubbleShape,
   type SpeechBubbleStyle,
   type SpeechBubbleVariant,
+  shapeBoundingBox,
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { StorageService } from '../storage/storage.service';
-import { shapeBoundingBox } from '../common/bbox';
 import { buildPanelMaskSvg, buildPanelStrokeSvg } from './panel-mask';
 import { renderSpeechBubbleLayer } from './speech-bubble.render';
 import { renderPageTextLayer } from './page-text.render';

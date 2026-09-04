@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { urlSafeToken } from '../common/tokens';
+import { redisUrl } from '../common/env';
 
 const SESSION_TTL_SECONDS = 14 * 24 * 60 * 60; // 14일
 /**
@@ -35,7 +36,7 @@ export class SessionService implements OnModuleDestroy {
   private readonly redis: Redis;
 
   constructor(config: ConfigService) {
-    this.redis = new Redis(config.get<string>('REDIS_URL') ?? 'redis://localhost:6379');
+    this.redis = new Redis(redisUrl(config));
   }
 
   async onModuleDestroy() {

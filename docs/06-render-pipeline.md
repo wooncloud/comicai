@@ -136,9 +136,23 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
   - API 프로세스(`RENDER_WORKER_DISABLED=1`): **subscriber만** psubscribe.
   - Worker(또는 단일 프로세스): **publisher만**.
   - `originId`로 자기 echo 차단 (`:58`).
-- `subscribe(jobId, res, lastEventId)` (`:76`):
-  - 컨트롤러에서 `Last-Event-ID` 헤더를 읽어 (`render.controller.ts:55-57`) 버퍼에 남아있는
-    이벤트 중 seq > lastEventId인 것만 재전송 (`sse.hub.ts:83-88`).
+- `subscribe(jobId, res, lastEventId, snapshot)` (`:94`):
+  - 컨트롤러에서 `Last-Event-ID` 헤더를 읽어 (`render.controller.ts:57-58`) 버퍼에 남아있는
+    이벤트 중 seq > lastEventId인 것만 재전송.
+  - **재생할 것이 하나도 없으면 현재 상태를 한 번 써 보낸다** (`sse.hub.ts:109`).
+    Redis pub/sub 은 fire-and-forget 이라, api 프로세스가 죽어 있는 사이 워커가 발행한
+    `succeeded` 는 아무도 받지 못하고 사라진다. 브라우저 EventSource 는 재연결하지만 새
+    프로세스의 버퍼는 비어 있어 재생할 것이 없다 — 그림은 정상 생성됐는데 화면만 영원히
+    '생성 중…' 이었다(프런트에 폴링도 없다). 컨트롤러는 권한 확인을 위해 이미 DB 에서 잡을
+    읽으면서 **그 값을 버리고 있었다** (`render.controller.ts:52`, `snapshotEvents` `:72`).
+  - 재생할 것이 있으면 스냅샷을 보내지 않는다. 이 프로세스가 그 잡을 지켜본 적이 있다는
+    뜻이고, 그때는 버퍼가 DB 보다 최신일 수 있다 — 둘을 섞으면 `succeeded` 뒤에 `running`
+    이 도착하는 순서 뒤집힘이 생긴다.
+  - 스냅샷에는 `id:` 를 붙이지 않는다. 스트림의 새 위치가 아니므로, 붙이면 브라우저의
+    Last-Event-ID 가 밀려 다음 재연결에서 진짜 이벤트를 건너뛴다.
+  - 실패한 잡은 `error` 를 먼저, 그다음 `status` 를 보낸다 — 워커의 발행 순서와 같다.
+    `status` 만 보내면 "실패" 토스트는 뜨는데 사유 배너가 빈다.
+  - 규칙은 `sse.hub.spec.ts` 가 고정한다.
 - `publish(jobId, evt)` (`:95`): 즉시 in-memory `deliver` + (publisher 있으면) Redis pub.
 - `ping(jobId)` (`:104`): local-only heartbeat. 컨트롤러가 30초마다 발사 (`render.controller.ts:58`).
 - 종결 상태(`succeeded|failed|timeout|canceled`)는 5분 후 버퍼 자동 정리 (`:18-19, 120-135`).
@@ -295,8 +309,8 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
   `succeeded` 행을 통과시키면 모델을 한 번 더 호출·과금한 뒤 결과를 덮어쓴다. 그 창을 좁히기 위해
   worker 컨테이너에 `stop_grace_period: 90s` 를 준다 (`infra/compose/full.yml:172`).
 - 외부 AbortController는 `MODEL_CALL_TIMEOUT_MS`(60s) 만료에만 트리거된다 (`render.worker.ts:124-125`).
-- SSE 측은 컨트롤러가 명시적으로 `canceled` 이벤트를 보내지는 않는다 — UI는 다음번 `getJob` 폴링/페이지
-  복귀 시 `canceled` 상태를 관찰하거나, worker가 종료 시 publish하는 status 이벤트로 알게 된다.
+- SSE 측은 컨트롤러가 취소 시점에 `canceled` 이벤트를 발행하지는 않는다. 다만 **재연결하면
+  스냅샷으로 현재 상태가 온다**(위 §2.4) — 취소된 잡도 그때 `canceled` 로 관찰된다.
 
 UI에서 취소 버튼은 현재 panel-inspector에 노출되어 있지 않다 (mutation 없음).
 경로 헬퍼 `ApiPaths.renderJobCancel`는 정의되어 있으나(`packages/types/src/paths.ts:42`)
@@ -356,8 +370,8 @@ interface RenderError {
 
 ### 6.4 컨트롤러 단의 동기 에러
 
-- `RENDER_INVALID_INPUT` (`render.service.ts:41`) — 본문/콘티/참조 비어있음. HTTP 400.
-- `RENDER_ENQUEUE_FAILED` (`render.service.ts:139`) — BullMQ enqueue 실패. HTTP 503.
+- `RENDER_INVALID_INPUT` (`render.service.ts:50`) — 본문/콘티/참조 비어있음. HTTP 400.
+- `RENDER_ENQUEUE_FAILED` (`render.service.ts:146`) — BullMQ enqueue 실패. HTTP 503.
   행은 `failed`(category `transient`)로 마감된 뒤라 좀비가 남지 않는다.
 - `RESOURCE_NOT_FOUND` (`render.service.ts:150, 175; panels.service.ts:243`).
 - `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:178`),

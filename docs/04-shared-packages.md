@@ -29,11 +29,14 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 ### 모델/렌더 enum
 
 - `ModelProvider = 'gemini' | 'openai' | 'mock'` (`src/index.ts:9`).
-- `ModelId = 'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock'` (`src/index.ts:10`).
+- `ModelId = 'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock'`. **값 목록은
+  `MODEL_IDS` (`src/schemas.ts:92`) 하나뿐이고** `index.ts:22` 는 거기서 타입만 파생시킨다.
+  예전에는 같은 문자열이 세 곳(이 유니온, `RenderModelSchema`, `ProjectPatchSchema.defaultModel`)
+  에 적혀 있어서, 하나만 늘리면 나머지가 조용히 거부했다.
 - `RENDER_STATUSES = ['queued','running','succeeded','failed','timeout','canceled']` (`src/index.ts:26-33`).
 - `IN_PROGRESS_RENDER_STATUSES`, `TERMINAL_RENDER_STATUSES`, `isInProgressRender()` 헬퍼 (`src/index.ts:35-40`).
-- `PANEL_SHAPE_TYPES = ['rect','rounded','oval','diamond','parallelogram','polygon']` (`src/index.ts:108-116`). 인스펙터 picker용 `PANEL_SHAPE_PRESETS`는 polygon 제외(`src/index.ts:119-120`).
-- `SPEECH_BUBBLE_VARIANTS = ['ellipse','rect','spike','polygon']` (`src/index.ts:153`). cloud/thought 는 2026-05-19 migration에서 제거되어 ellipse 로 일괄 변환됨.
+- `PANEL_SHAPE_TYPES = ['rect','rounded','oval','diamond','parallelogram','polygon']` (`src/schemas.ts:196`). 인스펙터 picker용 `PANEL_SHAPE_PRESETS`는 polygon 제외이며 `satisfies readonly PanelShapeType[]` 로 부분집합임이 강제된다(`src/index.ts:140`).
+- `SPEECH_BUBBLE_VARIANTS = ['ellipse','rect','spike','polygon']` (`src/schemas.ts:239`). cloud/thought 는 2026-05-19 migration에서 제거되어 ellipse 로 일괄 변환됨.
 - `PAGE_TEXT_FONT_FAMILIES = ['sans-serif','serif','monospace']` (`src/schemas.ts:274`) — 캔버스(CSS)와
   export(SVG) 양쪽에서 실제로 해석되는 것만. `index.ts` 는 여기서 타입만 파생시킨다
   (`PageTextFontFamily`, `src/index.ts:203`). 값을 양쪽에 두면 지역 선언이 `export *` 를 가려
@@ -41,7 +44,7 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/schemas.ts:310`). PageLine 의 선 종류.
   폰트와 같은 이유로 값은 `schemas.ts` 에만 있고, `index.ts:246` 은 타입만 파생시킨다.
 - `RenderErrorCategory = 'transient'|'auth'|'quota'|'safety'|'invalid'|'timeout'` (`src/index.ts:396`).
-- `EntityType = 'style'|'character'|'background'|'worldview'` (`src/index.ts:85`).
+- `EntityType = 'style'|'character'|'background'|'worldview'` — 값은 `ENTITY_TYPES` (`src/schemas.ts:366`), 타입은 `src/index.ts:114`. `packages/db` 의 `entityIdPrefix` 도 이걸 받아서, 타입이 늘면 그 switch 가 컴파일 에러로 걸린다.
 - `OAUTH_PROVIDERS = ['google','github']` (`src/index.ts:23`).
 - `TEXT_ALIGNS = ['left','center','right']` (`src/schemas.ts:4`) — PageText/말풍선 인스펙터 공용 정렬 enum.
 
@@ -126,14 +129,14 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - 렌더: `RenderModelSchema`(ModelId enum과 동일), `RenderStartSchema` (`src/schemas.ts:160-165`).
 - 내보내기: `ExportFormatSchema = 'png'|'jpg'`, `ExportRequestSchema`(dpi 72~600, 기본 150) (`src/schemas.ts:168-173`).
 - 패널: `PanelShapeSchema` — points 3~64개, 좌표는 ±`MAX_PANEL_COORD`(=페이지 상한×2) 범위, strokeColor 기본 `#000000`, strokeWidth 기본 2 (`src/schemas.ts:163-197`).
-- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림 — strokeWidth/Color/fillColor 만), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts:215-258`).
+- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림 — strokeWidth/Color/fillColor 만), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts:215-279`).
 - **입력 타입은 스키마에서 파생시킨다** — `SpeechBubbleCreateInput`/`PatchInput`,
   `PageTextCreateInput`/`PatchInput`, `PageLineCreateInput`/`PatchInput` (`z.infer`).
   예전에는 세 서비스가 같은 모양을 손으로 다시 선언했다(모듈마다 두 개씩, 총 6개).
   스키마를 고쳐도 그 선언은 따라오지 않으므로 검증기가 받는 것과 서비스가 기대하는 것이
   조용히 갈라질 수 있었다.
-- 페이지 텍스트: `PAGE_TEXT_FONT_FAMILIES`, `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`src/schemas.ts:260-306`).
-- 페이지 직선: `PAGE_LINE_STROKE_STYLES`, `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`src/schemas.ts:308-340`).
+- 페이지 텍스트: `PAGE_TEXT_FONT_FAMILIES`, `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`src/schemas.ts:260-327`).
+- 페이지 직선: `PAGE_LINE_STROKE_STYLES`, `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`src/schemas.ts:308-361`).
 - 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`(`prompt+model`), `ConsistencyAttachSchema`(`storageKey`) (`src/schemas.ts:313-332`).
 
 ### Panel path 헬퍼 (panel-path.ts)
@@ -304,22 +307,37 @@ availableModels(): ModelId[]
 `selectReferences(ir, maxImages)` — 어댑터 상한에 맞춰 우선순위 잘림:
 `style > character > background > contiSketch > userImages`.
 
+상한 `MAX_REF_IMAGES = 16` 도 여기 있다 (`src/priority.ts:11`). 예전에는 어댑터마다 각각
+있었고 `openai.ts` 주석이 _"Gemini 와 동일하게 16 으로 통일"_ 이라고 적혀 있었다 — 손으로
+맞춰야 한다는 자백이다. 두 어댑터가 같은 값을 쓰므로 `selectReferences` 의 두 번째 인자는
+기본값이 됐다.
+
+### 공통 HTTP 에러 (`src/http-error.ts`)
+
+`ModelHttpError` (`:12`) 와 `classifyModelHttpError` (`:40`) 를 두 어댑터가 공유한다.
+예전에는 에러 클래스가 9줄씩 완전히 같은 채로 두 벌, `classifyError` 도 AbortError→timeout,
+401/403→auth, 429→quota, ≥500→transient, 400→invalid **순서까지** 같은 채로 두 벌이었다.
+새 어댑터를 붙이면 3벌째가 되는 자리다.
+
+**프로바이더마다 다른 것은 안전성 판정 하나뿐**이라 그것만 `isSafety` 훅으로 받는다.
+`status` 는 실제 HTTP 상태만이 아니다 — HTTP 는 성공했는데 쓸 이미지가 없는 응답에 `200`,
+요청을 만들지도 못한 경우에 `0` 을 넣고, 그 둘을 `invalid` 로 분류해 재시도에서 뺀다.
+분류가 곧 재시도 정책이라 틀리면 돈이 샌다(`classify.spec.ts` 가 고정한다).
+
 ### GeminiAdapter (`src/gemini.ts`)
 
 - 모델 ID: `gemini-3.1-flash-image-preview` (`:5`).
 - Endpoint: `https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent` (`:6`).
-- `MAX_REF_IMAGES = 16` (`:7`).
 - 요청 구조: `{ url, headers: { 'x-goog-api-key': apiKey }, body: { contents: [{role:'user', parts: GeminiPart[]}], generationConfig: { responseModalities: ['IMAGE','TEXT'], imageConfig: { aspectRatio } } } }` (`:16-26`, `:57-69`).
 - 프롬프트 빌드: styles/characters/backgrounds/worldviews를 각각 `[그림체: ...]`, `[캐릭터: ...]` 등 한국어 태그 텍스트 파트로, 그 뒤 reference 이미지 파트(placeholder), 마지막에 일관성 지시 + userPrompt + seed (`:42-55`).
-- 응답: `candidates[0].content.parts[*].inlineData{mimeType,data(base64)}`에서 첫 inlineData 추출 (`:127-149`).
+- 응답: `candidates[0].content.parts[*].inlineData{mimeType,data(base64)}`에서 첫 inlineData 추출 (`:116-139`).
 - **차단은 두 자리에서 온다.** 프롬프트가 막히면 `promptFeedback.blockReason` (`:135`), **결과
   이미지**가 막히면 그 필드는 비어 있고 `candidates[0].finishReason` 에만 이유가 담긴 채 HTTP 200
-  이 온다 (`BLOCKED_FINISH_REASONS`, `:33-43`). 후자를 읽지 않으면 "이미지 없음"으로만 보여
+  이 온다 (`BLOCKED_FINISH_REASONS`, `:32-42`). 후자를 읽지 않으면 "이미지 없음"으로만 보여
   `transient` 로 분류되고, `retryLimitFor` 가 3 이라 **통과할 수 없는 요청을 세 번 호출·세 번
   과금**한 뒤 "잠시 후 다시" 를 안내하게 된다.
-- 에러 분류 (`classifyError`, `:153-177`): AbortError → `timeout`, `SAFETY:` 접두 → `safety`,
-  401/403 → `auth`, 429 → `quota`, 5xx → `transient`, 400 → `invalid`,
-  **400 미만(200 = 이미지 없는 응답, 0 = 요청 실패) → `invalid`**, ECONNRESET → `transient`.
+- 에러 분류는 공통 `classifyModelHttpError` 에 위임하고, 안전성 판정만 넘긴다
+  (`classifyError`, `:142`): `SAFETY:` 접두 → `safety`.
 
 ### OpenAIAdapter (`src/openai.ts`)
 
@@ -327,15 +345,12 @@ availableModels(): ModelId[]
 - Endpoints (`:5-6`):
   - 참조 이미지 없음 → `POST /v1/images/generations` (JSON).
   - 참조 이미지 있음 → `POST /v1/images/edits` (multipart, `image[]` 다중 첨부).
-- `MAX_REF_IMAGES = 4` (`:8`).
-- 요청 구조: `{ apiKey, prompt, size, referenceKeys[] }` (`:10-15`).
-- 프롬프트: 라인 단위 한국어 텍스트 직렬화(`그림체 X: ...`, `캐릭터 X: ...`, 등) + 패널 비율 안내 + seed + userPrompt (`:111-123`).
-- Aspect → size 매핑(`:125-132`): 정사각 `1024x1024`, 가로 `1536x1024`, 세로 `1024x1536`(gpt-image-2 허용 사이즈).
-- 응답: `{ data: [{ b64_json }] }`에서 첫 base64 추출, mimeType은 `image/png` 고정 (`:118-127`).
-- 에러 분류 (`classifyError`, `:92-116`): 400 + `content_policy` → `safety`, 그 외 400 → `invalid`,
-  401/403 → `auth`, 429 → `quota`, 5xx → `transient`. Gemini 와 같은 이유로 **400 미만(200 =
-  이미지 없는 응답) 도 `invalid`** 다 — `transient` 로 두면 소용없는 재시도를 3번 유료로 반복한다.
-- 에러 분류 (`:78-97`): AbortError → `timeout`, 401/403 → `auth`, 429 → `quota`, 5xx → `transient`, 400+`content_policy` → `safety`, 400 → `invalid`.
+- 요청 구조: `{ apiKey, prompt, size, referenceKeys[] }` (`:6-13`). 참조 상한은 Gemini 와 같은 `MAX_REF_IMAGES`.
+- 프롬프트: 라인 단위 한국어 텍스트 직렬화(`그림체 X: ...`, `캐릭터 X: ...`, 등) + 패널 비율 안내 + seed + userPrompt (`:102-124`).
+- Aspect → size 매핑(`aspectToSize`, `:126-133`): 정사각 `1024x1024`, 가로 `1536x1024`, 세로 `1024x1536`(gpt-image-2 허용 사이즈).
+- 응답: `{ data: [{ b64_json }] }`에서 첫 base64 추출, mimeType은 `image/png` 고정 (`:90-100`).
+- 에러 분류는 Gemini 와 같은 공통 함수에 위임한다 (`classifyError`, `:81`).
+  안전성 판정만 다르다: 400 본문에 `content_policy` 가 있으면 `safety`.
 
 ### MockAdapter (`src/mock.ts`)
 

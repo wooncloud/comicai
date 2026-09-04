@@ -61,7 +61,7 @@
 
 ### 2.1 세션 쿠키 (`auth/session.service.ts`)
 
-- 저장소: **Redis** (`SessionService`가 `ioredis`로 직접 연결, `REDIS_URL ?? 'redis://localhost:6379'`) — `auth/session.service.ts:38`
+- 저장소: **Redis** (`SessionService`가 `ioredis`로 직접 연결, `redisUrl(config)`) — `auth/session.service.ts:39`
 - TTL: 14일 — `auth/session.service.ts:6`
 - 키: `session:{sid}` (페이로드 JSON, EX 갱신), `user_sessions:{userId}` (sid 집합) — `auth/session.service.ts:15-16, 56-60`
 - 쿠키 이름: `comicai_sid`, `httpOnly`, `sameSite: 'lax'`, `secure`는 `COOKIE_SECURE` 또는 `NODE_ENV=production`에 의존 — `auth/session.service.ts:163-172`
@@ -378,6 +378,16 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 | ------ | ---------------------- | --------------------------------------- |
 | POST   | `/v1/pages/:id/export` | `export` — `export.controller.ts:17-20` |
 
+**SVG 조립은 `export/svg.ts` 한 곳이다.** 문서 래퍼(`<svg xmlns … viewBox>`)가 다섯 벌,
+레이어 껍데기(빈 배열→null → map → join → Buffer)가 세 벌로 흩어져 있던 것을 `svgDocument`
+(`export/svg.ts:31`)·`svgLayer` (`:39`) 로 모았다.
+
+**색은 읽는 쪽에서도 흡수한다** — `safeColor` (`export/svg.ts:21`). 예전에는 패널 외곽선만
+hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자열을 그대로 SVG 속성에 넣었다.
+새 입력은 `ColorStringSchema` 가 막지만 **그 검증이 생기기 전에 저장된 행은 거치지 않았다** —
+그러면 캔버스와 export 결과가 다르게 보이는데 어느 쪽도 오류를 내지 않는다. 폴백은 각
+도메인의 기본 스타일 값을 쓴다.
+
 각 패널의 `currentRender` 결과를 패널 shape 마스크(SVG)로 잘라 `composite` — `export/export.service.ts:113-153`. 그 위로 말풍선(`:157-166`) → 자유 텍스트(`:169-181`) → 자유 직선(`:184-195`) 레이어가 순서대로 쌓인다. `sharp`로 캔버스(페이지 size, alpha)를 만들어 전체를 합성하며 dpi는 `withMetadata({ density: dpi })`(기본 150)로 박힌다 — `:197-208`. 결과는 S3에 `exports/{userId}/{pageId}/{ulid}.{ext}` 키로 업로드 후 presign URL 반환 — `:210-218`.
 
 **캔버스 크기는 방어적으로 묶는다** — `clampDimension` (`export.service.ts:230`) 이 페이지 크기를
@@ -560,7 +570,7 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 - 버퍼 한도 64, terminal status(`succeeded|failed|timeout|canceled`)는 5분 retention 후 cleanup — `:17-19, 125-135`
 - `Last-Event-ID` 기반 시퀀스 재전송 (seq 카운터는 `counters` 맵) — `:76-93, 108-123`
 - `ping`은 항상 local-only (Redis 라운드트립 회피) — `:104-106`
-- `SSE_HUB_DISABLED === '1'`이면 Redis 연결 자체를 만들지 않음 — `:47`
+- `SSE_HUB_DISABLED` 가 켜져 있으면 Redis 연결 자체를 만들지 않음 (`isFlagOn`) — `:54`
 
 ### 5.4 IR 빌더 (`render/ir.builder.ts`)
 
@@ -577,7 +587,7 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 - AWS SDK v3 `S3Client` + `forcePathStyle: true` (MinIO 호환) — `:49`
 - 두 개의 클라이언트 보유: 내부 endpoint(`S3_ENDPOINT`)와 presign 전용(`S3_PUBLIC_ENDPOINT`) — `:28-55`. 외부(브라우저)에서 SigV4 host 검증을 통과시키기 위함.
 - 환경 변수: `S3_ENDPOINT(=http://localhost:9000)`, `S3_PUBLIC_ENDPOINT`, `S3_REGION(=us-east-1)`, `S3_BUCKET(=comicai)`, `S3_ACCESS_KEY(=minioadmin)`, `S3_SECRET_KEY(=minioadmin)` — `:41-48`
-- 부팅 시 `HeadBucketCommand` → 없으면 `CreateBucketCommand` (`STORAGE_AUTO_CREATE_BUCKET=0`이면 skip) — `:56-71`
+- 부팅 시 `HeadBucketCommand` → 없으면 `CreateBucketCommand`. `STORAGE_AUTO_CREATE_BUCKET` 은 **기본이 켜짐**인 플래그라 `isFlagOnByDefault` 로 읽는다 — `:70`
 - presign TTL: 15분 — `:23`
 - 키 스킴 (`buildKey`, `:183-202`) — **prefix 로 지울 수 있게 전부 소유 리소스로 묶는다**:
   - `projects/{projectId}/panels/{panelId}/renders/{renderJobId}.{ext}` — render 결과. 예전에는
@@ -631,22 +641,34 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 
 ## 8. 환경 변수 요약
 
-| 키                                                                                                   | 위치                                                                                                                                       | 기본/비고                            |
-| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
-| `API_PORT`                                                                                           | `main.ts:20`                                                                                                                               | `4000`                               |
-| `WEB_ORIGIN`                                                                                         | `main.ts:16`, `oauth.controller.ts:39`, `email.provider.ts:34`                                                                             | `http://localhost:3000`              |
-| `API_PUBLIC_URL`                                                                                     | `oauth.service.ts:125`                                                                                                                     | OAuth callback base                  |
-| `REDIS_URL`                                                                                          | `session.service.ts:38`, `oauth.service.ts:27`, `render.queue.ts:23`, `sse.hub.ts:48`, `api-keys.breaker.ts:23`, `model-credentials.ts:55` | `redis://localhost:6379`             |
-| `DATABASE_URL`                                                                                       | `schema.prisma:9`                                                                                                                          | Postgres                             |
-| `S3_ENDPOINT` / `S3_PUBLIC_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `storage.service.ts:43-50`                                                                                                                 | MinIO 기본값                         |
-| `STORAGE_AUTO_CREATE_BUCKET`                                                                         | `storage.service.ts:58`                                                                                                                    | `'0'`이면 자동 생성 skip             |
-| `MASTER_KEY`                                                                                         | `api-keys/crypto.ts:8-14`                                                                                                                  | base64 32B, BYOK AES-GCM 봉인 키     |
-| `COOKIE_SECURE`                                                                                      | `session.service.ts:167`                                                                                                                   | secure 쿠키 토글                     |
-| `RENDER_WORKER_DISABLED`                                                                             | `render.worker.ts:30`, `sse.hub.ts:49`                                                                                                     | `'1'`이면 API 프로세스에서 워커 분리 |
-| `RENDER_CONCURRENCY`                                                                                 | `render.worker.ts:37`                                                                                                                      | 기본 2                               |
-| `SSE_HUB_DISABLED`                                                                                   | `sse.hub.ts:47`                                                                                                                            | 테스트용                             |
-| `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET`, `GITHUB_OAUTH_CLIENT_ID`/`_SECRET`                               | `oauth.service.ts:96-99`                                                                                                                   | 둘 다 있어야 provider 활성           |
-| `LOG_LEVEL`, `NODE_ENV`                                                                              | `app.module.ts:26-33`                                                                                                                      | pino 레벨/포맷                       |
+### 읽는 규칙
+
+- **Redis 주소는 `redisUrl(config)` 한 곳에서만 읽는다** (`common/env.ts:18`). 예전에는 일곱
+  곳이 각자 읽었고 그중 `sse.hub.ts` 하나만 `ConfigService` 가 아니라 `process.env` 였다.
+  `ConfigService` 는 `ConfigModule.forRoot()` 가 `.env` 를 로드한 뒤의 값을 보는데
+  `process.env` 는 그 시점에 아직 비어 있을 수 있어, **SSE 만 다른 Redis 를 보는** 상태가
+  만들어진다 — 증상은 "워커 이벤트가 브라우저에 안 간다" 로 나타나 원인을 짚기 어렵다.
+  기본값 문자열도 일곱 벌이었다.
+- **플래그는 `isFlagOn` / `isFlagOnByDefault`** (`packages/types/src/features.ts:10`, `:23`).
+  기본이 꺼짐이면 앞의 것, 켜짐이면 뒤의 것. 손으로 `=== '1'` / `!== '0'` 을 쓰면 규칙이
+  갈리는데, 특히 `!== '0'` 은 `'false'`·`'off'` 를 켜짐으로 읽어 **끄려던 사람이 못 끈다.**
+
+| 키                                                                                                   | 위치                                                           | 기본/비고                            |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------ |
+| `API_PORT`                                                                                           | `main.ts:20`                                                   | `4000`                               |
+| `WEB_ORIGIN`                                                                                         | `main.ts:16`, `oauth.controller.ts:39`, `email.provider.ts:34` | `http://localhost:3000`              |
+| `API_PUBLIC_URL`                                                                                     | `oauth.service.ts:125`                                         | OAuth callback base                  |
+| `REDIS_URL`                                                                                          | `redisUrl()` 한 곳에서만 읽는다 — `common/env.ts:18`           | `redis://localhost:6379`             |
+| `DATABASE_URL`                                                                                       | `schema.prisma:9`                                              | Postgres                             |
+| `S3_ENDPOINT` / `S3_PUBLIC_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `storage.service.ts:43-50`                                     | MinIO 기본값                         |
+| `STORAGE_AUTO_CREATE_BUCKET`                                                                         | `storage.service.ts:70`                                        | 기본 켜짐. 끄려면 `0`/`false`        |
+| `MASTER_KEY`                                                                                         | `api-keys/crypto.ts:8-14`                                      | base64 32B, BYOK AES-GCM 봉인 키     |
+| `COOKIE_SECURE`                                                                                      | `session.service.ts:167`                                       | secure 쿠키 토글                     |
+| `RENDER_WORKER_DISABLED`                                                                             | `render.worker.ts:30`, `sse.hub.ts:49`                         | `'1'`이면 API 프로세스에서 워커 분리 |
+| `RENDER_CONCURRENCY`                                                                                 | `render.worker.ts:37`                                          | 기본 2                               |
+| `SSE_HUB_DISABLED`                                                                                   | `sse.hub.ts:54`                                                | 테스트용                             |
+| `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET`, `GITHUB_OAUTH_CLIENT_ID`/`_SECRET`                               | `oauth.service.ts:96-99`                                       | 둘 다 있어야 provider 활성           |
+| `LOG_LEVEL`, `NODE_ENV`                                                                              | `app.module.ts:26-33`                                          | pino 레벨/포맷                       |
 
 ---
 
@@ -654,6 +676,6 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 
 - `common/tokens.ts` — `urlSafeToken`, `hexToken`, `sha256Hex`
 - `common/upload.ts` — `requireUploadedFile` (multer 파일 가드)
-- `common/bbox.ts` — 패널 shape bounding box 계산
+- 패널 shape bounding box 는 `@comicai/types` 의 `shapeBoundingBox` 를 **직접** 쓴다. 예전에는 `common/bbox.ts` 가 1줄 배럴로 재수출했는데, 소비자 일부는 배럴을, 일부(`export/panel-mask.ts`)는 원본을 import 해서 같은 함수가 두 경로로 들어왔다 — 배럴을 없앴다.
 - `storage/image-validator.ts` — 업로드 이미지 MIME/사이즈/픽셀 검증 + sharp 정규화 (`MAX_UPLOAD_BYTES` export)
 - `metrics/metrics.interceptor.ts` — HTTP 메트릭 인터셉터(이미 `applyAppPipeline`을 통해 등록됨)

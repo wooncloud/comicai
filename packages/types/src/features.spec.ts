@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isAdminEmail, isFlagOn, parseAdminEmails } from './features';
+import { isFlagOnByDefault, isAdminEmail, isFlagOn, parseAdminEmails } from './features';
 
 /**
  * 관리자 판정은 틀리면 남의 운영 화면이 열리거나 내가 못 들어가는 로직이라,
@@ -79,5 +79,30 @@ describe('isAdminEmail', () => {
   it('빈 이메일은 목록이 있어도 거짓', () => {
     expect(isAdminEmail('', admins)).toBe(false);
     expect(isAdminEmail('   ', admins)).toBe(false);
+  });
+});
+
+/**
+ * 기본이 켜짐인 플래그는 호출부마다 `!== '0'` 으로 읽고 있었다. 그러면 `'false'`·`'off'`
+ * 가 켜짐으로 읽혀 **끄려던 사람이 못 끈다.** 규칙을 여기서 고정한다.
+ */
+describe('isFlagOnByDefault', () => {
+  it('미설정·빈 값은 켜짐', () => {
+    expect(isFlagOnByDefault(undefined)).toBe(true);
+    expect(isFlagOnByDefault(null)).toBe(true);
+    expect(isFlagOnByDefault('')).toBe(true);
+    expect(isFlagOnByDefault('   ')).toBe(true);
+  });
+
+  it("'1'/'true' 는 켜짐", () => {
+    expect(isFlagOnByDefault('1')).toBe(true);
+    expect(isFlagOnByDefault('true')).toBe(true);
+    expect(isFlagOnByDefault('TRUE')).toBe(true);
+  });
+
+  it('그 외 값은 꺼짐 — 0 만이 아니라 false·off 도 실제로 끈다', () => {
+    expect(isFlagOnByDefault('0')).toBe(false);
+    expect(isFlagOnByDefault('false')).toBe(false);
+    expect(isFlagOnByDefault('off')).toBe(false);
   });
 });

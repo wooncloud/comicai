@@ -1,5 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
+import type { ConfigService } from '@nestjs/config';
 import { SseHub } from './sse.hub';
+
+/**
+ * 이 스펙은 Redis 를 쓰지 않는다(`onModuleInit` 을 부르지 않는다). 허브가 `ConfigService`
+ * 를 받는 것은 Redis 주소를 한 곳에서 읽기 위해서라, 여기서는 빈 스텁이면 충분하다.
+ */
+const makeHub = () => new SseHub({ get: () => undefined } as unknown as ConfigService);
 
 function makeRes() {
   const writes: string[] = [];
@@ -18,7 +25,7 @@ function makeRes() {
 
 describe('SseHub', () => {
   it('replays all buffered events for a fresh subscriber', () => {
-    const hub = new SseHub();
+    const hub = makeHub();
     hub.publish('job_1', { type: 'status', jobId: 'job_1', status: 'queued' });
     hub.publish('job_1', { type: 'status', jobId: 'job_1', status: 'running' });
     const { writes, res } = makeRes();
@@ -29,7 +36,7 @@ describe('SseHub', () => {
   });
 
   it('skips events <= Last-Event-ID on reconnect', () => {
-    const hub = new SseHub();
+    const hub = makeHub();
     hub.publish('j', { type: 'status', jobId: 'j', status: 'queued' });
     hub.publish('j', { type: 'status', jobId: 'j', status: 'running' });
     hub.publish('j', { type: 'status', jobId: 'j', status: 'succeeded' });
@@ -41,7 +48,7 @@ describe('SseHub', () => {
   });
 
   it('drops subscriber on close', () => {
-    const hub = new SseHub();
+    const hub = makeHub();
     const { res } = makeRes();
     hub.subscribe('x', res);
     // 정상 동작: close 후 publish는 추가 write를 일으키지 않음.
@@ -51,5 +58,58 @@ describe('SseHub', () => {
     const { writes, res: res2 } = makeRes();
     hub.subscribe('x', res2);
     expect(writes).toHaveLength(1);
+  });
+});
+
+/**
+ * api 프로세스가 재시작하면 그 사이 워커가 Redis 로 발행한 이벤트는 아무도 받지 못하고
+ * 사라진다(pub/sub 은 fire-and-forget). 새 프로세스의 버퍼도 비어 있어 재생할 것이 없다.
+ * 그러면 그림은 정상 생성됐는데 화면만 영원히 '생성 중…' 이었다.
+ */
+describe('SseHub 스냅샷', () => {
+  const succeeded = {
+    type: 'status',
+    jobId: 'j',
+    status: 'succeeded',
+  } as const;
+
+  it('재생할 버퍼가 없으면 현재 상태를 한 번 보낸다', () => {
+    const hub = makeHub();
+    const { writes, res } = makeRes();
+    hub.subscribe('j', res, undefined, [succeeded]);
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toContain('"status":"succeeded"');
+  });
+
+  it('스냅샷에는 id 를 붙이지 않는다 — 붙이면 다음 재연결이 진짜 이벤트를 건너뛴다', () => {
+    const hub = makeHub();
+    const { writes, res } = makeRes();
+    hub.subscribe('j', res, undefined, [succeeded]);
+    expect(writes[0]).not.toContain('id:');
+  });
+
+  it('재생할 것이 있으면 스냅샷을 보내지 않는다 — 섞으면 순서가 뒤집힌다', () => {
+    const hub = makeHub();
+    hub.publish('j', { type: 'status', jobId: 'j', status: 'running' });
+    const { writes, res } = makeRes();
+    hub.subscribe('j', res, undefined, [succeeded]);
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toContain('"status":"running"');
+  });
+
+  it('Last-Event-ID 로 재생분이 모두 걸러지면 스냅샷이 나간다', () => {
+    const hub = makeHub();
+    hub.publish('j', { type: 'status', jobId: 'j', status: 'running' });
+    const { writes, res } = makeRes();
+    hub.subscribe('j', res, '1', [succeeded]);
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toContain('"status":"succeeded"');
+  });
+
+  it('스냅샷을 넘기지 않으면 아무것도 보내지 않는다 (기존 호출부 동작 유지)', () => {
+    const hub = makeHub();
+    const { writes, res } = makeRes();
+    hub.subscribe('j', res);
+    expect(writes).toHaveLength(0);
   });
 });

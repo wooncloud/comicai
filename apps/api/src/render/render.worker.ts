@@ -4,6 +4,8 @@ import { Worker } from 'bullmq';
 import { prisma, Prisma } from '@comicai/db';
 import { getAdapter, type AdapterContext } from '@comicai/adapters';
 import {
+  IN_PROGRESS_RENDER_STATUSES,
+  isFlagOn,
   type ImageRef,
   type ModelId,
   type RenderError,
@@ -17,6 +19,7 @@ import { classifyModelError } from './model-error';
 import { StorageService } from '../storage/storage.service';
 import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
 import { MetricsService } from '../metrics/metrics.service';
+import { redisUrl } from '../common/env';
 
 // 어댑터 호출 전체 데드라인(상위 BullMQ 재시도가 다회 시도를 통해 긴 작업을 커버).
 const MODEL_CALL_TIMEOUT_MS = 60_000;
@@ -36,8 +39,8 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    if (process.env.RENDER_WORKER_DISABLED === '1') return;
-    const url = this.config.get<string>('REDIS_URL') ?? 'redis://localhost:6379';
+    if (isFlagOn(process.env.RENDER_WORKER_DISABLED)) return;
+    const url = redisUrl(this.config);
     this.worker = new Worker<RenderJobData>(
       RENDER_QUEUE_NAME,
       (job) => this.process(job.data, job.attemptsMade),
@@ -75,7 +78,7 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
       const { count } = await prisma.renderJob.updateMany({
         // status 조건이 핵심이다. 이 핸들러는 정상 실패 경로 뒤에도 불리므로,
         // 조건 없이 쓰면 방금 기록한 분류된 에러를 'unknown' 으로 덮어쓴다.
-        where: { id: renderJobId, status: { in: ['queued', 'running'] } },
+        where: { id: renderJobId, status: { in: [...IN_PROGRESS_RENDER_STATUSES] } },
         data: {
           status: 'failed',
           error: error as unknown as Prisma.InputJsonValue,
@@ -156,7 +159,7 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
       // 'succeeded' 로 덮어쓴다. 새로고침하면 취소했다고 믿은 컷에 그림이 들어와 있다.
       // finalizeOrphan 이 이미 같은 방어를 하고 있다(:78) — 정상 경로도 같아야 한다.
       const { count } = await prisma.renderJob.updateMany({
-        where: { id: renderJobId, status: { in: ['queued', 'running'] } },
+        where: { id: renderJobId, status: { in: [...IN_PROGRESS_RENDER_STATUSES] } },
         data: {
           status: 'succeeded',
           resultImage: stored as unknown as Prisma.InputJsonValue,
@@ -208,7 +211,7 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
       const finalStatus: RenderStatus = classified.category === 'timeout' ? 'timeout' : 'failed';
       // 성공 경로와 같은 이유로 조건부다 — 취소한 잡을 실패로 되살리지 않는다.
       const { count } = await prisma.renderJob.updateMany({
-        where: { id: renderJobId, status: { in: ['queued', 'running'] } },
+        where: { id: renderJobId, status: { in: [...IN_PROGRESS_RENDER_STATUSES] } },
         data: {
           status: finalStatus,
           error: classified as unknown as Prisma.InputJsonValue,
