@@ -311,7 +311,17 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 
 ### 3.9 HealthController / MetricsController
 
-- `GET /healthz` (글로벌 prefix 제외, `@SkipThrottle`) — `health/health.controller.ts:7-11`
+- `GET /healthz` (글로벌 prefix 제외) — `health/health.controller.ts:44`. 응답은 `{ ok, at }` 뿐이다.
+  **어떤 의존성이 죽었는지는 응답이 아니라 로그로 나간다** (`:79`) — 인증 없이 열린 엔드포인트라
+  내부 구성을 알려 줄 이유가 없다. 예전에는 `@SkipThrottle()` 에 `db/redis/s3` 를 그대로 실어
+  보냈고, 파일의 주석은 정반대를 선언하고 있었다.
+- 요청마다 Postgres 쿼리 1 + Redis ping + S3 `HeadBucket` 을 돌리므로 **무제한이면 그 자체가
+  증폭 벡터다** — 초당 수백 번이면 Prisma 커넥션 풀이 헬스체크로 차서 실제 요청이 밀린다.
+  `@Throttle` 분당 60회(`:32`)에 더해 검사 결과를 `PROBE_CACHE_MS`(2초, `:16`) 동안 재사용하고
+  진행 중인 검사는 공유한다(`checkDependencies`, `:62`). 스로틀만으로는 한 창 안의 버스트가
+  남고, 2초 타임아웃은 `Promise.race` 라 **밑에서 도는 작업을 취소하지 않기** 때문이다.
+  도커 헬스체크는 5초 간격(분당 12회)이고 컨테이너 안 localhost 에서 오므로 외부 트래픽과
+  스로틀 버킷도 다르다 — 캐시가 있어도 매 헬스체크는 새 검사를 본다.
 - `GET /v1/metrics` (`@SkipThrottle` + `MetricsGuard`) — `metrics/metrics.controller.ts:14-18`
   - **`METRICS_TOKEN` Bearer 토큰이 있어야 열린다**(`metrics/metrics.guard.ts:22`).
     토큰이 설정되지 않았으면 **아무도 못 본다** — 깜빡했을 때 전체 공개가 되는 것보다
