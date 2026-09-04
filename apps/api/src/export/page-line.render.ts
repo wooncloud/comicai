@@ -1,5 +1,5 @@
 import { defaultPageLineStyle, type PageLineStyle } from '@comicai/types';
-import { escapeAttr } from './svg-escape';
+import { safeColor, svgLayer } from './svg';
 
 interface PageLineInput {
   x1: number;
@@ -18,16 +18,14 @@ export function renderPageLineLayer(
   pageW: number,
   pageH: number,
 ): Buffer | null {
-  if (lines.length === 0) return null;
-  const fragments = lines.map(buildLineFragment).filter(Boolean).join('\n');
-  if (!fragments) return null;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${pageW}" height="${pageH}" viewBox="0 0 ${pageW} ${pageH}">${fragments}</svg>`;
-  return Buffer.from(svg, 'utf8');
+  return svgLayer(lines, buildLineFragment, pageW, pageH);
 }
 
 function buildLineFragment(l: PageLineInput): string {
-  const style = { ...defaultPageLineStyle(), ...l.style };
+  const defaults = defaultPageLineStyle();
+  const style = { ...defaults, ...l.style };
   const sw = Math.max(0.5, style.strokeWidth);
   const dash = style.strokeStyle === 'dashed' ? ` stroke-dasharray="${sw * 3} ${sw * 3}"` : '';
-  return `<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${escapeAttr(style.strokeColor)}" stroke-width="${sw}" stroke-linecap="round"${dash} />`;
+  const stroke = safeColor(style.strokeColor, defaults.strokeColor);
+  return `<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${stroke}" stroke-width="${sw}" stroke-linecap="round"${dash} />`;
 }

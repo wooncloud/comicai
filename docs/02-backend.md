@@ -378,6 +378,16 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 | ------ | ---------------------- | --------------------------------------- |
 | POST   | `/v1/pages/:id/export` | `export` — `export.controller.ts:17-20` |
 
+**SVG 조립은 `export/svg.ts` 한 곳이다.** 문서 래퍼(`<svg xmlns … viewBox>`)가 다섯 벌,
+레이어 껍데기(빈 배열→null → map → join → Buffer)가 세 벌로 흩어져 있던 것을 `svgDocument`
+(`export/svg.ts:31`)·`svgLayer` (`:39`) 로 모았다.
+
+**색은 읽는 쪽에서도 흡수한다** — `safeColor` (`export/svg.ts:21`). 예전에는 패널 외곽선만
+hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자열을 그대로 SVG 속성에 넣었다.
+새 입력은 `ColorStringSchema` 가 막지만 **그 검증이 생기기 전에 저장된 행은 거치지 않았다** —
+그러면 캔버스와 export 결과가 다르게 보이는데 어느 쪽도 오류를 내지 않는다. 폴백은 각
+도메인의 기본 스타일 값을 쓴다.
+
 각 패널의 `currentRender` 결과를 패널 shape 마스크(SVG)로 잘라 `composite` — `export/export.service.ts:113-153`. 그 위로 말풍선(`:157-166`) → 자유 텍스트(`:169-181`) → 자유 직선(`:184-195`) 레이어가 순서대로 쌓인다. `sharp`로 캔버스(페이지 size, alpha)를 만들어 전체를 합성하며 dpi는 `withMetadata({ density: dpi })`(기본 150)로 박힌다 — `:197-208`. 결과는 S3에 `exports/{userId}/{pageId}/{ulid}.{ext}` 키로 업로드 후 presign URL 반환 — `:210-218`.
 
 **캔버스 크기는 방어적으로 묶는다** — `clampDimension` (`export.service.ts:230`) 이 페이지 크기를
@@ -666,6 +676,6 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 
 - `common/tokens.ts` — `urlSafeToken`, `hexToken`, `sha256Hex`
 - `common/upload.ts` — `requireUploadedFile` (multer 파일 가드)
-- `common/bbox.ts` — 패널 shape bounding box 계산
+- 패널 shape bounding box 는 `@comicai/types` 의 `shapeBoundingBox` 를 **직접** 쓴다. 예전에는 `common/bbox.ts` 가 1줄 배럴로 재수출했는데, 소비자 일부는 배럴을, 일부(`export/panel-mask.ts`)는 원본을 import 해서 같은 함수가 두 경로로 들어왔다 — 배럴을 없앴다.
 - `storage/image-validator.ts` — 업로드 이미지 MIME/사이즈/픽셀 검증 + sharp 정규화 (`MAX_UPLOAD_BYTES` export)
 - `metrics/metrics.interceptor.ts` — HTTP 메트릭 인터셉터(이미 `applyAppPipeline`을 통해 등록됨)

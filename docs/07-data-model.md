@@ -202,10 +202,10 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | panelId     | String                | no       | FK→panels (cascade, `schema.prisma:241`)    |
 | userId      | String                | no       | FK→users (cascade)                          |
 | model       | String                | no       | `RenderModelSchema` enum (`schemas.ts:160`) |
-| ir          | Json                  | no       | `RenderIR` (`index.ts:444`)                 |
+| ir          | Json                  | no       | `RenderIR` (`index.ts:467`)                 |
 | status      | String                | no       | `RENDER_STATUSES` (`index.ts:38`)           |
 | resultImage | Json (`result_image`) | yes      | `ImageRef`                                  |
-| error       | Json                  | yes      | `RenderError` (`index.ts:422`)              |
+| error       | Json                  | yes      | `RenderError` (`index.ts:445`)              |
 | attempts    | Int                   | no       | `0`                                         |
 | createdAt   | DateTime              | no       | `now()`                                     |
 | finishedAt  | DateTime              | yes      | —                                           |

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { PanelShape } from '@comicai/types';
-import { shapeBoundingBox } from './bbox';
+import { normalizePolygonPoints, shapeBoundingBox } from '@comicai/types';
 
 function rect(x: number, y: number, w: number, h: number): PanelShape {
   return {
@@ -38,5 +38,44 @@ describe('shapeBoundingBox', () => {
       strokeWidth: 1,
     };
     expect(shapeBoundingBox(polygon)).toEqual({ x: 10, y: 50, w: 110, h: 150 });
+  });
+});
+
+/**
+ * 정규화 규칙을 여기서 고정한다. 같은 변환이 서버·웹에 세 벌 있었고 **퇴화 처리가 셋 다
+ * 달랐다** — 그중 둘은 0..1 이 아닌 좌표를 만들거나 도형을 한 점으로 무너뜨렸다.
+ * 결과가 틀린 모양인데 오류는 아니라서 아무도 눈치채지 못한다.
+ */
+describe('normalizePolygonPoints', () => {
+  it('bbox 기준 0..1 로 옮긴다', () => {
+    expect(
+      normalizePolygonPoints([
+        { x: 10, y: 20 },
+        { x: 110, y: 20 },
+        { x: 110, y: 120 },
+      ]),
+    ).toEqual([
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+    ]);
+  });
+
+  it('폭이 0 이면 null — 정규화할 수 없는 입력에는 답이 없다', () => {
+    expect(
+      normalizePolygonPoints([
+        { x: 5, y: 0 },
+        { x: 5, y: 10 },
+      ]),
+    ).toBeNull();
+  });
+
+  it('높이가 0 이어도 null', () => {
+    expect(
+      normalizePolygonPoints([
+        { x: 0, y: 7 },
+        { x: 10, y: 7 },
+      ]),
+    ).toBeNull();
   });
 });

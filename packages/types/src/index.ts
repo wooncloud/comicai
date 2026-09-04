@@ -420,6 +420,26 @@ export function pointsBoundingBox(points: { x: number; y: number }[]): BoundingB
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
+/**
+ * 절대 좌표 points 를 자기 bbox 기준 0..1 로 정규화한다. **퇴화(폭·높이 0)면 `null`.**
+ *
+ * 같은 변환이 서버(export 마스크)와 웹(도형 도구·동기화)에 세 벌 있었는데 **퇴화 처리가
+ * 셋 다 달랐다** — `Math.max(1, …)` 로 나누기, 모든 점을 `{0,0}` 으로, 빈 배열.
+ * 앞의 둘은 0..1 이 아닌 좌표를 만들거나 도형을 한 점으로 무너뜨린다: 결과가 **틀린 모양**
+ * 인데 오류는 아니라서 아무도 눈치채지 못한다.
+ *
+ * 정규화할 수 없는 입력에는 답이 없으므로 `null` 을 주고, 무엇을 할지는 호출부가 정한다 —
+ * 렌더는 그리지 않고(그릴 것이 없다), 편집기는 직전 모양을 유지하면 된다(드래그 중의
+ * 일시적 상태다).
+ */
+export function normalizePolygonPoints(
+  points: readonly { x: number; y: number }[],
+): { x: number; y: number }[] | null {
+  const bbox = pointsBoundingBox([...points]);
+  if (bbox.w === 0 || bbox.h === 0) return null;
+  return points.map((p) => ({ x: (p.x - bbox.x) / bbox.w, y: (p.y - bbox.y) / bbox.h }));
+}
+
 export type RenderErrorCategory = 'transient' | 'auth' | 'quota' | 'safety' | 'invalid' | 'timeout';
 
 export interface RenderError {

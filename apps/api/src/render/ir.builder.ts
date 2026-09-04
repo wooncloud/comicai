@@ -10,9 +10,9 @@ import {
   type ImageRef,
   type PanelShape,
   type EntityType,
+  shapeBoundingBox,
 } from '@comicai/types';
 import { resolveMentionIds, serializeTextWithNameReplacement } from '@comicai/events';
-import { shapeBoundingBox } from '../common/bbox';
 
 /**
  * Panel + Project 컨텍스트에서 RenderIR을 합성.
