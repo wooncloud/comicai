@@ -52,12 +52,20 @@
 
 ### 2.1 세션 쿠키 (`auth/session.service.ts`)
 
-- 저장소: **Redis** (`SessionService`가 `ioredis`로 직접 연결, `REDIS_URL ?? 'redis://localhost:6379'`) — `auth/session.service.ts:29-31`
+- 저장소: **Redis** (`SessionService`가 `ioredis`로 직접 연결, `REDIS_URL ?? 'redis://localhost:6379'`) — `auth/session.service.ts:38`
 - TTL: 14일 — `auth/session.service.ts:6`
-- 키: `session:{sid}` (페이로드 JSON, EX 갱신), `user_sessions:{userId}` (sid 집합) — `auth/session.service.ts:7-9, 47-51`
-- 쿠키 이름: `comicai_sid`, `httpOnly`, `sameSite: 'lax'`, `secure`는 `COOKIE_SECURE` 또는 `NODE_ENV=production`에 의존 — `auth/session.service.ts:126-136`
-- `read()`는 hit 시 `lastUsedAt` 갱신 + TTL 연장 — `auth/session.service.ts:55-62`
-- 다중 세션 지원: `listForUser`, `destroyAllExcept`, `destroyAllForUser`(비밀번호 변경/리셋 시 호출) — `auth/session.service.ts:77-123`
+- 키: `session:{sid}` (페이로드 JSON, EX 갱신), `user_sessions:{userId}` (sid 집합) — `auth/session.service.ts:15-16, 56-60`
+- 쿠키 이름: `comicai_sid`, `httpOnly`, `sameSite: 'lax'`, `secure`는 `COOKIE_SECURE` 또는 `NODE_ENV=production`에 의존 — `auth/session.service.ts:163-172`
+- `read()` 는 **GET + EXPIRE 를 한 왕복(`multi`)** 으로 처리한다 — `auth/session.service.ts:70`.
+  인증된 모든 요청이 지나는 길이라 여기가 곧 요청당 Redis 비용이다. 예전에는 GET 뒤에 세션
+  JSON 전체를 재직렬화해 SET 했다: 순차 왕복 2회에 그중 하나는 순수 쓰기였고, 실제로 바뀌는
+  값은 `lastUsedAt` 하나뿐이었다.
+- `lastUsedAt` 은 **1분 이상 묵었을 때만** 다시 쓴다 (`LAST_USED_REFRESH_MS`, `:14` /
+  `shouldRefreshLastUsed`, `:202`). 이 값을 읽는 곳은 `/me/sessions`("로그인된 기기") 화면
+  하나뿐이라, 요청마다 갱신하면 그 화면의 초 단위 정확도를 위해 인증된 모든 읽기가 Redis
+  쓰기를 유발한다. 값이 깨져 있으면 그때는 쓴다(자가 복구). 규칙은 `session-touch.spec.ts`
+  가 고정한다. 대가로 `/me/sessions` 의 "마지막 사용" 이 최대 1분 뒤처진다.
+- 다중 세션 지원: `listForUser`, `destroyAllExcept`, `destroyAllForUser`(비밀번호 변경/리셋 시 호출) — `auth/session.service.ts:99-145`
 
 ### 2.2 SessionGuard (`auth/session.guard.ts`)
 
@@ -591,12 +599,12 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 | `API_PORT`                                                                                           | `main.ts:20`                                                                                                                               | `4000`                               |
 | `WEB_ORIGIN`                                                                                         | `main.ts:16`, `oauth.controller.ts:39`, `email.provider.ts:34`                                                                             | `http://localhost:3000`              |
 | `API_PUBLIC_URL`                                                                                     | `oauth.service.ts:125`                                                                                                                     | OAuth callback base                  |
-| `REDIS_URL`                                                                                          | `session.service.ts:30`, `oauth.service.ts:27`, `render.queue.ts:23`, `sse.hub.ts:48`, `api-keys.breaker.ts:23`, `model-credentials.ts:55` | `redis://localhost:6379`             |
+| `REDIS_URL`                                                                                          | `session.service.ts:38`, `oauth.service.ts:27`, `render.queue.ts:23`, `sse.hub.ts:48`, `api-keys.breaker.ts:23`, `model-credentials.ts:55` | `redis://localhost:6379`             |
 | `DATABASE_URL`                                                                                       | `schema.prisma:9`                                                                                                                          | Postgres                             |
 | `S3_ENDPOINT` / `S3_PUBLIC_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `storage.service.ts:43-50`                                                                                                                 | MinIO 기본값                         |
 | `STORAGE_AUTO_CREATE_BUCKET`                                                                         | `storage.service.ts:58`                                                                                                                    | `'0'`이면 자동 생성 skip             |
 | `MASTER_KEY`                                                                                         | `api-keys/crypto.ts:8-14`                                                                                                                  | base64 32B, BYOK AES-GCM 봉인 키     |
-| `COOKIE_SECURE`                                                                                      | `session.service.ts:129-132`                                                                                                               | secure 쿠키 토글                     |
+| `COOKIE_SECURE`                                                                                      | `session.service.ts:167`                                                                                                                   | secure 쿠키 토글                     |
 | `RENDER_WORKER_DISABLED`                                                                             | `render.worker.ts:30`, `sse.hub.ts:49`                                                                                                     | `'1'`이면 API 프로세스에서 워커 분리 |
 | `RENDER_CONCURRENCY`                                                                                 | `render.worker.ts:37`                                                                                                                      | 기본 2                               |
 | `SSE_HUB_DISABLED`                                                                                   | `sse.hub.ts:47`                                                                                                                            | 테스트용                             |

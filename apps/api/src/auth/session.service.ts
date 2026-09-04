@@ -4,6 +4,14 @@ import Redis from 'ioredis';
 import { urlSafeToken } from '../common/tokens';
 
 const SESSION_TTL_SECONDS = 14 * 24 * 60 * 60; // 14일
+/**
+ * `lastUsedAt` 을 다시 쓰는 최소 간격.
+ *
+ * 이 값을 읽는 곳은 `/me/sessions`("로그인된 기기") 화면 하나뿐이다. 요청마다 갱신하면
+ * 그 화면의 초 단위 정확도를 위해 **인증된 모든 읽기가 Redis 쓰기를 유발**한다.
+ * 1분이면 그 화면의 쓸모는 그대로고 쓰기는 사라진다.
+ */
+const LAST_USED_REFRESH_MS = 60_000;
 const KEY_PREFIX = 'session:';
 const USER_KEY_PREFIX = 'user_sessions:';
 
@@ -52,13 +60,27 @@ export class SessionService implements OnModuleDestroy {
     return sid;
   }
 
+  /**
+   * 세션을 읽고 만료를 미룬다. 인증된 **모든** 요청이 지나는 길이다.
+   *
+   * 예전에는 GET 뒤에 세션 JSON 전체를 재직렬화해 SET 했다 — 순차 왕복 2회에 그중
+   * 하나는 순수 쓰기였고, 바뀌는 값은 `lastUsedAt` 하나뿐이었다.
+   * 지금은 GET + EXPIRE 를 한 왕복으로 묶고, 쓰기는 아래 조건에서만 한다.
+   */
   async read(sid: string): Promise<SessionPayload | null> {
-    const raw = await this.redis.get(KEY_PREFIX + sid);
+    const key = KEY_PREFIX + sid;
+    const results = await this.redis.multi().get(key).expire(key, SESSION_TTL_SECONDS).exec();
+    const raw = results?.[0]?.[1] as string | null | undefined;
     if (!raw) return null;
     const record = JSON.parse(raw) as SessionRecord;
-    record.lastUsedAt = new Date().toISOString();
-    await this.redis.set(KEY_PREFIX + sid, JSON.stringify(record), 'EX', SESSION_TTL_SECONDS);
+    await this.touch(key, record);
     return { userId: record.userId, email: record.email };
+  }
+
+  private async touch(key: string, record: SessionRecord): Promise<void> {
+    if (!shouldRefreshLastUsed(record.lastUsedAt)) return;
+    record.lastUsedAt = new Date().toISOString();
+    await this.redis.set(key, JSON.stringify(record), 'EX', SESSION_TTL_SECONDS);
   }
 
   async belongsTo(userId: string, sid: string): Promise<boolean> {
@@ -170,3 +192,15 @@ export const OAUTH_STATE_COOKIE_OPTIONS = {
   path: '/',
   ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
 };
+
+/**
+ * `lastUsedAt` 을 다시 쓸 때가 됐는가.
+ *
+ * 값이 없거나 파싱되지 않으면 **쓴다** — 자가 복구다. 그러지 않으면 한 번 깨진 세션이
+ * 영원히 갱신되지 않고 `/me/sessions` 정렬에서 맨 뒤에 박힌다.
+ */
+export function shouldRefreshLastUsed(lastUsedAt: string, now = Date.now()): boolean {
+  const last = Date.parse(lastUsedAt);
+  if (!Number.isFinite(last)) return true;
+  return now - last >= LAST_USED_REFRESH_MS;
+}
