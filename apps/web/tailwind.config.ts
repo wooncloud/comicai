@@ -22,6 +22,11 @@ const config: Config = {
         // 높이가 430px 이라 사이드바·툴바·인스펙터가 들어갈 자리가 없다.
         // 600px 이 가장 작은 태블릿(iPad mini 가로 744px)과 가장 큰 폰(430px) 사이를 가른다.
         editor: { raw: '(min-width: 768px) and (min-height: 600px)' },
+        // 랜딩 히어로 이미지가 화면 오른쪽 끝에 실제로 닿는 구간.
+        // 위쪽 경계가 있는 이유: 섹션이 max-w-[1440px] 로 가운데 정렬되므로
+        // 1440px 을 넘으면 오른쪽에 여백이 생긴다. 그 상태에서 각진 모서리와
+        // 잘린 그림자만 남으면 이미지가 허공에서 끊긴 것처럼 보인다.
+        heroBleed: { raw: '(min-width: 1024px) and (max-width: 1440px)' },
       },
       fontFamily: {
         sans: [

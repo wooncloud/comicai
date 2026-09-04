@@ -113,12 +113,12 @@ export function ProjectRow({ project, onPatched, onRemoved }: Props) {
               if (e.key === 'Escape') setDraft(null);
             }}
             aria-label="프로젝트 이름"
-            className="flex-1"
+            className="min-w-0 flex-1"
           />
-          <Button size="sm" onClick={save} disabled={busy}>
+          <Button size="sm" className="shrink-0" onClick={save} disabled={busy}>
             저장
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
+          <Button size="sm" variant="ghost" className="shrink-0" onClick={() => setDraft(null)}>
             취소
           </Button>
         </>

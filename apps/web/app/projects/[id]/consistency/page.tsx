@@ -43,6 +43,8 @@ export default function ConsistencyPage() {
   const [pendingImages, setPendingImages] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
   const project = useProject(projectId);
   const queryClient = useQueryClient();
   const defaultStyleId = project?.defaultStyleId ?? null;
@@ -144,6 +146,10 @@ export default function ConsistencyPage() {
     });
     setPendingImages([]);
     if (fileRef.current) fileRef.current.value = '';
+    // 폼이 화면 밖이면 '수정' 을 눌러도 아무 일도 안 일어난 것처럼 보인다.
+    // 폼으로 데려가고 이름 칸에 커서를 둔다.
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    nameRef.current?.focus({ preventScroll: true });
   }
 
   function applyUpdated(next: ConsistencyEntityDTO) {
@@ -186,105 +192,130 @@ export default function ConsistencyPage() {
           ))}
         </div>
 
-        <div className="mt-8 grid gap-8 md:grid-cols-[1fr_320px]">
-          <section className="space-y-4">
-            {items.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border p-12 text-center text-body-sm text-muted-foreground">
-                아직 등록한 {tabLabel}이(가) 없습니다. 아래 입력란에서 추가해 보세요.
-              </div>
-            ) : (
-              <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {items.map((it) => (
-                  <EntityCard
-                    key={it.id}
-                    entity={it}
-                    onUpdated={applyUpdated}
-                    onEdit={() => beginEdit(it)}
-                    onRemove={() => remove(it.id)}
-                    isDefault={tab === 'style' && it.id === defaultStyleId}
-                    onSetDefault={tab === 'style' ? () => setDefaultStyle(it.id) : undefined}
+        {/*
+          폼이 목록 위에 있다. 예전에는 오른쪽 사이드바였는데, md 미만에서는 그리드가
+          단일 컬럼으로 접히면서 DOM 순서대로 목록 **뒤**로 갔다. 캐릭터가 8명이면
+          '하나 더 추가' 하려고 2,000px 을 내려가야 했고, 카드의 '수정' 을 눌러도
+          바뀌는 폼이 화면 밖이라 아무 일도 안 일어난 것처럼 보였다.
+        */}
+        <section
+          ref={formRef}
+          className="mt-8 space-y-3 rounded-lg border border-border bg-card p-4"
+        >
+          <h2 className="text-body-lg font-medium">
+            {editing ? `${editing.name} 수정` : `새 ${tabLabel}`}
+          </h2>
+          <form onSubmit={save} className="space-y-3">
+            <Input
+              ref={nameRef}
+              required
+              aria-label={`${tabLabel} 이름`}
+              placeholder={`${tabLabel} 이름`}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            <Input
+              aria-label="별칭"
+              placeholder="별칭 (쉼표로 구분)"
+              value={form.aliases}
+              onChange={(e) => setForm({ ...form, aliases: e.target.value })}
+            />
+            <textarea
+              aria-label="설명"
+              placeholder="생김새·성격·분위기 등을 적어 두면 그림에 반영됩니다"
+              rows={4}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-body-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+            {!editing && (
+              <div className="space-y-2">
+                <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-border px-3 py-3 text-caption text-muted-foreground hover:border-foreground/40 hover:text-foreground">
+                  <ImagePlus className="h-3.5 w-3.5" />
+                  <span>
+                    참조 이미지 첨부{pendingImages.length > 0 ? ` (${pendingImages.length})` : ''}
+                  </span>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => setPendingImages(Array.from(e.target.files ?? []))}
                   />
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <aside className="sticky top-20 h-fit space-y-3 rounded-lg border border-border bg-card p-4">
-            <h2 className="text-body-lg font-medium">
-              {editing ? `${editing.name} 수정` : `새 ${tabLabel}`}
-            </h2>
-            <form onSubmit={save} className="space-y-3">
-              <Input
-                required
-                placeholder="이름"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-              <Input
-                placeholder="별칭 (쉼표 구분)"
-                value={form.aliases}
-                onChange={(e) => setForm({ ...form, aliases: e.target.value })}
-              />
-              <textarea
-                placeholder="설명"
-                rows={5}
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-body-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-              {!editing && (
-                <div className="space-y-2">
-                  <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-border px-3 py-3 text-caption text-muted-foreground hover:border-foreground/40 hover:text-foreground">
-                    <ImagePlus className="h-3.5 w-3.5" />
-                    <span>
-                      참조 이미지 첨부{pendingImages.length > 0 ? ` (${pendingImages.length})` : ''}
-                    </span>
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => setPendingImages(Array.from(e.target.files ?? []))}
-                    />
-                  </label>
-                  {pendingImages.length > 0 && (
-                    <ul className="flex flex-wrap gap-2">
-                      {pendingImages.map((f, i) => (
-                        <li
-                          key={`${f.name}-${i}`}
-                          className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-caption"
+                </label>
+                {pendingImages.length > 0 && (
+                  <ul className="flex flex-wrap gap-2">
+                    {pendingImages.map((f, i) => (
+                      <li
+                        key={`${f.name}-${i}`}
+                        className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-caption"
+                      >
+                        <span className="max-w-[120px] truncate">{f.name}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPendingImages((prev) => prev.filter((_, idx) => idx !== i))
+                          }
+                          className="-my-1 flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
+                          title="제거"
                         >
-                          <span className="max-w-[120px] truncate">{f.name}</span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPendingImages((prev) => prev.filter((_, idx) => idx !== i))
-                            }
-                            className="-my-1 flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
-                            title="제거"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-              <div className="flex gap-2">
-                <Button type="submit" size="sm" disabled={submitting}>
-                  {submitting ? '저장 중…' : editing ? '저장' : '추가'}
-                </Button>
-                {editing && (
-                  <Button type="button" variant="outline" size="sm" onClick={resetForm}>
-                    취소
-                  </Button>
+                          <X className="h-3 w-3" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
-            </form>
-          </aside>
-        </div>
+            )}
+            <div className="flex gap-2">
+              <Button type="submit" size="sm" disabled={submitting}>
+                {submitting ? '저장 중…' : editing ? '저장' : '추가'}
+              </Button>
+              {editing && (
+                <Button type="button" variant="outline" size="sm" onClick={resetForm}>
+                  취소
+                </Button>
+              )}
+            </div>
+          </form>
+        </section>
+
+        <section className="mt-8 space-y-4">
+          {items.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border p-12 text-center">
+              <p className="text-body-sm text-muted-foreground">
+                아직 등록한 {tabLabel}이(가) 없습니다.
+              </p>
+              <Button
+                className="mt-4"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  resetForm();
+                  formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  nameRef.current?.focus({ preventScroll: true });
+                }}
+              >
+                {tabLabel} 추가
+              </Button>
+            </div>
+          ) : (
+            <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {items.map((it) => (
+                <EntityCard
+                  key={it.id}
+                  entity={it}
+                  onUpdated={applyUpdated}
+                  onEdit={() => beginEdit(it)}
+                  onRemove={() => remove(it.id)}
+                  isDefault={tab === 'style' && it.id === defaultStyleId}
+                  onSetDefault={tab === 'style' ? () => setDefaultStyle(it.id) : undefined}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
       </PageContainer>
     </AppShell>
   );

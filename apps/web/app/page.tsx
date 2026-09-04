@@ -25,7 +25,7 @@ export default function HomePage() {
       <main>
         {/* Hero */}
         <div className="hero-ambient overflow-hidden">
-          <section className="mx-auto grid max-w-[1440px] items-center gap-12 px-6 py-16 lg:grid-cols-[minmax(0,592px)_minmax(0,1fr)] lg:py-24 lg:pr-0">
+          <section className="mx-auto grid max-w-[1440px] items-center gap-12 px-6 py-16 lg:grid-cols-[minmax(0,592px)_minmax(0,1fr)] lg:py-24 heroBleed:pr-0">
             <div className="flex flex-col items-start gap-7">
               <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-caption font-medium text-primary-strong">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
@@ -57,7 +57,7 @@ export default function HomePage() {
             </div>
 
             <div className="relative">
-              <div className="overflow-hidden rounded-xl shadow-2xl shadow-foreground/25 lg:rounded-r-none dark:shadow-black/60 dark:ring-1 dark:ring-border">
+              <div className="overflow-hidden rounded-xl shadow-2xl shadow-foreground/25 heroBleed:rounded-r-none dark:shadow-black/60 dark:ring-1 dark:ring-border">
                 <SampleImage
                   id="hero-02"
                   alt="교실 창가에 앉아 밖을 바라보는 인물"

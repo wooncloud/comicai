@@ -53,7 +53,7 @@ export default function DashboardPage() {
         {isLoading && <p className="mt-10 text-body-sm text-muted-foreground">불러오는 중…</p>}
 
         {empty && (
-          <div className="mt-16 rounded-lg border border-dashed border-border bg-muted/30 p-16 text-center">
+          <div className="mt-10 rounded-lg border border-dashed border-border bg-muted/30 p-16 text-center">
             <h2 className="text-title-lg font-medium">아직 프로젝트가 없어요</h2>
             <p className="mt-2 text-body-sm text-muted-foreground">첫 번째 만화를 시작해 보세요.</p>
             <Button className="mt-6" onClick={() => setCreateOpen(true)}>
@@ -63,7 +63,7 @@ export default function DashboardPage() {
         )}
 
         {items && items.length > 0 && (
-          <ul className="mt-8 divide-y divide-border overflow-hidden rounded-lg border border-border">
+          <ul className="mt-10 divide-y divide-border overflow-hidden rounded-lg border border-border">
             {items.map((p) => (
               <ProjectRow key={p.id} project={p} onPatched={patchItem} onRemoved={removeItem} />
             ))}

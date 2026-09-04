@@ -25,13 +25,18 @@ import { qk } from '@/lib/query-keys';
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <Topbar />
+      <Topbar authed />
       <main className="flex-1">{children}</main>
     </div>
   );
 }
 
-export function Topbar() {
+/**
+ * @param authed 로그인한 사용자만 오는 화면인가.
+ *   AppShell 을 거치는 화면은 전부 true 다. 랜딩(app/page.tsx)만 Topbar 를 직접
+ *   쓰면서 false 로 둔다 — 비로그인 방문자에게 빈 자리를 예약해 둘 이유가 없다.
+ */
+export function Topbar({ authed = false }: { authed?: boolean }) {
   const path = usePathname();
   const logout = useLogout();
   const { data: me, error } = useQuery<SessionUser>({
@@ -57,8 +62,16 @@ export function Topbar() {
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:gap-6 sm:px-6">
-      {/* 로그인한 사용자에게만. 랜딩도 이 Topbar 를 쓰는데 비로그인은 드로어에 넣을 게 없다. */}
-      {me && <MobileNav me={me} />}
+      {/*
+        로그인한 사용자에게만. 랜딩도 이 Topbar 를 쓰는데 비로그인은 드로어에 넣을 게 없다.
+        인증 화면에서는 `me` 가 도착하기 전에도 자리를 비워 둔다 — 안 그러면 응답이
+        오는 순간 햄버거가 왼쪽에 끼어들며 헤더 전체가 56px 옆으로 밀린다.
+      */}
+      {me ? (
+        <MobileNav me={me} />
+      ) : authed ? (
+        <span className="h-11 w-11 shrink-0 md:hidden" aria-hidden />
+      ) : null}
 
       <Link
         href={me ? '/dashboard' : '/'}

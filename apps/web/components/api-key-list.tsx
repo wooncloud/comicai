@@ -43,20 +43,22 @@ function ApiKeyRow({
   }
 
   return (
-    <li className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+    <li className="flex items-center justify-between gap-3 px-4 py-3 text-body-sm">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs text-secondary-foreground">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 font-mono text-caption text-secondary-foreground">
             {item.provider}
           </span>
-          <span className="truncate font-medium">{item.label}</span>
+          <span className="min-w-0 truncate font-medium">{item.label}</span>
           <StatusBadge active={item.isActive} verifiedAt={item.lastVerifiedAt} />
         </div>
-        <div className="mt-0.5 text-xs text-muted-foreground">
-          등록 {new Date(item.createdAt).toLocaleString('ko-KR')}
-          {item.lastVerifiedAt && (
-            <> · 마지막 검증 {new Date(item.lastVerifiedAt).toLocaleString('ko-KR')}</>
-          )}
+        {/*
+          예전에는 등록·마지막 검증 시각을 둘 다 초 단위(toLocaleString)로 찍어서,
+          390px 에서 이 줄만 2~3줄을 차지하고 정작 사용자가 붙인 라벨은 다섯 글자쯤에서
+          잘렸다. 검증 여부는 위 배지가 이미 말하고 있어 중복이기도 했다.
+        */}
+        <div className="mt-0.5 text-caption text-muted-foreground">
+          {new Date(item.createdAt).toLocaleDateString('ko-KR')} 등록
         </div>
       </div>
       <div className="flex items-center gap-2">

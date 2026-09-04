@@ -227,7 +227,7 @@ function SortablePageRow({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-body-sm font-medium">{label}</span>
           <span className="mt-0.5 block text-caption text-muted-foreground">
-            {page.order + 1}번째 · {page.size.w}×{page.size.h}
+            {page.size.w}×{page.size.h}
           </span>
         </span>
       </Link>
