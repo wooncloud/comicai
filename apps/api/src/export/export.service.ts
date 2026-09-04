@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import { prisma } from '@comicai/db';
 import {
   isHexColor,
+  MAX_PAGE_DIMENSION,
   type ImageRef,
   type PageLineStyle,
   type PageTextStyle,
@@ -58,6 +59,13 @@ export class ExportService {
     if (!page) throw new NotFoundException({ code: 'PAGE_NOT_FOUND' });
 
     const size = page.size as { w: number; h: number };
+    /*
+     * 스키마가 이제 상한을 걸지만(`PageSizeSchema`), **이미 저장된 행은 그 검증을 거치지
+     * 않는다.** 여기서 한 번 더 묶지 않으면 상한 도입 이전에 들어온 거대 페이지 하나로
+     * export 프로세스를 죽일 수 있고, 그러면 같은 컨테이너의 다른 요청도 함께 끊긴다.
+     */
+    const canvasW = clampDimension(size.w);
+    const canvasH = clampDimension(size.h);
     // 페이지가 backgroundColor 를 지정했다면 그것을 base 로. 아니면 jpg=white / png=투명.
     const baseColor = isHexColor(page.backgroundColor)
       ? page.backgroundColor
@@ -79,8 +87,10 @@ export class ExportService {
         page.panels.map(async (panel) => {
           const shape = panel.shape as unknown as PanelShape;
           const box = shapeBoundingBox(shape);
-          const W = Math.round(box.w);
-          const H = Math.round(box.h);
+          // 캔버스보다 큰 패널은 어차피 밖이 잘려 나간다. 그대로 sharp 에 넘기면 패널
+          // 하나가 캔버스보다 훨씬 큰 버퍼를 요구한다.
+          const W = Math.min(Math.round(box.w), canvasW);
+          const H = Math.min(Math.round(box.h), canvasH);
           if (W <= 0 || H <= 0) return [];
 
           const overlays: sharp.OverlayOptions[] = [];
@@ -132,8 +142,8 @@ export class ExportService {
         shape: b.shape as unknown as SpeechBubbleShape,
         style: b.style as unknown as SpeechBubbleStyle,
       })),
-      Math.round(size.w),
-      Math.round(size.h),
+      canvasW,
+      canvasH,
     );
     if (bubbleLayer) composites.push({ input: bubbleLayer, left: 0, top: 0 });
 
@@ -147,8 +157,8 @@ export class ExportService {
         text: t.text,
         style: t.style as unknown as PageTextStyle,
       })),
-      Math.round(size.w),
-      Math.round(size.h),
+      canvasW,
+      canvasH,
     );
     if (textLayer) composites.push({ input: textLayer, left: 0, top: 0 });
 
@@ -161,15 +171,15 @@ export class ExportService {
         y2: l.y2,
         style: l.style as unknown as PageLineStyle,
       })),
-      Math.round(size.w),
-      Math.round(size.h),
+      canvasW,
+      canvasH,
     );
     if (lineLayer) composites.push({ input: lineLayer, left: 0, top: 0 });
 
     let canvas = sharp({
       create: {
-        width: Math.round(size.w),
-        height: Math.round(size.h),
+        width: canvasW,
+        height: canvasH,
         channels: 4,
         background: baseColor as never,
       },
@@ -183,8 +193,8 @@ export class ExportService {
       { kind: 'export', userId, pageId: page.id },
       Uint8Array.from(bytes),
       format === 'jpg' ? 'image/jpeg' : 'image/png',
-      Math.round(size.w),
-      Math.round(size.h),
+      canvasW,
+      canvasH,
     );
     const presigned = await this.storage.presignDownload(ref.storageKey);
     return {
@@ -196,4 +206,11 @@ export class ExportService {
       mimeType: ref.mimeType,
     };
   }
+}
+
+/** 저장된 페이지 크기를 sharp 가 감당할 범위로 묶는다. 0·음수·NaN 도 여기서 걸러진다. */
+function clampDimension(v: number): number {
+  const n = Math.round(v);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, MAX_PAGE_DIMENSION);
 }

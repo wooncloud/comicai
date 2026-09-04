@@ -105,14 +105,14 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - 프로필: `MePatchSchema` (`src/schemas.ts:69-73`).
 - API 키: `ApiKeyCreateSchema` — provider는 `gemini`/`openai`만, key는 8~500자 (`src/schemas.ts:77-81`).
 - 프로젝트: `ProjectCreateSchema`, `ProjectPatchSchema`(`defaultModel` 포함) (`src/schemas.ts:85-96`).
-- 페이지: `PageSizeSchema`(기본 800×1200), `PageCreateSchema`, `PagePatchSchema`(`backgroundColor` 포함), `PageReorderSchema`, `HEX_COLOR_REGEX`/`isHexColor` (`src/schemas.ts:99-129`).
-- 렌더: `RenderModelSchema`(ModelId enum과 동일), `RenderStartSchema` (`src/schemas.ts:132-137`).
-- 내보내기: `ExportFormatSchema = 'png'|'jpg'`, `ExportRequestSchema`(dpi 72~600, 기본 150) (`src/schemas.ts:140-145`).
-- 패널: `PanelShapeSchema` — points 3~64개, strokeColor 기본 `#000000`, strokeWidth 기본 2 (`src/schemas.ts:149-161`).
-- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림 — strokeWidth/Color/fillColor 만), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts:165-198`).
-- 페이지 텍스트: `PAGE_TEXT_FONT_FAMILIES`, `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`src/schemas.ts:201-236`).
-- 페이지 직선: `PAGE_LINE_STROKE_STYLES`, `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`src/schemas.ts:239-266`).
-- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`(`prompt+model`), `ConsistencyAttachSchema`(`storageKey`) (`src/schemas.ts:269-287`).
+- 페이지: `PageSizeSchema`(기본 800×1200, 한 변 `MAX_PAGE_DIMENSION`=4096 상한), `PageCreateSchema`, `PagePatchSchema`(`backgroundColor` 포함), `PageReorderSchema`, `HEX_COLOR_REGEX`/`isHexColor` (`src/schemas.ts:99-141`).
+- 렌더: `RenderModelSchema`(ModelId enum과 동일), `RenderStartSchema` (`src/schemas.ts:144-149`).
+- 내보내기: `ExportFormatSchema = 'png'|'jpg'`, `ExportRequestSchema`(dpi 72~600, 기본 150) (`src/schemas.ts:152-157`).
+- 패널: `PanelShapeSchema` — points 3~64개, 좌표는 ±`MAX_PANEL_COORD`(=페이지 상한×2) 범위, strokeColor 기본 `#000000`, strokeWidth 기본 2 (`src/schemas.ts:159-180`).
+- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림 — strokeWidth/Color/fillColor 만), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts:184-217`).
+- 페이지 텍스트: `PAGE_TEXT_FONT_FAMILIES`, `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`src/schemas.ts:219-255`).
+- 페이지 직선: `PAGE_LINE_STROKE_STYLES`, `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`src/schemas.ts:257-285`).
+- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`(`prompt+model`), `ConsistencyAttachSchema`(`storageKey`) (`src/schemas.ts:287-306`).
 
 ### Panel path 헬퍼 (panel-path.ts)
 

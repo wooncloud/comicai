@@ -97,9 +97,20 @@ export const ProjectPatchSchema = z.object({
 });
 
 // ─── 페이지 ───────────────────────────────────
+/**
+ * 페이지 한 변의 상한.
+ *
+ * export 가 이 값으로 sharp 캔버스를 만들므로 **곧 메모리 상한이다**(4096² RGBA ≈ 67MB).
+ * 상한이 없으면 `PATCH /v1/pages/{id}` 로 `size:{w:50000,h:50000}` 을 저장한 뒤 export 를
+ * 눌러 10GB 할당을 요구할 수 있고, 프로세스가 죽으면서 **같은 컨테이너의 다른 사용자 요청도
+ * 함께 끊긴다.** 값은 에디터의 직접 입력 상한과 같다
+ * (`apps/web/components/editor/page-size-select.tsx`).
+ */
+export const MAX_PAGE_DIMENSION = 4096;
+
 export const PageSizeSchema = z.object({
-  w: z.number().int().positive(),
-  h: z.number().int().positive(),
+  w: z.number().int().positive().max(MAX_PAGE_DIMENSION),
+  h: z.number().int().positive().max(MAX_PAGE_DIMENSION),
 });
 export const PageCreateSchema = z.object({
   size: PageSizeSchema.default({ w: 800, h: 1200 }),
@@ -146,7 +157,14 @@ export const ExportRequestSchema = z.object({
 export type ExportRequest = z.infer<typeof ExportRequestSchema>;
 
 // ─── 패널 ─────────────────────────────────────
-export const PanelPointSchema = z.object({ x: z.number(), y: z.number() });
+/**
+ * 패널 좌표 허용 범위. 페이지 좌표계 절대값이고, 편집 중 페이지 밖으로 조금 밀어 두는 것은
+ * 정상이라 페이지 상한의 2배까지 둔다. 무제한이면 패널 하나의 bounding box 가 export 에서
+ * 수 GB 버퍼를 요구한다 — 페이지 크기와 같은 이유로 막는다.
+ */
+export const MAX_PANEL_COORD = MAX_PAGE_DIMENSION * 2;
+const PanelCoordSchema = z.number().min(-MAX_PANEL_COORD).max(MAX_PANEL_COORD);
+export const PanelPointSchema = z.object({ x: PanelCoordSchema, y: PanelCoordSchema });
 export const PanelShapeSchema = z.object({
   type: z.enum(['rect', 'rounded', 'oval', 'diamond', 'parallelogram', 'polygon']),
   points: z.array(PanelPointSchema).min(3).max(64),
