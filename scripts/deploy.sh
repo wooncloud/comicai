@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # 프로덕션 배포: origin/main 을 받아 web/api/worker 를 재빌드·재기동한다.
-# CI 의 deploy job(.github/workflows/ci.yml:48-53)과 같은 일을 손으로 하는 용도.
+# .github/workflows/deploy.yml 이 self-hosted 러너에서 하는 일을 손으로 하는 용도.
 #
 # `pnpm deploy` 는 pnpm 내장 명령이라 가로채인다. 반드시 `pnpm run deploy` 로 실행한다.
 #
-#   pnpm run deploy              # fast-forward pull → 재기동
-#   pnpm run deploy --reset      # origin/main 으로 강제 동기화 (CI 와 동일. 로컬 변경 삭제)
-#   pnpm run deploy --yes        # 확인 프롬프트 건너뛰기
+#   pnpm run deploy              # fast-forward pull → 재기동 (확인 없이 바로 진행)
+#   pnpm run deploy --reset      # origin/main 으로 강제 동기화. 커밋 안 된 로컬 변경 삭제
+#   pnpm run deploy --yes        # --reset 이 로컬 변경을 지울 때의 확인까지 건너뛴다
 #   pnpm run deploy --no-pull    # 코드는 그대로 두고 컨테이너만 재기동
 set -euo pipefail
 
@@ -18,6 +18,8 @@ BRANCH=main
 RESET=0
 ASSUME_YES=0
 PULL=1
+# --no-pull 경로에서는 채워지지 않는다. set -u 라 미리 비워 둬야 한다.
+DIRTY=""
 
 for arg in "$@"; do
   case "$arg" in
@@ -73,10 +75,17 @@ if [ "$PULL" = 1 ]; then
 fi
 
 # ── 확인 ────────────────────────────────────────────────
-if [ "$ASSUME_YES" != 1 ]; then
-  echo "web / api / worker 를 재빌드·재기동합니다."
-  echo "api·worker 가 migrate 에 의존하므로 prisma migrate deploy 도 함께 실행됩니다."
-  printf "계속할까요? [y/N] "
+# 평소 배포는 묻지 않는다. 재기동은 되돌릴 수 있고, 매번 y 를 누르는 건 번거롭기만 하다.
+#
+# 딱 한 경우만 남겼다: --reset 은 `git reset --hard` 라 커밋 안 된 변경을 지운다.
+# 그건 배포가 아니라 데이터 손실이고 되돌릴 방법이 없어서, 그때만 한 번 묻는다.
+# 그것마저 건너뛰려면 --yes 를 붙인다.
+echo "web / api / worker 를 재빌드·재기동합니다."
+echo "api·worker 가 migrate 에 의존하므로 prisma migrate deploy 도 함께 실행됩니다."
+
+if [ "$RESET" = 1 ] && [ -n "$DIRTY" ] && [ "$ASSUME_YES" != 1 ]; then
+  echo ""
+  printf "위 로컬 변경을 지우고 계속할까요? [y/N] "
   read -r reply
   case "$reply" in
     y | Y | yes) ;;
