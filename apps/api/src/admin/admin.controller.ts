@@ -1,7 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { prisma } from '@comicai/db';
 import type { AdminOverview, AdminUserRow } from '@comicai/types';
-import { SessionGuard } from '../auth/session.guard';
 import { AdminGuard } from '../auth/admin.guard';
 
 /**
@@ -14,7 +13,7 @@ import { AdminGuard } from '../auth/admin.guard';
  * 실수 한 번의 대가가 커지고, 지금 필요한 것은 "무슨 일이 벌어지고 있는지" 뿐이다.
  */
 @Controller('admin')
-@UseGuards(SessionGuard, AdminGuard)
+@UseGuards(AdminGuard)
 export class AdminController {
   @Get('overview')
   async overview(): Promise<AdminOverview> {

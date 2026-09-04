@@ -12,7 +12,6 @@ import {
   Req,
   UnauthorizedException,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -24,7 +23,7 @@ import {
   type SessionInfo,
   type SessionUser,
 } from '@comicai/types';
-import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { AuthedRequest } from '../auth/session.guard';
 import { isAdmin } from '../auth/admin.guard';
 import { SessionService } from '../auth/session.service';
 import { StorageService } from '../storage/storage.service';
@@ -66,7 +65,6 @@ class PasswordChangeDto {
 }
 
 @Controller('me')
-@UseGuards(SessionGuard)
 export class MeController {
   constructor(
     private readonly sessions: SessionService,

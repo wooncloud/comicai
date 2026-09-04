@@ -25,6 +25,7 @@ import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS, SessionService } from './sessio
 import { sessionMetaFromRequest } from './session.helpers';
 import { CSRF_COOKIE, csrfCookieOptions, issueCsrfToken } from '../common/csrf.middleware';
 import { EmailService } from '../email/email.provider';
+import { Public } from './public.decorator';
 
 class CredentialsDto {
   static zodSchema = CredentialsSchema;
@@ -51,6 +52,7 @@ class PasswordResetConfirmDto {
 }
 
 @Controller('auth')
+@Public()
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 

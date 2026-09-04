@@ -1,6 +1,6 @@
-import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Post, Req } from '@nestjs/common';
 import { ExportRequestSchema } from '@comicai/types';
-import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { AuthedRequest } from '../auth/session.guard';
 import { ExportService } from './export.service';
 
 class ExportDto {
@@ -10,7 +10,6 @@ class ExportDto {
 }
 
 @Controller()
-@UseGuards(SessionGuard)
 export class ExportController {
   constructor(private readonly svc: ExportService) {}
 

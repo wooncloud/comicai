@@ -41,7 +41,8 @@
 
 - `ConfigModule.forRoot({ isGlobal: true })` — `app.module.ts:26`
 - `LoggerModule.forRoot(...)`: pino redact 경로(`req.headers.cookie`, `authorization`, `*.apiKey`, `*.secret`, `*.token`, `*.ciphertext`, `*.password`, `*.passwordHash`), `/healthz`는 autoLogging 제외 — `app.module.ts:27-59`
-- `ThrottlerModule.forRoot([{ ttl: 60s, limit: 120 }])`, `APP_GUARD = ThrottlerGuard`로 글로벌 적용 — `app.module.ts:60, 78`
+- `ThrottlerModule.forRoot([{ ttl: 60s, limit: 120 }])`, `APP_GUARD = ThrottlerGuard`로 글로벌 적용 — `app.module.ts:62, 82`
+- `APP_GUARD = SessionGuard` 도 함께 등록 — `app.module.ts:93` (아래 §2.2)
 - `configure(consumer)`에서 `CsrfMiddleware`를 모든 라우트(`'*'`)에 부착 — `app.module.ts:81-83`
 - 등록 모듈: `MetricsModule, EmailModule, AuthModule, OAuthModule, MeModule, ApiKeysModule, ProjectsModule, ConsistencyModule, PagesModule, PanelsModule, SpeechBubblesModule, PageTextsModule, PageLinesModule, RenderModule, ExportModule` — `app.module.ts:61-75`
 - 직접 등록 컨트롤러: `HealthController` — `app.module.ts:77`
@@ -69,8 +70,23 @@
 
 ### 2.2 SessionGuard (`auth/session.guard.ts`)
 
-- 쿠키 없음 → `401 NO_SESSION`, 만료 → `401 SESSION_EXPIRED` — `auth/session.guard.ts:18-21`
-- 성공 시 `req.user = { id, email }`, `req.sid` 주입 — `auth/session.guard.ts:22-23`
+**전역 가드다.** 인증이 opt-out 이고, 공개가 필요한 곳만 `@Public()` (`auth/public.decorator.ts:16`)
+로 표시한다 — 현재 4곳(health / metrics / auth / oauth)뿐이다.
+
+예전에는 컨트롤러마다 `@UseGuards(SessionGuard)` 를 붙이는 opt-in 이었다. 그러면 가드를 잊은
+새 컨트롤러가 **인증도 CSRF 도 없는 상태**가 된다 — `CsrfMiddleware` 가 "세션 쿠키 없는 요청"
+을 통과시키기 때문이다(`csrf.middleware.ts:28`, 가드가 401 로 막아 줄 것을 전제한다).
+서로를 전제하는 두 밑단 중 하나가 opt-in 이면, 잊었을 때 둘 다 사라진다. 지금은 잊으면
+열리는 게 아니라 잠긴다.
+
+- `@Public()` 이면 즉시 통과(세션도 읽지 않는다 — 공개 경로에서 Redis 왕복을 만들지 않는다) — `auth/session.guard.ts:28`
+- 쿠키 없음 → `401 NO_SESSION`, 만료 → `401 SESSION_EXPIRED` — `auth/session.guard.ts:33-35`
+- 성공 시 `req.user = { id, email }`, `req.sid` 주입 — `auth/session.guard.ts:36-37`
+- 전역 가드가 컨트롤러 가드보다 먼저 돌므로 `AdminGuard` 는 `req.user` 를 그대로 받는다.
+  `ApiKeysFeatureGuard` 는 순서가 뒤집혔는데 **그쪽이 더 낫다**: 예전에는 플래그를 먼저 봐서
+  비로그인 요청이 꺼짐(404)/켜짐(401)을 구분할 수 있었다. 지금은 비로그인이 무조건 401 이라
+  플래그 상태가 로그인한 사용자에게만 보인다.
+- 규칙은 `session.guard.spec.ts` 가 고정한다.
 
 ### 2.3 CSRF (`common/csrf.middleware.ts`)
 
@@ -151,18 +167,20 @@
 BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 
 > **기능 플래그 뒤에 있다.** `FEATURE_API_KEYS` 가 켜져 있지 않으면 이 컨트롤러의 모든
-> 라우트가 404 를 돌려준다(`api-keys.controller.ts:26` 의 `ApiKeysFeatureGuard`).
+> 라우트가 404 를 돌려준다(`api-keys.controller.ts:34` 의 `ApiKeysFeatureGuard`).
 > 403 이 아니라 404 인 이유는, 403 은 "그 기능이 존재한다" 는 정보를 주기 때문이다.
+> 세션 검사(전역 가드)가 **먼저** 돌므로 그 404 는 로그인한 사용자만 본다 — 비로그인은
+> 플래그 상태와 무관하게 401 이다.
 > 결제 + 사용량 과금으로 방향을 바꾸는 중이라 기본은 꺼짐이며, **끄면 그림 생성이 멈춘다** —
-> 렌더 워커가 사용자 키를 찾아 쓰는데(`render/render.worker.ts:140-153` 의 `resolveApiKey`)
+> 렌더 워커가 사용자 키를 찾아 쓰는데(`render/render.worker.ts:141` 의 `credentials.resolve`)
 > 키를 등록할 경로가 사라진다.
 
 | Method | Route                     | Handler                                 |
 | ------ | ------------------------- | --------------------------------------- |
-| GET    | `/v1/api-keys`            | `list` (`api-keys.controller.ts:30-33`) |
-| POST   | `/v1/api-keys`            | `create` (`:35-39`)                     |
-| POST   | `/v1/api-keys/:id/verify` | `verify` (`:41-44`)                     |
-| DELETE | `/v1/api-keys/:id`        | `remove` (`:46-50`)                     |
+| GET    | `/v1/api-keys`            | `list` (`api-keys.controller.ts:37-40`) |
+| POST   | `/v1/api-keys`            | `create` (`:42-45`)                     |
+| POST   | `/v1/api-keys/:id/verify` | `verify` (`:47-50`)                     |
+| DELETE | `/v1/api-keys/:id`        | `remove` (`:52-56`)                     |
 
 - 키 평문은 AES-256-GCM 봉인: `MASTER_KEY`(base64 32B) + 랜덤 nonce 12B + authTag 16B 이어붙임 — `api-keys/crypto.ts:1-40`
 - `ApiKeyBreaker` (Redis): 1시간 윈도우 내 동일 키 5회 auth 실패 시 `isActive=false`로 비활성화 — `api-keys/api-keys.breaker.ts:7-47`

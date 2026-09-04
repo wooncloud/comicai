@@ -3,8 +3,10 @@ import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { MetricsService } from './metrics.service';
 import { MetricsGuard } from './metrics.guard';
+import { Public } from '../auth/public.decorator';
 
 @Controller()
+@Public()
 @SkipThrottle()
 @UseGuards(MetricsGuard)
 export class MetricsController {

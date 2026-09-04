@@ -12,8 +12,10 @@ import {
 } from '../session.service';
 import { sessionMetaFromRequest } from '../session.helpers';
 import { issueCsrfToken } from '../../common/csrf.middleware';
+import { Public } from '../public.decorator';
 
 @Controller('auth/oauth')
+@Public()
 export class OAuthController {
   constructor(
     private readonly oauth: OAuthService,

@@ -1,15 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Param,
-  Patch,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req } from '@nestjs/common';
 import {
   SpeechBubbleCreateSchema,
   SpeechBubblePatchSchema,
@@ -19,7 +8,7 @@ import {
   type SpeechBubbleVariant,
 } from '@comicai/types';
 import { SpeechBubblesService } from './speech-bubbles.service';
-import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { AuthedRequest } from '../auth/session.guard';
 
 class CreateDto {
   static zodSchema = SpeechBubbleCreateSchema;
@@ -41,7 +30,6 @@ class ReorderDto {
 }
 
 @Controller()
-@UseGuards(SessionGuard)
 export class SpeechBubblesController {
   constructor(private readonly svc: SpeechBubblesService) {}
 

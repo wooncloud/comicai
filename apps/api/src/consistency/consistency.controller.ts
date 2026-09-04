@@ -11,7 +11,6 @@ import {
   Query,
   Req,
   UploadedFiles,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -25,7 +24,7 @@ import {
   type ModelId,
 } from '@comicai/types';
 import { ConsistencyService } from './consistency.service';
-import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { AuthedRequest } from '../auth/session.guard';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
 
 class CreateDto {
@@ -52,7 +51,6 @@ class AttachDto {
 }
 
 @Controller()
-@UseGuards(SessionGuard)
 export class ConsistencyController {
   constructor(private readonly svc: ConsistencyService) {}
 
