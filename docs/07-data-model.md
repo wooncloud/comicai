@@ -109,7 +109,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 ### 2.7 Page — `pages` (`schema.prisma:118-136`)
 
 - 필드: id, projectId, order(Int), name?(String), size(Json `{w,h}`), background?(Json `ImageRef`), backgroundColor?(String, `#RRGGBB[AA]`), createdAt.
-- `backgroundColor` (`schema.prisma:125`): 페이지 단색 배경. null이면 투명. `background` 이미지가 있을 땐 그 아래에 깔린다. 검증은 `PagePatchSchema.backgroundColor` (`schemas.ts:136-141`).
+- `backgroundColor` (`schema.prisma:125`): 페이지 단색 배경. null이면 투명. `background` 이미지가 있을 땐 그 아래에 깔린다. 검증은 `PagePatchSchema.backgroundColor` (`schemas.ts:147-151`).
 - `size` 는 한 변이 `MAX_PAGE_DIMENSION`(4096) 이하여야 한다 (`schemas.ts:109`). 취향이 아니라
   **메모리 상한**이다 — export 가 이 값으로 sharp 캔버스를 잡으므로, 상한 없이 저장된 거대 페이지
   하나가 export 프로세스를 죽이고 같은 컨테이너의 다른 요청까지 끊는다.
@@ -201,7 +201,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | id          | String PK             | no       | —                                           |
 | panelId     | String                | no       | FK→panels (cascade, `schema.prisma:241`)    |
 | userId      | String                | no       | FK→users (cascade)                          |
-| model       | String                | no       | `RenderModelSchema` enum (`schemas.ts:144`) |
+| model       | String                | no       | `RenderModelSchema` enum (`schemas.ts:160`) |
 | ir          | Json                  | no       | `RenderIR` (`index.ts:426`)                 |
 | status      | String                | no       | `RENDER_STATUSES` (`index.ts:26`)           |
 | resultImage | Json (`result_image`) | yes      | `ImageRef`                                  |
@@ -224,13 +224,13 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | PANEL_SHAPE_TYPES           | `rect, rounded, oval, diamond, parallelogram, polygon`       | `index.ts:108`                   |
 | PANEL_SHAPE_PRESETS         | `rect, rounded, oval, diamond, parallelogram` (polygon 제외) | `index.ts:119`                   |
 | SPEECH_BUBBLE_VARIANTS      | `ellipse, rect, spike, polygon` (cloud/thought 제거됨)       | `index.ts:153`                   |
-| PAGE_TEXT_FONT_FAMILIES     | `sans-serif, serif, monospace`                               | `schemas.ts:250`                 |
-| EntityType                  | `style, character, background, worldview`                    | `index.ts:85` / `schemas.ts:313` |
+| PAGE_TEXT_FONT_FAMILIES     | `sans-serif, serif, monospace`                               | `schemas.ts:266`                 |
+| EntityType                  | `style, character, background, worldview`                    | `index.ts:85` / `schemas.ts:329` |
 | ModelProvider               | `gemini, openai, mock`                                       | `index.ts:9`                     |
-| ModelId                     | `gemini-3.1-flash-image-preview, gpt-image-2, mock`          | `index.ts:10`, `schemas.ts:144`  |
+| ModelId                     | `gemini-3.1-flash-image-preview, gpt-image-2, mock`          | `index.ts:10`, `schemas.ts:160`  |
 | OAUTH_PROVIDERS             | `google, github`                                             | `index.ts:23`                    |
 | RenderErrorCategory         | `transient, auth, quota, safety, invalid, timeout`           | `index.ts:396`                   |
-| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                              | `schemas.ts:266`                 |
+| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                              | `schemas.ts:299`                 |
 | TEXT_ALIGNS                 | `left, center, right`                                        | `schemas.ts:4`                   |
 
 DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`packages/types/src/schemas.ts`)와 TS union을 통해서만 강제**됩니다. PostgreSQL enum은 사용하지 않습니다.
@@ -259,17 +259,17 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 - 프로필: `MePatchSchema` (`schemas.ts:69-72`).
 - API Key 생성: `ApiKeyCreateSchema` (`schemas.ts:78-82`).
 - 프로젝트: `ProjectCreateSchema`, `ProjectPatchSchema` (`schemas.ts:85-96`).
-- 페이지: `PageCreateSchema`, `PagePatchSchema`(`order` 없음 — 순서는 재정렬 전용), `PageSizeSchema`(한 변 4096 상한), `PageReorderSchema` (`schemas.ts:99-146`).
-- 패널: `PanelShapeSchema`(points 3–64, 좌표 ±8192), `PanelCreateSchema`, `PanelPatchSchema` (`schemas.ts:163-197`).
+- 페이지: `PageCreateSchema`, `PagePatchSchema`(`order` 없음 — 순서는 재정렬 전용), `PageSizeSchema`(한 변 4096 상한), `PageReorderSchema` (`schemas.ts:99-157`).
+- 패널: `PanelShapeSchema`(points 3–64, 좌표 ±8192), `PanelCreateSchema`, `PanelPatchSchema` (`schemas.ts:175-213`).
   `PanelPatchSchema` 는 `shape`(전체 교체)와 `stroke`(테두리만) 두 갈래를 받는다. 인스펙터는
   **반드시 `stroke` 를 쓴다** — `shape` 전체를 보내면 선택 시점의 낡은 좌표까지 함께 써서,
   컷을 옮긴 직후 색을 바꾸면 이동이 취소된다. 좌표는 캔버스만 쓴다.
-- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`schemas.ts:201-235`).
-- 페이지 텍스트: `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`schemas.ts:250-280`).
-- 페이지 직선: `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`schemas.ts:283-311`).
-- 렌더: `RenderModelSchema`, `RenderStartSchema` (`schemas.ts:144-149`).
-- 내보내기: `ExportFormatSchema`, `ExportRequestSchema` (`schemas.ts:152-157`).
-- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`, `ConsistencyAttachSchema` (`schemas.ts:313-332`).
+- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`schemas.ts:215-250`).
+- 페이지 텍스트: `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`schemas.ts:268-295`).
+- 페이지 직선: `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`schemas.ts:299-326`).
+- 렌더: `RenderModelSchema`, `RenderStartSchema` (`schemas.ts:160-165`).
+- 내보내기: `ExportFormatSchema`, `ExportRequestSchema` (`schemas.ts:168-173`).
+- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`, `ConsistencyAttachSchema` (`schemas.ts:329-347`).
 
 ### 미디어 공통
 

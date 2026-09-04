@@ -120,6 +120,17 @@ export function isHexColor(v: unknown): v is string {
   return typeof v === 'string' && HEX_COLOR_REGEX.test(v);
 }
 
+/**
+ * 색은 전부 이걸 쓴다.
+ *
+ * 검증이 없으면 `"not-a-color"` 같은 값이 그대로 저장되고, export 가 그것을 SVG 의
+ * `fill`/`stroke`/`fill` 속성으로 내보낸다. 브라우저 캔버스와 export 결과가 서로 다르게
+ * 보이는데 어느 쪽도 오류를 내지 않는다 — 사용자는 "왜 내보낸 그림만 다르지" 만 알게 된다.
+ * (SVG 주입은 아니다. `escapeAttr` 이 따로 막는다.)
+ *
+ * 웹은 이미 같은 정규식으로 막고 있다(`hex-color-field.tsx` 의 `isHexColor`).
+ * 서버만 그 계약을 강제하지 않고 있었다.
+ */
 const ColorStringSchema = z
   .string()
   .trim()
@@ -218,8 +229,8 @@ export const SpeechBubbleShapeSchema = z.object({
 
 export const SpeechBubbleStyleSchema = z.object({
   strokeWidth: z.number().nonnegative().max(20).default(2),
-  strokeColor: z.string().max(32).default('#000000'),
-  fillColor: z.string().max(32).default('#ffffff'),
+  strokeColor: ColorStringSchema.default('#000000'),
+  fillColor: ColorStringSchema.default('#ffffff'),
 });
 
 export const SpeechBubbleCreateSchema = z.object({
@@ -257,7 +268,7 @@ export const PAGE_TEXT_FONT_FAMILIES = ['sans-serif', 'serif', 'monospace'] as c
 export const PageTextStyleSchema = z.object({
   fontSize: z.number().min(6).max(200).default(24),
   fontFamily: z.enum(PAGE_TEXT_FONT_FAMILIES).default('sans-serif'),
-  color: z.string().max(32).default('#111111'),
+  color: ColorStringSchema.default('#111111'),
   textAlign: z.enum(TEXT_ALIGNS).default('left'),
 });
 
@@ -290,7 +301,7 @@ export const PageLineStrokeStyleSchema = z.enum(PAGE_LINE_STROKE_STYLES);
 
 export const PageLineStyleSchema = z.object({
   strokeWidth: z.number().positive().max(40).default(2),
-  strokeColor: z.string().max(32).default('#111111'),
+  strokeColor: ColorStringSchema.default('#111111'),
   strokeStyle: PageLineStrokeStyleSchema.default('solid'),
 });
 
