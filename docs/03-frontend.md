@@ -314,6 +314,22 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 다섯 중 셋이 이미 그 값이었다. 아무것도 선택하지 않았을 때의 빈 자리
 (`pages/[pageid]/page.tsx:350`)도 같은 폭이어야 흔들리지 않는다.
 
+#### 도구 목록은 `tldraw/tool-registry.ts` 한 곳이다
+
+`TOOL_GROUPS`(`components/editor/tldraw/tool-registry.ts:61`)가 id·단축키·라벨·아이콘을
+들고 있고, `comic-editor.tsx` 의 `uiOverrides` 와 `tool-rail.tsx` 의 렌더·`KBD_TO_TOOL` 이
+전부 여기서 파생된다.
+
+예전에는 같은 정보가 두 곳에 있었고 **이미 갈라져 있었다** — 말풍선 4종(b/r/k/n)이
+툴레일에만 있고 `uiOverrides` 에는 없었다. 한쪽만 고치면 아무 에러 없이 단축키가 안 먹거나
+tldraw 기본 단축키('r'=rectangle 등)에 가로채인다.
+
+단축키 매핑이 `e.key` 가 아니라 `KeyboardEvent.code` 인 이유는 한글 IME 다 — IME 가 켜져
+있으면 `e.key` 가 'ㅂ'/'ㅎ' 같은 자모로 들어온다.
+
+**이 파일은 tldraw 를 import 하지 않는다.** `tool-rail` 이 쓰는 모듈이라, 여기서 tldraw
+값을 하나라도 가져오면 번들 경계가 도로 깨진다.
+
 ### 5.4 확인 다이얼로그 — `ui/confirm.tsx`
 
 `ConfirmProvider`(`components/ui/confirm.tsx:38`)가 앱 전역에 하나 마운트되고,

@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { Tldraw, type Editor, type TLComponents, type TLShapeId, type TLUiOverrides } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { ComicPanelShapeUtil } from './comic-panel-shape';
+import { ALL_TOOLS } from './tool-registry';
 import { ComicPanelTool } from './comic-panel-tool';
 import { PageFrameShapeUtil } from './page-frame-shape';
 import { PolygonPanelTool } from './polygon-panel-tool';
@@ -23,39 +24,20 @@ const shapeUtils = [
 ];
 const tools = [ComicPanelTool, PolygonPanelTool, PageTextTool, PageLineTool, ...ALL_BUBBLE_TOOLS];
 
+/**
+ * tldraw 에게 우리 도구를 알려 준다. 목록은 `tool-registry.ts` 한 곳에서 온다 —
+ * 예전에는 여기와 `tool-rail.tsx` 에 따로 적혀 있었고 이미 갈라져 있었다
+ * (말풍선 4종이 툴레일에만 있었다).
+ */
 const uiOverrides: TLUiOverrides = {
   tools(_editor, baseTools) {
-    return {
-      ...baseTools,
-      'comic-panel': {
-        id: 'comic-panel',
-        icon: 'geo-rectangle',
-        label: '컷',
-        kbd: 'p',
-        onSelect: () => undefined,
-      },
-      'polygon-panel': {
-        id: 'polygon-panel',
-        icon: 'geo-star',
-        label: '다각형',
-        kbd: 'g',
-        onSelect: () => undefined,
-      },
-      'page-text': {
-        id: 'page-text',
-        icon: 'tool-text',
-        label: '텍스트',
-        kbd: 't',
-        onSelect: () => undefined,
-      },
-      'page-line': {
-        id: 'page-line',
-        icon: 'tool-line',
-        label: '직선',
-        kbd: 'l',
-        onSelect: () => undefined,
-      },
-    };
+    const ours = Object.fromEntries(
+      ALL_TOOLS.filter((t) => t.tldrawIcon).map((t) => [
+        t.id,
+        { id: t.id, icon: t.tldrawIcon!, label: t.label, kbd: t.kbd, onSelect: () => undefined },
+      ]),
+    );
+    return { ...baseTools, ...ours };
   },
 };
 

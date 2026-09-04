@@ -1,6 +1,7 @@
 'use client';
 import { useEffect } from 'react';
 import { useValue, type Editor } from 'tldraw';
+import { KBD_TO_TOOL, TOOL_GROUPS, type ToolDef } from './tldraw/tool-registry';
 import {
   Circle,
   Hand,
@@ -16,65 +17,6 @@ import {
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
-
-interface Tool {
-  id: string;
-  kbd: string;
-  label: string;
-  icon: LucideIcon;
-  /** 활성 표시 시 함께 켜진 것으로 간주할 동기 도구들(예: 패널의 다각형 sub-mode). */
-  aliases?: readonly string[];
-}
-
-const TOOLS: readonly Tool[] = [
-  { id: 'select', kbd: 'v', label: '선택', icon: MousePointer2 },
-  { id: 'hand', kbd: 'h', label: '손', icon: Hand },
-  { id: 'comic-panel', kbd: 'p', label: '컷', icon: Square, aliases: ['polygon-panel'] },
-  { id: 'page-text', kbd: 't', label: '텍스트', icon: Type },
-  { id: 'page-line', kbd: 'l', label: '직선', icon: Slash },
-  {
-    id: 'bubble-ellipse',
-    kbd: 'b',
-    label: '말풍선',
-    icon: MessageCircle,
-    aliases: ['bubble-rect', 'bubble-spike', 'bubble-polygon'],
-  },
-] as const;
-
-interface PanelSubMode {
-  id: 'comic-panel' | 'polygon-panel';
-  kbd: string;
-  label: string;
-  icon: LucideIcon;
-}
-
-const PANEL_SUB_MODES: readonly PanelSubMode[] = [
-  { id: 'comic-panel', kbd: 'p', label: '사각형', icon: Square },
-  { id: 'polygon-panel', kbd: 'g', label: '다각형', icon: Star },
-] as const;
-
-interface BubbleSubMode {
-  id: 'bubble-ellipse' | 'bubble-rect' | 'bubble-spike' | 'bubble-polygon';
-  kbd: string;
-  label: string;
-  icon: LucideIcon;
-}
-
-const BUBBLE_SUB_MODES: readonly BubbleSubMode[] = [
-  { id: 'bubble-ellipse', kbd: 'b', label: '타원', icon: Circle },
-  { id: 'bubble-rect', kbd: 'r', label: '사각', icon: Square },
-  { id: 'bubble-spike', kbd: 'k', label: '뾰족', icon: Zap },
-  { id: 'bubble-polygon', kbd: 'n', label: '다각형', icon: Pentagon },
-] as const;
-
-// 한글 IME 활성 시 `e.key` 가 'ㅂ'/'ㅎ' 같은 자모로 들어오므로 KeyboardEvent.code 기준으로 매핑.
-// 'b' → 'KeyB' 등. TOOLS의 primary kbd 중 sub-mode와 겹치는 'b' 같은 키는 sub-mode 가 덮어쓰도록 뒤에 둔다.
-const codeOf = (k: string) => `Key${k.toUpperCase()}`;
-const KBD_MAP: Record<string, string> = {
-  ...Object.fromEntries(TOOLS.map((t) => [codeOf(t.kbd), t.id])),
-  ...Object.fromEntries(PANEL_SUB_MODES.map((s) => [codeOf(s.kbd), s.id])),
-  ...Object.fromEntries(BUBBLE_SUB_MODES.map((s) => [codeOf(s.kbd), s.id])),
-};
 
 interface Props {
   editor: Editor | null;
@@ -96,7 +38,7 @@ export function ToolRail({ editor }: Props) {
       ) {
         return;
       }
-      const next = KBD_MAP[e.code];
+      const next = KBD_TO_TOOL[e.code];
       if (!next) return;
       // tldraw 기본 단축키('r'=rectangle, 'o'=ellipse 등)와 키가 겹치므로 capture + stopImmediate
       // 로 우선권 잡고 tldraw 핸들러에는 도달하지 않게 한다.
@@ -108,15 +50,13 @@ export function ToolRail({ editor }: Props) {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [editor]);
 
-  const panelActive = current === 'comic-panel' || current === 'polygon-panel';
-  const bubbleActive = BUBBLE_SUB_MODES.some((m) => m.id === current);
-
   return (
     <TooltipProvider delayDuration={0} skipDelayDuration={0}>
       <nav className="flex w-12 flex-none flex-col items-center gap-1 border-r border-border bg-card py-2">
-        {TOOLS.map((t) => {
+        {TOOL_GROUPS.map(({ primary: t, subModes }) => {
           const Icon = t.icon;
-          const active = current === t.id || (t.aliases?.includes(current) ?? false);
+          // 하위 모드가 켜져 있어도 1차 도구는 활성으로 보여야 한다.
+          const active = current === t.id || (subModes?.some((m) => m.id === current) ?? false);
           return (
             <Tooltip key={t.id}>
               <TooltipTrigger asChild>
@@ -142,20 +82,14 @@ export function ToolRail({ editor }: Props) {
           );
         })}
 
-        {panelActive && <SubModeGroup modes={PANEL_SUB_MODES} current={current} editor={editor} />}
-        {bubbleActive && (
-          <SubModeGroup modes={BUBBLE_SUB_MODES} current={current} editor={editor} />
+        {TOOL_GROUPS.map(({ primary, subModes }) =>
+          subModes && (current === primary.id || subModes.some((m) => m.id === current)) ? (
+            <SubModeGroup key={primary.id} modes={subModes} current={current} editor={editor} />
+          ) : null,
         )}
       </nav>
     </TooltipProvider>
   );
-}
-
-interface SubMode {
-  id: string;
-  kbd: string;
-  label: string;
-  icon: LucideIcon;
 }
 
 function SubModeGroup({
@@ -163,7 +97,7 @@ function SubModeGroup({
   current,
   editor,
 }: {
-  modes: readonly SubMode[];
+  modes: readonly ToolDef[];
   current: string;
   editor: Editor | null;
 }) {
