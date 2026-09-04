@@ -133,38 +133,31 @@
       @apply -my-2 inline-flex min-h-11 items-center;
     }
   }
-}
 
-/*
- * 약관·개인정보 처리방침 본문.
- *
- * 이 두 페이지에만 쓰는 서식이라 유틸리티 클래스를 문단마다 붙이는 대신 여기 모았다.
- * 법적 문서는 조항 번호와 들여쓰기가 곧 구조라, 마크업이 아니라 서식이 정보를 나른다.
- */
-.prose-legal h1 {
-  @apply mt-2 text-title-lg font-semibold sm:text-display-md;
-}
-.prose-legal h2 {
-  @apply mt-10 border-b border-border pb-2 text-title-md font-semibold;
-}
-.prose-legal p {
-  @apply mt-4 text-body-sm leading-relaxed text-muted-foreground;
-}
-.prose-legal ul,
-.prose-legal ol {
-  @apply mt-3 space-y-2 pl-5 text-body-sm leading-relaxed text-muted-foreground;
-}
-.prose-legal ul {
-  @apply list-disc;
-}
-.prose-legal ol {
-  @apply list-decimal;
-}
-.prose-legal strong {
-  @apply font-medium text-foreground;
-}
-.prose-legal .updated {
-  @apply mt-3 text-caption text-muted-foreground;
+  /*
+   * 약관·개인정보 처리방침 본문.
+   *
+   * 이 두 페이지에만 쓰는 서식이라 유틸리티 클래스를 문단마다 붙이는 대신 여기 모았다.
+   * 법적 문서는 조항 번호와 들여쓰기가 곧 구조라, 마크업이 아니라 서식이 정보를 나른다.
+   */
+  .prose-legal h1 {
+    @apply mt-2 text-title-lg font-semibold sm:text-display-md;
+  }
+  .prose-legal h2 {
+    @apply mt-10 border-b border-border pb-2 text-title-md font-semibold;
+  }
+  .prose-legal p {
+    @apply mt-4 text-body-sm leading-relaxed text-muted-foreground;
+  }
+  .prose-legal ul {
+    @apply mt-3 list-disc space-y-2 pl-5 text-body-sm leading-relaxed text-muted-foreground;
+  }
+  .prose-legal strong {
+    @apply font-medium text-foreground;
+  }
+  .prose-legal .updated {
+    @apply mt-3 text-caption text-muted-foreground;
+  }
 }
 
 /* ── 모바일 ─────────────────────────────────────────────

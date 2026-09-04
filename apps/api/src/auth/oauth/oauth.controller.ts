@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common';
+import { Controller, Get, Header, Param, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { OAUTH_PROVIDERS, type OAuthProvider } from '@comicai/types';
@@ -16,16 +16,15 @@ export class OAuthController {
   ) {}
 
   /**
-   * 켜져 있는 소셜 로그인 목록.
-   *
-   * 없으면 웹이 버튼을 감춘다. 예전에는 환경변수와 무관하게 항상 보여서, 설정하지
-   * 않은 상태로 누르면 API 도메인의 JSON 에러 화면에 떨어졌다 — 앱 밖으로 나가
-   * 돌아올 방법도 안내되지 않았다.
+   * 켜져 있는 소셜 로그인 목록. 웹은 이 목록에 있는 버튼만 그린다.
    *
    * `:provider` 보다 위에 있어야 한다. 아래에 두면 'providers' 가 provider 이름으로
    * 잡혀 라우트가 가려진다.
    */
   @Get('providers')
+  // 배포 중에는 바뀌지 않는 값이다. 캐시하지 않으면 익명 방문자의 로그인 화면
+  // 하드 로드마다 origin 을 치고, 요청마다 로그 한 줄과 throttler 카운터를 쓴다.
+  @Header('Cache-Control', 'public, max-age=600')
   providers(): { providers: OAuthProvider[] } {
     return { providers: OAUTH_PROVIDERS.filter((p) => this.oauth.enabled(p)) };
   }

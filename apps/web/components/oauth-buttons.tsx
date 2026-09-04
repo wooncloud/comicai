@@ -1,9 +1,11 @@
 'use client';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { ApiPaths, type OAuthProvider } from '@comicai/types';
 import type { SVGProps } from 'react';
 import { api, API_BASE } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { qk } from '@/lib/query-keys';
 
 // Icon from Material Design Icons by Pictogrammers — https://github.com/Templarian/MaterialDesign/blob/master/LICENSE
 function GithubIcon(props: SVGProps<SVGSVGElement>) {
@@ -31,10 +33,39 @@ function GoogleIcon(props: SVGProps<SVGSVGElement>) {
 
 type IconComponent = (props: SVGProps<SVGSVGElement>) => JSX.Element;
 
-const PROVIDERS: { id: OAuthProvider; label: string; Icon: IconComponent }[] = [
-  { id: 'google', label: 'Google로 계속하기', Icon: GoogleIcon },
-  { id: 'github', label: 'GitHub로 계속하기', Icon: GithubIcon },
+/** 제공자의 표시 정보. 보안 설정 화면(연결 목록)도 같은 이름·아이콘을 쓴다. */
+export const PROVIDERS: {
+  id: OAuthProvider;
+  /** 목록에 쓰는 짧은 이름. */
+  name: string;
+  /** 로그인 버튼 문구. */
+  label: string;
+  Icon: IconComponent;
+}[] = [
+  { id: 'google', name: 'Google', label: 'Google로 계속하기', Icon: GoogleIcon },
+  { id: 'github', name: 'GitHub', label: 'GitHub로 계속하기', Icon: GithubIcon },
 ];
+
+/**
+ * 서버가 켜 둔 소셜 로그인 제공자. 응답 전에는 undefined 다.
+ *
+ * 이 조회는 실패해도 화면을 던지지 않는다(`throwOnError: false`) — 소셜 로그인을
+ * 못 물어봤다고 이메일 로그인까지 막을 이유가 없다. 버튼만 안 그리면 된다.
+ */
+export function useOAuthProviders() {
+  const { data } = useQuery<{ providers: OAuthProvider[] }>({
+    queryKey: qk.oauthProviders(),
+    queryFn: () => api<{ providers: OAuthProvider[] }>(ApiPaths.oauthProviders),
+    // 배포 중에 바뀌지 않는 값이다. 화면을 옮길 때마다 다시 물을 이유가 없다.
+    // gcTime 까지 막는 이유: 인증 화면을 떠나면 옵저버가 0이 되고, 기본 5분이
+    // 지나면 캐시가 수거되어 SPA 안에서도 같은 상수를 다시 묻는다.
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: false,
+    throwOnError: false,
+  });
+  return data?.providers;
+}
 
 interface Props {
   returnTo?: string;
@@ -50,16 +81,11 @@ export function OAuthButtons({ returnTo }: Props) {
    * 응답이 오기 전에는 아무것도 그리지 않는다 — 버튼을 먼저 보였다가 없애면 누르려던
    * 손가락 밑에서 사라진다.
    */
-  const { data } = useQuery<{ providers: OAuthProvider[] }>({
-    queryKey: ['oauth-providers'],
-    queryFn: () => api<{ providers: OAuthProvider[] }>(ApiPaths.oauthProviders),
-    // 배포 중에 바뀌지 않는 값이다. 화면을 옮길 때마다 다시 물을 이유가 없다.
-    staleTime: Infinity,
-    retry: false,
-  });
-  const enabled = data?.providers;
-  if (!enabled || enabled.length === 0) return null;
+  const enabled = useOAuthProviders();
+  const shown = PROVIDERS.filter((p) => enabled?.includes(p.id));
+  if (shown.length === 0) return null;
 
+  const qs = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
   return (
     <>
       {/* 구분선도 여기 있어야 한다. 밖에 두면 버튼이 숨겨졌을 때 "또는" 만 남는다. */}
@@ -69,18 +95,31 @@ export function OAuthButtons({ returnTo }: Props) {
         <span className="h-px flex-1 bg-border" />
       </div>
       <div className="space-y-2">
-        {PROVIDERS.filter((p) => enabled.includes(p.id)).map(({ id, label, Icon }) => {
-          const qs = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
-          return (
-            <Button key={id} asChild variant="outline" className="w-full">
-              <a href={`${API_BASE}${ApiPaths.oauthRedirect(id)}${qs}`}>
-                <Icon className="h-4 w-4 shrink-0" />
-                {label}
-              </a>
-            </Button>
-          );
-        })}
+        {shown.map(({ id, label, Icon }) => (
+          <Button key={id} asChild variant="outline" className="w-full">
+            <a href={`${API_BASE}${ApiPaths.oauthRedirect(id)}${qs}`}>
+              <Icon className="h-4 w-4 shrink-0" />
+              {label}
+            </a>
+          </Button>
+        ))}
       </div>
+      {/*
+        소셜 가입에는 동의 체크박스를 놓을 자리가 없다 — 버튼을 누르는 순간 계정이
+        만들어진다. 그래서 여기 문구가 곧 동의 절차다. 이 문구 없이 서버가
+        termsAgreedAt 을 기록하면 받지 않은 동의를 기록하는 셈이 된다.
+      */}
+      <p className="mt-4 text-center text-caption text-muted-foreground [text-wrap:pretty]">
+        계속하면{' '}
+        <Link href="/terms" target="_blank" prefetch={false} className="underline">
+          이용약관
+        </Link>
+        과{' '}
+        <Link href="/privacy" target="_blank" prefetch={false} className="underline">
+          개인정보 처리방침
+        </Link>
+        에 동의하는 것으로 봅니다.
+      </p>
     </>
   );
 }

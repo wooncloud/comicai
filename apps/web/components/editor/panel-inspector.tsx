@@ -71,6 +71,9 @@ export function PanelInspector({
     queryKey: qk.renderJob(activeJobId),
     queryFn: () => api<RenderJobDTO>(ApiPaths.renderJob(activeJobId!)),
     enabled: !!activeJobId,
+    // 잡 하나를 못 읽었다고 에디터를 통째로 오류 화면으로 바꾸면 안 된다.
+    // 그림이 없는 컷으로 보일 뿐이고, 사용자는 다시 생성하면 된다.
+    throwOnError: false,
   });
 
   // 프로젝트 대표 그림체와 등록된 style 엔티티 목록.

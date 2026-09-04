@@ -46,19 +46,55 @@ App Router 구조. 모든 `page.tsx` 파일.
 
 ### app/providers.tsx
 
-`app/providers.tsx:5` — Client Component. `useState`로 `QueryClient` 1회 생성하고 `QueryClientProvider`로 자식을 감싼다. 기본 옵션:
+`app/providers.tsx:6` — Client Component. `useState`로 `QueryClient` 1회 생성하고 `QueryClientProvider`로 자식을 감싼다. 기본 옵션:
 
 - `staleTime: 30_000` (30초)
 - `refetchOnWindowFocus: false`
 - `retry: 1`
+- `throwOnError` (`providers.tsx:30`) — **조회 실패는 기본적으로 화면을 던진다.** 받는 곳은
+  `app/error.tsx`.
+
+#### 왜 화면마다 `isError` 를 보지 않는가
+
+이걸 켜기 전에는 `useQuery` 호출부 11곳 중 실패를 다루는 곳이 하나도 없었고, 그 결과 **본문이
+거짓말을 했다**: 대시보드는 "프로젝트가 없다", 생성 기록은 영원히 "불러오는 중…", 운영 현황은
+운영자에게 "권한이 없다" 고 말했다. 화면마다 분기를 다는 방식으로는 다음에 추가되는 `useQuery`
+가 다시 조용해진다 — opt-in 으로는 opt-in 을 잊는 문제를 못 고친다.
+
+예외는 두 가지뿐이고 `throwOnError` 안에서 판정한다.
+
+- **이미 보여 준 데이터가 있으면 던지지 않는다** (`query.state.data !== undefined`). 백그라운드
+  갱신이 한 번 실패했다고 보고 있던 화면을 치우는 건 더 나쁘다.
+- **401 은 던지지 않는다.** 자기 복구 경로가 따로 있다 — `Topbar` 가 `/login` 으로 보낸다.
+  여기서 던지면 만료된 세션이 오류 화면으로 보인다.
+
+조회 단위로 빠지는 곳은 두 곳이다: `oauth-buttons.tsx:64`(제공자 목록 — 못 물어봤다고 이메일
+로그인까지 막을 이유가 없다), `panel-inspector.tsx:75`(렌더 잡 — 잡 하나를 못 읽었다고 에디터를
+통째로 오류 화면으로 바꿀 수 없다).
+
+### app/error.tsx
+
+`app/error.tsx:17` — 라우트 오류 경계. 문구는 `errorMessage(error)` 에서 나오고, `reset()` 버튼과
+`/dashboard` 로 돌아가는 링크를 준다. "저장된 작업이 사라진 것은 아닙니다" 를 함께 띄우는 이유는,
+이 화면이 뜨는 가장 흔한 원인이 서버 일시 장애이기 때문이다.
+
+Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그먼트의 `layout.tsx` 는 경계 **밖**이다.
+따라서 `app/layout.tsx` 의 `Providers` 안쪽에서 렌더되어 `errorMessage`·`Button` 을 그대로 쓴다.
 
 ### components/shell/app-shell.tsx
 
-`AppShell`(`app-shell.tsx:25`)은 `Topbar` + `<main>` 레이아웃. `Topbar`(`app-shell.tsx:34`)는 다음을 담당.
+`AppShell`(`app-shell.tsx:26`)은 `Topbar` + `<main>` + 푸터 레이아웃. `Topbar`(`app-shell.tsx:51`)는 다음을 담당.
 
-- `useQuery<SessionUser>({ queryKey: ['me'], retry: false })` (`app-shell.tsx:37-41`) — 401 발생 시 로그인이 아닌 경로에서 `/login`으로 redirect (`:43-54`)
-- 로그아웃은 `POST /logout` 후 `queryClient.setQueryData(['me'], null)`로 캐시 무효화 (`:57-64`)
+- `useQuery<SessionUser>({ queryKey: qk.me(), retry: false })` (`app-shell.tsx:54-58`) — 401 발생 시 로그인이 아닌 경로에서 `/login`으로 redirect (`:60-71`)
+- 로그아웃은 `POST /logout` 후 `queryClient.setQueryData(qk.me(), null)`로 캐시 무효화 (`lib/nav.ts:69`)
 - Avatar 드롭다운으로 설정·로그아웃 메뉴 노출
+
+푸터(`app-shell.tsx:37`)는 `FooterLinks`(`components/shell/footer-links.tsx:19`) 하나만 담는다.
+**약관·개인정보 처리방침은 로그인한 뒤에도 닿아야 한다** — 랜딩 푸터에만 두었더니 이미 가입한
+사람은 다시 볼 방법이 없었다. 랜딩(`app/page.tsx`)과 `AppShell` 이 같은 컴포넌트를 쓰므로 목록이
+갈라지지 않는다. 링크는 `prefetch={false}` 다: 클릭률이 낮은데 기본 프리페치는 푸터가 화면에
+들어오기만 해도 RSC 페이로드 7kB(gzip)를 미리 받는다. 에디터는 `AppShell` 을 쓰지 않아(전체 화면)
+푸터가 붙지 않는다.
 
 ## 4. 컴포넌트 계층
 
@@ -400,7 +436,7 @@ AppShell 화면의 h1 은 `text-title-lg sm:text-display-md` 로 통일한다. �
   활성 판정은 **정확 일치**다. `startsWith` 를 쓰면 하위 경로가 생기는 순간 두 탭이 동시에 켜진다.
 - `useLogout()`(`:54`) — 드롭다운과 드로어가 같은 함수를 쓴다. 두 벌로 두면
   `setQueryData(qk.me(), null)` 같은 뒷정리를 한쪽에서만 빠뜨리기 쉽다.
-- 좁은 화면에서는 드로어 하나만 남긴다(`app-shell.tsx:61`, `:76`). 상단바 nav 와 아바타
+- 좁은 화면에서는 드로어 하나만 남긴다(`app-shell.tsx:83`, `:106`). 상단바 nav 와 아바타
   드롭다운은 `md` 미만에서 숨는다 — 같은 항목이 화면 양쪽에 두 벌 있으면 안 된다.
 
 ### 모바일/터치는 브레이크포인트가 아니라 `pointer: coarse` 로 가른다

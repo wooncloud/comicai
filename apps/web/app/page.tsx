@@ -9,6 +9,7 @@ import { Topbar } from '@/components/shell/app-shell';
 import { SampleImage } from '@/components/landing/sample-image';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
+import { FooterLinks } from '@/components/shell/footer-links';
 
 export default function HomePage() {
   const router = useRouter();
@@ -156,7 +157,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* API key notice */}
+        {/* 알아두실 점 */}
         <section className="mx-auto max-w-[1440px] px-6 pb-16 lg:pb-24">
           <div className="flex flex-col gap-4 rounded-xl border border-border bg-muted/60 p-6 sm:flex-row sm:items-start sm:gap-5 sm:p-8">
             <ShieldCheck
@@ -177,19 +178,7 @@ export default function HomePage() {
         <footer className="border-t border-border">
           <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-6 text-caption text-muted-foreground">
             <span>© 2026 ComicAI</span>
-            {/* 약관·개인정보 처리방침은 어디서든 닿아야 한다. 가입 화면에만 두면
-                이미 가입한 사람은 다시 볼 방법이 없다. */}
-            <div className="-mr-3 flex items-center">
-              <Link href="/terms" className="flex h-11 items-center px-3 hover:text-foreground">
-                이용약관
-              </Link>
-              <Link href="/privacy" className="flex h-11 items-center px-3 hover:text-foreground">
-                개인정보 처리방침
-              </Link>
-              <Link href="/health" className="flex h-11 items-center px-3 hover:text-foreground">
-                상태
-              </Link>
-            </div>
+            <FooterLinks />
           </div>
         </footer>
       </main>

@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { api, API_BASE, ApiError } from '@/lib/api';
 import {
   ApiPaths,
-  OAUTH_PROVIDERS,
   PASSWORD_MIN_LENGTH,
   PASSWORD_PATTERN,
   type SessionInfo,
@@ -13,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
+import { PROVIDERS, useOAuthProviders } from '@/components/oauth-buttons';
 
 export default function SecurityPage() {
   const [me, setMe] = useState<SessionUser | null>(null);
@@ -130,25 +130,37 @@ function PasswordSection({ me, onChanged }: { me: SessionUser | null; onChanged:
 }
 
 function OAuthSection({ me }: { me: SessionUser | null }) {
-  if (!me) return null;
-  const linked = new Set(me.oauthProviders ?? []);
+  /*
+   * 로그인 화면과 같은 목록을 본다. 예전에는 지원 가능한 제공자를 전부 그려서,
+   * 꺼져 있는 제공자의 "연결" 버튼이 API 도메인의 JSON 에러 화면으로 떨어졌다.
+   *
+   * 이미 연결된 것은 꺼져 있어도 보여 준다 — 연결 사실 자체가 정보다.
+   */
+  const enabled = useOAuthProviders();
+  const linked = new Set(me?.oauthProviders ?? []);
+  const rows = PROVIDERS.filter((p) => enabled?.includes(p.id) || linked.has(p.id));
+
+  if (!me || rows.length === 0) return null;
   return (
     <section className="space-y-3">
       <h2 className="text-title-lg font-semibold">외부 로그인</h2>
       <ul className="space-y-2 text-body-sm">
-        {OAUTH_PROVIDERS.map((p) => (
+        {rows.map(({ id, name, Icon }) => (
           <li
-            key={p}
+            key={id}
             className="flex items-center justify-between rounded-md border border-border px-4 py-2"
           >
-            <span className="capitalize">{p}</span>
-            {linked.has(p) ? (
+            <span className="flex items-center gap-2">
+              <Icon className="h-4 w-4 shrink-0" />
+              {name}
+            </span>
+            {linked.has(id) ? (
               <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-caption text-emerald-700 dark:text-emerald-300">
                 연결됨
               </span>
             ) : (
               <Button asChild variant="outline" size="sm">
-                <a href={`${API_BASE}${ApiPaths.oauthRedirect(p)}?returnTo=/settings/security`}>
+                <a href={`${API_BASE}${ApiPaths.oauthRedirect(id)}?returnTo=/settings/security`}>
                   연결
                 </a>
               </Button>

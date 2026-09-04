@@ -133,6 +133,15 @@ export class OAuthService implements OnModuleDestroy {
       }
       return { id: existing.id, email: existing.email };
     }
+    /*
+     * 계정을 만드는 두 경로 중 하나다(다른 하나는 AuthService.signup).
+     * 동의 시각은 "가입 폼"이 아니라 **계정 생성** 에 붙어야 한다 — 한쪽에만
+     * 붙이면 다른 경로로 만들어진 계정에 기록이 없고, 재동의 대상을 가려낼 수 없다.
+     *
+     * 소셜 가입에는 체크박스가 없다. 대신 웹의 OAuthButtons 가 버튼 아래에
+     * "계속하면 이용약관·개인정보 처리방침에 동의하는 것으로 봅니다" 를 띄우고,
+     * 그 문구가 여기 기록의 근거다. 문구를 지우면 이 줄도 근거를 잃는다.
+     */
     const created = await prisma.user.create({
       data: {
         id: newId('user'),
@@ -141,6 +150,7 @@ export class OAuthService implements OnModuleDestroy {
         avatarUrl: profile.avatarUrl,
         oauthProviders: [provider],
         emailVerifiedAt: profile.emailVerified ? new Date() : null,
+        termsAgreedAt: new Date(),
       },
       select: { id: true, email: true },
     });

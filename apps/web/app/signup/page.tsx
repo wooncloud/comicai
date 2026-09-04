@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { api, ApiError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { ApiPaths } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,11 +76,21 @@ export default function SignupPage() {
             className="mt-0.5 h-4 w-4 shrink-0 rounded border-input accent-primary"
           />
           <span className="text-muted-foreground">
-            <Link href="/terms" target="_blank" className="text-foreground underline">
+            <Link
+              href="/terms"
+              target="_blank"
+              prefetch={false}
+              className="text-foreground underline"
+            >
               이용약관
             </Link>
             과{' '}
-            <Link href="/privacy" target="_blank" className="text-foreground underline">
+            <Link
+              href="/privacy"
+              target="_blank"
+              prefetch={false}
+              className="text-foreground underline"
+            >
               개인정보 처리방침
             </Link>
             에 동의합니다.

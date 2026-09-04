@@ -94,9 +94,22 @@
 - state는 Redis에 `oauth_state:{state}`로 10분 TTL — `auth/oauth/oauth.service.ts:14-15, 41-46`
 - 콜백 URI: `${API_PUBLIC_URL ?? 'http://localhost:${API_PORT}'}/v1/auth/oauth/${provider}/callback` — `auth/oauth/oauth.service.ts:103-108`
 - 라우트:
-  - GET `/v1/auth/oauth/:provider` → 302 authorize URL — `oauth.controller.ts:18-27`
-  - GET `/v1/auth/oauth/:provider/callback` → 세션 발급 + CSRF 발급 후 `${WEB_ORIGIN}${returnTo || '/projects'}`로 302 — `oauth.controller.ts:29-64`
-- 사용자 매칭: 이메일 기준 link-or-create. `oauthProviders` JSON 배열에 provider 추가, `emailVerified`면 `emailVerifiedAt` 채움 — `auth/oauth/oauth.service.ts:110-148`
+  - GET `/v1/auth/oauth/providers` → 켜져 있는 provider 목록 — `oauth.controller.ts:28`.
+    웹은 **이 목록에 있는 버튼만 그린다**. 예전에는 환경변수와 무관하게 항상 보여서, 설정하지
+    않은 상태로 누르면 API 도메인의 JSON 에러 화면에 떨어졌다. `:provider` 라우트보다 **위에
+    있어야 한다** — 아래에 두면 `'providers'` 가 provider 이름으로 잡혀 가려진다.
+    `Cache-Control: public, max-age=600`(`oauth.controller.ts:27`): 배포 중 바뀌지 않는 값인데
+    캐시가 없으면 익명 방문자의 로그인 화면 하드 로드마다 origin 을 치고, 요청마다 로그 한 줄과
+    throttler 카운터를 쓴다
+  - GET `/v1/auth/oauth/:provider` → 302 authorize URL — `oauth.controller.ts:32-42`
+  - GET `/v1/auth/oauth/:provider/callback` → 세션 발급 + CSRF 발급 후 `${WEB_ORIGIN}${returnTo || '/projects'}`로 302 — `oauth.controller.ts:43-79`
+- 사용자 매칭: 이메일 기준 link-or-create. `oauthProviders` JSON 배열에 provider 추가, `emailVerified`면 `emailVerifiedAt` 채움 — `auth/oauth/oauth.service.ts:110-158`
+- **약관 동의는 계정 생성 지점에 기록한다.** `termsAgreedAt`(`oauth.service.ts:153`)은 신규 생성
+  경로에만 붙고, 기존 계정 링크 경로(`:117-134`)는 건드리지 않는다. 계정을 만드는 경로는 둘
+  뿐이고(`auth.service.ts:13`, `oauth.service.ts:145`) 한쪽에만 붙이면 다른 경로로 만들어진
+  계정에 기록이 없어 재동의 대상을 가려낼 수 없다. 소셜 가입에는 체크박스를 놓을 자리가 없어
+  (버튼을 누르는 순간 계정이 생긴다) 웹의 `OAuthButtons` 가 버튼 아래 띄우는 "계속하면 …동의하는
+  것으로 봅니다" 문구가 이 기록의 근거다
 
 ---
 

@@ -13,8 +13,15 @@ export const qk = {
   /** 로그인한 사용자. Topbar·설정 화면이 공유한다. */
   me: () => ['me'] as const,
 
+  /** 켜져 있는 소셜 로그인 제공자. 로그인·가입·보안 설정이 공유한다. */
+  oauthProviders: () => ['oauth-providers'] as const,
+
   /** 대시보드의 프로젝트 목록. */
   projects: () => ['projects'] as const,
+
+  /** 운영 현황 화면. `isAdmin` 이 참일 때만 조회한다. */
+  adminOverview: () => ['admin', 'overview'] as const,
+  adminUsers: () => ['admin', 'users'] as const,
 
   /** 단일 프로젝트. 라우트 파라미터가 아직 없을 수 있어 undefined 를 받는다(enabled 로 막는다). */
   project: (projectId: string | undefined) => ['project', projectId] as const,

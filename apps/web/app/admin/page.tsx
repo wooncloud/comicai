@@ -22,12 +22,12 @@ export default function AdminPage() {
   const allowed = me?.isAdmin === true;
 
   const { data: overview } = useQuery<AdminOverview>({
-    queryKey: ['admin', 'overview'],
+    queryKey: qk.adminOverview(),
     queryFn: () => api<AdminOverview>(ApiPaths.adminOverview),
     enabled: allowed,
   });
   const { data: users } = useQuery<AdminUserRow[]>({
-    queryKey: ['admin', 'users'],
+    queryKey: qk.adminUsers(),
     queryFn: () => api<AdminUserRow[]>(ApiPaths.adminUsers),
     enabled: allowed,
   });
