@@ -1,4 +1,4 @@
-import { Controller, Get, Header, Param, Query, Req, Res } from '@nestjs/common';
+import { Controller, Get, Header, NotFoundException, Param, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { OAUTH_PROVIDERS, type OAuthProvider } from '@comicai/types';
@@ -96,7 +96,13 @@ export class OAuthController {
 
 function ensureSupported(provider: string): OAuthProvider {
   if (!OAUTH_PROVIDERS.includes(provider as OAuthProvider)) {
-    throw new Error('UNSUPPORTED_OAUTH_PROVIDER');
+    /*
+     * 순수 Error 를 던지면 전역 필터가 HttpException 이 아니라고 판단해 500 +
+     * `unhandled exception` ERROR 로그를 남긴다. 오타 하나로 500 이 뜨고, 반복 호출로
+     * 에러 로그를 부풀릴 수 있었다. 콜백 경로에서는 try 밖이라 로그인 화면 리다이렉트
+     * 대신 500 JSON 이 나갔다.
+     */
+    throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
   }
   return provider as OAuthProvider;
 }

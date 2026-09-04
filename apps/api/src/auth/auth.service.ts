@@ -10,10 +10,23 @@ export class AuthService {
     const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
     // 동의 시각을 계정 생성과 같은 트랜잭션에 남긴다. 나중에 채우면 "동의는 받았는데
     // 기록이 없는" 계정이 생길 수 있고, 그러면 재동의 대상을 가려낼 수 없다.
-    const user = await prisma.user.create({
-      data: { id: newId('user'), email, passwordHash, termsAgreedAt: new Date() },
-    });
-    return { id: user.id, email: user.email };
+    /*
+     * 위 존재 검사와 여기 사이에 창이 있다. 같은 이메일로 두 요청이 거의 동시에
+     * 오면 둘 다 검사를 통과하고, 늦은 쪽이 unique 위반(P2002)을 맞는다. 그건
+     * HttpException 이 아니라 500 으로 나가서, 프론트가 EMAIL_TAKEN 분기를 못 타고
+     * "서버 오류" 를 띄웠다 — 더블클릭만으로도 재현된다.
+     */
+    try {
+      const user = await prisma.user.create({
+        data: { id: newId('user'), email, passwordHash, termsAgreedAt: new Date() },
+      });
+      return { id: user.id, email: user.email };
+    } catch (err) {
+      if ((err as { code?: string }).code === 'P2002') {
+        throw new ConflictException({ code: 'EMAIL_TAKEN' });
+      }
+      throw err;
+    }
   }
 
   async verify(email: string, password: string) {

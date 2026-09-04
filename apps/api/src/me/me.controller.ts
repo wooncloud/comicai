@@ -28,6 +28,7 @@ import { SessionGuard, AuthedRequest } from '../auth/session.guard';
 import { isAdmin } from '../auth/admin.guard';
 import { SessionService } from '../auth/session.service';
 import { StorageService } from '../storage/storage.service';
+import { AuthTokensService } from '../auth/auth-tokens.service';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
 import { requireUploadedFile } from '../common/upload';
 
@@ -70,6 +71,7 @@ export class MeController {
   constructor(
     private readonly sessions: SessionService,
     private readonly storage: StorageService,
+    private readonly tokens: AuthTokensService,
   ) {}
 
   private async toSessionUser(u: UserRow): Promise<SessionUser> {
@@ -163,6 +165,14 @@ export class MeController {
     const newHash = await argon2.hash(body.newPassword, { type: argon2.argon2id });
     await prisma.user.update({ where: { id: req.user.id }, data: { passwordHash: newHash } });
     await this.sessions.destroyAllExcept(req.user.id, req.sid);
+    /*
+     * 아직 살아 있는 재설정 링크도 죽인다.
+     *
+     * 메일함에 잠깐 접근한 사람이 링크만 빼 두면, 피해자가 이상을 눈치채고 여기서
+     * 비밀번호를 바꿔도 남은 30분 안에 다시 덮어쓸 수 있었다 — 그때는 재설정 쪽이
+     * 모든 세션을 끊으므로 피해자가 완전히 밀려난다.
+     */
+    await this.tokens.revokePasswordResets(req.user.id);
   }
 
   @Get('sessions')

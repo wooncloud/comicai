@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   Res,
+  Logger,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import argon2 from 'argon2';
@@ -51,6 +52,8 @@ class PasswordResetConfirmDto {
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly auth: AuthService,
     private readonly sessions: SessionService,
@@ -73,8 +76,22 @@ export class AuthController {
     );
     res.cookie(SESSION_COOKIE, sid, SESSION_COOKIE_OPTIONS);
     issueCsrfToken(res, SESSION_COOKIE_OPTIONS.secure);
-    const token = await this.tokens.issueEmailVerification(user.id);
-    await this.email.sendVerification(user.email, token);
+    /*
+     * 메일 발송 실패로 가입을 실패시키지 않는다.
+     *
+     * 여기까지 왔으면 사용자 행은 이미 커밋됐고 세션 쿠키도 응답 헤더에 실려 있다.
+     * 여기서 던지면 500 이 나가고, 사용자는 "가입 실패" 로 읽고 다시 시도했다가
+     * 409 "이미 사용 중인 이메일" 을 받는다 — 남이 자기 이메일을 선점했다고
+     * 오해하고, 정작 자신이 이미 로그인된 상태라는 것도 모른다.
+     *
+     * 인증 메일은 `/verify-email/request` 로 다시 받을 수 있다.
+     */
+    try {
+      const token = await this.tokens.issueEmailVerification(user.id);
+      await this.email.sendVerification(user.email, token);
+    } catch (err) {
+      this.logger.error({ err, userId: user.id }, '가입은 됐지만 인증 메일 발송에 실패했습니다.');
+    }
     return user;
   }
 
@@ -157,5 +174,7 @@ export class AuthController {
     await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
     // 비밀번호 변경 시 모든 활성 세션 종료.
     await this.sessions.destroyAllForUser(userId);
+    // 아직 살아 있는 다른 재설정 링크도 함께 죽인다.
+    await this.tokens.revokePasswordResets(userId);
   }
 }
