@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
+import { useConfirm } from '@/components/ui/confirm';
 
 export default function ProjectDetail() {
   const params = useParams<{ id: string }>();
@@ -177,6 +178,7 @@ function SortablePageRow({
   onChanged: () => void;
 }) {
   const toast = useToast();
+  const confirm = useConfirm();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: page.id,
   });
@@ -187,7 +189,13 @@ function SortablePageRow({
   };
 
   async function remove() {
-    if (!confirm(`페이지 ${page.order + 1}을(를) 삭제하시겠습니까?`)) return;
+    const ok = await confirm({
+      title: `페이지 ${page.order + 1}을(를) 삭제할까요?`,
+      body: '이 페이지의 컷·말풍선·텍스트가 함께 사라집니다. 되돌릴 수 없습니다.',
+      confirmLabel: '삭제',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api(ApiPaths.page(page.id), { method: 'DELETE' });
       onChanged();

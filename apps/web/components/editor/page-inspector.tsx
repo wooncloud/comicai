@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { ApiPaths, type PageDTO } from '@comicai/types';
 import { PageSizeSelect } from './page-size-select';
 import { SectionLabel } from './section-label';
-import { CollapseButton } from './collapse-button';
+import { InspectorShell } from './inspector-shell';
 import { HexColorField } from './hex-color-field';
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
@@ -51,14 +51,7 @@ export function PageInspector({ page, onPageUpdated, onCollapse }: Props) {
   }
 
   return (
-    <aside className="flex w-72 flex-col gap-4 overflow-y-auto border-l border-border bg-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="속성 창 접기" />}
-        <div className="flex-1 truncate text-xs uppercase tracking-wide text-muted-foreground">
-          페이지
-        </div>
-      </div>
-
+    <InspectorShell title="페이지" onCollapse={onCollapse}>
       <div className="space-y-2">
         <SectionLabel icon={Ruler}>페이지 크기</SectionLabel>
         <PageSizeSelect value={page.size} onChange={(size) => void patch({ size })} />
@@ -82,6 +75,6 @@ export function PageInspector({ page, onPageUpdated, onCollapse }: Props) {
           내보내기 시 컷이 없는 영역에 적용됩니다.
         </p>
       </div>
-    </aside>
+    </InspectorShell>
   );
 }

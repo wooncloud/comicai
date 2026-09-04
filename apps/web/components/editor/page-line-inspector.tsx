@@ -4,7 +4,7 @@ import type { Editor, TLShapeId } from 'tldraw';
 import { PAGE_LINE_STROKE_STYLES, type PageLineStrokeStyle } from '@comicai/types';
 import type { PageLineShape } from './tldraw/page-line-shape';
 import { SectionLabel } from './section-label';
-import { CollapseButton } from './collapse-button';
+import { InspectorShell } from './inspector-shell';
 import { HexColorField } from './hex-color-field';
 import { NumberField } from './number-field';
 import {
@@ -42,14 +42,7 @@ export function PageLineInspector({ editor, shapeId, shape, onCollapse }: Props)
   }
 
   return (
-    <aside className="flex min-h-0 w-80 flex-col gap-4 overflow-y-auto border-l border-border bg-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="속성 창 접기" />}
-        <div className="flex-1 truncate text-xs uppercase tracking-wide text-muted-foreground">
-          직선{p.lineId ? '' : ' · 저장 중…'}
-        </div>
-      </div>
-
+    <InspectorShell title={`직선${p.lineId ? '' : ' · 저장 중…'}`} onCollapse={onCollapse}>
       <div className="space-y-2">
         <SectionLabel icon={Slash}>선</SectionLabel>
 
@@ -99,6 +92,6 @@ export function PageLineInspector({ editor, shapeId, shape, onCollapse }: Props)
           </Select>
         </div>
       </div>
-    </aside>
+    </InspectorShell>
   );
 }

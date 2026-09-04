@@ -3,7 +3,7 @@ import { MessageSquare } from 'lucide-react';
 import type { Editor, TLShapeId } from 'tldraw';
 import type { SpeechBubbleShape } from './tldraw/speech-bubble-shape';
 import { SectionLabel } from './section-label';
-import { CollapseButton } from './collapse-button';
+import { InspectorShell } from './inspector-shell';
 import { HexColorField } from './hex-color-field';
 import { NumberField } from './number-field';
 
@@ -29,14 +29,7 @@ export function SpeechBubbleInspector({ editor, shapeId, shape, onCollapse }: Pr
   }
 
   return (
-    <aside className="flex min-h-0 w-80 flex-col gap-4 overflow-y-auto border-l border-border bg-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="속성 창 접기" />}
-        <div className="flex-1 truncate text-xs uppercase tracking-wide text-muted-foreground">
-          말풍선{p.bubbleId ? '' : ' · 저장 중…'}
-        </div>
-      </div>
-
+    <InspectorShell title={`말풍선${p.bubbleId ? '' : ' · 저장 중…'}`} onCollapse={onCollapse}>
       <div className="space-y-2">
         <SectionLabel icon={MessageSquare}>말풍선</SectionLabel>
         <div className="space-y-1">
@@ -71,6 +64,6 @@ export function SpeechBubbleInspector({ editor, shapeId, shape, onCollapse }: Pr
           </div>
         </div>
       </div>
-    </aside>
+    </InspectorShell>
   );
 }

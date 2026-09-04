@@ -305,7 +305,33 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 `components/editor/tldraw/use-page-frame.ts:22` — `page-frame` shape를 0,0에 자동 생성, 잠금(`isLocked: true`), `index: 'a0'`로 항상 최하단. 사이즈·라벨 변경 시 삭제 후 재생성으로 BaseBoxShape geometry 강제 갱신. `sendToBack` 폴백은 mergeRemoteChanges 밖에서 호출 (`:50-52`). 신규 frame 생성 시 `zoomToFit`.
 
-### 5.4 토스트 — sonner
+#### 속성 창 껍데기는 `inspector-shell.tsx` 하나다
+
+`InspectorShell`(`components/editor/inspector-shell.tsx:26`) — 다섯 인스펙터(컷·말풍선·
+텍스트·직선·페이지)가 같은 `<aside>` 와 헤더를 각자 적고 있었는데, **폭이 `w-96`/`w-80`×3/
+`w-72` 로 갈려 있었다.** 그래서 선택을 옮길 때마다 캔버스 폭이 튀었다. 페이지 인스펙터만
+`min-h-0` 도 빠져 있어 내용이 길면 스크롤 대신 늘어났다. 폭은 `w-80` 으로 통일했다 —
+다섯 중 셋이 이미 그 값이었다. 아무것도 선택하지 않았을 때의 빈 자리
+(`pages/[pageid]/page.tsx:350`)도 같은 폭이어야 흔들리지 않는다.
+
+### 5.4 확인 다이얼로그 — `ui/confirm.tsx`
+
+`ConfirmProvider`(`components/ui/confirm.tsx:38`)가 앱 전역에 하나 마운트되고,
+`useConfirm()`(`:95`)이 **약속을 돌려주는** `confirm(options)` 를 준다. 호출부는 한 줄이다:
+
+```ts
+if (!(await confirm({ title: '…', destructive: true }))) return;
+```
+
+예전에는 호출부 9곳이 각자 브라우저 `confirm('…')` 을 썼고, 그 결과 **같은 동작의 문구가
+이미 갈렸다** — 프로젝트 삭제가 한 곳에서는 "페이지도 함께 사라집니다" 를 경고하고 다른
+곳에서는 안 했다. 파괴적 동작인데 `destructive` 버튼 스타일을 쓸 수 없었고, 모바일 버튼
+간격을 잡아 둔 `ui/dialog` 의 규칙도 못 썼다.
+
+배경 클릭·Esc 로 닫히면 "취소" 로 resolve 한다(`:69`). 여기서 resolve 하지 않으면 호출부의
+`await` 가 영원히 걸린다.
+
+### 5.5 토스트 — sonner
 
 `components/ui/toast.tsx` — **sonner** 의 `Toaster` + `toast()` 를 얇게 래핑한다. `ToastProvider`(`:11-27`)는 sonner `<Toaster>` 를 mount(`position="bottom-right"`, `richColors`, `closeButton`, 카드 스타일 toast classNames). `useToast()` 훅은 sonner 호출을 `push(kind, message)` 시그니처로 감싸 기존 호출부 호환을 유지한다 — 마이그레이션 시 호출 코드 수정 없이 자작 토스트를 교체. 예전에는 `useEffectToastOnError` 같은 보조 훅도 노출했는데 호출부가 없어 제거했다.
 

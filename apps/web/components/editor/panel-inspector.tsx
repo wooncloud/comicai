@@ -26,7 +26,7 @@ const PanelTextEditor = dynamic(() => import('./panel-editor').then((m) => m.Pan
 });
 import { PanelStatusBadge } from './panel-status-badge';
 import { SectionLabel } from './section-label';
-import { CollapseButton } from './collapse-button';
+import { InspectorShell } from './inspector-shell';
 import { HexColorField } from './hex-color-field';
 import { NumberField } from './number-field';
 import { HistoryTray } from './history-tray';
@@ -43,6 +43,7 @@ import {
 import { errorMessage } from '@/lib/error-message';
 import { qk } from '@/lib/query-keys';
 import { MODEL_OPTIONS } from '@/lib/model-options';
+import { useConfirm } from '@/components/ui/confirm';
 
 interface Props {
   projectId: string;
@@ -67,6 +68,7 @@ export function PanelInspector({
   const [activeJobId, setActiveJobId] = useState<string | null>(panel.currentRenderId ?? null);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
+  const confirm = useConfirm();
   const esRef = useRef<EventSource | null>(null);
   const queryClient = useQueryClient();
 
@@ -229,7 +231,13 @@ export function PanelInspector({
   }
 
   async function onDelete() {
-    if (!confirm('이 컷을 삭제하시겠습니까?')) return;
+    const ok = await confirm({
+      title: '이 컷을 삭제할까요?',
+      body: '장면 설명과 생성 기록이 함께 사라집니다. 되돌릴 수 없습니다.',
+      confirmLabel: '삭제',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api(ApiPaths.panel(panel.id), { method: 'DELETE' });
       onPanelDeleted();
@@ -240,15 +248,7 @@ export function PanelInspector({
   }
 
   return (
-    <aside className="flex min-h-0 w-96 flex-col gap-4 overflow-y-auto border-l border-border bg-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="속성 창 접기" />}
-        <div className="flex-1 truncate text-xs uppercase tracking-wide text-muted-foreground">
-          컷
-        </div>
-        <PanelStatusBadge status={status} />
-      </div>
-
+    <InspectorShell title="컷" onCollapse={onCollapse} badge={<PanelStatusBadge status={status} />}>
       <PanelTextEditor
         projectId={projectId}
         initial={doc}
@@ -287,7 +287,13 @@ export function PanelInspector({
             <button
               type="button"
               onClick={async () => {
-                if (!confirm('콘티를 제거하시겠습니까?')) return;
+                const ok = await confirm({
+                  title: '콘티를 제거할까요?',
+                  body: '올린 스케치가 사라집니다. 컷의 장면 설명은 그대로 남습니다.',
+                  confirmLabel: '제거',
+                  destructive: true,
+                });
+                if (!ok) return;
                 try {
                   const updated = await api<PanelDTO>(ApiPaths.panelConti(panel.id), {
                     method: 'DELETE',
@@ -460,7 +466,7 @@ export function PanelInspector({
           컷 삭제
         </Button>
       </div>
-    </aside>
+    </InspectorShell>
   );
 }
 

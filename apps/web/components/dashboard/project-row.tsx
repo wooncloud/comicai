@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
+import { useConfirm } from '@/components/ui/confirm';
 
 interface Props {
   project: ProjectDTO;
@@ -41,6 +42,7 @@ export function ProjectRow({ project, onPatched, onRemoved }: Props) {
   const editing = draft !== null;
   const fileRef = useRef<HTMLInputElement | null>(null);
   const toast = useToast();
+  const confirm = useConfirm();
   const thumbUrl = project.thumbnailUrl ?? null;
 
   async function save() {
@@ -69,7 +71,15 @@ export function ProjectRow({ project, onPatched, onRemoved }: Props) {
   }
 
   async function remove() {
-    if (!confirm(`'${project.name}' 프로젝트를 삭제하시겠습니까?`)) return;
+    if (
+      !(await confirm({
+        title: `'${project.name}' 프로젝트를 삭제할까요?`,
+        body: '이 프로젝트의 페이지·컷·말풍선과 만든 그림이 모두 사라집니다. 되돌릴 수 없습니다.',
+        confirmLabel: '삭제',
+        destructive: true,
+      }))
+    )
+      return;
     setBusy(true);
     try {
       await api(ApiPaths.project(project.id), { method: 'DELETE' });

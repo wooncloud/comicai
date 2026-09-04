@@ -345,7 +345,9 @@ export default function PageEditor() {
             onCollapse={() => setRightCollapsed(true)}
           />
         ) : (
-          <aside className="w-72 border-l border-border bg-card" />
+          // 아무것도 선택하지 않았을 때의 빈 자리. 폭이 InspectorShell 과 같아야
+          // 선택할 때 캔버스가 흔들리지 않는다.
+          <aside className="w-80 border-l border-border bg-card" />
         )}
       </div>
     </div>

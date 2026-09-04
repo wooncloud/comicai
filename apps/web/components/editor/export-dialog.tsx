@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
+import { useConfirm } from '@/components/ui/confirm';
 
 type Format = 'png' | 'jpg';
 
@@ -33,6 +34,7 @@ interface Props {
 
 export function ExportDialog({ open, onOpenChange, pageId, panels }: Props) {
   const toast = useToast();
+  const confirm = useConfirm();
   const [format, setFormat] = useState<Format>('png');
   const [dpi, setDpi] = useState('150');
   const [pending, setPending] = useState(false);
@@ -41,7 +43,11 @@ export function ExportDialog({ open, onOpenChange, pageId, panels }: Props) {
 
   async function onExport() {
     if (emptyPanels > 0) {
-      const ok = confirm(`빈 컷이 ${emptyPanels}개 있습니다. 계속하시겠습니까?`);
+      const ok = await confirm({
+        title: `빈 컷이 ${emptyPanels}개 있습니다`,
+        body: '그림이 없는 칸은 비어 있는 채로 내보내집니다.',
+        confirmLabel: '그대로 내보내기',
+      });
       if (!ok) return;
     }
     setPending(true);

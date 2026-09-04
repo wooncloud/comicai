@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
 import { PROVIDERS, useOAuthProviders } from '@/components/oauth-buttons';
+import { useConfirm } from '@/components/ui/confirm';
 
 export default function SecurityPage() {
   const queryClient = useQueryClient();
@@ -199,8 +200,15 @@ function SessionsSection({
   onChanged: () => void;
 }) {
   const toast = useToast();
+  const confirm = useConfirm();
   async function revoke(sid: string) {
-    if (!confirm('이 기기에서 로그아웃하시겠습니까?')) return;
+    const ok = await confirm({
+      title: '이 기기에서 로그아웃할까요?',
+      body: '해당 기기의 세션이 즉시 끊깁니다.',
+      confirmLabel: '로그아웃',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api(ApiPaths.meSession(sid), { method: 'DELETE' });
       onChanged();

@@ -23,6 +23,7 @@ import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
 import { qk } from '@/lib/query-keys';
 import { MODEL_OPTIONS } from '@/lib/model-options';
+import { useConfirm } from '@/components/ui/confirm';
 
 /** Select 는 빈 문자열을 값으로 못 쓴다. "지정 안 함" 을 나타내는 자리표시자. */
 const NO_MODEL = '__none__';
@@ -43,6 +44,7 @@ export default function ProjectSettingsPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -90,9 +92,15 @@ export default function ProjectSettingsPage() {
 
   async function remove() {
     if (!project) return;
-    if (!confirm(`'${project.name}' 프로젝트를 삭제하시겠습니까? 페이지도 함께 사라집니다.`)) {
+    if (
+      !(await confirm({
+        title: `'${project.name}' 프로젝트를 삭제할까요?`,
+        body: '이 프로젝트의 페이지·컷·말풍선과 만든 그림이 모두 사라집니다. 되돌릴 수 없습니다.',
+        confirmLabel: '삭제',
+        destructive: true,
+      }))
+    )
       return;
-    }
     setBusy(true);
     try {
       await api(ApiPaths.project(projectId), { method: 'DELETE' });

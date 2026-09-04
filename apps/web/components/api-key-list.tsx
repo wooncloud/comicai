@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import type { ApiKeySummary } from '@comicai/types';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm';
 
 interface Props {
   items: ApiKeySummary[];
@@ -32,6 +33,7 @@ function ApiKeyRow({
   onVerify: (id: string) => Promise<void>;
 }) {
   const [verifying, setVerifying] = useState(false);
+  const confirm = useConfirm();
 
   async function handleVerify() {
     setVerifying(true);
@@ -69,8 +71,14 @@ function ApiKeyRow({
           variant="ghost"
           size="sm"
           className="text-destructive hover:text-destructive"
-          onClick={() => {
-            if (confirm(`"${item.label}" 키를 삭제하시겠습니까?`)) void onDelete(item.id);
+          onClick={async () => {
+            const ok = await confirm({
+              title: `"${item.label}" 키를 삭제할까요?`,
+              body: '이 키로 진행 중인 생성은 실패할 수 있습니다.',
+              confirmLabel: '삭제',
+              destructive: true,
+            });
+            if (ok) void onDelete(item.id);
           }}
         >
           삭제

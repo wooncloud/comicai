@@ -20,6 +20,7 @@ import { EntityCard } from '@/components/consistency/entity-card';
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
 import { qk } from '@/lib/query-keys';
+import { useConfirm } from '@/components/ui/confirm';
 
 const TABS: { key: EntityType; label: string }[] = [
   { key: 'style', label: '그림체' },
@@ -48,6 +49,7 @@ export default function ConsistencyPage() {
   const queryClient = useQueryClient();
   const defaultStyleId = project?.defaultStyleId ?? null;
   const toast = useToast();
+  const confirm = useConfirm();
 
   async function setDefaultStyle(id: string) {
     try {
@@ -138,7 +140,13 @@ export default function ConsistencyPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm('삭제하시겠습니까?')) return;
+    const ok = await confirm({
+      title: `${tabLabel}을(를) 삭제할까요?`,
+      body: '등록한 이미지도 함께 사라집니다. 이 항목을 쓰던 컷은 그대로 남습니다.',
+      confirmLabel: '삭제',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api(ApiPaths.consistency(id), { method: 'DELETE' });
       setItems((prev) => prev.filter((p) => p.id !== id));

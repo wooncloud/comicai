@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './pretendard.css';
 import './globals.css';
 import { ToastProvider } from '@/components/ui/toast';
+import { ConfirmProvider } from '@/components/ui/confirm';
 import { Providers } from './providers';
 
 const inter = Inter({
@@ -44,7 +45,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko" className={inter.variable}>
       <body className="font-sans antialiased">
         <Providers>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <ConfirmProvider>{children}</ConfirmProvider>
+          </ToastProvider>
         </Providers>
       </body>
     </html>
