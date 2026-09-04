@@ -12,6 +12,7 @@ import {
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { StoragePrefix, StorageService } from '../storage/storage.service';
+import { appendPanelRefImages } from '../common/ref-images';
 
 interface RenderRef {
   status: RenderStatus | null;
@@ -171,11 +172,9 @@ export class PanelsService {
       { kind: 'panel-upload', projectId: owned.projectId, panelId: owned.id },
       fileBuffer,
     );
-    const refs = (owned.refImages as ImageRef[]) ?? [];
-    const row = await prisma.panel.update({
-      where: { id: owned.id },
-      data: { refImages: [...refs, ref] as unknown as Prisma.InputJsonValue },
-    });
+    // 읽어서 통째로 덮어쓰면 동시 업로드가 서로를 지운다 — ref-images.ts 참고.
+    await appendPanelRefImages(owned.id, [ref]);
+    const row = await prisma.panel.findUniqueOrThrow({ where: { id: owned.id } });
     return panelDto(
       row,
       await this.loadRender(row.currentRenderId),

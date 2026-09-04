@@ -7,7 +7,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { entityIdPrefix, newId, prisma, Prisma } from '@comicai/db';
+import { entityIdPrefix, newId, prisma } from '@comicai/db';
 import { getAdapter, type AdapterContext } from '@comicai/adapters';
 import {
   MODEL_PROVIDER,
@@ -20,6 +20,7 @@ import {
 } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
 import { StoragePrefix, StorageService } from '../storage/storage.service';
+import { appendEntityRefImages } from '../common/ref-images';
 import { ModelCredentials } from '../render/model-credentials';
 import { classifyModelError } from '../render/model-error';
 import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
@@ -203,14 +204,10 @@ export class ConsistencyService {
         ),
       ),
     );
-    const existing = (owned.refImages as unknown as ImageRef[]) ?? [];
-    const row = await prisma.consistencyEntity.update({
-      where: { id: owned.id },
-      data: {
-        refImages: [...existing, ...newRefs] as unknown as Prisma.InputJsonValue,
-        version: { increment: 1 },
-      },
-    });
+    // 한 번에 12장까지 올라오고, 여러 번 나눠 드래그하면 요청도 여러 개다. 읽어서
+    // 통째로 덮어쓰면 그중 하나만 남는다 — ref-images.ts 참고.
+    await appendEntityRefImages(owned.id, newRefs);
+    const row = await prisma.consistencyEntity.findUniqueOrThrow({ where: { id: owned.id } });
     return this.dtoWithUrls(row);
   }
 
@@ -325,14 +322,10 @@ export class ConsistencyService {
       // 생성된 이미지는 어댑터가 검증한 바이트라 비정상일 가능성 낮음.
     }
     const newRef: ImageRef = { storageKey, mimeType, width, height };
-    const existing = (owned.refImages as unknown as ImageRef[]) ?? [];
-    const row = await prisma.consistencyEntity.update({
-      where: { id: owned.id },
-      data: {
-        refImages: [...existing, newRef] as unknown as Prisma.InputJsonValue,
-        version: { increment: 1 },
-      },
-    });
+    // appendImages 와 같은 이유로 원자적 append. 미리보기 여러 장을 연달아 등록하면
+    // 여기도 동시에 들어온다.
+    await appendEntityRefImages(owned.id, [newRef]);
+    const row = await prisma.consistencyEntity.findUniqueOrThrow({ where: { id: owned.id } });
     return this.dtoWithUrls(row);
   }
 

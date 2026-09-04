@@ -187,7 +187,15 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 | POST   | `/v1/consistency/:id/generate`        | `generate` (`:104-107`) — AI 모델로 참조 이미지 1장 생성 (storage 업로드만, refImages 미등록). style 엔티티는 거부                         |
 | POST   | `/v1/consistency/:id/images/attach`   | `attach` (`:110-113`) — `generate` 결과의 storageKey 를 refImages 에 등록 (key prefix 검증)                                                |
 
-AI 생성 로직은 `consistency.service.ts:221-299` (`generateImage`) / `:305-335` (`attachImage`). 엔티티 타입별 system prompt (`ENTITY_SYSTEM_PROMPTS`, `:68-75`) 와 출력 비율(`ENTITY_OUTPUT_SHAPE`, `:54-61`)이 적용되어 패널-룰 대신 캐릭터 시트/환경 콘셉트/세계관 무드 보드 톤을 강제한다. style 은 그림체 자체가 다른 패널 결과의 일관성 기준이라 `generate` 자체를 거부 (`CONSISTENCY_GENERATE_UNSUPPORTED`).
+`refImages` 에 이미지를 덧붙이는 세 경로(`appendImages` `:209`, `attachImage` `:327`,
+`PanelsService.appendUpload` `panels.service.ts:176`)는 **원자적 JSONB append** 를 쓴다
+(`common/ref-images.ts`). 읽어서 `[...기존, 새것]` 으로 통째 덮어쓰면 동시 업로드가 유실된다 —
+12장을 한 번에 드래그하면 전부 같은 배열을 읽고 각자 덮어써서 마지막 1장만 남고 나머지는
+S3 고아가 된다. Prisma 에 JSON 배열 append 프리미티브가 없어 raw SQL 이며, 엔티티 쪽은
+같은 문장에서 `version` 과 `updated_at` 도 올린다(`@updatedAt` 은 클라이언트가 채우는 값이라
+이 경로에서는 손으로 넣어야 한다).
+
+AI 생성 로직은 `consistency.service.ts:220-298` (`generateImage`) / `:304-334` (`attachImage`). 엔티티 타입별 system prompt (`ENTITY_SYSTEM_PROMPTS`, `:68-75`) 와 출력 비율(`ENTITY_OUTPUT_SHAPE`, `:54-61`)이 적용되어 패널-룰 대신 캐릭터 시트/환경 콘셉트/세계관 무드 보드 톤을 강제한다. style 은 그림체 자체가 다른 패널 결과의 일관성 기준이라 `generate` 자체를 거부 (`CONSISTENCY_GENERATE_UNSUPPORTED`).
 
 키 조회는 **`try` 안에 있다**(`consistency.service.ts:260`). 밖에 두면 쿼터 초과·키 없음 같은
 평범한 정책 거부가 `HttpException` 이 아닌 채로 예외 필터까지 올라가 500 `INTERNAL_ERROR` 가
@@ -223,7 +231,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 | POST   | `/v1/panels/:id/conti`     | `setConti` (`:75-83`) — multipart `file`, 콘티(러프 스케치) 단일 슬롯 교체            |
 | DELETE | `/v1/panels/:id/conti`     | `clearConti` (`:85-88`) — 콘티 제거                                                   |
 
-업로드는 `FileInterceptor`로 메모리 버퍼 수신 → `PanelsService.appendUpload` → `StorageService.storeUploadedImage`(검증+썸네일+패널 refImages append).
+업로드는 `FileInterceptor`로 메모리 버퍼 수신 → `PanelsService.appendUpload` (`:169`) → `StorageService.storeUploadedImage`(검증+썸네일) → `appendPanelRefImages` 로 원자적 append (`common/ref-images.ts`).
 
 리스트 응답은 currentRender의 presign URL + 콘티의 `contiUrl`을 동봉 — `panels/panels.service.ts`.
 
