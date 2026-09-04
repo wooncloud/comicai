@@ -43,6 +43,13 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # 통합 테스트는 testcontainers(Docker)를 쓴다. GitHub 호스팅 러너에는 Docker 가
+      # 있으므로 여기서 돌 수 있다. 예전에는 CI 가 이걸 돌리지 않아, 스위트가 만들어진
+      # 뒤로 **한 번도 통과한 적이 없다는 사실을 아무도 몰랐다**(vitest 기본 변환기가
+      # 데코레이터 메타데이터를 지워 Nest DI 가 깨져 있었다).
+      - name: Integration tests
+        run: pnpm --filter @comicai/api test:integration
+
       # 앱 빌드까지 여기서 확인한다. 예전에는 packages/* 만 빌드해서, `next build`
       # 에서만 터지는 문제(서버/클라이언트 경계 위반, 정적 생성 실패)가 CI 를 초록으로
       # 통과했다. 그러면 배포 잡이 프로덕션 호스트에서 `--build --force-recreate`

@@ -51,7 +51,7 @@ export async function startIntegration(): Promise<IntegrationContext> {
     stdio: 'inherit',
   });
 
-  const app = await NestFactory.create(AppModule, { logger: false });
+  const app = await NestFactory.create(AppModule, { logger: ['error'] });
   applyAppPipeline(app);
   await app.init();
 
