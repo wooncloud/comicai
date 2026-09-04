@@ -19,6 +19,7 @@ import { buildPanelMaskSvg, buildPanelStrokeSvg } from './panel-mask';
 import { renderSpeechBubbleLayer } from './speech-bubble.render';
 import { renderPageTextLayer } from './page-text.render';
 import { renderPageLineLayer } from './page-line.render';
+import { apiError } from '../common/api-error';
 
 /*
  * 패널 합성을 몇 개씩 동시에 할 것인가.
@@ -84,7 +85,7 @@ export class ExportService {
         pageLines: { orderBy: { order: 'asc' } },
       },
     });
-    if (!page) throw new NotFoundException({ code: 'PAGE_NOT_FOUND' });
+    if (!page) throw new NotFoundException(apiError({ code: 'PAGE_NOT_FOUND' }));
 
     const size = page.size as { w: number; h: number };
     /*

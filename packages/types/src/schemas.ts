@@ -245,6 +245,14 @@ export const SpeechBubblePatchSchema = z.object({
   style: SpeechBubbleStyleSchema.partial().optional(),
 });
 
+/*
+ * 입력 타입은 스키마에서 **파생시킨다.** 예전에는 서비스가 같은 모양을 손으로 다시
+ * 선언했다(모듈마다 CreateInput/PatchInput 두 개씩). 스키마를 고쳐도 그 선언은 따라오지
+ * 않으므로, 검증기가 받는 것과 서비스가 기대하는 것이 조용히 갈라질 수 있었다.
+ */
+export type SpeechBubbleCreateInput = z.infer<typeof SpeechBubbleCreateSchema>;
+export type SpeechBubblePatchInput = z.infer<typeof SpeechBubblePatchSchema>;
+
 export const SpeechBubbleReorderSchema = z.object({
   ids: z.array(z.string().min(1)).min(1).max(500),
 });
@@ -290,6 +298,9 @@ export const PageTextPatchSchema = z.object({
   style: PageTextStyleSchema.partial().optional(),
 });
 
+export type PageTextCreateInput = z.infer<typeof PageTextCreateSchema>;
+export type PageTextPatchInput = z.infer<typeof PageTextPatchSchema>;
+
 export const PageTextReorderSchema = z.object({
   ids: z.array(z.string().min(1)).min(1).max(500),
 });
@@ -320,6 +331,9 @@ export const PageLinePatchSchema = z.object({
   y2: z.number().optional(),
   style: PageLineStyleSchema.partial().optional(),
 });
+
+export type PageLineCreateInput = z.infer<typeof PageLineCreateSchema>;
+export type PageLinePatchInput = z.infer<typeof PageLinePatchSchema>;
 
 export const PageLineReorderSchema = z.object({
   ids: z.array(z.string().min(1)).min(1).max(500),

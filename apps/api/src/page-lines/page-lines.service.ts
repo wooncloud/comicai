@@ -1,8 +1,21 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { newId, prisma, Prisma } from '@comicai/db';
-import { defaultPageLineStyle, type PageLineDTO, type PageLineStyle } from '@comicai/types';
+import {
+  defaultPageLineStyle,
+  type PageLineCreateInput,
+  type PageLineDTO,
+  type PageLinePatchInput,
+  type PageLineStyle,
+} from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { isReorderPermutation } from '../common/reorder';
+import { mergeStyle } from '../common/style-merge';
+import { assertPageChildOwned, nextOrder, PAGE_CHILD_SELECT } from '../common/page-child';
+import { apiError } from '../common/api-error';
+
+/** 입력 모양은 Zod 스키마가 단일 출처다 — 여기서 다시 선언하지 않는다. */
+type CreateInput = PageLineCreateInput;
+type PatchInput = PageLinePatchInput;
 
 interface PageLineRow {
   id: string;
@@ -25,27 +38,11 @@ function toDto(row: PageLineRow): PageLineDTO {
     y1: row.y1,
     x2: row.x2,
     y2: row.y2,
-    style: { ...defaultPageLineStyle(), ...((row.style as Partial<PageLineStyle>) ?? {}) },
+    style: mergeStyle(defaultPageLineStyle(), row.style as Partial<PageLineStyle> | null),
     order: row.order,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
-}
-
-export interface CreateInput {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  style?: Partial<PageLineStyle>;
-}
-
-export interface PatchInput {
-  x1?: number;
-  y1?: number;
-  x2?: number;
-  y2?: number;
-  style?: Partial<PageLineStyle>;
 }
 
 @Injectable()
@@ -63,12 +60,10 @@ export class PageLinesService {
 
   async create(userId: string, pageId: string, input: CreateInput): Promise<PageLineDTO> {
     await this.pages.findOwned(userId, pageId);
-    const max = await prisma.pageLine.aggregate({
-      where: { pageId },
-      _max: { order: true },
-    });
-    const order = (max._max.order ?? -1) + 1;
-    const style = { ...defaultPageLineStyle(), ...(input.style ?? {}) };
+    const order = nextOrder(
+      await prisma.pageLine.aggregate({ where: { pageId }, _max: { order: true } }),
+    );
+    const style = mergeStyle(defaultPageLineStyle(), input.style);
     const row = await prisma.pageLine.create({
       data: {
         id: newId('pline'),
@@ -77,7 +72,7 @@ export class PageLinesService {
         y1: input.y1,
         x2: input.x2,
         y2: input.y2,
-        style: style,
+        style: style as unknown as Prisma.InputJsonValue,
         order,
       },
     });
@@ -92,10 +87,12 @@ export class PageLinesService {
     if (input.x2 !== undefined) data.x2 = input.x2;
     if (input.y2 !== undefined) data.y2 = input.y2;
     if (input.style) {
-      // PatchSchema 의 style 은 .partial() 이다. 기존 값을 빼먹으면 명시하지 않은
-      // 필드가 기본값으로 되돌아간다(굵기 8인 선의 색만 바꿔도 굵기가 리셋됨).
-      const current = (owned.style ?? {}) as Partial<PageLineStyle>;
-      data.style = { ...defaultPageLineStyle(), ...current, ...input.style };
+      // 기존 값을 빼먹으면 명시하지 않은 필드가 기본값으로 되돌아간다 — style-merge.ts 참고.
+      data.style = mergeStyle(
+        defaultPageLineStyle(),
+        owned.style as Partial<PageLineStyle> | null,
+        input.style,
+      ) as unknown as Prisma.InputJsonValue;
     }
     const row = await prisma.pageLine.update({ where: { id: owned.id }, data });
     return toDto(row);
@@ -114,10 +111,12 @@ export class PageLinesService {
     });
     const existingIds = new Set(existing.map((r) => r.id));
     if (!isReorderPermutation(ids, existingIds)) {
-      throw new ForbiddenException({
-        code: 'INVALID_REORDER',
-        message: 'ids 목록이 현재 페이지의 직선과 일치하지 않습니다.',
-      });
+      throw new ForbiddenException(
+        apiError({
+          code: 'INVALID_REORDER',
+          message: 'ids 목록이 현재 페이지의 직선과 일치하지 않습니다.',
+        }),
+      );
     }
     await prisma.$transaction(
       ids.map((id, i) => prisma.pageLine.update({ where: { id }, data: { order: i } })),
@@ -125,22 +124,8 @@ export class PageLinesService {
     return this.list(userId, pageId);
   }
 
-  private async assertOwned(
-    userId: string,
-    id: string,
-  ): Promise<{ id: string; pageId: string; style: unknown }> {
-    const row = await prisma.pageLine.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        pageId: true,
-        style: true,
-        page: { select: { project: { select: { userId: true } } } },
-      },
-    });
-    // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
-    if (row?.page.project.userId !== userId)
-      throw new NotFoundException({ code: 'PAGE_LINE_NOT_FOUND' });
-    return { id: row.id, pageId: row.pageId, style: row.style };
+  private async assertOwned(userId: string, id: string) {
+    const row = await prisma.pageLine.findUnique({ where: { id }, select: PAGE_CHILD_SELECT });
+    return assertPageChildOwned(row, userId, 'PAGE_LINE_NOT_FOUND');
   }
 }

@@ -7,6 +7,7 @@ import {
 import { newId, prisma } from '@comicai/db';
 import { open, seal } from './crypto';
 import { verifyApiKey } from './api-keys.verifier';
+import { apiError } from '../common/api-error';
 
 export type Provider = 'gemini' | 'openai';
 
@@ -60,12 +61,12 @@ export class ApiKeysService {
 
   async remove(userId: string, id: string) {
     const res = await prisma.apiKey.deleteMany({ where: { id, userId } });
-    if (res.count === 0) throw new NotFoundException({ code: 'API_KEY_NOT_FOUND' });
+    if (res.count === 0) throw new NotFoundException(apiError({ code: 'API_KEY_NOT_FOUND' }));
   }
 
   async verify(userId: string, id: string) {
     const row = await prisma.apiKey.findFirst({ where: { id, userId } });
-    if (!row) throw new NotFoundException({ code: 'API_KEY_NOT_FOUND' });
+    if (!row) throw new NotFoundException(apiError({ code: 'API_KEY_NOT_FOUND' }));
     const secret = open({ ciphertext: row.ciphertext, nonce: row.nonce });
     const result = await verifyApiKey(row.provider as Provider, secret);
 
@@ -79,11 +80,13 @@ export class ApiKeysService {
     }
     if (result.category === 'auth') {
       await prisma.apiKey.update({ where: { id }, data: { isActive: false } });
-      throw new UnauthorizedException({
-        code: 'API_KEY_VERIFY_FAILED',
-        message: '키 인증에 실패했습니다. 비활성화되었습니다.',
-        details: { status: result.status, category: 'auth' },
-      });
+      throw new UnauthorizedException(
+        apiError({
+          code: 'API_KEY_VERIFY_FAILED',
+          message: '키 인증에 실패했습니다. 비활성화되었습니다.',
+          details: { status: result.status, category: 'auth' },
+        }),
+      );
     }
     throw new BadGatewayException({
       code: 'API_KEY_VERIFY_FAILED',

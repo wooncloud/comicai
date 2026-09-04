@@ -11,7 +11,6 @@ import {
   Query,
   Req,
   UploadedFiles,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -25,8 +24,9 @@ import {
   type ModelId,
 } from '@comicai/types';
 import { ConsistencyService } from './consistency.service';
-import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { AuthedRequest } from '../auth/session.guard';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
+import { apiError } from '../common/api-error';
 
 class CreateDto {
   static zodSchema = ConsistencyCreateSchema;
@@ -52,7 +52,6 @@ class AttachDto {
 }
 
 @Controller()
-@UseGuards(SessionGuard)
 export class ConsistencyController {
   constructor(private readonly svc: ConsistencyService) {}
 
@@ -91,7 +90,9 @@ export class ConsistencyController {
     @UploadedFiles() files: Express.Multer.File[] = [],
   ) {
     if (!files.length) {
-      throw new BadRequestException({ code: 'UPLOAD_FILE_MISSING', message: '파일이 없습니다.' });
+      throw new BadRequestException(
+        apiError({ code: 'UPLOAD_FILE_MISSING', message: '파일이 없습니다.' }),
+      );
     }
     return this.svc.appendImages(
       req.user.id,

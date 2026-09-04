@@ -1,5 +1,6 @@
 import { CanActivate, Injectable, NotFoundException } from '@nestjs/common';
 import { isFlagOn } from '@comicai/types';
+import { apiError } from './api-error';
 
 /**
  * 꺼진 기능의 엔드포인트를 통째로 막는다.
@@ -15,7 +16,7 @@ function featureGuard(envName: string): new () => CanActivate {
   class FeatureGuard implements CanActivate {
     canActivate(): boolean {
       if (!isFlagOn(process.env[envName])) {
-        throw new NotFoundException({ code: 'NOT_FOUND' });
+        throw new NotFoundException(apiError({ code: 'NOT_FOUND' }));
       }
       return true;
     }

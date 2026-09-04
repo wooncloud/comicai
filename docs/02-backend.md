@@ -30,6 +30,14 @@
 - 글로벌 필터: `AllExceptionsFilter`
   - `ZodError → 400 VALIDATION_ERROR(details.issues)`, `HttpException → 매핑된 code/message`, 그 외 → `500 INTERNAL_ERROR` — `common/all-exceptions.filter.ts:42-97`
   - 상태→코드 매핑은 `STATUS_TO_CODE` 테이블, 코드→한국어 메시지는 `CODE_TO_MESSAGE` 매핑(`common/all-exceptions.filter.ts:20-36`).
+    `CODE_TO_MESSAGE` 는 **응답 본문의 `message` 만** 채운다 — 웹은 자기 문구 표를 쓰고 서버
+    message 를 읽지 않는다(`apps/web/lib/error-message.ts:85`). 그래도 두는 이유는, 지우면
+    그 코드들의 `message` 가 NestJS 기본 영문("Unauthorized")이 되어 응답과 로그가 나빠지기
+    때문이다. 화면 문구의 단일 출처는 웹 표 쪽이다.
+  - **던지는 코드는 `apiError()` 로 묶인다** (`common/api-error.ts:23`). 예외 인자가 그냥
+    객체라 아무 문자열이나 통과하던 것을 막는다 — 자세한 이유는 docs/04-shared-packages.md
+    의 `ErrorCode` 절. 예외 클래스는 그대로 쓴다: 상태 코드를 고르는 것은 호출부의 판단이고,
+    헬퍼가 대신 정하면 옮기는 과정에서 상태가 바뀔 수 있다.
 
 ### 1.3 워커 엔트리 (`worker.ts`)
 
@@ -41,7 +49,8 @@
 
 - `ConfigModule.forRoot({ isGlobal: true })` — `app.module.ts:26`
 - `LoggerModule.forRoot(...)`: pino redact 경로(`req.headers.cookie`, `authorization`, `*.apiKey`, `*.secret`, `*.token`, `*.ciphertext`, `*.password`, `*.passwordHash`), `/healthz`는 autoLogging 제외 — `app.module.ts:27-59`
-- `ThrottlerModule.forRoot([{ ttl: 60s, limit: 120 }])`, `APP_GUARD = ThrottlerGuard`로 글로벌 적용 — `app.module.ts:60, 78`
+- `ThrottlerModule.forRoot([{ ttl: 60s, limit: 120 }])`, `APP_GUARD = ThrottlerGuard`로 글로벌 적용 — `app.module.ts:62, 82`
+- `APP_GUARD = SessionGuard` 도 함께 등록 — `app.module.ts:93` (아래 §2.2)
 - `configure(consumer)`에서 `CsrfMiddleware`를 모든 라우트(`'*'`)에 부착 — `app.module.ts:81-83`
 - 등록 모듈: `MetricsModule, EmailModule, AuthModule, OAuthModule, MeModule, ApiKeysModule, ProjectsModule, ConsistencyModule, PagesModule, PanelsModule, SpeechBubblesModule, PageTextsModule, PageLinesModule, RenderModule, ExportModule` — `app.module.ts:61-75`
 - 직접 등록 컨트롤러: `HealthController` — `app.module.ts:77`
@@ -52,17 +61,40 @@
 
 ### 2.1 세션 쿠키 (`auth/session.service.ts`)
 
-- 저장소: **Redis** (`SessionService`가 `ioredis`로 직접 연결, `REDIS_URL ?? 'redis://localhost:6379'`) — `auth/session.service.ts:29-31`
+- 저장소: **Redis** (`SessionService`가 `ioredis`로 직접 연결, `REDIS_URL ?? 'redis://localhost:6379'`) — `auth/session.service.ts:38`
 - TTL: 14일 — `auth/session.service.ts:6`
-- 키: `session:{sid}` (페이로드 JSON, EX 갱신), `user_sessions:{userId}` (sid 집합) — `auth/session.service.ts:7-9, 47-51`
-- 쿠키 이름: `comicai_sid`, `httpOnly`, `sameSite: 'lax'`, `secure`는 `COOKIE_SECURE` 또는 `NODE_ENV=production`에 의존 — `auth/session.service.ts:126-136`
-- `read()`는 hit 시 `lastUsedAt` 갱신 + TTL 연장 — `auth/session.service.ts:55-62`
-- 다중 세션 지원: `listForUser`, `destroyAllExcept`, `destroyAllForUser`(비밀번호 변경/리셋 시 호출) — `auth/session.service.ts:77-123`
+- 키: `session:{sid}` (페이로드 JSON, EX 갱신), `user_sessions:{userId}` (sid 집합) — `auth/session.service.ts:15-16, 56-60`
+- 쿠키 이름: `comicai_sid`, `httpOnly`, `sameSite: 'lax'`, `secure`는 `COOKIE_SECURE` 또는 `NODE_ENV=production`에 의존 — `auth/session.service.ts:163-172`
+- `read()` 는 **GET + EXPIRE 를 한 왕복(`multi`)** 으로 처리한다 — `auth/session.service.ts:70`.
+  인증된 모든 요청이 지나는 길이라 여기가 곧 요청당 Redis 비용이다. 예전에는 GET 뒤에 세션
+  JSON 전체를 재직렬화해 SET 했다: 순차 왕복 2회에 그중 하나는 순수 쓰기였고, 실제로 바뀌는
+  값은 `lastUsedAt` 하나뿐이었다.
+- `lastUsedAt` 은 **1분 이상 묵었을 때만** 다시 쓴다 (`LAST_USED_REFRESH_MS`, `:14` /
+  `shouldRefreshLastUsed`, `:202`). 이 값을 읽는 곳은 `/me/sessions`("로그인된 기기") 화면
+  하나뿐이라, 요청마다 갱신하면 그 화면의 초 단위 정확도를 위해 인증된 모든 읽기가 Redis
+  쓰기를 유발한다. 값이 깨져 있으면 그때는 쓴다(자가 복구). 규칙은 `session-touch.spec.ts`
+  가 고정한다. 대가로 `/me/sessions` 의 "마지막 사용" 이 최대 1분 뒤처진다.
+- 다중 세션 지원: `listForUser`, `destroyAllExcept`, `destroyAllForUser`(비밀번호 변경/리셋 시 호출) — `auth/session.service.ts:99-145`
 
 ### 2.2 SessionGuard (`auth/session.guard.ts`)
 
-- 쿠키 없음 → `401 NO_SESSION`, 만료 → `401 SESSION_EXPIRED` — `auth/session.guard.ts:18-21`
-- 성공 시 `req.user = { id, email }`, `req.sid` 주입 — `auth/session.guard.ts:22-23`
+**전역 가드다.** 인증이 opt-out 이고, 공개가 필요한 곳만 `@Public()` (`auth/public.decorator.ts:16`)
+로 표시한다 — 현재 4곳(health / metrics / auth / oauth)뿐이다.
+
+예전에는 컨트롤러마다 `@UseGuards(SessionGuard)` 를 붙이는 opt-in 이었다. 그러면 가드를 잊은
+새 컨트롤러가 **인증도 CSRF 도 없는 상태**가 된다 — `CsrfMiddleware` 가 "세션 쿠키 없는 요청"
+을 통과시키기 때문이다(`csrf.middleware.ts:28`, 가드가 401 로 막아 줄 것을 전제한다).
+서로를 전제하는 두 밑단 중 하나가 opt-in 이면, 잊었을 때 둘 다 사라진다. 지금은 잊으면
+열리는 게 아니라 잠긴다.
+
+- `@Public()` 이면 즉시 통과(세션도 읽지 않는다 — 공개 경로에서 Redis 왕복을 만들지 않는다) — `auth/session.guard.ts:28`
+- 쿠키 없음 → `401 NO_SESSION`, 만료 → `401 SESSION_EXPIRED` — `auth/session.guard.ts:33-35`
+- 성공 시 `req.user = { id, email }`, `req.sid` 주입 — `auth/session.guard.ts:36-37`
+- 전역 가드가 컨트롤러 가드보다 먼저 돌므로 `AdminGuard` 는 `req.user` 를 그대로 받는다.
+  `ApiKeysFeatureGuard` 는 순서가 뒤집혔는데 **그쪽이 더 낫다**: 예전에는 플래그를 먼저 봐서
+  비로그인 요청이 꺼짐(404)/켜짐(401)을 구분할 수 있었다. 지금은 비로그인이 무조건 401 이라
+  플래그 상태가 로그인한 사용자에게만 보인다.
+- 규칙은 `session.guard.spec.ts` 가 고정한다.
 
 ### 2.3 CSRF (`common/csrf.middleware.ts`)
 
@@ -113,7 +145,7 @@
 - **기존 계정에 붙이려면 제공자가 이메일 소유를 증명해야 한다**(`oauth.service.ts:157`). 예전에는
   이메일이 같기만 하면 그 계정의 세션을 발급했다 — 어떤 제공자에서 남의 이메일을 소유 증명 없이
   등록할 수 있으면 비밀번호를 모르는 채 남의 계정을 가져갈 수 있었다. 신규 생성은 막지 않는다
-- **약관 동의는 계정 생성 지점에 기록한다.** `termsAgreedAt`(`oauth.service.ts:196`)은 신규 생성
+- **약관 동의는 계정 생성 지점에 기록한다.** `termsAgreedAt`(`oauth.service.ts:201`)은 신규 생성
   경로에만 붙고, 기존 계정 링크 경로(`:161-178`)는 건드리지 않는다. 계정을 만드는 경로는 둘
   뿐이고(`auth.service.ts:13`, `oauth.service.ts:188`) 한쪽에만 붙이면 다른 경로로 만들어진
   계정에 기록이 없어 재동의 대상을 가려낼 수 없다. 소셜 가입에는 체크박스를 놓을 자리가 없어
@@ -143,18 +175,20 @@
 BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 
 > **기능 플래그 뒤에 있다.** `FEATURE_API_KEYS` 가 켜져 있지 않으면 이 컨트롤러의 모든
-> 라우트가 404 를 돌려준다(`api-keys.controller.ts:26` 의 `ApiKeysFeatureGuard`).
+> 라우트가 404 를 돌려준다(`api-keys.controller.ts:34` 의 `ApiKeysFeatureGuard`).
 > 403 이 아니라 404 인 이유는, 403 은 "그 기능이 존재한다" 는 정보를 주기 때문이다.
+> 세션 검사(전역 가드)가 **먼저** 돌므로 그 404 는 로그인한 사용자만 본다 — 비로그인은
+> 플래그 상태와 무관하게 401 이다.
 > 결제 + 사용량 과금으로 방향을 바꾸는 중이라 기본은 꺼짐이며, **끄면 그림 생성이 멈춘다** —
-> 렌더 워커가 사용자 키를 찾아 쓰는데(`render/render.worker.ts:140-153` 의 `resolveApiKey`)
+> 렌더 워커가 사용자 키를 찾아 쓰는데(`render/render.worker.ts:141` 의 `credentials.resolve`)
 > 키를 등록할 경로가 사라진다.
 
 | Method | Route                     | Handler                                 |
 | ------ | ------------------------- | --------------------------------------- |
-| GET    | `/v1/api-keys`            | `list` (`api-keys.controller.ts:30-33`) |
-| POST   | `/v1/api-keys`            | `create` (`:35-39`)                     |
-| POST   | `/v1/api-keys/:id/verify` | `verify` (`:41-44`)                     |
-| DELETE | `/v1/api-keys/:id`        | `remove` (`:46-50`)                     |
+| GET    | `/v1/api-keys`            | `list` (`api-keys.controller.ts:37-40`) |
+| POST   | `/v1/api-keys`            | `create` (`:42-45`)                     |
+| POST   | `/v1/api-keys/:id/verify` | `verify` (`:47-50`)                     |
+| DELETE | `/v1/api-keys/:id`        | `remove` (`:52-56`)                     |
 
 - 키 평문은 AES-256-GCM 봉인: `MASTER_KEY`(base64 32B) + 랜덤 nonce 12B + authTag 16B 이어붙임 — `api-keys/crypto.ts:1-40`
 - `ApiKeyBreaker` (Redis): 1시간 윈도우 내 동일 키 5회 auth 실패 시 `isActive=false`로 비활성화 — `api-keys/api-keys.breaker.ts:7-47`
@@ -171,7 +205,16 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 | POST   | `/v1/projects/:id/thumbnail` | `uploadThumbnail` (`:60-68`) — multipart `file`, `MAX_UPLOAD_BYTES`. 썸네일 키 교체      |
 | DELETE | `/v1/projects/:id`           | `remove` (`:70-74`)                                                                      |
 
-`PATCH`의 `defaultStyleId`는 프로젝트 대표 그림체 엔티티 id를 지정한다(렌더 시 자동 주입). `defaultModel`은 패널 인스펙터 모델 select의 초기값. 소유권 체크: `assertOwned` (`projects/projects.service.ts:111`, public 헬퍼).
+`PATCH`의 `defaultStyleId`는 프로젝트 대표 그림체 엔티티 id를 지정한다(렌더 시 자동 주입). `defaultModel`은 패널 인스펙터 모델 select의 초기값. 소유권 체크: `assertOwned` (`projects/projects.service.ts:116`, public 헬퍼).
+
+#### 목록의 폴백 썸네일은 한 번에 읽는다
+
+`thumbnail` 이 없으면 첫 페이지의 `background` 를 폴백 썸네일로 쓴다. 예전에는 그 조회가
+프로젝트마다 한 번씩 나가는 N+1 이었다 — `thumbnail` 은 명시적 업로드로만 채워지므로
+**기본 상태에서는 전부 폴백**이고, 프로젝트 20개면 21쿼리였다. `list` 는 썸네일 없는 id 를
+모아 `firstBackgroundByProject` (`projects.service.ts:159`) 로 한 번에 읽는다
+(`distinct: ['projectId']` + `orderBy [projectId, order]` — 정렬 뒤 프로젝트마다 첫 행).
+단건 경로(create/detail/patch)는 모아 올 것이 없으므로 그대로 그 자리에서 한 번 읽는다.
 
 #### 소유권 실패는 전부 404 다
 
@@ -226,7 +269,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 | Method | Route                             | Handler                                                                                                                                        |
 | ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/v1/projects/:pid/pages`         | `list` (`pages.controller.ts:38-41`)                                                                                                           |
+| GET    | `/v1/projects/:pid/pages`         | `list` (`pages.controller.ts:25-28`)                                                                                                           |
 | POST   | `/v1/projects/:pid/pages`         | `create` (`:43-47`)                                                                                                                            |
 | POST   | `/v1/projects/:pid/pages/reorder` | `reorder` (`:49-52`) — body `{ pageIds: string[] }`로 페이지 순서 갱신. **순서를 바꾸는 유일한 경로다** (`PagePatchSchema` 에 `order` 가 없다) |
 | GET    | `/v1/pages/:id`                   | `get` (`:54-57`)                                                                                                                               |
@@ -256,13 +299,13 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 | Method | Route                                      | Handler                                                 |
 | ------ | ------------------------------------------ | ------------------------------------------------------- |
-| GET    | `/v1/pages/:pageid/speech-bubbles`         | `list` (`speech-bubbles.controller.ts:48-51`)           |
+| GET    | `/v1/pages/:pageid/speech-bubbles`         | `list` (`speech-bubbles.controller.ts:36-39`)           |
 | POST   | `/v1/pages/:pageid/speech-bubbles`         | `create` (`:53-57`) — `order`는 MAX+1 자동 할당         |
 | POST   | `/v1/pages/:pageid/speech-bubbles/reorder` | `reorder` (`:59-62`) — body `{ ids: string[] }`         |
 | PATCH  | `/v1/speech-bubbles/:id`                   | `patch` (`:64-67`) — `variant`/`shape`/`style` (text X) |
 | DELETE | `/v1/speech-bubbles/:id`                   | `remove` (`:69-73`)                                     |
 
-소유 검증은 `page→project→userId` 체인을 `PagesService.findOwned` 와 자체 `assertOwned`로 처리 — `panels.service.ts` 패턴과 동일.
+소유 검증은 `page→project→userId` 체인을 `PagesService.findOwned` (`pages.service.ts:154`) 와 자체 `assertOwned`로 처리 — `panels.service.ts` 패턴과 동일. `findOwned` 는 **페이지 행 전체**를 돌려준다: 예전에는 id/projectId 만 읽어서 `PagesService.get` 이 곧바로 같은 행을 다시 읽었고(에디터가 페이지를 열 때마다 왕복 2회), 페이지 행은 작으므로 소유권만 필요한 호출부가 조금 더 읽는 비용보다 왕복 하나를 없애는 쪽이 낫다.
 
 ### 3.6c PageTextsModule (`page-texts/*`)
 
@@ -270,7 +313,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 | Method | Route                                  | Handler                                                   |
 | ------ | -------------------------------------- | --------------------------------------------------------- |
-| GET    | `/v1/pages/:pageid/page-texts`         | `list` (`page-texts.controller.ts:52-55`)                 |
+| GET    | `/v1/pages/:pageid/page-texts`         | `list` (`page-texts.controller.ts:40-43`)                 |
 | POST   | `/v1/pages/:pageid/page-texts`         | `create` (`:57-61`) — `order`는 MAX+1 자동 할당           |
 | POST   | `/v1/pages/:pageid/page-texts/reorder` | `reorder` (`:63-66`) — body `{ ids: string[] }`           |
 | PATCH  | `/v1/page-texts/:id`                   | `patch` (`:68-71`) — `x/y/w/h`, `text`, `style` 부분 갱신 |
@@ -284,7 +327,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 | Method | Route                                  | Handler                                         |
 | ------ | -------------------------------------- | ----------------------------------------------- |
-| GET    | `/v1/pages/:pageid/page-lines`         | `list` (`page-lines.controller.ts:51-54`)       |
+| GET    | `/v1/pages/:pageid/page-lines`         | `list` (`page-lines.controller.ts:38-41`)       |
 | POST   | `/v1/pages/:pageid/page-lines`         | `create` (`:56-60`) — `order`는 MAX+1 자동 할당 |
 | POST   | `/v1/pages/:pageid/page-lines/reorder` | `reorder` (`:62-65`) — body `{ ids: string[] }` |
 
@@ -298,9 +341,20 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 | DELETE | `/v1/page-lines/:id` | `remove` (`:72-76`) |
 
 `style` 은 세 모듈(PageLine/PageText/SpeechBubble) 모두 PatchSchema 에서 `.partial()` 이므로,
-patch 는 **기본값 → 기존 값 → 입력** 3항 병합이어야 한다(`page-lines.service.ts:93-98`).
-기존 값을 빼먹으면 명시하지 않은 필드가 기본값으로 되돌아간다 — 굵기 8인 선의 색만 바꿔도
-굵기가 리셋된다. 병합 규칙은 `common/style-merge.spec.ts` 가 고정한다.
+patch 는 **기본값 → 기존 값 → 입력** 3항 병합이어야 한다. 기존 값을 빼먹으면 명시하지 않은
+필드가 기본값으로 되돌아간다 — 굵기 8인 선의 색만 바꿔도 굵기가 리셋된다.
+
+병합은 세 모듈이 공유하는 `mergeStyle` (`common/style-merge.ts:15`) 한 곳에서만 한다.
+예전에는 세 서비스가 각자 인라인으로 병합하고, 규칙을 고정한다는 `style-merge.spec.ts` 는
+**그 파일 안에 자기만의 `merge` 를 정의해 두고 있었다** — 테스트가 통과해도 서비스가 그
+규칙을 지킨다는 보장이 없었던 셈이다. 지금 spec 은 서비스가 쓰는 바로 그 함수를 가져온다.
+PageText 만 병합 뒤에 폰트 보정이 한 겹 더 붙는다(`page-texts.service.ts:33`).
+
+세 모듈은 소유권 판정·순서 채번도 공유한다 — `assertPageChildOwned` · `nextOrder` ·
+`PAGE_CHILD_SELECT` (`common/page-child.ts`). **조회 자체는 각 서비스에 남는다**:
+Prisma 델리게이트는 모델마다 다른 제네릭 타입이라 셋을 한 파라미터로 받으려면 캐스트가
+필요한데, 소유권 검사 경로에서 타입을 느슨하게 만들 이유가 없다. 그래서 조회 결과의
+모양(`PageChildRow`)과 판정 규칙만 공유한다.
 
 좌표는 페이지 좌표계 절대값 두 점(x1/y1/x2/y2)으로 저장된다. tldraw 측은 BaseBoxShape 패턴(bbox + bbox 내 normalized 두 끝점)으로 표현하며, sync hook(`apps/web/components/editor/tldraw/use-page-line-sync.ts`)이 두 표현을 양방향 변환한다. `style` 은 `PageLineStyle` (`strokeWidth/strokeColor/strokeStyle='solid'|'dashed'`) 의 partial 머지로 정규화 — `page-lines.service.ts:63-84` (`create`) / `:86-99` (`patch`).
 
@@ -582,12 +636,12 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 | `API_PORT`                                                                                           | `main.ts:20`                                                                                                                               | `4000`                               |
 | `WEB_ORIGIN`                                                                                         | `main.ts:16`, `oauth.controller.ts:39`, `email.provider.ts:34`                                                                             | `http://localhost:3000`              |
 | `API_PUBLIC_URL`                                                                                     | `oauth.service.ts:125`                                                                                                                     | OAuth callback base                  |
-| `REDIS_URL`                                                                                          | `session.service.ts:30`, `oauth.service.ts:27`, `render.queue.ts:23`, `sse.hub.ts:48`, `api-keys.breaker.ts:23`, `model-credentials.ts:55` | `redis://localhost:6379`             |
+| `REDIS_URL`                                                                                          | `session.service.ts:38`, `oauth.service.ts:27`, `render.queue.ts:23`, `sse.hub.ts:48`, `api-keys.breaker.ts:23`, `model-credentials.ts:55` | `redis://localhost:6379`             |
 | `DATABASE_URL`                                                                                       | `schema.prisma:9`                                                                                                                          | Postgres                             |
 | `S3_ENDPOINT` / `S3_PUBLIC_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `storage.service.ts:43-50`                                                                                                                 | MinIO 기본값                         |
 | `STORAGE_AUTO_CREATE_BUCKET`                                                                         | `storage.service.ts:58`                                                                                                                    | `'0'`이면 자동 생성 skip             |
 | `MASTER_KEY`                                                                                         | `api-keys/crypto.ts:8-14`                                                                                                                  | base64 32B, BYOK AES-GCM 봉인 키     |
-| `COOKIE_SECURE`                                                                                      | `session.service.ts:129-132`                                                                                                               | secure 쿠키 토글                     |
+| `COOKIE_SECURE`                                                                                      | `session.service.ts:167`                                                                                                                   | secure 쿠키 토글                     |
 | `RENDER_WORKER_DISABLED`                                                                             | `render.worker.ts:30`, `sse.hub.ts:49`                                                                                                     | `'1'`이면 API 프로세스에서 워커 분리 |
 | `RENDER_CONCURRENCY`                                                                                 | `render.worker.ts:37`                                                                                                                      | 기본 2                               |
 | `SSE_HUB_DISABLED`                                                                                   | `sse.hub.ts:47`                                                                                                                            | 테스트용                             |

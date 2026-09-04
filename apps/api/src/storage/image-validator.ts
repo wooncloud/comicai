@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import sharp from 'sharp';
+import { apiError } from '../common/api-error';
 
 const ALLOWED_FORMATS = new Set(['png', 'jpeg', 'webp']);
 const MIME_BY_FORMAT: Record<string, string> = {
@@ -25,29 +26,37 @@ export interface ValidatedImage {
  */
 export async function validateAndNormalizeImage(buf: Buffer): Promise<ValidatedImage> {
   if (buf.length === 0) {
-    throw new BadRequestException({ code: 'UPLOAD_TYPE_NOT_ALLOWED', message: '빈 파일입니다.' });
+    throw new BadRequestException(
+      apiError({ code: 'UPLOAD_TYPE_NOT_ALLOWED', message: '빈 파일입니다.' }),
+    );
   }
   if (buf.length > MAX_UPLOAD_BYTES) {
-    throw new BadRequestException({
-      code: 'UPLOAD_TOO_LARGE',
-      message: `최대 ${Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)}MB까지 업로드할 수 있습니다.`,
-    });
+    throw new BadRequestException(
+      apiError({
+        code: 'UPLOAD_TOO_LARGE',
+        message: `최대 ${Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)}MB까지 업로드할 수 있습니다.`,
+      }),
+    );
   }
 
   const meta = await sharp(buf)
     .metadata()
     .catch(() => null);
   if (!meta?.format || !ALLOWED_FORMATS.has(meta.format)) {
-    throw new BadRequestException({
-      code: 'UPLOAD_TYPE_NOT_ALLOWED',
-      message: 'PNG/JPEG/WebP만 허용됩니다.',
-    });
+    throw new BadRequestException(
+      apiError({
+        code: 'UPLOAD_TYPE_NOT_ALLOWED',
+        message: 'PNG/JPEG/WebP만 허용됩니다.',
+      }),
+    );
   }
   if (!meta.width || !meta.height) {
-    throw new BadRequestException({
-      code: 'UPLOAD_DIMENSIONS_INVALID',
-      message: '이미지 크기를 인식할 수 없습니다.',
-    });
+    throw new BadRequestException(
+      apiError({
+        code: 'UPLOAD_DIMENSIONS_INVALID',
+        message: '이미지 크기를 인식할 수 없습니다.',
+      }),
+    );
   }
 
   const needsResize = meta.width > MAX_DIMENSION || meta.height > MAX_DIMENSION;

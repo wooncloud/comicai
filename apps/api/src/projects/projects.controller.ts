@@ -9,13 +9,12 @@ import {
   Post,
   Req,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ProjectCreateSchema, ProjectPatchSchema, type ModelId } from '@comicai/types';
 import { ProjectsService } from './projects.service';
-import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { AuthedRequest } from '../auth/session.guard';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
 import { requireUploadedFile } from '../common/upload';
 
@@ -32,7 +31,6 @@ class PatchDto {
 }
 
 @Controller('projects')
-@UseGuards(SessionGuard)
 export class ProjectsController {
   constructor(private readonly svc: ProjectsService) {}
 

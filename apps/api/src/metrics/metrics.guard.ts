@@ -1,5 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, NotFoundException } from '@nestjs/common';
 import type { Request } from 'express';
+import { apiError } from '../common/api-error';
 
 /**
  * `/v1/metrics` 접근 제어.
@@ -18,12 +19,13 @@ import type { Request } from 'express';
 export class MetricsGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const expected = process.env.METRICS_TOKEN?.trim();
-    if (!expected) throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
+    if (!expected) throw new NotFoundException(apiError({ code: 'RESOURCE_NOT_FOUND' }));
 
     const req = context.switchToHttp().getRequest<Request>();
     const header = req.headers.authorization;
     const provided = header?.startsWith('Bearer ') ? header.slice(7).trim() : undefined;
-    if (provided !== expected) throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
+    if (provided !== expected)
+      throw new NotFoundException(apiError({ code: 'RESOURCE_NOT_FOUND' }));
 
     return true;
   }

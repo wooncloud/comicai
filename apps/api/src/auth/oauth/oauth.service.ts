@@ -10,6 +10,7 @@ import { newId, prisma } from '@comicai/db';
 import type { OAuthProvider } from '@comicai/types';
 import { urlSafeToken } from '../../common/tokens';
 import { ADAPTERS, type OAuthProfile } from './oauth.providers';
+import { apiError } from '../../common/api-error';
 
 const STATE_TTL_SECONDS = 10 * 60;
 const STATE_PREFIX = 'oauth_state:';
@@ -75,15 +76,15 @@ export class OAuthService implements OnModuleDestroy {
     // 이 콜백을 시작한 브라우저가 맞는가. 쿠키는 이 브라우저에만 있으므로,
     // 남이 만든 콜백 URL 을 열어도 여기서 걸린다.
     if (!cookieState || cookieState !== state) {
-      throw new BadRequestException({ code: 'OAUTH_STATE_INVALID' });
+      throw new BadRequestException(apiError({ code: 'OAUTH_STATE_INVALID' }));
     }
 
     const rawState = await this.redis.get(STATE_PREFIX + state);
-    if (!rawState) throw new BadRequestException({ code: 'OAUTH_STATE_INVALID' });
+    if (!rawState) throw new BadRequestException(apiError({ code: 'OAUTH_STATE_INVALID' }));
     await this.redis.del(STATE_PREFIX + state);
     const parsed = JSON.parse(rawState) as { provider: OAuthProvider; returnTo: string | null };
     if (parsed.provider !== provider)
-      throw new BadRequestException({ code: 'OAUTH_STATE_INVALID' });
+      throw new BadRequestException(apiError({ code: 'OAUTH_STATE_INVALID' }));
     let profile: OAuthProfile;
     try {
       profile = await ADAPTERS[provider].exchangeAndFetch({
@@ -93,10 +94,12 @@ export class OAuthService implements OnModuleDestroy {
         code,
       });
     } catch (err) {
-      throw new BadRequestException({
-        code: 'OAUTH_PROVIDER_ERROR',
-        message: (err as Error).message,
-      });
+      throw new BadRequestException(
+        apiError({
+          code: 'OAUTH_PROVIDER_ERROR',
+          message: (err as Error).message,
+        }),
+      );
     }
     const user = await this.linkOrCreateUser(provider, profile);
     return { userId: user.id, email: user.email, returnTo: parsed.returnTo };
@@ -105,10 +108,12 @@ export class OAuthService implements OnModuleDestroy {
   private requireProvider(provider: OAuthProvider): ProviderConfig {
     const cfg = this.providerConfig(provider);
     if (!cfg) {
-      throw new ServiceUnavailableException({
-        code: 'OAUTH_PROVIDER_DISABLED',
-        message: `${provider} OAuth는 활성화되지 않았습니다.`,
-      });
+      throw new ServiceUnavailableException(
+        apiError({
+          code: 'OAUTH_PROVIDER_DISABLED',
+          message: `${provider} OAuth는 활성화되지 않았습니다.`,
+        }),
+      );
     }
     return cfg;
   }
@@ -155,7 +160,7 @@ export class OAuthService implements OnModuleDestroy {
      * `emailVerifiedAt` 은 null 로 남아 인증 메일을 따로 받게 된다.
      */
     if (existing && !profile.emailVerified) {
-      throw new BadRequestException({ code: 'OAUTH_EMAIL_UNVERIFIED' });
+      throw new BadRequestException(apiError({ code: 'OAUTH_EMAIL_UNVERIFIED' }));
     }
 
     if (existing) {

@@ -9,13 +9,12 @@ import {
   Post,
   Req,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PanelCreateSchema, PanelPatchSchema, type PanelShapeInput } from '@comicai/types';
 import { PanelsService } from './panels.service';
-import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { AuthedRequest } from '../auth/session.guard';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
 import { requireUploadedFile } from '../common/upload';
 
@@ -33,7 +32,6 @@ class PatchDto {
 }
 
 @Controller()
-@UseGuards(SessionGuard)
 export class PanelsController {
   constructor(private readonly svc: PanelsService) {}
 

@@ -109,6 +109,20 @@ pnpm --filter @comicai/db migrate
 - timeout: 120s, hookTimeout 120s, pool `forks` + `singleFork: true`
 - 의존성: `@testcontainers/postgresql`, `@testcontainers/redis` (`apps/api/package.json:46-55`) → 로컬에 Docker 데몬 필요.
 
+#### `cross-tenant.integration.spec.ts` — 남의 데이터에 손이 닿는가
+
+소유권 검사는 13벌이고 전부 각 서비스의 첫 줄에 손으로 붙어 있다. 지금은 구멍이 없지만,
+**새 메서드가 그 첫 줄을 빠뜨리면 아무 테스트도 실패하지 않고** 남의 데이터가 그대로 나간다.
+그 회귀를 잡는 것이 이 파일의 목적이다 (`apps/api/test/integration/cross-tenant.integration.spec.ts:41`).
+
+- 사용자 A 가 project/page/panel/말풍선/텍스트/직선/일관성/렌더잡을 만들고, **B 의 세션으로**
+  읽기·수정·동작·삭제를 표로 돌면서 전부 404 를 기대한다. 라우트가 늘면 표에 한 줄을 더한다.
+- 기대값이 403 이 아니라 404 인 이유는 docs/02-backend.md 의 "소유권 실패는 전부 404 다" 절.
+- 삭제는 마지막에 돌리고 **DB 로 실제 잔존까지 확인한다** — 404 를 받아 놓고 실제로는
+  지워졌다면 상태 코드만 보는 검사는 아무것도 못 잡는다.
+- 마지막 케이스가 A 로 같은 리소스를 200 으로 읽는다. 그게 없으면 "전부 막혀서 404" 인
+  상태와 구분되지 않는다.
+
 ### 4.3 E2E: Playwright
 
 설정: `apps/web/playwright.config.ts:1-40`

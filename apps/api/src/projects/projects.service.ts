@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { newId, prisma } from '@comicai/db';
 import type { ImageRef, ModelId, ProjectDTO } from '@comicai/types';
 import { StoragePrefix, StorageService } from '../storage/storage.service';
+import { apiError } from '../common/api-error';
 
 interface ProjectRow {
   id: string;
@@ -36,7 +37,15 @@ export class ProjectsService {
       where: { userId },
       orderBy: { updatedAt: 'desc' },
     });
-    return Promise.all(rows.map((r) => this.withThumbnailUrl(r)));
+    /*
+     * 폴백 썸네일을 프로젝트마다 조회하면 N+1 이다. `thumbnail` 은 명시적 업로드로만
+     * 채워지므로 **기본 상태에서는 전부 폴백**이고, 프로젝트 20개면 21쿼리가 나간다.
+     * 썸네일이 없는 것만 모아 한 번에 읽는다.
+     */
+    const fallbacks = await firstBackgroundByProject(
+      rows.filter((r) => !r.thumbnail).map((r) => r.id),
+    );
+    return Promise.all(rows.map((r) => this.withThumbnailUrl(r, fallbacks)));
   }
 
   async create(userId: string, name: string): Promise<ProjectDTO> {
@@ -53,7 +62,8 @@ export class ProjectsService {
       include: { pages: { select: { id: true, order: true }, orderBy: { order: 'asc' } } },
     });
     // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
-    if (row?.userId !== userId) throw new NotFoundException({ code: 'PROJECT_NOT_FOUND' });
+    if (row?.userId !== userId)
+      throw new NotFoundException(apiError({ code: 'PROJECT_NOT_FOUND' }));
     const dto = await this.withThumbnailUrl(row);
     return { ...dto, pages: row.pages };
   }
@@ -121,31 +131,50 @@ export class ProjectsService {
      * `RESOURCE_NOT_FOUND` 는 null(문구 없음)이라 호출부 문맥에 기대게 되는데,
      * 도메인 코드는 "프로젝트를 찾을 수 없습니다" 처럼 그 자체로 안내가 된다.
      */
-    if (row?.userId !== userId) throw new NotFoundException({ code: 'PROJECT_NOT_FOUND' });
+    if (row?.userId !== userId)
+      throw new NotFoundException(apiError({ code: 'PROJECT_NOT_FOUND' }));
     return { thumbnail: row.thumbnail };
   }
 
   /**
    * thumbnail이 있으면 presigned URL로 매핑.
    * 없으면 첫 페이지의 background를 폴백 썸네일로 사용.
+   *
+   * `fallbacks` 는 목록 경로가 미리 모아 온 것이다. 단건 경로(create/detail/patch)는
+   * 넘기지 않고 그 자리에서 한 번 읽는다 — 어차피 한 건이라 모아 올 것이 없다.
    */
-  private async withThumbnailUrl(row: ProjectRow): Promise<ProjectDTO> {
+  private async withThumbnailUrl(
+    row: ProjectRow,
+    fallbacks?: ReadonlyMap<string, ImageRef>,
+  ): Promise<ProjectDTO> {
     const dto = toDtoBase(row);
     if (row.thumbnail) {
       dto.thumbnailUrl = (await this.storage.presignDownload(row.thumbnail)).url;
       return dto;
     }
-    const firstPage = await prisma.page.findFirst({
-      where: { projectId: row.id, NOT: { background: { equals: null as never } } },
-      orderBy: { order: 'asc' },
-      select: { background: true },
-    });
-    const bg = firstPage?.background as ImageRef | null | undefined;
-    if (bg?.storageKey) {
-      dto.thumbnailUrl = (await this.storage.presignDownload(bg.storageKey)).url;
-    } else {
-      dto.thumbnailUrl = null;
-    }
+    const bg = (fallbacks ?? (await firstBackgroundByProject([row.id]))).get(row.id);
+    dto.thumbnailUrl = bg ? (await this.storage.presignDownload(bg.storageKey)).url : null;
     return dto;
   }
+}
+
+/** 프로젝트별 "background 가 있는 첫 페이지" 를 한 번에. 폴백 썸네일의 원본이다. */
+async function firstBackgroundByProject(
+  projectIds: string[],
+): Promise<ReadonlyMap<string, ImageRef>> {
+  const map = new Map<string, ImageRef>();
+  if (projectIds.length === 0) return map;
+  const pages = await prisma.page.findMany({
+    where: { projectId: { in: projectIds }, NOT: { background: { equals: null as never } } },
+    // distinct 는 정렬한 뒤 프로젝트마다 첫 행을 남긴다. order 가 함께 있어야
+    // "첫 페이지" 가 실제로 첫 페이지다.
+    orderBy: [{ projectId: 'asc' }, { order: 'asc' }],
+    distinct: ['projectId'],
+    select: { projectId: true, background: true },
+  });
+  for (const page of pages) {
+    const bg = page.background as ImageRef | null;
+    if (bg?.storageKey) map.set(page.projectId, bg);
+  }
+  return map;
 }

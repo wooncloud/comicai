@@ -23,9 +23,10 @@ describe('Auth integration (testcontainers)', () => {
     const email = `int-${Date.now()}@example.com`;
     const password = 'Pa55word!ok';
 
+    // SignupSchema 의 agreeToTerms 는 z.literal(true) 다 — 빠지면 400 이다.
     const signup = await request(server)
       .post('/v1/auth/signup')
-      .send({ email, password })
+      .send({ email, password, agreeToTerms: true })
       .expect(201);
 
     expect(signup.body.data.email).toBe(email);
@@ -52,7 +53,7 @@ describe('Auth integration (testcontainers)', () => {
 
     await request(server)
       .post('/v1/auth/signup')
-      .send({ email, password: 'Pa55word!ok' })
+      .send({ email, password: 'Pa55word!ok', agreeToTerms: true })
       .expect(201);
 
     const res = await request(server)

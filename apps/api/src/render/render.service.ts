@@ -12,6 +12,7 @@ import { PanelsService } from '../panels/panels.service';
 import { StorageService } from '../storage/storage.service';
 import { buildRenderIR } from './ir.builder';
 import { RenderQueue, idempotencyKey } from './render.queue';
+import { apiError } from '../common/api-error';
 
 /** id 가 이미 있는 행과 부딪혔는가. RenderJob 의 unique 는 primary key 하나뿐이다. */
 function isUniqueViolation(err: unknown): boolean {
@@ -37,10 +38,12 @@ export class RenderService {
     const panel = await this.panels.assertOwned(userId, panelId);
     const ir = await buildRenderIR(panel.id, seed);
     if (!ir.userPrompt.trim() && !ir.contiSketch && ir.userImages.length === 0) {
-      throw new BadRequestException({
-        code: 'RENDER_INVALID_INPUT',
-        message: '본문/콘티/참조 이미지 중 하나는 필요합니다.',
-      });
+      throw new BadRequestException(
+        apiError({
+          code: 'RENDER_INVALID_INPUT',
+          message: '본문/콘티/참조 이미지 중 하나는 필요합니다.',
+        }),
+      );
     }
 
     /*
@@ -131,10 +134,12 @@ export class RenderService {
           // 마감까지 실패하면 좀비 행이 남는다. 최소한 흔적은 남겨야 손으로 찾을 수 있다.
           this.logger.error({ err: e, renderJobId: jobId }, 'enqueue 실패 잡 마감 실패'),
         );
-      throw new ServiceUnavailableException({
-        code: 'RENDER_ENQUEUE_FAILED',
-        message: '잠시 후 다시 시도해 주세요.',
-      });
+      throw new ServiceUnavailableException(
+        apiError({
+          code: 'RENDER_ENQUEUE_FAILED',
+          message: '잠시 후 다시 시도해 주세요.',
+        }),
+      );
     }
 
     await prisma.panel.update({
@@ -147,7 +152,7 @@ export class RenderService {
   async getJob(userId: string, id: string): Promise<RenderJobDTO> {
     const row = await prisma.renderJob.findUnique({ where: { id } });
     if (row?.userId !== userId) {
-      throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
+      throw new NotFoundException(apiError({ code: 'RESOURCE_NOT_FOUND' }));
     }
     const resultImage = (row.resultImage as unknown as ImageRef) ?? null;
     const status = row.status as RenderStatus;
@@ -172,10 +177,12 @@ export class RenderService {
       select: { userId: true, status: true },
     });
     if (row?.userId !== userId) {
-      throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
+      throw new NotFoundException(apiError({ code: 'RESOURCE_NOT_FOUND' }));
     }
     if (row.status === 'succeeded' || row.status === 'failed') {
-      throw new BadRequestException({ code: 'CONFLICT', message: '이미 완료된 작업입니다.' });
+      throw new BadRequestException(
+        apiError({ code: 'CONFLICT', message: '이미 완료된 작업입니다.' }),
+      );
     }
     await prisma.renderJob.update({
       where: { id },

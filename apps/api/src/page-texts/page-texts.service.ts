@@ -1,13 +1,22 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { newId, prisma, Prisma } from '@comicai/db';
 import {
   coercePageTextFontFamily,
   defaultPageTextStyle,
   type PageTextDTO,
   type PageTextStyle,
+  type PageTextCreateInput,
+  type PageTextPatchInput,
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { isReorderPermutation } from '../common/reorder';
+import { mergeStyle } from '../common/style-merge';
+import { assertPageChildOwned, nextOrder, PAGE_CHILD_SELECT } from '../common/page-child';
+import { apiError } from '../common/api-error';
+
+/** 입력 모양은 Zod 스키마가 단일 출처다 — 여기서 다시 선언하지 않는다. */
+type CreateInput = PageTextCreateInput;
+type PatchInput = PageTextPatchInput;
 
 interface PageTextRow {
   id: string;
@@ -23,9 +32,13 @@ interface PageTextRow {
   updatedAt: Date;
 }
 
-/** 기본값 채우기 + 제거된 폰트 값 흡수. DB 는 Json 이라 옛 값이 그대로 남아 있다. */
-function normalizeStyle(style: Partial<PageTextStyle>): PageTextStyle {
-  const merged = { ...defaultPageTextStyle(), ...style };
+/**
+ * 기본값 채우기 + 제거된 폰트 값 흡수. DB 는 Json 이라 옛 값이 그대로 남아 있다.
+ *
+ * 형제 모듈(말풍선·직선)과 달리 병합 뒤에 폰트 보정이 한 겹 더 붙는다.
+ */
+function normalizeStyle(...layers: (Partial<PageTextStyle> | null | undefined)[]): PageTextStyle {
+  const merged = mergeStyle(defaultPageTextStyle(), ...layers);
   return { ...merged, fontFamily: coercePageTextFontFamily(merged.fontFamily) };
 }
 
@@ -38,29 +51,11 @@ function toDto(row: PageTextRow): PageTextDTO {
     w: row.w,
     h: row.h,
     text: row.text,
-    style: normalizeStyle((row.style as Partial<PageTextStyle>) ?? {}),
+    style: normalizeStyle(row.style as Partial<PageTextStyle> | null),
     order: row.order,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
-}
-
-export interface CreateInput {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  text?: string;
-  style?: Partial<PageTextStyle>;
-}
-
-export interface PatchInput {
-  x?: number;
-  y?: number;
-  w?: number;
-  h?: number;
-  text?: string;
-  style?: Partial<PageTextStyle>;
 }
 
 @Injectable()
@@ -78,12 +73,10 @@ export class PageTextsService {
 
   async create(userId: string, pageId: string, input: CreateInput): Promise<PageTextDTO> {
     await this.pages.findOwned(userId, pageId);
-    const max = await prisma.pageText.aggregate({
-      where: { pageId },
-      _max: { order: true },
-    });
-    const order = (max._max.order ?? -1) + 1;
-    const style = { ...defaultPageTextStyle(), ...(input.style ?? {}) };
+    const order = nextOrder(
+      await prisma.pageText.aggregate({ where: { pageId }, _max: { order: true } }),
+    );
+    const style = normalizeStyle(input.style);
     const row = await prisma.pageText.create({
       data: {
         id: newId('ptext'),
@@ -93,7 +86,7 @@ export class PageTextsService {
         w: input.w,
         h: input.h,
         text: input.text ?? '',
-        style: style,
+        style: style as unknown as Prisma.InputJsonValue,
         order,
       },
     });
@@ -109,13 +102,11 @@ export class PageTextsService {
     if (input.h !== undefined) data.h = input.h;
     if (input.text !== undefined) data.text = input.text;
     if (input.style) {
-      // PatchSchema 의 style 은 .partial() 이다. 기존 값을 빼먹으면 명시하지 않은
-      // 필드가 기본값으로 되돌아간다(굵기 8인 선의 색만 바꿔도 굵기가 리셋됨).
-      const current = (owned.style ?? {}) as Partial<PageTextStyle>;
-      data.style = normalizeStyle({
-        ...current,
-        ...input.style,
-      }) as unknown as Prisma.InputJsonValue;
+      // 기존 값을 빼먹으면 명시하지 않은 필드가 기본값으로 되돌아간다 — style-merge.ts 참고.
+      data.style = normalizeStyle(
+        owned.style as Partial<PageTextStyle> | null,
+        input.style,
+      ) as unknown as Prisma.InputJsonValue;
     }
     const row = await prisma.pageText.update({ where: { id: owned.id }, data });
     return toDto(row);
@@ -134,10 +125,12 @@ export class PageTextsService {
     });
     const existingIds = new Set(existing.map((r) => r.id));
     if (!isReorderPermutation(ids, existingIds)) {
-      throw new ForbiddenException({
-        code: 'INVALID_REORDER',
-        message: 'ids 목록이 현재 페이지의 텍스트와 일치하지 않습니다.',
-      });
+      throw new ForbiddenException(
+        apiError({
+          code: 'INVALID_REORDER',
+          message: 'ids 목록이 현재 페이지의 텍스트와 일치하지 않습니다.',
+        }),
+      );
     }
     await prisma.$transaction(
       ids.map((id, i) => prisma.pageText.update({ where: { id }, data: { order: i } })),
@@ -145,22 +138,8 @@ export class PageTextsService {
     return this.list(userId, pageId);
   }
 
-  private async assertOwned(
-    userId: string,
-    id: string,
-  ): Promise<{ id: string; pageId: string; style: unknown }> {
-    const row = await prisma.pageText.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        pageId: true,
-        style: true,
-        page: { select: { project: { select: { userId: true } } } },
-      },
-    });
-    // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
-    if (row?.page.project.userId !== userId)
-      throw new NotFoundException({ code: 'PAGE_TEXT_NOT_FOUND' });
-    return { id: row.id, pageId: row.pageId, style: row.style };
+  private async assertOwned(userId: string, id: string) {
+    const row = await prisma.pageText.findUnique({ where: { id }, select: PAGE_CHILD_SELECT });
+    return assertPageChildOwned(row, userId, 'PAGE_TEXT_NOT_FOUND');
   }
 }

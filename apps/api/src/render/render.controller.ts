@@ -1,10 +1,10 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Req, Res } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { RenderStartSchema, type ModelId } from '@comicai/types';
 import { RenderService } from './render.service';
 import { SseHub } from './sse.hub';
-import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { AuthedRequest } from '../auth/session.guard';
 import { PanelsService } from '../panels/panels.service';
 
 class StartDto {
@@ -14,7 +14,6 @@ class StartDto {
 }
 
 @Controller()
-@UseGuards(SessionGuard)
 export class RenderController {
   constructor(
     private readonly svc: RenderService,

@@ -257,7 +257,7 @@ minio(`:78,80`), api(`:142`). docker 의 publish 는 `0.0.0.0` 바인딩이고 i
 **`COOKIE_SECURE` 는 비워 두는 것이 기본이다.** 값이 있으면 코드의 "프로덕션이면
 자동 켜기" 판정을 덮는다. 예전에는 compose 가 `${COOKIE_SECURE:-0}` 으로 **항상**
 `0` 을 넘겨서 프로덕션 세션 쿠키에 Secure 가 안 붙었다. 빈 문자열도 같은 문제를
-일으키므로 코드가 3상태로 읽는다(`apps/api/src/auth/session.service.ts:137`).
+일으키므로 코드가 3상태로 읽는다(`apps/api/src/auth/session.service.ts:159`).
 이 경계는 `session-cookie.spec.ts` 가 고정한다.
 
 **`healthz` 는 의존성을 실제로 검사한다**(`apps/api/src/health/health.controller.ts:44`).

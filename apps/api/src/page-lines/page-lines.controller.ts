@@ -1,15 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Param,
-  Patch,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req } from '@nestjs/common';
 import {
   PageLineCreateSchema,
   PageLinePatchSchema,
@@ -17,7 +6,7 @@ import {
   type PageLineStyle,
 } from '@comicai/types';
 import { PageLinesService } from './page-lines.service';
-import { SessionGuard, AuthedRequest } from '../auth/session.guard';
+import { AuthedRequest } from '../auth/session.guard';
 
 class CreateDto {
   static zodSchema = PageLineCreateSchema;
@@ -43,7 +32,6 @@ class ReorderDto {
 }
 
 @Controller()
-@UseGuards(SessionGuard)
 export class PageLinesController {
   constructor(private readonly svc: PageLinesService) {}
 

@@ -3,6 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { prisma } from '@comicai/db';
 import { SseHub } from '../render/sse.hub';
 import { StorageService } from '../storage/storage.service';
+import { Public } from '../auth/public.decorator';
 
 type Probe = 'ok' | 'down';
 
@@ -24,6 +25,7 @@ const PROBE_CACHE_MS = 2000;
  * 의존성이 하나라도 죽으면 503 을 준다 — 그래야 재기동이나 트래픽 차단이 걸린다.
  */
 @Controller()
+@Public()
 // `@SkipThrottle()` 이었다. 인증 없이 열린 채로 요청마다 Postgres 쿼리 1 + Redis ping +
 // S3 HeadBucket 을 돌리는 엔드포인트라, 무제한이면 그 자체가 증폭 벡터다 — 초당 수백 번이면
 // Prisma 커넥션 풀이 헬스체크로 가득 차 실제 사용자 요청이 밀린다.

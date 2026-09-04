@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@comicai/types';
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from '../auth/session.service';
 import { hexToken } from './tokens';
+import { apiError } from './api-error';
 
 export const CSRF_COOKIE = CSRF_COOKIE_NAME;
 const SKIP_PATHS = new Set(['/healthz', '/metrics']);
@@ -34,10 +35,12 @@ export class CsrfMiddleware implements NestMiddleware {
       typeof cookieToken !== 'string' ||
       headerToken !== cookieToken
     ) {
-      throw new ForbiddenException({
-        code: 'CSRF_INVALID',
-        message: 'CSRF 토큰이 유효하지 않습니다.',
-      });
+      throw new ForbiddenException(
+        apiError({
+          code: 'CSRF_INVALID',
+          message: 'CSRF 토큰이 유효하지 않습니다.',
+        }),
+      );
     }
     return next();
   }

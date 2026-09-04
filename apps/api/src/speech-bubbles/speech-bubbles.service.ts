@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { newId, prisma, Prisma } from '@comicai/db';
 import {
   defaultSpeechBubbleStyle,
@@ -6,9 +6,18 @@ import {
   type SpeechBubbleShape,
   type SpeechBubbleStyle,
   type SpeechBubbleVariant,
+  type SpeechBubbleCreateInput,
+  type SpeechBubblePatchInput,
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { isReorderPermutation } from '../common/reorder';
+import { mergeStyle } from '../common/style-merge';
+import { assertPageChildOwned, nextOrder, PAGE_CHILD_SELECT } from '../common/page-child';
+import { apiError } from '../common/api-error';
+
+/** 입력 모양은 Zod 스키마가 단일 출처다 — 여기서 다시 선언하지 않는다. */
+type CreateInput = SpeechBubbleCreateInput;
+type PatchInput = SpeechBubblePatchInput;
 
 interface BubbleRow {
   id: string;
@@ -27,23 +36,11 @@ function toDto(row: BubbleRow): SpeechBubbleDTO {
     pageId: row.pageId,
     variant: row.variant as SpeechBubbleVariant,
     shape: row.shape as SpeechBubbleShape,
-    style: { ...defaultSpeechBubbleStyle(), ...((row.style as Partial<SpeechBubbleStyle>) ?? {}) },
+    style: mergeStyle(defaultSpeechBubbleStyle(), row.style as Partial<SpeechBubbleStyle> | null),
     order: row.order,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
-}
-
-export interface CreateInput {
-  variant: SpeechBubbleVariant;
-  shape: SpeechBubbleShape;
-  style?: Partial<SpeechBubbleStyle>;
-}
-
-export interface PatchInput {
-  variant?: SpeechBubbleVariant;
-  shape?: SpeechBubbleShape;
-  style?: Partial<SpeechBubbleStyle>;
 }
 
 @Injectable()
@@ -61,19 +58,17 @@ export class SpeechBubblesService {
 
   async create(userId: string, pageId: string, input: CreateInput): Promise<SpeechBubbleDTO> {
     await this.pages.findOwned(userId, pageId);
-    const max = await prisma.speechBubble.aggregate({
-      where: { pageId },
-      _max: { order: true },
-    });
-    const order = (max._max.order ?? -1) + 1;
-    const style = { ...defaultSpeechBubbleStyle(), ...(input.style ?? {}) };
+    const order = nextOrder(
+      await prisma.speechBubble.aggregate({ where: { pageId }, _max: { order: true } }),
+    );
+    const style = mergeStyle(defaultSpeechBubbleStyle(), input.style);
     const row = await prisma.speechBubble.create({
       data: {
         id: newId('bubble'),
         pageId,
         variant: input.variant,
-        shape: input.shape as unknown as Prisma.InputJsonValue,
-        style: style,
+        shape: input.shape,
+        style: style as unknown as Prisma.InputJsonValue,
         order,
       },
     });
@@ -84,12 +79,14 @@ export class SpeechBubblesService {
     const owned = await this.assertOwned(userId, id);
     const data: Prisma.SpeechBubbleUpdateInput = {};
     if (input.variant) data.variant = input.variant;
-    if (input.shape) data.shape = input.shape as unknown as Prisma.InputJsonValue;
+    if (input.shape) data.shape = input.shape;
     if (input.style) {
-      // PatchSchema 의 style 은 .partial() 이다. 기존 값을 빼먹으면 명시하지 않은
-      // 필드가 기본값으로 되돌아간다(굵기 8인 선의 색만 바꿔도 굵기가 리셋됨).
-      const current = (owned.style ?? {}) as Partial<SpeechBubbleStyle>;
-      data.style = { ...defaultSpeechBubbleStyle(), ...current, ...input.style };
+      // 기존 값을 빼먹으면 명시하지 않은 필드가 기본값으로 되돌아간다 — style-merge.ts 참고.
+      data.style = mergeStyle(
+        defaultSpeechBubbleStyle(),
+        owned.style as Partial<SpeechBubbleStyle> | null,
+        input.style,
+      ) as unknown as Prisma.InputJsonValue;
     }
     const row = await prisma.speechBubble.update({ where: { id: owned.id }, data });
     return toDto(row);
@@ -108,10 +105,12 @@ export class SpeechBubblesService {
     });
     const existingIds = new Set(existing.map((r) => r.id));
     if (!isReorderPermutation(ids, existingIds)) {
-      throw new ForbiddenException({
-        code: 'INVALID_REORDER',
-        message: 'ids 목록이 현재 페이지의 말풍선과 일치하지 않습니다.',
-      });
+      throw new ForbiddenException(
+        apiError({
+          code: 'INVALID_REORDER',
+          message: 'ids 목록이 현재 페이지의 말풍선과 일치하지 않습니다.',
+        }),
+      );
     }
     await prisma.$transaction(
       ids.map((id, i) => prisma.speechBubble.update({ where: { id }, data: { order: i } })),
@@ -119,22 +118,8 @@ export class SpeechBubblesService {
     return this.list(userId, pageId);
   }
 
-  private async assertOwned(
-    userId: string,
-    id: string,
-  ): Promise<{ id: string; pageId: string; style: unknown }> {
-    const row = await prisma.speechBubble.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        pageId: true,
-        style: true,
-        page: { select: { project: { select: { userId: true } } } },
-      },
-    });
-    // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
-    if (row?.page.project.userId !== userId)
-      throw new NotFoundException({ code: 'SPEECH_BUBBLE_NOT_FOUND' });
-    return { id: row.id, pageId: row.pageId, style: row.style };
+  private async assertOwned(userId: string, id: string) {
+    const row = await prisma.speechBubble.findUnique({ where: { id }, select: PAGE_CHILD_SELECT });
+    return assertPageChildOwned(row, userId, 'SPEECH_BUBBLE_NOT_FOUND');
   }
 }

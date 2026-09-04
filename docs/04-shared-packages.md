@@ -34,11 +34,11 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - `IN_PROGRESS_RENDER_STATUSES`, `TERMINAL_RENDER_STATUSES`, `isInProgressRender()` 헬퍼 (`src/index.ts:35-40`).
 - `PANEL_SHAPE_TYPES = ['rect','rounded','oval','diamond','parallelogram','polygon']` (`src/index.ts:108-116`). 인스펙터 picker용 `PANEL_SHAPE_PRESETS`는 polygon 제외(`src/index.ts:119-120`).
 - `SPEECH_BUBBLE_VARIANTS = ['ellipse','rect','spike','polygon']` (`src/index.ts:153`). cloud/thought 는 2026-05-19 migration에서 제거되어 ellipse 로 일괄 변환됨.
-- `PAGE_TEXT_FONT_FAMILIES = ['sans-serif','serif','monospace']` (`src/schemas.ts:266`) — 캔버스(CSS)와
+- `PAGE_TEXT_FONT_FAMILIES = ['sans-serif','serif','monospace']` (`src/schemas.ts:274`) — 캔버스(CSS)와
   export(SVG) 양쪽에서 실제로 해석되는 것만. `index.ts` 는 여기서 타입만 파생시킨다
   (`PageTextFontFamily`, `src/index.ts:203`). 값을 양쪽에 두면 지역 선언이 `export *` 를 가려
   **컴파일 에러 없이** 소비자와 Zod 검증기가 서로 다른 목록을 본다.
-- `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/schemas.ts:299`). PageLine 의 선 종류.
+- `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/schemas.ts:310`). PageLine 의 선 종류.
   폰트와 같은 이유로 값은 `schemas.ts` 에만 있고, `index.ts:246` 은 타입만 파생시킨다.
 - `RenderErrorCategory = 'transient'|'auth'|'quota'|'safety'|'invalid'|'timeout'` (`src/index.ts:396`).
 - `EntityType = 'style'|'character'|'background'|'worldview'` (`src/index.ts:85`).
@@ -74,15 +74,23 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 
 성공: `{ data: T }`, 실패: `{ error: { code, message, details? } }` (`src/envelope.ts:48-60`).
 
-`ErrorCode` 카테고리(`src/envelope.ts:4-47`):
+`ErrorCode` 카테고리(`src/envelope.ts:11-63`):
+
+**이 유니온 밖의 코드는 API 가 던질 수 없다.** 서비스가 `apiError()`
+(`apps/api/src/common/api-error.ts:23`)를 거쳐서만 던지므로, 목록에 없는 코드는 API 쪽
+컴파일 에러가 되고, 유니온에 넣는 순간 이번엔 웹의 문구 표(`Record<ErrorCode, …>`,
+`apps/web/lib/error-message.ts:21`)가 컴파일 에러를 낸다 — 두 방어가 이어진다.
+예전에는 예외 인자가 그냥 객체라 아무 문자열이나 통과했고, 그래서 9종이 유니온 밖에
+있었다. 그 코드들은 문구 표에도 없어 사용자가 전부 "요청을 처리하지 못했습니다" 만 봤다.
+표가 "빠지면 컴파일 에러" 를 선언하는데 **애초에 유니온 밖이라 그 방어가 발동하지 않았다.**
 
 - 공통: `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `BAD_REQUEST`, `RATE_LIMITED`, `INTERNAL_ERROR`, `CSRF_INVALID`.
-- 인증: `NO_SESSION`, `SESSION_EXPIRED`, `SESSION_NOT_FOUND`, `INVALID_CREDENTIALS`, `INVALID_PASSWORD`, `EMAIL_TAKEN`, `EMAIL_NOT_VERIFIED`, `TOKEN_INVALID`, `TOKEN_EXPIRED`, `OAUTH_PROVIDER_DISABLED`, `OAUTH_PROVIDER_ERROR`, `OAUTH_STATE_INVALID`, `PASSWORD_REQUIRED`.
-- 도메인: `RESOURCE_NOT_FOUND`, `RESOURCE_FORBIDDEN`, `PROJECT_NOT_FOUND`, `PANEL_NOT_FOUND`, `PAGE_NOT_FOUND`, `API_KEY_NOT_FOUND`, `API_KEY_VERIFY_FAILED`, `CONSISTENCY_NOT_FOUND`.
+- 인증: `NO_SESSION`, `SESSION_EXPIRED`, `SESSION_NOT_FOUND`, `INVALID_CREDENTIALS`, `INVALID_PASSWORD`, `EMAIL_TAKEN`, `EMAIL_NOT_VERIFIED`, `TOKEN_INVALID`, `TOKEN_EXPIRED`, `OAUTH_PROVIDER_DISABLED`, `OAUTH_PROVIDER_ERROR`, `OAUTH_STATE_INVALID`, `OAUTH_EMAIL_UNVERIFIED`, `PASSWORD_REQUIRED`.
+- 도메인: `RESOURCE_NOT_FOUND`, `RESOURCE_FORBIDDEN`, `PROJECT_NOT_FOUND`, `PANEL_NOT_FOUND`, `PAGE_NOT_FOUND`, `API_KEY_NOT_FOUND`, `API_KEY_VERIFY_FAILED`, `CONSISTENCY_NOT_FOUND`, `CONSISTENCY_GENERATE_UNSUPPORTED`, `CONSISTENCY_GENERATE_FAILED`, `CONSISTENCY_ATTACH_INVALID_KEY`, `SPEECH_BUBBLE_NOT_FOUND`, `PAGE_TEXT_NOT_FOUND`, `PAGE_LINE_NOT_FOUND`, `INVALID_REORDER`, `PAGE_REORDER_MISMATCH`.
   `RESOURCE_FORBIDDEN` 은 이제 API 가 던지지 않는다 — 소유권 실패는 전부 도메인별 404 다
   (존재 여부가 새지 않도록). 유니온에는 남겨 둔다: 옛 클라이언트가 아직 이 코드를 해석한다.
 - 렌더: `RENDER_QUOTA_EXCEEDED`, `RENDER_INVALID_INPUT`, `RENDER_ENQUEUE_FAILED`, `RENDER_SAFETY_BLOCK`, `RENDER_AUTH_FAILED`, `RENDER_TIMEOUT`.
-- 업로드: `UPLOAD_TYPE_NOT_ALLOWED`, `UPLOAD_TOO_LARGE`, `UPLOAD_DIMENSIONS_INVALID`.
+- 업로드: `UPLOAD_TYPE_NOT_ALLOWED`, `UPLOAD_TOO_LARGE`, `UPLOAD_DIMENSIONS_INVALID`, `UPLOAD_FILE_MISSING`.
 
 타입 가드: `isApiFailure(env)` (`src/envelope.ts:62-64`).
 
@@ -118,9 +126,14 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - 렌더: `RenderModelSchema`(ModelId enum과 동일), `RenderStartSchema` (`src/schemas.ts:160-165`).
 - 내보내기: `ExportFormatSchema = 'png'|'jpg'`, `ExportRequestSchema`(dpi 72~600, 기본 150) (`src/schemas.ts:168-173`).
 - 패널: `PanelShapeSchema` — points 3~64개, 좌표는 ±`MAX_PANEL_COORD`(=페이지 상한×2) 범위, strokeColor 기본 `#000000`, strokeWidth 기본 2 (`src/schemas.ts:163-197`).
-- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림 — strokeWidth/Color/fillColor 만), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts:215-250`).
-- 페이지 텍스트: `PAGE_TEXT_FONT_FAMILIES`, `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`src/schemas.ts:252-295`).
-- 페이지 직선: `PAGE_LINE_STROKE_STYLES`, `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`src/schemas.ts:297-326`).
+- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림 — strokeWidth/Color/fillColor 만), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts:215-258`).
+- **입력 타입은 스키마에서 파생시킨다** — `SpeechBubbleCreateInput`/`PatchInput`,
+  `PageTextCreateInput`/`PatchInput`, `PageLineCreateInput`/`PatchInput` (`z.infer`).
+  예전에는 세 서비스가 같은 모양을 손으로 다시 선언했다(모듈마다 두 개씩, 총 6개).
+  스키마를 고쳐도 그 선언은 따라오지 않으므로 검증기가 받는 것과 서비스가 기대하는 것이
+  조용히 갈라질 수 있었다.
+- 페이지 텍스트: `PAGE_TEXT_FONT_FAMILIES`, `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`src/schemas.ts:260-306`).
+- 페이지 직선: `PAGE_LINE_STROKE_STYLES`, `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`src/schemas.ts:308-340`).
 - 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`(`prompt+model`), `ConsistencyAttachSchema`(`storageKey`) (`src/schemas.ts:313-332`).
 
 ### Panel path 헬퍼 (panel-path.ts)

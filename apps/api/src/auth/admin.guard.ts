@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@
 import { prisma } from '@comicai/db';
 import { isAdminEmail, parseAdminEmails } from '@comicai/types';
 import type { AuthedRequest } from './session.guard';
+import { apiError } from '../common/api-error';
 
 /**
  * 환경변수 `ADMIN_EMAILS` 의 허용 목록.
@@ -45,7 +46,7 @@ export class AdminGuard implements CanActivate {
     const userId = req.user?.id;
     // 관리자가 아닌 것과 목록이 비어 있는 것을 구분해 알려 주지 않는다.
     // 어느 쪽인지 알려 주면 설정 상태를 탐색할 수 있다.
-    if (!userId) throw new ForbiddenException({ code: 'FORBIDDEN' });
+    if (!userId) throw new ForbiddenException(apiError({ code: 'FORBIDDEN' }));
 
     // 세션에는 인증 시각이 없다. 운영자 라우트에서만 도는 쿼리 한 번이다.
     const row = await prisma.user.findUnique({
@@ -53,7 +54,7 @@ export class AdminGuard implements CanActivate {
       select: { email: true, emailVerifiedAt: true },
     });
     if (!row || !isAdmin(row.email, row.emailVerifiedAt)) {
-      throw new ForbiddenException({ code: 'FORBIDDEN' });
+      throw new ForbiddenException(apiError({ code: 'FORBIDDEN' }));
     }
     return true;
   }
