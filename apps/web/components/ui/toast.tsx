@@ -1,5 +1,5 @@
 'use client';
-import { useEffect } from 'react';
+
 import { Toaster as SonnerToaster, toast as sonnerToast } from 'sonner';
 
 type ToastKind = 'info' | 'success' | 'error';
@@ -38,10 +38,4 @@ export function useToast() {
       else sonnerToast(message);
     },
   };
-}
-
-export function useEffectToastOnError(err: unknown) {
-  useEffect(() => {
-    if (err) sonnerToast.error(String((err as Error)?.message ?? err));
-  }, [err]);
 }

@@ -28,9 +28,14 @@ export function usePageFrame({ editor, pageId, size, label }: Args) {
     const frameId = shapeId(`frame-${pageId}`);
     let isNew = false;
     editor.store.mergeRemoteChanges(() => {
-      const existing = editor.getShape(frameId);
+      // 캐스트가 필요하다. `getShape` 는 모든 shape 타입의 유니온을 돌려주므로
+      // props 에 w/h/label 이 있다고 보장하지 못한다.
+      const existing = editor.getShape(frameId) as PageFrameShape | undefined;
       const dimsChanged =
-        existing?.props.w !== w || existing.props.h !== h || existing.props.label !== label;
+        !existing ||
+        existing.props.w !== w ||
+        existing.props.h !== h ||
+        existing.props.label !== label;
       if (dimsChanged) {
         if (existing) editor.deleteShape(frameId);
         else isNew = true;
