@@ -495,8 +495,15 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 - 환경 변수: `S3_ENDPOINT(=http://localhost:9000)`, `S3_PUBLIC_ENDPOINT`, `S3_REGION(=us-east-1)`, `S3_BUCKET(=comicai)`, `S3_ACCESS_KEY(=minioadmin)`, `S3_SECRET_KEY(=minioadmin)` — `:41-48`
 - 부팅 시 `HeadBucketCommand` → 없으면 `CreateBucketCommand` (`STORAGE_AUTO_CREATE_BUCKET=0`이면 skip) — `:56-71`
 - presign TTL: 15분 — `:23`
-- 키 스킴 (`buildKey`, `:168-187`):
-  - `projects/_/renders/{renderJobId}.{ext}` — render 결과
+- 키 스킴 (`buildKey`, `:183-202`) — **prefix 로 지울 수 있게 전부 소유 리소스로 묶는다**:
+  - `projects/{projectId}/panels/{panelId}/renders/{renderJobId}.{ext}` — render 결과. 예전에는
+    `projects/_/renders/{jobId}` 라 projectId 자리가 뭉개져 있어서, 프로젝트를 지울 때 그
+    프로젝트의 렌더 결과만 골라낼 방법이 없었다. **컷 아래**에 두는 이유는 그래야
+    프로젝트·페이지·컷 세 단계 삭제가 전부 prefix 하나로 끝나기 때문이다 — 프로젝트 바로
+    아래였다면 컷 하나를 지울 때 그 컷의 잡 id 를 모아 개별 키를 지워야 한다.
+    `projectId` 는 IR 에 이미 들어 있다(`ir.builder.ts:88` → `render.worker.ts:148`).
+    **옛 키를 옮기지는 않았다** — 삭제 경로 자체가 이번에 처음 생기므로 정리 대상이 쌓여 있지
+    않고, 옛 키도 `storageKey` 를 그대로 들고 있어 읽기는 계속 된다.
   - `projects/{projectId}/refs/{entityId}/{ulid}.{ext}` — consistency 참조 이미지 (수동 업로드 + AI generate 결과)
   - `projects/{projectId}/panels/{panelId}/upload/{ulid}.{ext}` — 패널 업로드
   - `projects/{projectId}/panels/{panelId}/conti/{ulid}.{ext}` — 콘티 스케치 (POST `/v1/panels/:id/conti`)

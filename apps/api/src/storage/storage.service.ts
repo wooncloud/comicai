@@ -14,7 +14,7 @@ import type { ImageRef, RenderStatus } from '@comicai/types';
 import { validateAndNormalizeImage } from './image-validator';
 
 export type ImageScope =
-  | { kind: 'render'; renderJobId: string }
+  | { kind: 'render'; projectId: string; panelId: string; renderJobId: string }
   | { kind: 'consistency-ref'; projectId: string; entityId: string }
   | { kind: 'panel-upload'; projectId: string; panelId: string }
   | { kind: 'panel-conti'; projectId: string; panelId: string }
@@ -170,12 +170,27 @@ export class StorageService implements OnModuleInit {
   }
 }
 
+/*
+ * 키는 **prefix 로 지울 수 있어야 한다.** 렌더 결과만 `projects/_/renders/` 로 projectId
+ * 자리를 뭉개 두어서, 프로젝트를 지울 때 그 프로젝트의 렌더 결과만 골라낼 방법이 없었다 —
+ * 다른 종류(refs/panels/thumbnail)는 전부 projectId 로 묶여 있는데 이것만 예외였다.
+ *
+ * 렌더 결과를 프로젝트가 아니라 **컷 아래**에 두는 이유: 그래야 프로젝트·페이지·컷
+ * 세 단계 삭제가 전부 prefix 하나로 끝난다. 프로젝트 바로 아래 `renders/{jobId}` 였다면
+ * 컷 하나를 지울 때 그 컷의 잡 id 를 모아 개별 키를 지워야 하고, 그건 "다 모았는가" 를
+ * 매번 다시 증명해야 하는 종류의 코드다. 업로드·콘티가 이미 컷 아래에 있으니 자리도 맞다.
+ *
+ * 이미 저장된 옛 키를 옮기지는 않는다. 지금까지는 어차피 지우는 경로가 없어 정리 대상이
+ * 쌓여 있지 않고(삭제가 처음 생기는 것이 이번 변경이다), 옛 키도 storageKey 를 그대로
+ * 들고 있으므로 읽기는 계속 된다. 옮기려면 S3 복사 + DB JSON 갱신이 필요한데, 얻는 것은
+ * "이미 미아가 된 오브젝트"뿐이라 값이 없다.
+ */
 function buildKey(scope: ImageScope, mimeType: string): string {
   const ext = extensionFor(mimeType);
   const id = ulid();
   switch (scope.kind) {
     case 'render':
-      return `projects/_/renders/${scope.renderJobId}.${ext}`;
+      return `projects/${scope.projectId}/panels/${scope.panelId}/renders/${scope.renderJobId}.${ext}`;
     case 'consistency-ref':
       return `projects/${scope.projectId}/refs/${scope.entityId}/${id}.${ext}`;
     case 'panel-upload':
