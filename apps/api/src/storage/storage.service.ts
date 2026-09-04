@@ -12,7 +12,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import sharp from 'sharp';
 import { ulid } from 'ulid';
-import type { ImageRef, RenderStatus } from '@comicai/types';
+import { isFlagOnByDefault, type ImageRef, type RenderStatus } from '@comicai/types';
 import { validateAndNormalizeImage } from './image-validator';
 
 export type ImageScope =
@@ -65,7 +65,9 @@ export class StorageService implements OnModuleInit {
       forcePathStyle: true,
       credentials,
     });
-    if (process.env.STORAGE_AUTO_CREATE_BUCKET !== '0') {
+    // 기본이 켜짐인 플래그다. `!== '0'` 으로 읽으면 'false'·'off' 가 켜짐이 되어
+    // 끄려던 사람이 못 끈다 — isFlagOnByDefault 가 그 규칙을 한 곳에 둔다.
+    if (isFlagOnByDefault(process.env.STORAGE_AUTO_CREATE_BUCKET)) {
       await this.ensureBucket();
     }
   }

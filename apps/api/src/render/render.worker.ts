@@ -4,6 +4,7 @@ import { Worker } from 'bullmq';
 import { prisma, Prisma } from '@comicai/db';
 import { getAdapter, type AdapterContext } from '@comicai/adapters';
 import {
+  isFlagOn,
   type ImageRef,
   type ModelId,
   type RenderError,
@@ -17,6 +18,7 @@ import { classifyModelError } from './model-error';
 import { StorageService } from '../storage/storage.service';
 import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
 import { MetricsService } from '../metrics/metrics.service';
+import { redisUrl } from '../common/env';
 
 // 어댑터 호출 전체 데드라인(상위 BullMQ 재시도가 다회 시도를 통해 긴 작업을 커버).
 const MODEL_CALL_TIMEOUT_MS = 60_000;
@@ -36,8 +38,8 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    if (process.env.RENDER_WORKER_DISABLED === '1') return;
-    const url = this.config.get<string>('REDIS_URL') ?? 'redis://localhost:6379';
+    if (isFlagOn(process.env.RENDER_WORKER_DISABLED)) return;
+    const url = redisUrl(this.config);
     this.worker = new Worker<RenderJobData>(
       RENDER_QUEUE_NAME,
       (job) => this.process(job.data, job.attemptsMade),

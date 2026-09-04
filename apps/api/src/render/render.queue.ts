@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Queue, QueueEvents } from 'bullmq';
 import type { ModelId, RenderIR } from '@comicai/types';
 import { sha256Hex } from '../common/tokens';
+import { redisUrl } from '../common/env';
 
 export const RENDER_QUEUE_NAME = 'render';
 
@@ -20,7 +21,7 @@ export class RenderQueue implements OnModuleDestroy {
   private readonly redisUrl: string;
 
   constructor(config: ConfigService) {
-    this.redisUrl = config.get<string>('REDIS_URL') ?? 'redis://localhost:6379';
+    this.redisUrl = redisUrl(config);
     const connection = parseRedis(this.redisUrl);
     this.queue = new Queue<RenderJobData>(RENDER_QUEUE_NAME, { connection });
     this.events = new QueueEvents(RENDER_QUEUE_NAME, { connection });

@@ -11,6 +11,7 @@ import type { OAuthProvider } from '@comicai/types';
 import { urlSafeToken } from '../../common/tokens';
 import { ADAPTERS, type OAuthProfile } from './oauth.providers';
 import { apiError } from '../../common/api-error';
+import { redisUrl } from '../../common/env';
 
 const STATE_TTL_SECONDS = 10 * 60;
 const STATE_PREFIX = 'oauth_state:';
@@ -25,7 +26,7 @@ export class OAuthService implements OnModuleDestroy {
   private readonly redis: Redis;
 
   constructor(private readonly config: ConfigService) {
-    this.redis = new Redis(config.get<string>('REDIS_URL') ?? 'redis://localhost:6379');
+    this.redis = new Redis(redisUrl(config));
   }
 
   async onModuleDestroy() {

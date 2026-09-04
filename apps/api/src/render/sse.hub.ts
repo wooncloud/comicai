@@ -1,13 +1,16 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import type { Response } from 'express';
 import Redis from 'ioredis';
+import { isFlagOn } from '@comicai/types';
 import {
   decodePubSubEnvelope,
   encodePubSubEnvelope,
   formatSseEvent,
   type RenderSseEvent,
 } from '@comicai/events';
+import { redisUrl } from '../common/env';
 
 interface BufferedEvent {
   seq: number;
@@ -43,10 +46,14 @@ export class SseHub implements OnModuleInit, OnModuleDestroy {
   private publisher?: Redis;
   private subscriber?: Redis;
 
+  constructor(private readonly config: ConfigService) {}
+
   async onModuleInit(): Promise<void> {
-    if (process.env.SSE_HUB_DISABLED === '1') return;
-    const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
-    const isApiOnly = process.env.RENDER_WORKER_DISABLED === '1';
+    // 예전에는 이 파일만 `process.env` 를 직접 읽었다 — 그러면 SSE 만 다른 Redis 를 볼 수
+    // 있고, 증상은 "워커 이벤트가 브라우저에 안 간다" 로 나타난다(common/env.ts 참고).
+    if (isFlagOn(process.env.SSE_HUB_DISABLED)) return;
+    const url = redisUrl(this.config);
+    const isApiOnly = isFlagOn(process.env.RENDER_WORKER_DISABLED);
 
     if (isApiOnly) {
       this.subscriber = new Redis(url, { lazyConnect: false, maxRetriesPerRequest: null });

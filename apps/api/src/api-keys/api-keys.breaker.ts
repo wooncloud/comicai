@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { prisma } from '@comicai/db';
+import { redisUrl } from '../common/env';
 
 const PREFIX = 'breaker:apikey:';
 const WINDOW_SECONDS = 60 * 60; // 1시간 윈도우 — 오래된 실패는 카운트에서 빠진다.
@@ -20,7 +21,7 @@ export class ApiKeyBreaker implements OnModuleDestroy {
   private readonly redis: Redis;
 
   constructor(config: ConfigService) {
-    this.redis = new Redis(config.get<string>('REDIS_URL') ?? 'redis://localhost:6379');
+    this.redis = new Redis(redisUrl(config));
   }
 
   async onModuleDestroy() {
