@@ -41,9 +41,6 @@ export function EntityCard({
             <p className="text-caption text-muted-foreground">별칭: {entity.aliases.join(', ')}</p>
           )}
         </div>
-        <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-caption">
-          버전 {entity.version}
-        </span>
       </header>
 
       {entity.description && (

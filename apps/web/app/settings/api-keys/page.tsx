@@ -29,7 +29,7 @@ export default function ApiKeysSettingsPage() {
         router.replace('/login');
         return;
       }
-      setError(errorMessage(err, 'API 키 목록을 불러오지'));
+      setError(errorMessage(err, 'API 키 목록을 조회'));
     }
   }
 

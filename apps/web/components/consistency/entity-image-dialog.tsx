@@ -20,11 +20,7 @@ import {
 } from '@comicai/types';
 import { cn } from '@/lib/cn';
 import { errorMessage, renderErrorMessage } from '@/lib/error-message';
-
-const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
-  { id: 'gemini-3.1-flash-image-preview', label: 'Gemini' },
-  { id: 'gpt-image-2', label: 'OpenAI' },
-];
+import { MODEL_OPTIONS } from '@/lib/model-options';
 
 interface Props {
   open: boolean;

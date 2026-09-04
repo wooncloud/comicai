@@ -1,6 +1,7 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageContainer } from '@/components/shell/page-container';
 import { api } from '@/lib/api';
 import { ApiPaths, type AdminOverview, type AdminUserRow, type SessionUser } from '@comicai/types';
 import { qk } from '@/lib/query-keys';
@@ -34,9 +35,9 @@ export default function AdminPage() {
   if (meLoading) {
     return (
       <AppShell>
-        <div className="mx-auto max-w-4xl px-6 py-10">
+        <PageContainer>
           <p className="text-body-sm text-muted-foreground">불러오는 중…</p>
-        </div>
+        </PageContainer>
       </AppShell>
     );
   }
@@ -44,19 +45,19 @@ export default function AdminPage() {
   if (!allowed) {
     return (
       <AppShell>
-        <div className="mx-auto max-w-4xl px-6 py-20 text-center">
+        <PageContainer className="py-20 text-center">
           <h1 className="text-title-lg font-semibold">접근할 수 없는 화면입니다</h1>
           <p className="mt-2 text-body-sm text-muted-foreground">
             운영자 계정으로 로그인해야 볼 수 있습니다.
           </p>
-        </div>
+        </PageContainer>
       </AppShell>
     );
   }
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl px-6 py-10">
+      <PageContainer>
         <h1 className="text-title-lg font-semibold sm:text-display-md">운영 현황</h1>
         <p className="mt-2 text-body-sm text-muted-foreground">
           읽기 전용입니다. 여기서는 아무것도 바꿀 수 없습니다.
@@ -69,7 +70,7 @@ export default function AdminPage() {
             <Stat label="이메일 인증 완료" value={overview?.verifiedUsers} />
             <Stat label="프로젝트" value={overview?.projects} />
             <Stat label="페이지" value={overview?.pages} />
-            <Stat label="칸" value={overview?.panels} />
+            <Stat label="컷" value={overview?.panels} />
             <Stat label="그림 생성 요청" value={overview?.renderJobs} />
           </dl>
         </section>
@@ -123,7 +124,7 @@ export default function AdminPage() {
             </div>
           )}
         </section>
-      </div>
+      </PageContainer>
     </AppShell>
   );
 }

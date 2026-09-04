@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ImagePlus, X } from 'lucide-react';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageContainer } from '@/components/shell/page-container';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { api } from '@/lib/api';
 import { useProject } from '@/lib/use-project';
@@ -33,6 +34,9 @@ export default function ConsistencyPage() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
   const [tab, setTab] = useState<EntityType>('style');
+  // 화면 문구에 쓰는 현재 탭 이름. 예전에는 전부 '항목' 이라 캐릭터 탭에서
+  // "항목이 없습니다" 를 보면 무엇을 만들라는 건지 알 수 없었다.
+  const tabLabel = TABS.find((t) => t.key === tab)?.label ?? '항목';
   const [items, setItems] = useState<ConsistencyEntityDTO[]>([]);
   const [editing, setEditing] = useState<ConsistencyEntityDTO | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -86,7 +90,7 @@ export default function ConsistencyPage() {
           body: JSON.stringify(payload),
         });
         setItems((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-        toast.push('success', `'${updated.name}' 항목을 수정했습니다.`);
+        toast.push('success', `'${updated.name}'을(를) 수정했습니다.`);
       } else {
         const created = await api<ConsistencyEntityDTO>(ApiPaths.projectConsistency(projectId), {
           method: 'POST',
@@ -103,11 +107,11 @@ export default function ConsistencyPage() {
           });
         }
         setItems((prev) => [final, ...prev]);
-        toast.push('success', `'${final.name}' 항목이 추가되었습니다.`);
+        toast.push('success', `'${final.name}'을(를) 추가했습니다.`);
       }
       resetForm();
     } catch (err) {
-      toast.push('error', errorMessage(err, '항목을 저장'));
+      toast.push('error', errorMessage(err, `${tabLabel}을(를) 저장`));
     } finally {
       setSubmitting(false);
     }
@@ -125,9 +129,9 @@ export default function ConsistencyPage() {
     try {
       await api(ApiPaths.consistency(id), { method: 'DELETE' });
       setItems((prev) => prev.filter((p) => p.id !== id));
-      toast.push('success', '항목이 삭제되었습니다.');
+      toast.push('success', `${tabLabel}을(를) 삭제했습니다.`);
     } catch (err) {
-      toast.push('error', errorMessage(err, '항목을 삭제'));
+      toast.push('error', errorMessage(err, `${tabLabel}을(를) 삭제`));
     }
   }
 
@@ -148,15 +152,20 @@ export default function ConsistencyPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-6xl px-6 py-10">
+      <PageContainer>
         <Breadcrumb
           items={[
             { label: '대시보드', href: '/dashboard' },
             { label: project?.name ?? '…', href: `/projects/${projectId}` },
-            { label: '일관성 정보' },
+            { label: '설정', href: `/projects/${projectId}/settings` },
+            { label: '설정집' },
           ]}
         />
-        <h1 className="mt-2 text-display-md font-semibold">일관성 정보</h1>
+        <h1 className="mt-2 text-title-lg font-semibold sm:text-display-md">설정집</h1>
+        <p className="mt-2 text-body-sm text-muted-foreground">
+          등장인물·배경·세계관은 컷 설명에서 @로 불러 씁니다. 그림체는 컷 설정에서 고릅니다. 한 번
+          등록해 두면 컷이 바뀌어도 같은 모습으로 그려집니다.
+        </p>
 
         <div className="mt-6 flex gap-1 overflow-x-auto border-b border-border">
           {TABS.map((t) => (
@@ -181,7 +190,7 @@ export default function ConsistencyPage() {
           <section className="space-y-4">
             {items.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border p-12 text-center text-body-sm text-muted-foreground">
-                항목이 없습니다. 입력란에서 추가해 보세요.
+                아직 등록한 {tabLabel}이(가) 없습니다. 아래 입력란에서 추가해 보세요.
               </div>
             ) : (
               <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -202,7 +211,7 @@ export default function ConsistencyPage() {
 
           <aside className="sticky top-20 h-fit space-y-3 rounded-lg border border-border bg-card p-4">
             <h2 className="text-body-lg font-medium">
-              {editing ? `${editing.name} 수정` : '새 항목'}
+              {editing ? `${editing.name} 수정` : `새 ${tabLabel}`}
             </h2>
             <form onSubmit={save} className="space-y-3">
               <Input
@@ -276,7 +285,7 @@ export default function ConsistencyPage() {
             </form>
           </aside>
         </div>
-      </div>
+      </PageContainer>
     </AppShell>
   );
 }

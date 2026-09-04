@@ -68,7 +68,6 @@ export const MentionList = forwardRef<unknown, ListProps>(function MentionList(p
         >
           <span className="text-base">{TYPE_ICON[item.type]}</span>
           <span className="flex-1 truncate">{item.label}</span>
-          <span className="text-xs text-neutral-500">v{item.version}</span>
         </button>
       ))}
     </div>

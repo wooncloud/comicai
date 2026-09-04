@@ -1,0 +1,15 @@
+{
+  // eslint 전용. typescript-eslint 의 projectService 는 파일에서 위로 올라가며
+  // 가장 가까운 tsconfig 를 찾는데, apps/api/tsconfig.json 은 rootDir 가 ./src 라
+  // include 에 test 를 넣을 수 없다(빌드 출력 구조가 깨진다). 그래서 여기 하나 둔다.
+  //
+  // 이게 없으면 통합 테스트 파일이 "was not found by the project service" 로
+  // 파싱 에러가 나서 `pnpm lint` 가 항상 실패했다.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["**/*.ts", "../src/**/*.ts"]
+}

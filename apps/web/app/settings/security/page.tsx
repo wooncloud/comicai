@@ -102,7 +102,7 @@ function PasswordSection({ me, onChanged }: { me: SessionUser | null; onChanged:
   return (
     <section className="space-y-3">
       <h2 className="text-title-lg font-semibold">비밀번호</h2>
-      <form onSubmit={onSubmit} className="space-y-3">
+      <form onSubmit={onSubmit} className="max-w-lg space-y-3">
         <Input
           type="password"
           placeholder="현재 비밀번호"

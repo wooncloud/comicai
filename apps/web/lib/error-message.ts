@@ -50,7 +50,7 @@ const BY_CODE: Record<Code, string | null> = {
   RESOURCE_NOT_FOUND: null,
   RESOURCE_FORBIDDEN: '권한이 없습니다.',
   PROJECT_NOT_FOUND: '프로젝트를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
-  PANEL_NOT_FOUND: '패널을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
+  PANEL_NOT_FOUND: '컷을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
   PAGE_NOT_FOUND: '페이지를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
   API_KEY_NOT_FOUND: 'API 키가 등록돼 있지 않습니다. 설정 → API 키에서 등록해 주세요.',
   API_KEY_VERIFY_FAILED: '키 검증에 실패했습니다. 키가 올바른지 확인해 주세요.',

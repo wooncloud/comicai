@@ -21,6 +21,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, MoreHorizontal, Settings } from 'lucide-react';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageContainer } from '@/components/shell/page-container';
 import { api } from '@/lib/api';
 import { ApiPaths, pageLabel, type PageDTO, type ProjectDTO } from '@comicai/types';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
@@ -96,13 +97,17 @@ export default function ProjectDetail() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl px-6 py-10">
+      <PageContainer>
         <Breadcrumb
           items={[{ label: '대시보드', href: '/dashboard' }, { label: project?.name ?? '…' }]}
         />
         <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="min-w-0 break-words text-title-lg font-semibold [text-wrap:balance] sm:text-display-md">
-            {project?.name ?? '불러오는 중…'}
+            {/* 제목 자리가 비면 레이아웃이 흔들리므로 자리는 지키되, 아직 이름이
+                아닌 것을 제목 크기로 외치지 않는다. */}
+            {project?.name ?? (
+              <span className="text-body-lg font-normal text-muted-foreground">불러오는 중…</span>
+            )}
           </h1>
           <Button asChild variant="outline" size="sm" className="shrink-0 self-start sm:self-auto">
             <Link href={`/projects/${projectId}/settings`}>
@@ -146,7 +151,7 @@ export default function ProjectDetail() {
             </DndContext>
           )}
         </section>
-      </div>
+      </PageContainer>
     </AppShell>
   );
 }

@@ -285,6 +285,41 @@ apps/web/
 
 ## 10. 관찰된 패턴 / 제약
 
+### 화면 용어와 폭은 한 곳에서 정한다
+
+**한 컷을 부르는 이름은 "컷" 하나다.** 예전에는 랜딩이 "컷", 프로젝트 설정이 "칸",
+에디터가 "패널" 이라 불렀다. 랜딩에서 "모든 컷에 같은 인물이 나옵니다" 를 읽고 가입한
+사용자가 에디터에서 "패널" 을 만나면 다른 기능으로 읽힌다.
+코드 심볼(`PanelDTO`, `comic-panel`, `PanelInspector`)과 주석은 `panel` 그대로 두고,
+**화면에 나가는 문자열만** 컷으로 맞춘다.
+
+같은 이유로 정리한 것들:
+
+- 캐릭터·배경·세계관·그림체를 등록하는 화면의 이름은 **"설정집"** 하나다
+  (`app/projects/[id]/consistency/page.tsx:164`). 예전에는 제목이 "일관성 정보",
+  들어가는 링크가 "캐릭터·설정 관리" 라서 같은 곳인지 알 수 없었다. 입구 라벨
+  (`app/projects/[id]/settings/page.tsx:192`)과 도착 제목은 **글자 그대로 같아야 한다.**
+- 그 화면의 본문은 탭 이름을 쓴다(`app/projects/[id]/consistency/page.tsx:39` 의 `tabLabel`).
+  전부 "항목" 이라 부르면 캐릭터 탭에서 "항목이 없습니다" 가 무엇을 만들라는 건지 모른다.
+- 내부 식별자는 화면에 내보내지 않는다. `pageLabel()` 의 폴백이 `p1` 이었고
+  (`packages/types/src/index.ts:353`), 생성 기록 캡션에 job id 6자리와 모델 ID 원문
+  (`gemini-3.1-flash-image-preview`)이 찍혔으며, 엔티티 카드에 내부 `version` 이 배지로
+  붙어 있었다. 모델 표시 이름은 `lib/model-options.ts` 한 곳에서 나온다 — 예전에는
+  같은 목록이 세 파일에 복붙돼 있었다.
+- `errorMessage(err, action)` 는 `` `${action}하지 못했습니다` `` 로 조립한다
+  (`lib/error-message.ts:87`). 그래서 action 에는 **'하'와 붙는 어간**만 넘겨야 한다.
+  '불러오지' 를 넘겨 "불러오지하지 못했습니다" 가 화면에 뜬 적이 있다.
+
+**본문 폭은 `PageContainer` 하나다**(`components/shell/page-container.tsx:20`).
+화면마다 `max-w-6xl` / `max-w-4xl` / `max-w-2xl` 이 섞여 있어서, 브레드크럼으로 이어진
+대시보드 → 프로젝트 → 프로젝트 설정 경로를 넘어갈 때마다 콘텐츠 왼쪽 모서리가
+168 → 296 → 408px 로 미끄러졌다. 읽기 좋은 줄 길이가 필요한 폼은 **안쪽에서** 제한한다
+(`projects/[id]/settings/page.tsx:115` 의 `max-w-2xl`, `settings/security/page.tsx` 의
+`max-w-lg`). 위치가 아니라 폭만 바뀌므로 시선이 흔들리지 않는다.
+
+AppShell 화면의 h1 은 `text-title-lg sm:text-display-md` 로 통일한다. 인증 화면
+(`max-w-sm`)은 폭 자체가 좁아 별개 규약이다.
+
 ### 목록은 리스트, 보조 액션은 상시 노출 `⋯`
 
 대시보드(프로젝트)와 프로젝트 상세(페이지) 둘 다 카드 그리드였다가 리스트로 바뀌었다.

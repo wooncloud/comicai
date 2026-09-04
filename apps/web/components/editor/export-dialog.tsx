@@ -41,7 +41,7 @@ export function ExportDialog({ open, onOpenChange, pageId, panels }: Props) {
 
   async function onExport() {
     if (emptyPanels > 0) {
-      const ok = confirm(`${emptyPanels}개 패널이 비어있습니다. 계속하시겠습니까?`);
+      const ok = confirm(`빈 컷이 ${emptyPanels}개 있습니다. 계속하시겠습니까?`);
       if (!ok) return;
     }
     setPending(true);
@@ -54,7 +54,7 @@ export function ExportDialog({ open, onOpenChange, pageId, panels }: Props) {
       toast.push('success', '내보내기 완료');
       onOpenChange(false);
     } catch (err) {
-      toast.push('error', errorMessage(err, '내보내기'));
+      toast.push('error', errorMessage(err, '내보내기를 완료'));
     } finally {
       setPending(false);
     }
@@ -103,7 +103,7 @@ export function ExportDialog({ open, onOpenChange, pageId, panels }: Props) {
 
           {emptyPanels > 0 && (
             <p className="rounded border border-amber-200 bg-amber-50 p-2 text-caption text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-              ⚠ {emptyPanels}개 패널이 비어있습니다.
+              ⚠ 빈 컷이 {emptyPanels}개 있습니다.
             </p>
           )}
         </div>

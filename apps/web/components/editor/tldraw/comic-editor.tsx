@@ -30,7 +30,7 @@ const uiOverrides: TLUiOverrides = {
       'comic-panel': {
         id: 'comic-panel',
         icon: 'geo-rectangle',
-        label: '패널',
+        label: '컷',
         kbd: 'p',
         onSelect: () => undefined,
       },

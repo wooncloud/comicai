@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChevronRight } from 'lucide-react';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageContainer } from '@/components/shell/page-container';
 import { api } from '@/lib/api';
 import { useProject } from '@/lib/use-project';
 import { ApiPaths, type ModelId, type ProjectDTO } from '@comicai/types';
@@ -21,11 +22,7 @@ import {
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
 import { qk } from '@/lib/query-keys';
-
-const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
-  { id: 'gemini-3.1-flash-image-preview', label: 'Gemini' },
-  { id: 'gpt-image-2', label: 'OpenAI' },
-];
+import { MODEL_OPTIONS } from '@/lib/model-options';
 
 /** Select 는 빈 문자열을 값으로 못 쓴다. "지정 안 함" 을 나타내는 자리표시자. */
 const NO_MODEL = '__none__';
@@ -113,102 +110,106 @@ export default function ProjectSettingsPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-2xl px-6 py-10">
-        <Breadcrumb
-          items={[
-            { label: '대시보드', href: '/dashboard' },
-            { label: project?.name ?? '…', href: `/projects/${projectId}` },
-            { label: '설정' },
-          ]}
-        />
-        <h1 className="mt-2 text-title-lg font-semibold sm:text-display-md">프로젝트 설정</h1>
+      <PageContainer>
+        {/* 바깥 폭은 다른 화면과 같게 두고, 읽기 좋은 줄 길이는 안쪽에서 잡는다. */}
+        <div className="max-w-2xl">
+          <Breadcrumb
+            items={[
+              { label: '대시보드', href: '/dashboard' },
+              { label: project?.name ?? '…', href: `/projects/${projectId}` },
+              { label: '설정' },
+            ]}
+          />
+          <h1 className="mt-2 text-title-lg font-semibold sm:text-display-md">프로젝트 설정</h1>
 
-        <section className="mt-10 space-y-2">
-          <h2 className="text-title-md font-medium">이름</h2>
-          <p className="text-body-sm text-muted-foreground">
-            대시보드 목록과 페이지 편집 화면에 표시됩니다.
-          </p>
-          <div className="flex flex-col gap-2 pt-2 sm:flex-row">
-            <Input
-              value={nameDraft ?? project?.name ?? ''}
-              onChange={(e) => setNameDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void saveName();
-              }}
-              disabled={!project || busy}
-              aria-label="프로젝트 이름"
-              className="flex-1"
-            />
+          <section className="mt-10 space-y-2">
+            <h2 className="text-title-md font-medium">이름</h2>
+            <p className="text-body-sm text-muted-foreground">
+              대시보드 목록과 페이지 편집 화면에 표시됩니다.
+            </p>
+            <div className="flex flex-col gap-2 pt-2 sm:flex-row">
+              <Input
+                value={nameDraft ?? project?.name ?? ''}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void saveName();
+                }}
+                disabled={!project || busy}
+                aria-label="프로젝트 이름"
+                className="flex-1"
+              />
+              <Button
+                onClick={saveName}
+                disabled={!project || busy || nameDraft === null}
+                className="shrink-0"
+              >
+                이름 저장
+              </Button>
+            </div>
+          </section>
+
+          <section className="mt-10 space-y-2">
+            <h2 className="text-title-md font-medium">기본 AI 서비스</h2>
+            <p className="text-body-sm text-muted-foreground">
+              이 프로젝트에서 그림을 만들 때 처음 선택되는 서비스입니다. 컷마다 따로 바꿀 수
+              있습니다.
+            </p>
+            <div className="pt-2">
+              <Select
+                value={project?.defaultModel ?? NO_MODEL}
+                disabled={!project || busy}
+                onValueChange={async (v) => {
+                  const next = v === NO_MODEL ? null : (v as ModelId);
+                  if (await patch({ defaultModel: next }, '설정을 저장')) {
+                    toast.push('success', '기본 AI 서비스를 변경했습니다.');
+                  }
+                }}
+              >
+                <SelectTrigger className="sm:w-64">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_MODEL}>따로 지정 안 함 (Gemini)</SelectItem>
+                  {MODEL_OPTIONS.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </section>
+
+          <section className="mt-10 space-y-2">
+            <h2 className="text-title-md font-medium">설정집</h2>
+            <p className="text-body-sm text-muted-foreground">
+              등장인물·배경·세계관·그림체를 등록해 두면 여러 컷에 걸쳐 같은 모습으로 그려집니다.
+            </p>
+            <Link
+              href={`/projects/${projectId}/consistency`}
+              className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted/40 touch:min-h-11"
+            >
+              <span className="text-body-sm font-medium">설정집</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </Link>
+          </section>
+
+          <section className="mt-14 space-y-2 rounded-lg border border-destructive/40 p-4">
+            <h2 className="text-title-md font-medium text-destructive">프로젝트 삭제</h2>
+            <p className="text-body-sm text-muted-foreground">
+              페이지와 생성한 그림이 모두 사라집니다. 되돌릴 수 없습니다.
+            </p>
             <Button
-              onClick={saveName}
-              disabled={!project || busy || nameDraft === null}
-              className="shrink-0"
-            >
-              이름 저장
-            </Button>
-          </div>
-        </section>
-
-        <section className="mt-10 space-y-2">
-          <h2 className="text-title-md font-medium">기본 AI 서비스</h2>
-          <p className="text-body-sm text-muted-foreground">
-            이 프로젝트에서 그림을 만들 때 처음 선택되는 서비스입니다. 칸마다 따로 바꿀 수 있습니다.
-          </p>
-          <div className="pt-2">
-            <Select
-              value={project?.defaultModel ?? NO_MODEL}
+              variant="destructive"
+              onClick={remove}
               disabled={!project || busy}
-              onValueChange={async (v) => {
-                const next = v === NO_MODEL ? null : (v as ModelId);
-                if (await patch({ defaultModel: next }, '설정을 저장')) {
-                  toast.push('success', '기본 AI 서비스를 변경했습니다.');
-                }
-              }}
+              className="mt-2"
             >
-              <SelectTrigger className="sm:w-64">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_MODEL}>따로 지정 안 함 (Gemini)</SelectItem>
-                {MODEL_OPTIONS.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </section>
-
-        <section className="mt-10 space-y-2">
-          <h2 className="text-title-md font-medium">캐릭터와 설정</h2>
-          <p className="text-body-sm text-muted-foreground">
-            등장인물·배경·그림체를 등록해 두면 여러 칸에 걸쳐 같은 모습으로 그려집니다.
-          </p>
-          <Link
-            href={`/projects/${projectId}/consistency`}
-            className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted/40 touch:min-h-11"
-          >
-            <span className="text-body-sm font-medium">캐릭터·설정 관리</span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </Link>
-        </section>
-
-        <section className="mt-14 space-y-2 rounded-lg border border-destructive/40 p-4">
-          <h2 className="text-title-md font-medium text-destructive">프로젝트 삭제</h2>
-          <p className="text-body-sm text-muted-foreground">
-            페이지와 생성한 그림이 모두 사라집니다. 되돌릴 수 없습니다.
-          </p>
-          <Button
-            variant="destructive"
-            onClick={remove}
-            disabled={!project || busy}
-            className="mt-2"
-          >
-            이 프로젝트 삭제
-          </Button>
-        </section>
-      </div>
+              이 프로젝트 삭제
+            </Button>
+          </section>
+        </div>
+      </PageContainer>
     </AppShell>
   );
 }

@@ -79,7 +79,7 @@ export function PageInspector({ page, onPageUpdated, onCollapse }: Props) {
           </button>
         )}
         <p className="text-caption text-muted-foreground">
-          내보내기 시 패널이 없는 영역에 적용됩니다.
+          내보내기 시 컷이 없는 영역에 적용됩니다.
         </p>
       </div>
     </aside>

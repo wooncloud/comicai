@@ -336,7 +336,7 @@ export interface PageDTO {
   id: string;
   projectId: string;
   order: number;
-  /** 사용자 지정 이름. null이면 'p{order+1}' 형식의 기본 라벨 사용. */
+  /** 사용자 지정 이름. null이면 '페이지 {order+1}' 형식의 기본 라벨 사용. */
   name: string | null;
   size: { w: number; h: number };
   background?: ImageRef | null;
@@ -349,7 +349,8 @@ export interface PageDTO {
 
 /** PageDTO.name과 order에서 표시용 라벨 추출. */
 export function pageLabel(page: { name: string | null; order: number }): string {
-  return page.name ?? `p${page.order + 1}`;
+  // 예전에는 'p1' 이었다. 코드에서 쓰는 약칭이 그대로 화면에 나가 있었다.
+  return page.name ?? `페이지 ${page.order + 1}`;
 }
 
 // ─── 프로젝트 ───────────────────────────────────

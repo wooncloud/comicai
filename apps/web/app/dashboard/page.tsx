@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageContainer } from '@/components/shell/page-container';
 import { api } from '@/lib/api';
 import { ApiPaths, type ProjectDTO } from '@comicai/types';
 import { Button } from '@/components/ui/button';
@@ -39,10 +40,14 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <header className="flex items-baseline justify-between">
-          <h1 className="text-display-md font-semibold">내 프로젝트</h1>
-          {!empty && <Button onClick={() => setCreateOpen(true)}>+ 새 프로젝트</Button>}
+      <PageContainer>
+        <header className="flex items-center justify-between gap-3">
+          <h1 className="min-w-0 text-title-lg font-semibold sm:text-display-md">내 프로젝트</h1>
+          {!empty && (
+            <Button className="shrink-0" onClick={() => setCreateOpen(true)}>
+              + 새 프로젝트
+            </Button>
+          )}
         </header>
 
         {isLoading && <p className="mt-10 text-body-sm text-muted-foreground">불러오는 중…</p>}
@@ -70,7 +75,7 @@ export default function DashboardPage() {
           onOpenChange={setCreateOpen}
           onCreated={appendItem}
         />
-      </div>
+      </PageContainer>
     </AppShell>
   );
 }

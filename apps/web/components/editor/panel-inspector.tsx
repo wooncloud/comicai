@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/select';
 import { errorMessage } from '@/lib/error-message';
 import { qk } from '@/lib/query-keys';
+import { MODEL_OPTIONS } from '@/lib/model-options';
 
 interface Props {
   projectId: string;
@@ -44,11 +45,6 @@ interface Props {
   /** 호출 시 인스펙터를 접는다. 부재 시 토글 버튼 미노출. */
   onCollapse?: () => void;
 }
-
-const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
-  { id: 'gemini-3.1-flash-image-preview', label: 'Gemini' },
-  { id: 'gpt-image-2', label: 'OpenAI' },
-];
 
 export function PanelInspector({
   projectId,
@@ -106,7 +102,7 @@ export function PanelInspector({
       onPanelUpdated(updated);
     } catch (err) {
       if (err instanceof ApiError) {
-        const msg = errorMessage(err, '패널 내용을 저장');
+        const msg = errorMessage(err, '장면 설명을 저장');
         setError(msg);
         toast.push('error', msg);
       }
@@ -187,13 +183,13 @@ export function PanelInspector({
   }
 
   async function onDelete() {
-    if (!confirm('패널을 삭제하시겠습니까?')) return;
+    if (!confirm('이 컷을 삭제하시겠습니까?')) return;
     try {
       await api(ApiPaths.panel(panel.id), { method: 'DELETE' });
       onPanelDeleted();
-      toast.push('success', '패널이 삭제되었습니다.');
+      toast.push('success', '컷을 삭제했습니다.');
     } catch (err) {
-      toast.push('error', errorMessage(err, '패널을 삭제'));
+      toast.push('error', errorMessage(err, '컷을 삭제'));
     }
   }
 
@@ -202,7 +198,7 @@ export function PanelInspector({
       <div className="flex items-center justify-between gap-2">
         {onCollapse && <CollapseButton side="right" onClick={onCollapse} title="속성 창 접기" />}
         <div className="flex-1 truncate text-xs uppercase tracking-wide text-muted-foreground">
-          패널
+          컷
         </div>
         <PanelStatusBadge status={status} />
       </div>
@@ -228,7 +224,7 @@ export function PanelInspector({
             });
             onPanelUpdated(updated);
           } catch (err) {
-            if (err instanceof ApiError) toast.push('error', errorMessage(err, '콘티를 저장'));
+            if (err instanceof ApiError) toast.push('error', errorMessage(err, '컷 테두리를 저장'));
           }
         }}
       />
@@ -389,7 +385,7 @@ export function PanelInspector({
           onClick={onDelete}
           className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
         >
-          패널 삭제
+          컷 삭제
         </Button>
       </div>
     </aside>
@@ -417,12 +413,12 @@ function PanelStrokeEditor({
 
   return (
     <div className="space-y-2">
-      <SectionLabel icon={Square}>패널 선</SectionLabel>
+      <SectionLabel icon={Square}>컷 테두리</SectionLabel>
       <div className="flex items-center gap-2">
         <HexColorField
           value={color}
           onCommit={commitColor}
-          ariaLabel="패널 선 색"
+          ariaLabel="컷 테두리 색"
           variant="panel"
         />
         <NumberField
@@ -431,7 +427,7 @@ function PanelStrokeEditor({
           max={20}
           step={1}
           onCommit={commitWidth}
-          ariaLabel="패널 선 굵기 (px)"
+          ariaLabel="컷 테두리 굵기 (px)"
         />
         <span className="text-caption text-muted-foreground">px</span>
       </div>

@@ -28,7 +28,7 @@ export function MobileBlocker({ backHref = '/dashboard' }: { backHref?: string }
     >
       <div className="text-display-md font-semibold">화면이 너무 작아요</div>
       <p className="max-w-sm text-body-lg text-muted-foreground [text-wrap:pretty]">
-        페이지 편집은 패널을 직접 그리고 옮겨야 해서 태블릿(iPad 등) 또는 데스크톱에서만 동작합니다.
+        페이지 편집은 컷을 직접 그리고 옮겨야 해서 태블릿(iPad 등) 또는 데스크톱에서만 동작합니다.
         작품과 생성 결과를 둘러보는 것은 이 기기에서도 가능합니다.
       </p>
       <Link

@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { ApiPaths, type PanelDTO, type RenderJobDTO } from '@comicai/types';
 import { PanelStatusBadge } from './panel-status-badge';
 import { qk } from '@/lib/query-keys';
+import { MODEL_LABEL } from '@/lib/model-options';
 
 interface Props {
   panelId: string;
@@ -81,9 +82,17 @@ export function HistoryTray({ panelId, currentRenderId, onRestored }: Props) {
                   </button>
                 )}
               </div>
-              <div className="border-t border-border bg-card px-2 py-1 text-[10px] text-muted-foreground">
-                <span className="font-mono">{j.id.slice(-6)}</span>
-                <span> · {j.model}</span>
+              {/*
+                예전에는 job id 6자리와 모델 ID 원문('gemini-3.1-flash-image-preview')이
+                그대로 찍혔다. 둘 다 사용자가 고른 적 없는 내부 값이고, 정작 그 모델을
+                고른 화면에서는 'Gemini' 라는 이름으로 보여 준다.
+              */}
+              <div
+                className="truncate border-t border-border bg-card px-2 py-1 text-[10px] text-muted-foreground"
+                title={`${new Date(j.createdAt).toLocaleString('ko-KR')} · ${MODEL_LABEL[j.model] ?? j.model}`}
+              >
+                {new Date(j.createdAt).toLocaleDateString('ko-KR')} ·{' '}
+                {MODEL_LABEL[j.model] ?? j.model}
               </div>
             </li>
           );
