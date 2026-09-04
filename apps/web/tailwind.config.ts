@@ -30,7 +30,8 @@ const config: Config = {
       },
       fontFamily: {
         sans: [
-          'var(--font-pretendard)',
+          // pretendard.css 의 @font-face 가 이 이름으로 등록한다(변수 대신 이름).
+          'Pretendard',
           'var(--font-inter)',
           'system-ui',
           '-apple-system',

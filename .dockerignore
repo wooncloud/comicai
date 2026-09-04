@@ -15,3 +15,9 @@ coverage
 playwright-report
 test-results
 .docker-data
+
+# 랜딩 샘플 원본 5.4MB. 어떤 페이지도 참조하지 않는다 — sample-image.tsx 는 매니페스트의
+# webp srcSet 만 쓴다. 그런데 web.Dockerfile 이 apps/web/public 을 통째 복사해서 이미지에
+# 실리고, /samples/_raw/grid-01.jpg 로 그냥 받아진다. 재생성 가능한 중간 산출물이다
+# (scripts/gen-landing-samples.ts).
+apps/web/public/samples/_raw

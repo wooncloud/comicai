@@ -38,7 +38,21 @@ App Router 구조. 모든 `page.tsx` 파일.
 | `/projects/[id]/settings`                 | `app/projects/[id]/settings/page.tsx:42`       | 프로젝트 설정. 이름·기본 AI 서비스·삭제 + 캐릭터·설정 관리로 가는 링크                                                      |
 | `/health`                                 | `app/health/page.tsx:17`                       | **서버 컴포넌트**. `INTERNAL_API_URL`/`NEXT_PUBLIC_API_URL`로 `/healthz` 호출 후 JSON 덤프                                  |
 
-루트 레이아웃 `app/layout.tsx:9-21`은 Pretendard(local woff2) + Inter를 주입하고 `<Providers><ToastProvider>` 순으로 감싼다 (`app/layout.tsx:45-47`).
+루트 레이아웃 `app/layout.tsx:8-12`은 Inter를 주입하고 `<Providers><ToastProvider>` 순으로 감싼다 (`app/layout.tsx:44-46`).
+
+Pretendard 는 `next/font/local` 이 아니라 `app/pretendard.css` 의 `@font-face` 로 싣는다.
+`next/font/local` 은 파일 한 벌만 받아서 `unicode-range` 로 나눌 수 없는데, 원본
+`PretendardVariable.woff2` 는 **2,057,688 B** 이고 그게 모든 라우트에 preload 로 박혔다 —
+한글 몇 줄짜리 로그인 화면도 2MB 를 받았다(이 앱에서 가장 무거운 라우트의 JS 전체가
+694kB gzip 이다).
+
+용량의 대부분은 한글 음절 11,172자다. 흔한 코드포인트 N등분은 도움이 안 된다 — 한글은
+초성별로 블록이 흩어져 있어 "로그인" 세 글자가 서로 다른 조각에 들어간다. 대신
+**저장소 소스에 실제로 등장하는 음절**(700자)을 한 조각으로 모으고, 나머지는 사용자
+입력용 범위 조각 16개로 둔다. 자르는 스크립트와 그 판단 근거는 `scripts/build-fonts.py`
+에 있고, 그 스크립트가 CSS 도 함께 생성한다(손으로 고치지 말 것).
+
+실측: `/login`·`/` 이 받는 폰트가 **2.11MB → 256kB**(Inter 48kB 포함), 추가 조각 요청 0건.
 
 `viewport` export(`app/layout.tsx:36-39`)는 Next.js 기본값과 같은 값을 **의도적으로** 다시 적어 둔 것이다. 입력 포커스 시 iOS 가 화면을 확대하는 문제를 `maximumScale: 1` 로 막고 싶어지는데, 그러면 저시력 사용자의 핀치 줌까지 막혀 WCAG 1.4.4 에 걸린다. 그 판단을 붙들어 두는 자리다.
 
