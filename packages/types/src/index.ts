@@ -1,6 +1,6 @@
 // ComicAI 공통 타입 (계약). 변경 시 owner: A-Backend.
 
-import type { TextAlign } from './schemas';
+import { type PAGE_LINE_STROKE_STYLES, PAGE_TEXT_FONT_FAMILIES, type TextAlign } from './schemas';
 
 export * from './envelope';
 export * from './schemas';
@@ -197,12 +197,9 @@ export interface SpeechBubbleDTO {
 
 // ─── 페이지 텍스트 ──────────────────────────────
 // 캔버스 위 자유 텍스트 박스 (말풍선과 독립). 만화 효과음 등.
-// 캔버스(CSS)와 export(SVG) 양쪽에서 실제로 해석되는 것만 둔다.
-// 'Pretendard'/'Inter' 가 있었지만 어느 쪽에도 그 이름의 패밀리가 없었다:
-// 웹은 next/font 가 CSS 변수(--font-pretendard)만 만들고 패밀리명을 노출하지 않으며,
-// export 컨테이너(infra/docker/api.Dockerfile:39)에는 font-noto-cjk 만 설치된다.
-// 고르면 아무 일도 일어나지 않는 선택지라 제거했다.
-export const PAGE_TEXT_FONT_FAMILIES = ['sans-serif', 'serif', 'monospace'] as const;
+// 값 목록은 schemas.ts 가 유일한 출처다(Zod 검증기와 같은 배열을 봐야 한다).
+// 여기서 다시 선언하면 지역 선언이 `export *` 를 가려, 소비자와 검증기가 **조용히**
+// 다른 목록을 보게 된다 — 그게 실제로 있었던 버그다.
 export type PageTextFontFamily = (typeof PAGE_TEXT_FONT_FAMILIES)[number];
 
 /** 제거된 값이 들어 있는 기존 행을 읽을 때 기본값으로 흡수한다. */
@@ -245,7 +242,7 @@ export interface PageTextDTO {
 // ─── 페이지 직선 ───────────────────────────────
 // 페이지 위에 그리는 자유 직선(가이드/말풍선 연결선/패널 구분선 등).
 // 두 끝점 (x1,y1)-(x2,y2)는 페이지 좌표계 절대값.
-export const PAGE_LINE_STROKE_STYLES = ['solid', 'dashed'] as const;
+// 값 목록은 폰트와 같은 이유로 schemas.ts 에만 둔다.
 export type PageLineStrokeStyle = (typeof PAGE_LINE_STROKE_STYLES)[number];
 
 export interface PageLineStyle {

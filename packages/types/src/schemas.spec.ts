@@ -4,6 +4,8 @@ import {
   ExportRequestSchema,
   MAX_PAGE_DIMENSION,
   MAX_PANEL_COORD,
+  PAGE_TEXT_FONT_FAMILIES,
+  PageTextStyleSchema,
   PageCreateSchema,
   PagePatchSchema,
   PanelShapeSchema,
@@ -109,5 +111,25 @@ describe('ExportRequestSchema', () => {
   });
   it('accepts in-range dpi', () => {
     expect(ExportRequestSchema.safeParse({ format: 'png', dpi: 300 }).success).toBe(true);
+  });
+});
+
+/**
+ * 폰트 목록은 **한 벌이어야 한다.** 예전에는 index.ts 가 같은 이름을 지역 선언해서
+ * (`export * from './schemas'` 보다 지역 선언이 우선한다) 소비자는 3개를, Zod 검증기는
+ * 5개를 봤다 — 컴파일 에러 없이. 검증기가 넓으면 컨테이너에 설치되지 않은 폰트가
+ * export SVG 의 font-family 로 나가고, 그때 한글이 통째로 사라진다.
+ */
+describe('PageTextStyleSchema fontFamily', () => {
+  it('실제로 렌더되는 3개만 받는다', () => {
+    expect([...PAGE_TEXT_FONT_FAMILIES]).toEqual(['sans-serif', 'serif', 'monospace']);
+    for (const f of PAGE_TEXT_FONT_FAMILIES) {
+      expect(PageTextStyleSchema.safeParse({ fontFamily: f }).success).toBe(true);
+    }
+  });
+
+  it('컨테이너에 없는 폰트는 거부한다', () => {
+    expect(PageTextStyleSchema.safeParse({ fontFamily: 'Pretendard' }).success).toBe(false);
+    expect(PageTextStyleSchema.safeParse({ fontFamily: 'Inter' }).success).toBe(false);
   });
 });

@@ -217,13 +217,20 @@ export const SpeechBubbleReorderSchema = z.object({
 });
 
 // ─── 페이지 텍스트 ────────────────────────────
-export const PAGE_TEXT_FONT_FAMILIES = [
-  'sans-serif',
-  'serif',
-  'monospace',
-  'Pretendard',
-  'Inter',
-] as const;
+/**
+ * 캔버스(CSS)와 export(SVG) **양쪽에서 실제로 해석되는 것만** 둔다.
+ *
+ * 'Pretendard'/'Inter' 가 있었지만 어느 쪽에도 그 이름의 패밀리가 없다: 웹은 next/font 가
+ * CSS 변수(`--font-pretendard`)만 만들고 패밀리명을 노출하지 않으며, export 컨테이너
+ * (`infra/docker/api.Dockerfile:39`)에는 `font-noto-cjk` 만 설치된다. 고르면 아무 일도
+ * 일어나지 않는 선택지였다.
+ *
+ * 이 배열이 값의 **유일한 출처다.** `index.ts` 가 같은 이름을 지역 선언하고 있었는데,
+ * `export * from './schemas'` 보다 지역 선언이 우선하므로 **컴파일 에러 없이** 소비자는 3개를,
+ * Zod 검증기는 5개를 보고 있었다. 검증기가 넓으면 컨테이너에 없는 폰트가 export SVG 의
+ * `font-family` 로 나가고, 커밋 571bda7 이 고친 "export 에서 한글이 사라지는" 버그가 돌아온다.
+ */
+export const PAGE_TEXT_FONT_FAMILIES = ['sans-serif', 'serif', 'monospace'] as const;
 
 export const PageTextStyleSchema = z.object({
   fontSize: z.number().min(6).max(200).default(24),
@@ -255,6 +262,7 @@ export const PageTextReorderSchema = z.object({
 });
 
 // ─── 페이지 직선 ──────────────────────────────
+/** 폰트 목록과 같은 이유로 여기가 유일한 출처다 — `index.ts` 는 타입만 파생시킨다. */
 export const PAGE_LINE_STROKE_STYLES = ['solid', 'dashed'] as const;
 export const PageLineStrokeStyleSchema = z.enum(PAGE_LINE_STROKE_STYLES);
 
