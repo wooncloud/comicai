@@ -30,8 +30,12 @@ describe('Auth integration (testcontainers)', () => {
       .expect(201);
 
     expect(signup.body.data.email).toBe(email);
-    const cookies = signup.headers['set-cookie'];
-    expect(cookies).toBeDefined();
+    /*
+     * supertest 의 헤더 타입은 `string | string[] | undefined` 인데 `.set('Cookie', …)`
+     * 는 undefined 를 받지 않는다. 여기서 단언하고 좁힌다 — 없으면 그게 실패다.
+     */
+    const cookies = signup.headers['set-cookie'] as string[] | undefined;
+    if (!cookies) throw new Error('signup 이 세션 쿠키를 내려주지 않았습니다.');
     const csrf = csrfFromCookies(cookies);
     expect(csrf).toBeDefined();
 

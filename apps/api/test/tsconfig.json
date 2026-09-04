@@ -5,11 +5,13 @@
   //
   // 이게 없으면 통합 테스트 파일이 "was not found by the project service" 로
   // 파싱 에러가 나서 `pnpm lint` 가 항상 실패했다.
+  //
+  // `types` 를 좁히지 않는다. 좁히면 @types/multer 가 빠져 src 쪽이 통째로
+  // 컴파일 에러가 난다. 스펙은 vitest 를 명시적으로 import 하므로 globals 도 불필요하다.
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "rootDir": "..",
-    "noEmit": true,
-    "types": ["node", "vitest/globals"]
+    "noEmit": true
   },
   "include": ["**/*.ts", "../src/**/*.ts"]
 }

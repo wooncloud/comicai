@@ -4,6 +4,7 @@ import type { Editor } from 'tldraw';
 import { shapeId } from './shape-id';
 import {
   ApiPaths,
+  normalizePolygonPoints,
   shapeBoundingBox,
   type PanelDTO,
   type PanelShape,
@@ -56,8 +57,16 @@ export function usePanelSync({
         const status = panel.currentRenderStatus ?? null;
         const imageUrl = panel.currentRenderImageUrl ?? null;
         const variant = panel.shape.type;
+        /*
+         * 정규화할 수 없는 입력(한 줄로 눌린 폴리곤)이면 `null` 이 온다. 편집기는
+         * **직전 모양을 유지한다** — 드래그 중의 일시적 상태일 수 있어서, 모든 점을
+         * `{0,0}` 으로 만들면(예전 동작) 도형이 한 점으로 무너진다. 규칙은
+         * `@comicai/types` 의 `normalizePolygonPoints` 한 곳에 있다.
+         */
         const polygonPoints =
-          variant === 'polygon' ? normalizePolygonPoints(panel.shape.points, bbox) : null;
+          variant === 'polygon'
+            ? (normalizePolygonPoints(panel.shape.points) ?? shape?.props.polygonPoints ?? null)
+            : null;
         const strokeColor = panel.shape.strokeColor ?? '#000000';
         const strokeWidth = panel.shape.strokeWidth ?? 2;
         if (shape) {
@@ -155,17 +164,6 @@ function toApiShape(shape: ComicPanelShape): PanelShape {
     strokeColor: strokeColor ?? '#000000',
     strokeWidth: strokeWidth ?? 2,
   };
-}
-
-function normalizePolygonPoints(
-  points: { x: number; y: number }[],
-  bbox: { x: number; y: number; w: number; h: number },
-): NormalizedPoint[] {
-  if (bbox.w === 0 || bbox.h === 0) return points.map(() => ({ x: 0, y: 0 }));
-  return points.map((p) => ({
-    x: (p.x - bbox.x) / bbox.w,
-    y: (p.y - bbox.y) / bbox.h,
-  }));
 }
 
 function samePolygon(a: NormalizedPoint[] | null, b: NormalizedPoint[] | null): boolean {

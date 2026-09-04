@@ -1,6 +1,6 @@
 'use client';
 import { StateNode, type TLKeyboardEventInfo } from 'tldraw';
-import { pointsBoundingBox } from '@comicai/types';
+import { normalizePolygonPoints, pointsBoundingBox } from '@comicai/types';
 import {
   polygonHoverAtom,
   polygonPointsAtom,
@@ -80,11 +80,21 @@ export abstract class PolygonDrawingTool extends StateNode {
       this.editor.setCurrentTool('select');
       return;
     }
+    /*
+     * 정규화할 수 없는 입력(한 줄로 눌린 폴리곤 — 폭이나 높이가 0)이면 만들지 않는다.
+     *
+     * 예전에는 `Math.max(1, …)` 로 나눴는데, 그러면 0..1 범위를 벗어난 좌표가 나온다.
+     * 정규화가 아니고, 결과가 틀린 모양인데 오류는 아니라서 아무도 눈치채지 못한다.
+     * 같은 계산이 세 곳에 있었고 퇴화 입력 처리가 셋 다 달랐다 — 이제 규칙은
+     * `normalizePolygonPoints` 한 곳이고, 무엇을 할지만 호출부가 정한다.
+     */
     const bbox = pointsBoundingBox(points);
-    const w = Math.max(1, bbox.w);
-    const h = Math.max(1, bbox.h);
-    const normalized = points.map((p) => ({ x: (p.x - bbox.x) / w, y: (p.y - bbox.y) / h }));
-    this.commitPolygon({ points, bbox: { x: bbox.x, y: bbox.y, w, h }, normalized });
+    const normalized = normalizePolygonPoints(points);
+    if (!normalized) {
+      this.editor.setCurrentTool('select');
+      return;
+    }
+    this.commitPolygon({ points, bbox, normalized });
     this.editor.setCurrentTool('select');
   }
 
