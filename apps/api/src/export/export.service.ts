@@ -20,6 +20,18 @@ import { renderSpeechBubbleLayer } from './speech-bubble.render';
 import { renderPageTextLayer } from './page-text.render';
 import { renderPageLineLayer } from './page-line.render';
 
+/*
+ * 패널 합성을 몇 개씩 동시에 할 것인가.
+ *
+ * 예전에는 `Promise.all` 로 전부 한꺼번에 돌렸다. 그러면 **N개의 원본 바이트와 N개의
+ * 마스킹된 PNG 버퍼가 동시에 살아 있는다** — 1536×1024 RGBA 기준 패널당 약 6MB 라
+ * 12컷 페이지면 마스킹본만 ~75MB 에 원본이 더 붙는다. 페이지가 커질수록, 동시 export 가
+ * 늘수록 그대로 컨테이너 메모리다.
+ *
+ * 4개면 S3 왕복 지연은 충분히 가려지면서 상주 메모리에 상한이 생긴다.
+ */
+const PANEL_COMPOSITE_CONCURRENCY = 4;
+
 export interface ExportResult {
   storageKey: string;
   url: string;
@@ -35,6 +47,22 @@ export class ExportService {
     private readonly pages: PagesService,
     private readonly storage: StorageService,
   ) {}
+
+  /** 렌더 결과를 패널 크기로 맞추고 shape 마스크를 씌운 PNG 버퍼. */
+  private async maskedPanelImage(
+    ref: ImageRef,
+    shape: PanelShape,
+    w: number,
+    h: number,
+  ): Promise<Buffer> {
+    const { bytes } = await this.storage.getBytes(ref.storageKey);
+    return sharp(Buffer.from(bytes))
+      .resize({ width: w, height: h, fit: 'cover' })
+      .ensureAlpha()
+      .composite([{ input: buildPanelMaskSvg(shape, w, h), blend: 'dest-in' }])
+      .png()
+      .toBuffer();
+  }
 
   /**
    * 페이지의 모든 패널 currentRender 이미지를 종합해 하나의 페이지 이미지로 합성.
@@ -83,55 +111,45 @@ export class ExportService {
     const jobById = new Map(jobs.map((j) => [j.id, j]));
 
     const composites = (
-      await Promise.all(
-        page.panels.map(async (panel) => {
-          const shape = panel.shape as unknown as PanelShape;
-          const box = shapeBoundingBox(shape);
-          // 캔버스보다 큰 패널은 어차피 밖이 잘려 나간다. 그대로 sharp 에 넘기면 패널
-          // 하나가 캔버스보다 훨씬 큰 버퍼를 요구한다.
-          const W = Math.min(Math.round(box.w), canvasW);
-          const H = Math.min(Math.round(box.h), canvasH);
-          if (W <= 0 || H <= 0) return [];
+      await mapLimit(page.panels, PANEL_COMPOSITE_CONCURRENCY, async (panel) => {
+        const shape = panel.shape as unknown as PanelShape;
+        const box = shapeBoundingBox(shape);
+        // 캔버스보다 큰 패널은 어차피 밖이 잘려 나간다. 그대로 sharp 에 넘기면 패널
+        // 하나가 캔버스보다 훨씬 큰 버퍼를 요구한다.
+        const W = Math.min(Math.round(box.w), canvasW);
+        const H = Math.min(Math.round(box.h), canvasH);
+        if (W <= 0 || H <= 0) return [];
 
-          const overlays: sharp.OverlayOptions[] = [];
+        const overlays: sharp.OverlayOptions[] = [];
 
-          // 1) 렌더 결과가 있으면 마스크 적용해 깐다.
-          const job = panel.currentRenderId ? jobById.get(panel.currentRenderId) : null;
-          if (job?.resultImage) {
-            const ref = job.resultImage as unknown as ImageRef;
-            const { bytes } = await this.storage.getBytes(ref.storageKey);
-            const masked = await sharp(Buffer.from(bytes))
-              .resize({ width: W, height: H, fit: 'cover' })
-              .ensureAlpha()
-              .composite([{ input: buildPanelMaskSvg(shape, W, H), blend: 'dest-in' }])
-              .png()
-              .toBuffer();
-            overlays.push({
-              input: masked,
-              left: Math.round(box.x),
-              top: Math.round(box.y),
-            });
-          }
-
-          // 2) 패널 외곽선(strokeColor/strokeWidth). 렌더 유무와 무관하게 항상 그린다.
-          const strokeSvg = buildPanelStrokeSvg(
+        // 1) 렌더 결과가 있으면 마스크 적용해 깐다.
+        const job = panel.currentRenderId ? jobById.get(panel.currentRenderId) : null;
+        if (job?.resultImage) {
+          // 원본 바이트는 이 헬퍼 안에서만 산다. 같은 스코프에 두면 마스킹본과 원본이
+          // 함께 붙들려 패널당 상주 메모리가 두 배가 된다.
+          const masked = await this.maskedPanelImage(
+            job.resultImage as unknown as ImageRef,
             shape,
             W,
             H,
-            shape.strokeColor ?? '#000000',
-            shape.strokeWidth ?? 2,
           );
-          if (strokeSvg) {
-            overlays.push({
-              input: strokeSvg,
-              left: Math.round(box.x),
-              top: Math.round(box.y),
-            });
-          }
+          overlays.push({ input: masked, left: Math.round(box.x), top: Math.round(box.y) });
+        }
 
-          return overlays;
-        }),
-      )
+        // 2) 패널 외곽선(strokeColor/strokeWidth). 렌더 유무와 무관하게 항상 그린다.
+        const strokeSvg = buildPanelStrokeSvg(
+          shape,
+          W,
+          H,
+          shape.strokeColor ?? '#000000',
+          shape.strokeWidth ?? 2,
+        );
+        if (strokeSvg) {
+          overlays.push({ input: strokeSvg, left: Math.round(box.x), top: Math.round(box.y) });
+        }
+
+        return overlays;
+      })
     ).flat();
 
     // 3) 말풍선 — 패널 합성 위. 텍스트는 별도 PageText 레이어에서 처리.
@@ -213,4 +231,26 @@ function clampDimension(v: number): number {
   const n = Math.round(v);
   if (!Number.isFinite(n) || n < 1) return 1;
   return Math.min(n, MAX_PAGE_DIMENSION);
+}
+
+/**
+ * 동시 실행 개수를 묶은 `Promise.all`. 결과 순서는 입력 순서 그대로다 —
+ * 합성 순서가 곧 z-order 라 뒤섞이면 안 된다.
+ */
+async function mapLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    for (let i = next++; i < items.length; i = next++) {
+      const item = items[i];
+      if (item === undefined) continue;
+      out[i] = await fn(item);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
 }
