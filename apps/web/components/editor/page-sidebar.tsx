@@ -2,26 +2,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Pencil, Check, X, GripVertical } from 'lucide-react';
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { api } from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '@/lib/query-keys';
+import { usePageReorder } from '@/lib/use-page-reorder';
 import { ApiPaths, pageLabel, type PageDTO } from '@comicai/types';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
@@ -56,6 +43,7 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
     queryFn: () => api<PageDTO[]>(ApiPaths.projectPages(projectId)),
     enabled: !!projectId,
   });
+  const { sensors, onDragEnd } = usePageReorder(projectId, pages);
 
   function setPages(next: PageDTO[] | ((prev: PageDTO[]) => PageDTO[])) {
     queryClient.setQueryData<PageDTO[]>(qk.projectPages(projectId), (prev) =>
@@ -95,32 +83,6 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
       toast.push('success', '페이지 이름을 변경했습니다.');
     } catch (err) {
       toast.push('error', errorMessage(err, '이름을 변경'));
-    }
-  }
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  async function onDragEnd(e: DragEndEvent) {
-    const { active, over } = e;
-    if (!over || active.id === over.id || !pages) return;
-    const oldIndex = pages.findIndex((p) => p.id === active.id);
-    const newIndex = pages.findIndex((p) => p.id === over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-    const prev = pages;
-    const next = arrayMove(pages, oldIndex, newIndex).map((p, i) => ({ ...p, order: i }));
-    setPages(next);
-    try {
-      const fresh = await api<PageDTO[]>(ApiPaths.projectPagesReorder(projectId), {
-        method: 'POST',
-        body: JSON.stringify({ pageIds: next.map((p) => p.id) }),
-      });
-      setPages(fresh);
-    } catch (err) {
-      setPages(prev);
-      toast.push('error', errorMessage(err, '순서를 저장'));
     }
   }
 

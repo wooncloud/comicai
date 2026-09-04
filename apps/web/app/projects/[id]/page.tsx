@@ -1,23 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, MoreHorizontal, Settings } from 'lucide-react';
 import { AppShell } from '@/components/shell/app-shell';
@@ -26,7 +12,8 @@ import { api } from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useProject } from '@/lib/use-project';
 import { qk } from '@/lib/query-keys';
-import { ApiPaths, pageLabel, type PageDTO, type ProjectDTO } from '@comicai/types';
+import { usePageReorder } from '@/lib/use-page-reorder';
+import { ApiPaths, pageLabel, type PageDTO } from '@comicai/types';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import {
@@ -57,6 +44,7 @@ export default function ProjectDetail() {
     queryFn: () => api<PageDTO[]>(ApiPaths.projectPages(projectId)),
     enabled: !!projectId,
   });
+  const { sensors, onDragEnd } = usePageReorder(projectId, pages);
 
   function setPages(next: PageDTO[]) {
     queryClient.setQueryData(qk.projectPages(projectId), next);
@@ -75,33 +63,6 @@ export default function ProjectDetail() {
       toast.push('success', '페이지가 추가되었습니다.');
     } catch (err) {
       toast.push('error', errorMessage(err, '페이지를 추가'));
-    }
-  }
-
-  const sensors = useSensors(
-    // 클릭과 드래그를 구분하기 위해 6px 이상 이동해야 활성화.
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  async function onDragEnd(e: DragEndEvent) {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
-    const oldIndex = (pages ?? []).findIndex((p) => p.id === active.id);
-    const newIndex = (pages ?? []).findIndex((p) => p.id === over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-    const prev = pages ?? [];
-    const next = arrayMove(pages ?? [], oldIndex, newIndex).map((p, i) => ({ ...p, order: i }));
-    setPages(next);
-    try {
-      const fresh = await api<PageDTO[]>(ApiPaths.projectPagesReorder(projectId), {
-        method: 'POST',
-        body: JSON.stringify({ pageIds: next.map((p) => p.id) }),
-      });
-      setPages(fresh);
-    } catch (err) {
-      setPages(prev);
-      toast.push('error', errorMessage(err, '순서를 저장'));
     }
   }
 
