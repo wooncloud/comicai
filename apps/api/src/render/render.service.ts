@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { prisma, Prisma } from '@comicai/db';
 import type { ModelId, RenderJobDTO, RenderStatus, ImageRef, RenderError } from '@comicai/types';
@@ -7,8 +13,15 @@ import { StorageService } from '../storage/storage.service';
 import { buildRenderIR } from './ir.builder';
 import { RenderQueue, idempotencyKey } from './render.queue';
 
+/** id 가 이미 있는 행과 부딪혔는가. RenderJob 의 unique 는 primary key 하나뿐이다. */
+function isUniqueViolation(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
+}
+
 @Injectable()
 export class RenderService {
+  private readonly logger = new Logger(RenderService.name);
+
   constructor(
     private readonly panels: PanelsService,
     private readonly queue: RenderQueue,
@@ -64,17 +77,65 @@ export class RenderService {
     });
     const jobId = taken ? `${baseId}_r${randomBytes(4).toString('hex')}` : baseId;
 
-    await prisma.renderJob.create({
-      data: {
-        id: jobId,
-        panelId: panel.id,
-        userId,
-        model,
-        ir: ir as unknown as Prisma.InputJsonValue,
-        status: 'queued',
-      },
-    });
-    await this.queue.enqueue({ renderJobId: jobId, userId, model });
+    try {
+      await prisma.renderJob.create({
+        data: {
+          id: jobId,
+          panelId: panel.id,
+          userId,
+          model,
+          ir: ir as unknown as Prisma.InputJsonValue,
+          status: 'queued',
+        },
+      });
+    } catch (err) {
+      /*
+       * 두 요청이 위 조회들보다 빨리 들어오면 둘 다 active=null, taken=null 을 읽고
+       * 둘 다 baseId 로 create 한다. 진 쪽이 받는 Prisma P2002 는 HttpException 이
+       * 아니라 500 INTERNAL_ERROR 로 나갔다 — 이 해시가 막으려던 바로 그 더블클릭에서.
+       * 이긴 쪽이 만든 잡을 그대로 받아 간다. enqueue 는 이긴 쪽이 한다.
+       */
+      if (!isUniqueViolation(err)) throw err;
+      const existing = await prisma.renderJob.findUnique({
+        where: { id: jobId },
+        select: { id: true },
+      });
+      if (!existing) throw err;
+      return { jobId: existing.id };
+    }
+
+    try {
+      await this.queue.enqueue({ renderJobId: jobId, userId, model });
+    } catch (err) {
+      /*
+       * 행은 'queued' 인데 BullMQ 잡이 없는 상태로 두면 안 된다. 워커도,
+       * worker.on('failed') 안전망도, finalizeOrphan 도 영원히 돌지 않고 stale
+       * queued 리퍼도 없다. 다음에 같은 내용으로 다시 누르면 위 active 조회가 이 죽은
+       * 행을 찾아 **죽은 jobId 를 돌려주고**, 그 컷은 영구히 '생성 중…' 으로 잠긴다.
+       */
+      this.logger.error({ err, renderJobId: jobId, model }, 'render enqueue 실패');
+      const error: RenderError = {
+        category: 'transient',
+        message: '렌더 대기열에 넣지 못했습니다.',
+      };
+      await prisma.renderJob
+        .update({
+          where: { id: jobId },
+          data: {
+            status: 'failed',
+            error: error as unknown as Prisma.InputJsonValue,
+            finishedAt: new Date(),
+          },
+        })
+        .catch((e: unknown) =>
+          // 마감까지 실패하면 좀비 행이 남는다. 최소한 흔적은 남겨야 손으로 찾을 수 있다.
+          this.logger.error({ err: e, renderJobId: jobId }, 'enqueue 실패 잡 마감 실패'),
+        );
+      throw new ServiceUnavailableException({
+        code: 'RENDER_ENQUEUE_FAILED',
+        message: '잠시 후 다시 시도해 주세요.',
+      });
+    }
 
     await prisma.panel.update({
       where: { id: panel.id },

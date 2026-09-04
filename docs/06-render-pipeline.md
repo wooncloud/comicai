@@ -11,11 +11,11 @@
 [UI Button click]
    └─▶ POST /panels/:id/render            (apps/web/components/editor/panel-inspector.tsx:222 → :87)
         └─▶ RenderController.start        (apps/api/src/render/render.controller.ts:25)
-             └─▶ RenderService.startRender(apps/api/src/render/render.service.ts:17)
+             └─▶ RenderService.startRender(apps/api/src/render/render.service.ts:31)
                   ├─ buildRenderIR        (apps/api/src/render/ir.builder.ts:21)
-                  ├─ prisma.renderJob.create  status='queued'      (render.service.ts:54)
-                  ├─ RenderQueue.enqueue  (BullMQ)                 (render.service.ts:64 → render.queue.ts:34)
-                  └─ panel.currentRenderId/history 갱신            (render.service.ts:68)
+                  ├─ prisma.renderJob.create  status='queued'      (render.service.ts:81)
+                  ├─ RenderQueue.enqueue  (BullMQ)                 (render.service.ts:108 → render.queue.ts:34)
+                  └─ panel.currentRenderId/history 갱신            (render.service.ts:140)
               ⇢ { jobId }                                          (controller: HTTP 202)
 
 [BullMQ worker]
@@ -64,20 +64,27 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
 - 인증: `SessionGuard` 클래스 레벨 적용 (`render.controller.ts:17`).
 - DTO 검증: `RenderStartSchema` (zod, `render.controller.ts:11`).
 
-`RenderService.startRender` (`apps/api/src/render/render.service.ts:17`):
+`RenderService.startRender` (`apps/api/src/render/render.service.ts:31`):
 
-1. `panels.assertOwned` — 소유권 확인 (`:23`).
+1. `panels.assertOwned` — 소유권 확인 (`:37`).
 2. `buildRenderIR(panel.id, seed)` — 텍스트/콘티/참조이미지를 IR로 직렬화. 그림체는
    `panel.styleId ?? project.defaultStyleId`를 `effectiveStyleId`로 자동 주입하며 멘션 대상이 아님
    (`apps/api/src/render/ir.builder.ts:21, 35, 62-64`).
 3. 입력 검증 — 본문/콘티/참조 중 하나도 없으면
-   `BadRequestException({ code: 'RENDER_INVALID_INPUT' })` (`:25-30`).
+   `BadRequestException({ code: 'RENDER_INVALID_INPUT' })` (`:40-44`).
 4. **Idempotency key** = `sha256({ ir, userId, model }).slice(0,32)` →
-   `'job_' + …` (`render.queue.ts:56-58`). 동일 입력은 기존 jobId 반환 (`:33-36`).
-5. `prisma.renderJob.create({ status: 'queued', ir })` (`:38-47`).
+   `'job_' + …` (`render.queue.ts:56-58`). 아직 **돌고 있는** 잡만 합친다 (`:64-67`) —
+   끝난 잡은 성공이든 실패든 난수 접미사로 새로 만든다 (`:75-79`).
+5. `prisma.renderJob.create({ status: 'queued', ir })` (`:81-91`). unique 위반(P2002)은
+   더블클릭 두 요청이 같은 `baseId` 로 동시에 들어온 경우다 — 이긴 쪽이 만든 잡의 id 를
+   돌려준다 (`isUniqueViolation`, `:98-105`). 예전에는 이게 500 `INTERNAL_ERROR` 로 나갔다:
+   해시가 막으려던 바로 그 더블클릭에서 dedup 이 뚫렸다.
 6. `RenderQueue.enqueue` — BullMQ `Queue.add('render', data, { jobId, attempts:3, backoff: exponential(2000) })`
-   (`render.queue.ts:36-42`).
-7. `panel.currentRenderId`와 `history.push(jobId)` 동시 갱신 (`:50-53`).
+   (`render.queue.ts:36-42`). **실패하면 그 자리에서 행을 `failed`(category `transient`)로 마감하고
+   `RENDER_ENQUEUE_FAILED`(HTTP 503)를 돌려준다** (`:108-138`). 마감하지 않으면 BullMQ 잡이 없는
+   `queued` 좀비가 남아 워커도 `finalizeOrphan` 도 영원히 돌지 않고, 다음 요청이 4번의 active 조회에서
+   그 죽은 행을 찾아 죽은 jobId 를 돌려주므로 그 컷이 영구히 '생성 중…' 으로 잠긴다.
+7. `panel.currentRenderId`와 `history.push(jobId)` 동시 갱신 (`:140-143`) — enqueue 가 성공했을 때만.
 
 ### 2.3 Worker — 어댑터 호출 & 저장
 
@@ -270,7 +277,7 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 
 - `POST /render-jobs/:id/cancel` — `apps/api/src/render/render.controller.ts:36-40`,
   `@HttpCode(204)`.
-- 서비스 `RenderService.cancel` (`render.service.ts:79-94`):
+- 서비스 `RenderService.cancel` (`render.service.ts:169-184`):
   - 소유자 확인.
   - `status in (succeeded|failed)`이면 `BadRequestException({ code:'CONFLICT' })`.
   - 그 외(`queued`/`running`/`timeout`/`canceled`)는 DB row를 `status='canceled', finishedAt=now`로 강제 갱신.
@@ -335,7 +342,7 @@ interface RenderError {
 1. **워커 → SSE**: `{ type:'error', error: RenderError }`(`render.worker.ts:124`) +
    `{ type:'status', status:'failed'|'timeout' }` (`:125`).
 2. **DB**: `RenderJob.error` JSON 컬럼에 `RenderError` 저장 (`:116-123`).
-3. **GET /render-jobs/:id 응답**: `RenderJobDTO.error`로 노출 (`render.service.ts:72`).
+3. **GET /render-jobs/:id 응답**: `RenderJobDTO.error`로 노출 (`render.service.ts:162`).
 4. **UI**:
    - `panel-inspector.tsx:178-183` `'error'` 이벤트 리스너가 `setError(payload.error.message)`로
      배너 표시 (`:305-309`).
@@ -345,9 +352,11 @@ interface RenderError {
 
 ### 6.4 컨트롤러 단의 동기 에러
 
-- `RENDER_INVALID_INPUT` (`render.service.ts:27`) — 본문/콘티/참조 비어있음. HTTP 400.
-- `RESOURCE_NOT_FOUND` (`render.service.ts:60, 85; panels.service.ts:243`).
-- `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:88`),
+- `RENDER_INVALID_INPUT` (`render.service.ts:41`) — 본문/콘티/참조 비어있음. HTTP 400.
+- `RENDER_ENQUEUE_FAILED` (`render.service.ts:135`) — BullMQ enqueue 실패. HTTP 503.
+  행은 `failed`(category `transient`)로 마감된 뒤라 좀비가 남지 않는다.
+- `RESOURCE_NOT_FOUND` (`render.service.ts:150, 175; panels.service.ts:243`).
+- `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:178`),
   성공 아닌 잡 restore 시도(`panels.service.ts:245-249`).
 - `PANEL_NOT_FOUND`/`RESOURCE_FORBIDDEN` — `panels.service.ts:276-278`.
 
@@ -371,11 +380,11 @@ API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생�
 | EventSource subscribe                            | `apps/web/components/editor/panel-inspector.tsx:140`      |
 | API 경로 헬퍼                                    | `packages/types/src/paths.ts:48,56-60`                    |
 | 컨트롤러 (POST render/get/cancel/restore/events) | `apps/api/src/render/render.controller.ts:25,31,36,42,47` |
-| `RenderService.startRender`                      | `apps/api/src/render/render.service.ts:17`                |
-| `RenderService.getJob`                           | `apps/api/src/render/render.service.ts:57`                |
-| `RenderService.cancel`                           | `apps/api/src/render/render.service.ts:79`                |
+| `RenderService.startRender`                      | `apps/api/src/render/render.service.ts:31`                |
+| `RenderService.getJob`                           | `apps/api/src/render/render.service.ts:147`               |
+| `RenderService.cancel`                           | `apps/api/src/render/render.service.ts:169`               |
 | BullMQ enqueue & idempotency                     | `apps/api/src/render/render.queue.ts:34,56`               |
-| Worker process loop                              | `apps/api/src/render/render.worker.ts:46`                 |
+| Worker process loop                              | `apps/api/src/render/render.worker.ts:96`                 |
 | Adapter 디스패치                                 | `packages/adapters/src/index.ts:30`                       |
 | 스토리지 업로드                                  | `apps/api/src/storage/storage.service.ts:75`              |
 | presign                                          | `apps/api/src/storage/storage.service.ts:125,133`         |
