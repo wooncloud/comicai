@@ -52,15 +52,15 @@ const BY_CODE: Record<Code, string | null> = {
   PROJECT_NOT_FOUND: '프로젝트를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
   PANEL_NOT_FOUND: '컷을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
   PAGE_NOT_FOUND: '페이지를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
-  API_KEY_NOT_FOUND: 'API 키가 등록돼 있지 않습니다. 설정 → API 키에서 등록해 주세요.',
+  API_KEY_NOT_FOUND: '지금은 그림을 만들 수 없습니다. 잠시 후 다시 시도해 주세요.',
   API_KEY_VERIFY_FAILED: '키 검증에 실패했습니다. 키가 올바른지 확인해 주세요.',
   CONSISTENCY_NOT_FOUND: '항목을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
 
   // ── 이미지 생성 ─────────────────────────────────
-  RENDER_QUOTA_EXCEEDED: 'API 호출 한도에 도달했습니다.',
+  RENDER_QUOTA_EXCEEDED: '오늘 만들 수 있는 그림 수를 다 썼습니다. 내일 다시 시도해 주세요.',
   RENDER_INVALID_INPUT: '본문, 콘티, 참조 이미지 중 하나는 있어야 생성할 수 있습니다.',
   RENDER_SAFETY_BLOCK: 'AI가 안전 정책상 생성을 거부했습니다. 내용을 바꿔 다시 시도해 주세요.',
-  RENDER_AUTH_FAILED: 'API 키가 올바르지 않습니다. 설정 → API 키에서 확인해 주세요.',
+  RENDER_AUTH_FAILED: '지금은 그림을 만들 수 없습니다. 잠시 후 다시 시도해 주세요.',
   RENDER_TIMEOUT: `생성이 시간을 초과했습니다. ${RETRY}`,
 
   // ── 업로드 ──────────────────────────────────────
@@ -90,8 +90,10 @@ export function errorMessage(err: unknown, action?: string): string {
 /** 워커가 RenderError.category 로 분류해 내려주는 실패 사유. ErrorCode 와는 별개 축이다. */
 const BY_RENDER_CATEGORY: Record<string, string> = {
   timeout: 'AI 응답이 너무 오래 걸려 중단되었습니다 (120초 초과)',
-  auth: 'API 키가 올바르지 않습니다. 설정 → API 키에서 확인해 주세요',
-  quota: 'API 호출 한도에 도달했습니다',
+  // 플랫폼 키로 도는 구성에서는 사용자가 할 수 있는 일이 없다. 예전 문구는
+  // 기능 플래그로 닫아 둔 화면으로 안내해서, 따라갈 수 없는 지시였다.
+  auth: '지금은 그림을 만들 수 없습니다. 잠시 후 다시 시도해 주세요',
+  quota: '오늘 만들 수 있는 그림 수를 다 썼습니다',
   safety: 'AI가 안전 정책상 생성을 거부했습니다. 설명을 바꿔 다시 시도해 주세요',
   invalid: '요청이 거부되었습니다. 설명이나 API 키를 확인해 주세요',
   transient: '일시적인 오류입니다. 잠시 후 다시 시도해 주세요',

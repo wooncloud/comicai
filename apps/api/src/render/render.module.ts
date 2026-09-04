@@ -8,11 +8,12 @@ import { RenderService } from './render.service';
 import { RenderQueue } from './render.queue';
 import { RenderWorker } from './render.worker';
 import { SseHub } from './sse.hub';
+import { ModelCredentials } from './model-credentials';
 
 @Module({
   imports: [AuthModule, PanelsModule, StorageModule, ApiKeysModule],
   controllers: [RenderController],
-  providers: [RenderService, RenderQueue, RenderWorker, SseHub],
-  exports: [RenderQueue, SseHub, StorageModule],
+  providers: [RenderService, RenderQueue, RenderWorker, SseHub, ModelCredentials],
+  exports: [RenderQueue, SseHub, StorageModule, ModelCredentials],
 })
 export class RenderModule {}

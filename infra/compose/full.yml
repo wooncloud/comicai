@@ -27,6 +27,13 @@ x-api-env: &api-env
   # 관리자 허용 목록과 기능 플래그. 비어 있으면 각각 "관리자 없음", "기능 꺼짐".
   ADMIN_EMAILS: ${ADMIN_EMAILS:-}
   FEATURE_API_KEYS: ${FEATURE_API_KEYS:-0}
+  # 메일 발송. 없으면 콘솔 로그로만 남는다.
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  EMAIL_FROM: ${EMAIL_FROM:-}
+  # 사용자 키가 없을 때 쓰는 플랫폼 키와 그 지출 상한.
+  PLATFORM_GEMINI_KEY: ${PLATFORM_GEMINI_KEY:-}
+  PLATFORM_OPENAI_KEY: ${PLATFORM_OPENAI_KEY:-}
+  PLATFORM_DAILY_RENDER_LIMIT: ${PLATFORM_DAILY_RENDER_LIMIT:-20}
 
 services:
   postgres:

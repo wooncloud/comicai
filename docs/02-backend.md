@@ -277,6 +277,35 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 
 ---
 
+### 3.10b 모델 자격 증명 (`render/model-credentials.ts`)
+
+그림 생성에 쓸 키를 고르는 곳. 예전에는 이 로직이 렌더 워커와 일관성 서비스에
+**두 벌로 복제**돼 있어서, 한쪽만 고치면 컷 렌더는 되는데 참조 이미지 생성만 죽었다.
+
+- 우선순위는 **사용자 키 → 플랫폼 키**(`model-credentials.ts:44`). 사용자가 자기 키를
+  넣어 뒀다면 비용은 본인이 내는 것이므로 상한을 걸지 않는다.
+- **플랫폼 키를 쓸 때만 하루 상한을 본다**(`PLATFORM_DAILY_RENDER_LIMIT`, 기본 20).
+  이게 없으면 가입자 누구나 무제한으로 회사 키를 태울 수 있다 — ThrottlerModule 의
+  rate limit 은 요청 빈도 제한이지 지출 상한이 아니다.
+- 세는 것은 성공이 아니라 **시도**다. 실패한 호출에도 대부분 비용이 청구되고, 실패를
+  공짜로 두면 무한 재시도로 우회할 수 있다. `mock` 은 외부 호출이 없어 제외한다.
+- 던지는 예외는 자기 분류를 들고 있다(`ApiKeyMissingError` = auth,
+  `UsageLimitError` = quota). 워커가 그걸 존중한다(`render.worker.ts:169`) —
+  어댑터의 `classifyError` 에 넘기면 프로바이더 HTTP 응답만 볼 줄 알아서 전부
+  `transient` 로 떨어지고, 재시도해도 소용없는 실패에 "잠시 후 다시"를 안내하게 된다.
+
+### 3.10c EmailModule (`email/email.module.ts`)
+
+`RESEND_API_KEY` 가 있으면 Resend HTTP API 로 실제 발송하고, 없으면 콘솔에 찍는다
+(`email.module.ts:17`). SDK 를 넣지 않은 이유는 요청이 POST 하나뿐이라 `fetch` 로
+충분하고, 제공자를 바꿀 때 의존성까지 갈아 끼우지 않아도 되기 때문이다.
+
+발송 실패는 **삼키지 않고 던진다**(`email.provider.ts:94`). 삼키면 가입은 성공한 것처럼
+끝나는데 사용자는 인증 메일을 영영 못 받고 로그에도 아무것도 안 남는다.
+
+키가 없는 채로 프로덕션이면 부팅 시 `error` 레벨로 경고한다 — 그 상태에서는
+이메일 인증과 비밀번호 재설정을 끝낼 수 없다.
+
 ### 3.11 AdminModule (`admin/admin.controller.ts`)
 
 운영자용 **읽기 전용** 현황. 쓰기 동작은 일부러 넣지 않았다 — 운영 화면에서 지울 수 있게

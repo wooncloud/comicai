@@ -4,7 +4,6 @@ import { Worker } from 'bullmq';
 import { prisma, Prisma } from '@comicai/db';
 import { getAdapter, type AdapterContext } from '@comicai/adapters';
 import {
-  MODEL_PROVIDER,
   type ImageRef,
   type ModelId,
   type RenderError,
@@ -13,10 +12,10 @@ import {
 } from '@comicai/types';
 import { RENDER_QUEUE_NAME, parseRedis, type RenderJobData } from './render.queue';
 import { SseHub } from './sse.hub';
+import { ModelCredentials } from './model-credentials';
 import { StorageService } from '../storage/storage.service';
 import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
 import { MetricsService } from '../metrics/metrics.service';
-import { open } from '../api-keys/crypto';
 
 // 어댑터 호출 전체 데드라인(상위 BullMQ 재시도가 다회 시도를 통해 긴 작업을 커버).
 const MODEL_CALL_TIMEOUT_MS = 60_000;
@@ -31,6 +30,7 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
     private readonly storage: StorageService,
     private readonly breaker: ApiKeyBreaker,
     private readonly metrics: MetricsService,
+    private readonly credentials: ModelCredentials,
   ) {}
 
   onModuleInit() {
@@ -119,13 +119,13 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
     const stopTimer = this.metrics.renderDuration.startTimer({ model });
     let outcome = 'unknown';
     // 잡을 'running' 으로 올린 뒤부터는 **모든 경로가 try 안에 있어야 한다.**
-    // 예전에는 resolveApiKey 가 여기 바깥에 있어서, 키가 없으면 예외가 process() 밖으로
+    // 예전에는 키 조회가 여기 바깥에 있어서, 키가 없으면 예외가 process() 밖으로
     // 튀어나가 아래 catch 의 상태 갱신·SSE 발행이 통째로 건너뛰어졌다. 그러면 행은
     // status='running', error=null 로 영구히 남고 사용자는 '생성 중…' 만 무한히 본다.
     // apiKeyId 는 breaker 기록에만 쓰므로 catch 에서도 읽을 수 있도록 밖에 둔다.
     let apiKeyId: string | null = null;
     try {
-      const resolved = await this.resolveApiKey(userId, model);
+      const resolved = await this.credentials.resolve(userId, model);
       apiKeyId = resolved.id;
       const req = adapter.buildRequest(ir, resolved.secret);
       const raw = await adapter.call(req, ac.signal, ctx);
@@ -159,7 +159,16 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
       if (apiKeyId) await this.breaker.recordSuccess(apiKeyId);
       outcome = 'succeeded';
     } catch (err) {
-      const classified: RenderError = adapter.classifyError(err);
+      /*
+       * 우리가 던진 예외는 이미 자기 분류를 알고 있다(키 없음 = auth,
+       * 상한 초과 = quota). 어댑터의 classifyError 는 프로바이더의 HTTP 응답만
+       * 볼 줄 알아서, 이걸 넘기면 전부 'transient' 로 떨어진다 —
+       * 그러면 재시도해도 소용없는 실패에 "잠시 후 다시" 라고 안내하게 된다.
+       */
+      const own = (err as { category?: RenderError['category'] })?.category;
+      const classified: RenderError = own
+        ? { category: own, message: err instanceof Error ? err.message : String(err) }
+        : adapter.classifyError(err);
       outcome = classified.category;
       if (classified.category === 'auth' && apiKeyId) {
         await this.breaker.recordAuthFailure(apiKeyId);
@@ -185,24 +194,6 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
       this.metrics.renderAttemptsTotal.inc({ model, outcome });
     }
   }
-
-  private async resolveApiKey(
-    userId: string,
-    model: string,
-  ): Promise<{ id: string | null; secret: string }> {
-    if (model === 'mock') return { id: null, secret: '' };
-    const provider = MODEL_PROVIDER[model as ModelId];
-    const row = await prisma.apiKey.findFirst({
-      where: { userId, provider, isActive: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (!row) throw new RenderApiKeyMissing(`no ${provider} key`);
-    return { id: row.id, secret: open({ ciphertext: row.ciphertext, nonce: row.nonce }) };
-  }
-}
-
-export class RenderApiKeyMissing extends Error {
-  readonly category = 'auth' as const;
 }
 
 function retryLimitFor(category: RenderError['category']): number {

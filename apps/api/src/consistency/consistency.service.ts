@@ -17,6 +17,7 @@ import {
 } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
 import { StorageService } from '../storage/storage.service';
+import { ModelCredentials } from '../render/model-credentials';
 import { open } from '../api-keys/crypto';
 
 const GENERATE_TIMEOUT_MS = 120_000;
@@ -90,6 +91,7 @@ export class ConsistencyService {
   constructor(
     private readonly projects: ProjectsService,
     private readonly storage: StorageService,
+    private readonly credentials: ModelCredentials,
   ) {}
 
   async list(
@@ -204,7 +206,7 @@ export class ConsistencyService {
     if (owned.type === 'style' || !(owned.type in ENTITY_SYSTEM_PROMPTS)) {
       throw new BadRequestException({ code: 'CONSISTENCY_GENERATE_UNSUPPORTED' });
     }
-    const apiKey = await this.resolveApiKey(userId, model);
+    const apiKey = (await this.credentials.resolve(userId, model)).secret;
     const adapter = getAdapter(model);
     const entityType = owned.type as GenerableEntityType;
     const shape = ENTITY_OUTPUT_SHAPE[entityType];
@@ -288,17 +290,6 @@ export class ConsistencyService {
       },
     });
     return this.dtoWithUrls(row);
-  }
-
-  private async resolveApiKey(userId: string, model: ModelId): Promise<string> {
-    if (model === 'mock') return '';
-    const provider = MODEL_PROVIDER[model];
-    const row = await prisma.apiKey.findFirst({
-      where: { userId, provider, isActive: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (!row) throw new BadRequestException({ code: 'API_KEY_NOT_FOUND', provider });
-    return open({ ciphertext: row.ciphertext, nonce: row.nonce });
   }
 
   private async findOwnedFull(userId: string, id: string) {
