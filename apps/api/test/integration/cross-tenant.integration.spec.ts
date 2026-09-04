@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { prisma } from '@comicai/db';
+import type { PrismaClient } from '@comicai/db';
 import {
   csrfFromCookies,
   startIntegration,
@@ -40,12 +40,14 @@ interface Owned {
 
 describe('교차 테넌트 접근 (testcontainers)', () => {
   let ctx: IntegrationContext;
+  let prisma: PrismaClient;
   let alice: Actor;
   let bob: Actor;
   let owned: Owned;
 
   beforeAll(async () => {
     ctx = await startIntegration();
+    prisma = ctx.prisma;
     alice = await signup('alice');
     bob = await signup('bob');
     owned = await seedAliceResources(alice);

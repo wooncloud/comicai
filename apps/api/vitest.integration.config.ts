@@ -22,9 +22,17 @@ export default defineConfig({
     globals: false,
     testTimeout: 120_000,
     hookTimeout: 120_000,
+    /*
+     * **스펙 파일마다 별도 fork.** 한 프로세스를 공유하면 안 된다.
+     *
+     * `@comicai/db` 의 `prisma` 는 모듈 싱글턴이고 `globalThis` 에 캐시된다. 각
+     * 스펙이 자기 컨테이너를 띄우는데, 프로세스를 공유하면 두 번째 스펙이 첫 번째
+     * 스펙의(이미 종료된) 컨테이너에 붙은 클라이언트를 그대로 물려받는다 —
+     * "terminating connection due to administrator command" 로 죽는다.
+     *
+     * 컨테이너를 두 벌 띄우는 대가는 있지만, 스펙 사이 상태 격리가 더 중요하다.
+     */
     pool: 'forks',
-    poolOptions: {
-      forks: { singleFork: true },
-    },
+    isolate: true,
   },
 });
