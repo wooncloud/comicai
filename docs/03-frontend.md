@@ -246,7 +246,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 이 `createShapeId` 를, `ToolRail` 이 `useValue` 를 **값으로** 가져왔고, 그 한 줄이 tldraw
 번들 전체를 끌어왔다.
 
-지금은 `tldraw/shape-id.ts:16` 의 `shapeId()` 를 쓴다(원본은 `` `shape:${id}` `` 한 줄이고
+지금은 `components/editor/tldraw/shape-id.ts:15` 의 `shapeId()` 를 쓴다(원본은 `` `shape:${id}` `` 한 줄이고
 우리 호출부는 전부 id 를 명시한다). tldraw 에서는 **타입만** 가져오고, 타입 import 는
 컴파일 시 지워진다. `ToolRail` 과 tiptap 에디터(`PanelTextEditor`, 50kB)는 각각
 `dynamic()` 안으로 내렸다.
