@@ -108,18 +108,21 @@ seed=<N>                          ← seed가 있을 때만
 - 참조 이미지가 없는 경우 → `POST /v1/images/generations` (JSON `{model, prompt, n, size}`)
 - 참조 이미지가 있는 경우 → `POST /v1/images/edits` (multipart `image[]`, `prompt`, `size`)
 
-`size`는 `aspectToSize()`가 `1024x1024 / 1024x1536 / 1536x1024` 중 가까운 값으로 매핑한다 (`openai.ts:149-156`).
+`size`는 `aspectToSize()`가 `1024x1024 / 1024x1536 / 1536x1024` 중 가까운 값으로 매핑한다 (`openai.ts:126-133`).
 
 ### 3.3 레퍼런스 이미지 선택 (`packages/adapters/src/priority.ts`)
 
-어댑터별 상한:
+상한은 **어댑터별이 아니라 공통**이다 — `MAX_REF_IMAGES = 16` (`priority.ts:11`).
+예전에는 두 어댑터가 각각 상수를 들고 있었고 `openai.ts` 주석이 _"Gemini 와 동일하게 16 으로
+통일"_ 이라며 손으로 맞춰야 함을 자백하고 있었다. (이 문서의 옛 표는 OpenAI 를 4 라고 적고
+있었는데, 그때 코드는 이미 16 이었다 — 값을 두 곳에 두면 세 번째 사본인 문서까지 어긋난다.)
 
-| 어댑터 | 최대 레퍼런스 수   | 소스 우선순위                                                                 |
-| ------ | ------------------ | ----------------------------------------------------------------------------- |
-| Gemini | 16 (`gemini.ts:7`) | `styles.images → characters.images → backgrounds.images → conti → userImages` |
-| OpenAI | 4 (`openai.ts:8`)  | 동일                                                                          |
+| 어댑터 | 최대 레퍼런스 수 | 소스 우선순위                                                                 |
+| ------ | ---------------- | ----------------------------------------------------------------------------- |
+| Gemini | 16 (공통)        | `styles.images → characters.images → backgrounds.images → conti → userImages` |
+| OpenAI | 16 (공통)        | 동일                                                                          |
 
-`selectReferences()`는 buckets를 위 순서대로 순회하며 `maxImages`만큼만 꺼낸다 (priority.ts:7).
+`selectReferences()`는 buckets를 위 순서대로 순회하며 상한만큼만 꺼낸다 (`priority.ts:17`).
 
 ## 4. "시스템 프롬프트"의 위치 명시
 
@@ -142,7 +145,7 @@ seed=<N>                          ← seed가 있을 때만
 비율은 텍스트로 알리는 동시에 가능한 곳에서는 API 파라미터로도 지정한다.
 
 - Gemini: `generationConfig.imageConfig.aspectRatio` (`gemini.ts:74-76`)
-- OpenAI: `size`를 가장 가까운 허용값으로 매핑 (`openai.ts:149-156`)
+- OpenAI: `size`를 가장 가까운 허용값으로 매핑 (`openai.ts:126-133`)
 
 ## 5. End-to-End 예시
 

@@ -1,11 +1,10 @@
 import type { AdapterImage, ImageRef, RenderError, RenderIR } from '@comicai/types';
 import type { AdapterContext, ModelAdapter } from './index';
 import { selectReferences } from './priority';
+import { classifyModelHttpError, ModelHttpError } from './http-error';
 
 const GEMINI_MODEL = 'gemini-3.1-flash-image-preview';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-const MAX_REF_IMAGES = 16;
-
 interface GeminiPart {
   text?: string;
   inlineData?: { mimeType: string; data: string };
@@ -41,22 +40,12 @@ const BLOCKED_FINISH_REASONS = new Set([
   'SPII',
 ]);
 
-class GeminiHttpError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-    public raw?: unknown,
-  ) {
-    super(message);
-  }
-}
-
 export const GeminiAdapter: ModelAdapter = {
   id: 'gemini-3.1-flash-image-preview',
 
   buildRequest(ir: RenderIR, apiKey: string): GeminiRequest {
     const parts: GeminiPart[] = [];
-    const refs = selectReferences(ir, MAX_REF_IMAGES);
+    const refs = selectReferences(ir);
 
     for (const s of ir.styles) parts.push({ text: `[그림체: ${s.name} — ${s.description}]` });
     for (const c of ir.characters) parts.push({ text: `[캐릭터: ${c.name} — ${c.description}]` });
@@ -98,7 +87,7 @@ export const GeminiAdapter: ModelAdapter = {
   async call(rawReq: unknown, signal: AbortSignal, ctx: AdapterContext): Promise<AdapterImage> {
     const req = rawReq as GeminiRequest;
     const firstContent = req.body.contents[0];
-    if (!firstContent) throw new GeminiHttpError(0, 'empty contents');
+    if (!firstContent) throw new ModelHttpError(0, 'empty contents');
     const resolved = await Promise.all(
       firstContent.parts.map(async (p) => {
         if (p.__storageKey) {
@@ -122,7 +111,7 @@ export const GeminiAdapter: ModelAdapter = {
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      throw new GeminiHttpError(res.status, `gemini http ${res.status}`, text);
+      throw new ModelHttpError(res.status, `gemini http ${res.status}`, text);
     }
     const json = (await res.json()) as {
       candidates?: {
@@ -133,47 +122,30 @@ export const GeminiAdapter: ModelAdapter = {
     };
     // 프롬프트 자체가 막힌 경우.
     if (json.promptFeedback?.blockReason) {
-      throw new GeminiHttpError(200, `SAFETY: ${json.promptFeedback.blockReason}`, json);
+      throw new ModelHttpError(200, `SAFETY: ${json.promptFeedback.blockReason}`, json);
     }
     const candidate = json.candidates?.[0];
     // 결과가 막힌 경우. blockReason 은 비어 있고 parts 에 inlineData 도 없다.
     const finishReason = candidate?.finishReason;
     if (finishReason && BLOCKED_FINISH_REASONS.has(finishReason)) {
-      throw new GeminiHttpError(200, `SAFETY: ${finishReason}`, json);
+      throw new ModelHttpError(200, `SAFETY: ${finishReason}`, json);
     }
     const part = candidate?.content?.parts?.find((p) => p.inlineData);
     if (!part?.inlineData) {
       const detail = finishReason ? ` (${finishReason})` : '';
-      throw new GeminiHttpError(200, `no image in response${detail}`, json);
+      throw new ModelHttpError(200, `no image in response${detail}`, json);
     }
     const bytes = Uint8Array.from(Buffer.from(part.inlineData.data, 'base64'));
     return { bytes, width: 0, height: 0, mimeType: part.inlineData.mimeType };
   },
 
   classifyError(err: unknown): RenderError {
-    if ((err as { name?: string })?.name === 'AbortError') {
-      return { category: 'timeout', message: 'gemini aborted' };
-    }
-    if (err instanceof GeminiHttpError) {
-      const m = err.message;
-      if (m.startsWith('SAFETY')) return { category: 'safety', message: m, rawResponse: err.raw };
-      if (err.status === 401 || err.status === 403) return { category: 'auth', message: m };
-      if (err.status === 429) return { category: 'quota', message: m };
-      if (err.status >= 500) return { category: 'transient', message: m };
-      if (err.status === 400) return { category: 'invalid', message: m, rawResponse: err.raw };
-      /*
-       * 남는 것은 HTTP 는 성공했는데 쓸 이미지가 없는 응답(status 200)과, 요청을 만들지도
-       * 못한 경우(status 0)다. 'transient' 로 두면 retryLimitFor 가 3 을 주어 **절대 통과
-       * 못 할 요청을 세 번 호출·세 번 과금**하고 "잠시 후 다시" 를 안내한다. 같은 입력이면
-       * 결과도 같으니 재시도 대상이 아니다.
-       */
-      if (err.status < 400) return { category: 'invalid', message: m, rawResponse: err.raw };
-      return { category: 'transient', message: m };
-    }
-    if ((err as { code?: string })?.code === 'ECONNRESET') {
-      return { category: 'transient', message: 'connection reset' };
-    }
-    return { category: 'transient', message: (err as Error)?.message ?? 'unknown' };
+    return classifyModelHttpError(err, {
+      timeoutMessage: 'gemini aborted',
+      // Gemini 는 차단을 응답 본문으로 알린다(promptFeedback.blockReason / finishReason).
+      // call() 이 그걸 `SAFETY:` 접두로 바꿔 던진다.
+      isSafety: (e) => e.message.startsWith('SAFETY'),
+    });
   },
 };
 

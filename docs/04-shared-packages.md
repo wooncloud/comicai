@@ -304,22 +304,37 @@ availableModels(): ModelId[]
 `selectReferences(ir, maxImages)` — 어댑터 상한에 맞춰 우선순위 잘림:
 `style > character > background > contiSketch > userImages`.
 
+상한 `MAX_REF_IMAGES = 16` 도 여기 있다 (`src/priority.ts:11`). 예전에는 어댑터마다 각각
+있었고 `openai.ts` 주석이 _"Gemini 와 동일하게 16 으로 통일"_ 이라고 적혀 있었다 — 손으로
+맞춰야 한다는 자백이다. 두 어댑터가 같은 값을 쓰므로 `selectReferences` 의 두 번째 인자는
+기본값이 됐다.
+
+### 공통 HTTP 에러 (`src/http-error.ts`)
+
+`ModelHttpError` (`:12`) 와 `classifyModelHttpError` (`:40`) 를 두 어댑터가 공유한다.
+예전에는 에러 클래스가 9줄씩 완전히 같은 채로 두 벌, `classifyError` 도 AbortError→timeout,
+401/403→auth, 429→quota, ≥500→transient, 400→invalid **순서까지** 같은 채로 두 벌이었다.
+새 어댑터를 붙이면 3벌째가 되는 자리다.
+
+**프로바이더마다 다른 것은 안전성 판정 하나뿐**이라 그것만 `isSafety` 훅으로 받는다.
+`status` 는 실제 HTTP 상태만이 아니다 — HTTP 는 성공했는데 쓸 이미지가 없는 응답에 `200`,
+요청을 만들지도 못한 경우에 `0` 을 넣고, 그 둘을 `invalid` 로 분류해 재시도에서 뺀다.
+분류가 곧 재시도 정책이라 틀리면 돈이 샌다(`classify.spec.ts` 가 고정한다).
+
 ### GeminiAdapter (`src/gemini.ts`)
 
 - 모델 ID: `gemini-3.1-flash-image-preview` (`:5`).
 - Endpoint: `https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent` (`:6`).
-- `MAX_REF_IMAGES = 16` (`:7`).
 - 요청 구조: `{ url, headers: { 'x-goog-api-key': apiKey }, body: { contents: [{role:'user', parts: GeminiPart[]}], generationConfig: { responseModalities: ['IMAGE','TEXT'], imageConfig: { aspectRatio } } } }` (`:16-26`, `:57-69`).
 - 프롬프트 빌드: styles/characters/backgrounds/worldviews를 각각 `[그림체: ...]`, `[캐릭터: ...]` 등 한국어 태그 텍스트 파트로, 그 뒤 reference 이미지 파트(placeholder), 마지막에 일관성 지시 + userPrompt + seed (`:42-55`).
-- 응답: `candidates[0].content.parts[*].inlineData{mimeType,data(base64)}`에서 첫 inlineData 추출 (`:127-149`).
+- 응답: `candidates[0].content.parts[*].inlineData{mimeType,data(base64)}`에서 첫 inlineData 추출 (`:116-139`).
 - **차단은 두 자리에서 온다.** 프롬프트가 막히면 `promptFeedback.blockReason` (`:135`), **결과
   이미지**가 막히면 그 필드는 비어 있고 `candidates[0].finishReason` 에만 이유가 담긴 채 HTTP 200
-  이 온다 (`BLOCKED_FINISH_REASONS`, `:33-43`). 후자를 읽지 않으면 "이미지 없음"으로만 보여
+  이 온다 (`BLOCKED_FINISH_REASONS`, `:32-42`). 후자를 읽지 않으면 "이미지 없음"으로만 보여
   `transient` 로 분류되고, `retryLimitFor` 가 3 이라 **통과할 수 없는 요청을 세 번 호출·세 번
   과금**한 뒤 "잠시 후 다시" 를 안내하게 된다.
-- 에러 분류 (`classifyError`, `:153-177`): AbortError → `timeout`, `SAFETY:` 접두 → `safety`,
-  401/403 → `auth`, 429 → `quota`, 5xx → `transient`, 400 → `invalid`,
-  **400 미만(200 = 이미지 없는 응답, 0 = 요청 실패) → `invalid`**, ECONNRESET → `transient`.
+- 에러 분류는 공통 `classifyModelHttpError` 에 위임하고, 안전성 판정만 넘긴다
+  (`classifyError`, `:142`): `SAFETY:` 접두 → `safety`.
 
 ### OpenAIAdapter (`src/openai.ts`)
 
@@ -327,15 +342,12 @@ availableModels(): ModelId[]
 - Endpoints (`:5-6`):
   - 참조 이미지 없음 → `POST /v1/images/generations` (JSON).
   - 참조 이미지 있음 → `POST /v1/images/edits` (multipart, `image[]` 다중 첨부).
-- `MAX_REF_IMAGES = 4` (`:8`).
-- 요청 구조: `{ apiKey, prompt, size, referenceKeys[] }` (`:10-15`).
-- 프롬프트: 라인 단위 한국어 텍스트 직렬화(`그림체 X: ...`, `캐릭터 X: ...`, 등) + 패널 비율 안내 + seed + userPrompt (`:111-123`).
-- Aspect → size 매핑(`:125-132`): 정사각 `1024x1024`, 가로 `1536x1024`, 세로 `1024x1536`(gpt-image-2 허용 사이즈).
-- 응답: `{ data: [{ b64_json }] }`에서 첫 base64 추출, mimeType은 `image/png` 고정 (`:118-127`).
-- 에러 분류 (`classifyError`, `:92-116`): 400 + `content_policy` → `safety`, 그 외 400 → `invalid`,
-  401/403 → `auth`, 429 → `quota`, 5xx → `transient`. Gemini 와 같은 이유로 **400 미만(200 =
-  이미지 없는 응답) 도 `invalid`** 다 — `transient` 로 두면 소용없는 재시도를 3번 유료로 반복한다.
-- 에러 분류 (`:78-97`): AbortError → `timeout`, 401/403 → `auth`, 429 → `quota`, 5xx → `transient`, 400+`content_policy` → `safety`, 400 → `invalid`.
+- 요청 구조: `{ apiKey, prompt, size, referenceKeys[] }` (`:6-13`). 참조 상한은 Gemini 와 같은 `MAX_REF_IMAGES`.
+- 프롬프트: 라인 단위 한국어 텍스트 직렬화(`그림체 X: ...`, `캐릭터 X: ...`, 등) + 패널 비율 안내 + seed + userPrompt (`:102-124`).
+- Aspect → size 매핑(`aspectToSize`, `:126-133`): 정사각 `1024x1024`, 가로 `1536x1024`, 세로 `1024x1536`(gpt-image-2 허용 사이즈).
+- 응답: `{ data: [{ b64_json }] }`에서 첫 base64 추출, mimeType은 `image/png` 고정 (`:90-100`).
+- 에러 분류는 Gemini 와 같은 공통 함수에 위임한다 (`classifyError`, `:81`).
+  안전성 판정만 다르다: 400 본문에 `content_policy` 가 있으면 `safety`.
 
 ### MockAdapter (`src/mock.ts`)
 

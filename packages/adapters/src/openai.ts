@@ -1,14 +1,11 @@
 import type { AdapterImage, RenderError, RenderIR } from '@comicai/types';
 import type { AdapterContext, ModelAdapter } from './index';
 import { selectReferences } from './priority';
+import { classifyModelHttpError, ModelHttpError } from './http-error';
 
 const OPENAI_GEN_URL = 'https://api.openai.com/v1/images/generations';
 const OPENAI_EDIT_URL = 'https://api.openai.com/v1/images/edits';
 const OPENAI_MODEL = 'gpt-image-2';
-// docs 에 gpt-image-2 명시 상한 없음 — Gemini 와 동일하게 16 으로 통일.
-// 초과/거부 응답이 오면 classifyError 가 category:'invalid' 로 분류.
-const MAX_REF_IMAGES = 16;
-
 interface OpenAIRequest {
   apiKey: string;
   prompt: string;
@@ -18,21 +15,13 @@ interface OpenAIRequest {
   quality?: 'low' | 'medium' | 'high' | 'auto';
 }
 
-class OpenAIHttpError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-    public raw?: unknown,
-  ) {
-    super(message);
-  }
-}
-
 export const OpenAIAdapter: ModelAdapter = {
   id: OPENAI_MODEL,
 
   buildRequest(ir: RenderIR, apiKey: string): OpenAIRequest {
-    const refs = selectReferences(ir, MAX_REF_IMAGES);
+    // docs 에 gpt-image-2 명시 상한이 없어 Gemini 와 같은 값을 쓴다. 초과·거부 응답이
+    // 오면 classifyError 가 invalid 로 분류한다.
+    const refs = selectReferences(ir);
     return {
       apiKey,
       prompt: buildPrompt(ir),
@@ -90,39 +79,23 @@ export const OpenAIAdapter: ModelAdapter = {
   },
 
   classifyError(err: unknown): RenderError {
-    if ((err as { name?: string })?.name === 'AbortError') {
-      return { category: 'timeout', message: 'openai aborted' };
-    }
-    if (err instanceof OpenAIHttpError) {
-      if (err.status === 401 || err.status === 403)
-        return { category: 'auth', message: err.message };
-      if (err.status === 429) return { category: 'quota', message: err.message };
-      if (err.status >= 500) return { category: 'transient', message: err.message };
-      if (err.status === 400) {
-        if (typeof err.raw === 'string' && err.raw.includes('content_policy')) {
-          return { category: 'safety', message: err.message, rawResponse: err.raw };
-        }
-        return { category: 'invalid', message: err.message, rawResponse: err.raw };
-      }
-      // parseOpenAIImageResponse 의 status 200 'no image in response' 가 여기로 온다.
-      // transient 로 두면 소용없는 재시도를 3번 유료로 반복한다 — Gemini 와 같은 이유다.
-      if (err.status < 400) {
-        return { category: 'invalid', message: err.message, rawResponse: err.raw };
-      }
-      return { category: 'transient', message: err.message };
-    }
-    return { category: 'transient', message: (err as Error)?.message ?? 'unknown' };
+    return classifyModelHttpError(err, {
+      timeoutMessage: 'openai aborted',
+      // OpenAI 는 400 본문에 content_policy 로 알린다.
+      isSafety: (e) =>
+        e.status === 400 && typeof e.raw === 'string' && e.raw.includes('content_policy'),
+    });
   },
 };
 
 async function parseOpenAIImageResponse(res: Response): Promise<AdapterImage> {
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new OpenAIHttpError(res.status, `openai http ${res.status}`, text);
+    throw new ModelHttpError(res.status, `openai http ${res.status}`, text);
   }
   const json = (await res.json()) as { data?: { b64_json?: string }[] };
   const b64 = json.data?.[0]?.b64_json;
-  if (!b64) throw new OpenAIHttpError(200, 'no image in response', json);
+  if (!b64) throw new ModelHttpError(200, 'no image in response', json);
   const bytes = Uint8Array.from(Buffer.from(b64, 'base64'));
   return { bytes, width: 0, height: 0, mimeType: 'image/png' };
 }

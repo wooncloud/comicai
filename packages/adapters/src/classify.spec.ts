@@ -100,4 +100,23 @@ describe('OpenAI 응답 분류', () => {
     respondWith({}, 502);
     await expect(categoryOf(OpenAIAdapter, req())).resolves.toBe('transient');
   });
+
+  it('400 + content_policy 는 safety — 두 어댑터가 분류기를 공유해도 이 판정은 서로 다르다', async () => {
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve(
+        new Response('{"error":{"code":"content_policy_violation"}}', { status: 400 }),
+      ),
+    );
+    await expect(categoryOf(OpenAIAdapter, req())).resolves.toBe('safety');
+  });
+
+  it('그냥 400 은 invalid', async () => {
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response('{"error":{}}', { status: 400 })));
+    await expect(categoryOf(OpenAIAdapter, req())).resolves.toBe('invalid');
+  });
+
+  it('401 은 auth', async () => {
+    respondWith({}, 401);
+    await expect(categoryOf(OpenAIAdapter, req())).resolves.toBe('auth');
+  });
 });
