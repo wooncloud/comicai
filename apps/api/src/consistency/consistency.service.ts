@@ -19,7 +19,7 @@ import {
   type RenderIR,
 } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
-import { StorageService } from '../storage/storage.service';
+import { StoragePrefix, StorageService } from '../storage/storage.service';
 import { ModelCredentials } from '../render/model-credentials';
 import { classifyModelError } from '../render/model-error';
 import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
@@ -184,6 +184,8 @@ export class ConsistencyService {
       }),
       prisma.consistencyEntity.delete({ where: { id: owned.id } }),
     ]);
+    // 참조 이미지(수동 업로드 + AI 생성분)는 전부 이 prefix 아래에 있다.
+    await this.storage.deleteByPrefix(StoragePrefix.consistencyEntity(owned.projectId, owned.id));
   }
 
   /** 참조 이미지를 N개 업로드하고 엔티티에 추가. version +1. */

@@ -510,9 +510,22 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
   - `projects/{projectId}/thumbnail/{ulid}.{ext}` — 프로젝트 썸네일 (POST `/v1/projects/:id/thumbnail`)
   - `users/{userId}/avatar/{ulid}.{ext}` — 사용자 아바타 자체 업로드 (POST `/v1/me/avatar`)
   - `exports/{userId}/{pageId}/{ulid}.{ext}` — 페이지 내보내기
-- 업로드는 `validateAndNormalizeImage`(`storage/image-validator.ts`)로 검증 후 sharp로 256×256 webp 썸네일 자동 생성 — `:106-121`
-- `presignIfSucceeded`: render status가 `succeeded`일 때만 presign URL 반환 — `:131-137`
-- `getBytes`는 어댑터 컨텍스트(`loadReference`)와 export 합성에서 사용 — `:139-152`
+- 삭제 (`deleteByPrefix`, `:161` / `deleteKeys`, `:199`) — **둘 다 던지지 않는다.** 호출부는
+  전부 "DB 행을 이미 지운 뒤" 라, 여기서 던지면 사용자는 삭제에 성공했는데 500 을 받고 다시
+  눌러도 지울 대상이 없어 계속 실패한다. 실패는 로그로 남기고 넘어간다 — 남은 오브젝트는
+  예전과 같은 미아일 뿐이다. `deleteKeys` 는 파생 썸네일(`{key}.thumb.webp`)도 같이 지운다.
+- 삭제 prefix 는 `StoragePrefix` (`:249`) 에 모여 있고 **`buildKey` 와 같은 파일에 있다.**
+  키 규칙과 삭제 규칙이 떨어져 있으면 키만 바꿨을 때 삭제가 조용히 0건이 된다 —
+  실패가 아니라 성공으로 보인다. 그 불변식은 `storage-keys.spec.ts` 가 고정한다.
+- 삭제가 걸린 지점: 프로젝트(`projects.service.ts:94`, prefix + 페이지별 export),
+  페이지(`pages.service.ts:110`, 컷별 prefix + export), 컷(`panels.service.ts:160`),
+  일관성 엔티티(`consistency.service.ts:188`), 프로젝트 썸네일 교체(`projects.service.ts:89`),
+  아바타 업로드·삭제·해제(`me.controller.ts:143`, `:157`, `:120`).
+  **DB 를 먼저 지우고 그다음 S3 다** — 반대 순서면 S3 삭제 성공 뒤 DB 삭제가 실패했을 때
+  화면에는 남아 있는데 이미지가 전부 깨진 리소스가 된다.
+- 업로드는 `validateAndNormalizeImage`(`storage/image-validator.ts`)로 검증 후 sharp로 256×256 webp 썸네일 자동 생성 — `:118-133`
+- `presignIfSucceeded`: render status가 `succeeded`일 때만 presign URL 반환 — `:143-149`
+- `getBytes`는 어댑터 컨텍스트(`loadReference`)와 export 합성에서 사용 — `:216-229`
 
 ---
 

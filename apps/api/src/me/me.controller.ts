@@ -105,6 +105,9 @@ export class MeController {
   async patch(@Req() req: AuthedRequest, @Body() body: MePatchDto): Promise<SessionUser> {
     // PATCH로 외부 URL을 명시적으로 세팅/해제하면 업로드 키는 비운다.
     const clearStorageKey = body.avatarUrl !== undefined;
+    // 키를 비우면 그 오브젝트를 가리키는 것이 사라진다 — 업로드/삭제 경로와 같은 이유로
+    // 실물도 함께 지운다.
+    const orphaned = clearStorageKey ? await this.currentAvatarKey(req.user.id) : null;
     const u = await prisma.user.update({
       where: { id: req.user.id },
       data: {
@@ -114,6 +117,7 @@ export class MeController {
       },
       select: USER_SELECT,
     });
+    if (orphaned) await this.storage.deleteKeys([orphaned]);
     return this.toSessionUser(u);
   }
 
@@ -124,6 +128,7 @@ export class MeController {
     @UploadedFile() file?: Express.Multer.File,
   ): Promise<SessionUser> {
     const f = requireUploadedFile(file);
+    const previous = await this.currentAvatarKey(req.user.id);
     const ref = await this.storage.storeUploadedImage(
       { kind: 'user-avatar', userId: req.user.id },
       f.buffer,
@@ -133,18 +138,33 @@ export class MeController {
       data: { avatarStorageKey: ref.storageKey, avatarUrl: null },
       select: USER_SELECT,
     });
+    // 교체된 옛 아바타는 아무도 가리키지 않는다. 새 것을 올린 **뒤에** 지운다 —
+    // 반대 순서면 업로드가 실패했을 때 멀쩡한 아바타가 사라진다.
+    if (previous && previous !== ref.storageKey) await this.storage.deleteKeys([previous]);
     return this.toSessionUser(u);
   }
 
   @Delete('avatar')
   @HttpCode(200)
   async deleteAvatar(@Req() req: AuthedRequest): Promise<SessionUser> {
+    const previous = await this.currentAvatarKey(req.user.id);
     const u = await prisma.user.update({
       where: { id: req.user.id },
       data: { avatarStorageKey: null, avatarUrl: null },
       select: USER_SELECT,
     });
+    // 포인터만 끊으면 사용자는 "삭제했다" 고 믿는데 얼굴 사진은 버킷에 그대로 남는다.
+    if (previous) await this.storage.deleteKeys([previous]);
     return this.toSessionUser(u);
+  }
+
+  /** 현재 업로드 아바타의 키. 외부 URL 만 쓰는 계정이면 null. */
+  private async currentAvatarKey(userId: string): Promise<string | null> {
+    const row = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarStorageKey: true },
+    });
+    return row?.avatarStorageKey ?? null;
   }
 
   @Patch('password')

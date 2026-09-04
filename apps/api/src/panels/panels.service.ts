@@ -11,7 +11,7 @@ import {
   type RenderStatus,
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
-import { StorageService } from '../storage/storage.service';
+import { StoragePrefix, StorageService } from '../storage/storage.service';
 
 interface RenderRef {
   status: RenderStatus | null;
@@ -158,8 +158,11 @@ export class PanelsService {
   }
 
   async remove(userId: string, id: string) {
-    await this.assertOwned(userId, id);
+    const owned = await this.assertOwned(userId, id);
+    // 업로드·콘티·렌더 결과가 전부 이 prefix 아래에 있다. 렌더 잡 행은 FK cascade 가
+    // 지운다(schema.prisma:241) — 지우기 전에 잡 id 를 따로 모을 필요가 없다.
     await prisma.panel.delete({ where: { id } });
+    await this.storage.deleteByPrefix(StoragePrefix.panel(owned.projectId, owned.id));
   }
 
   async appendUpload(userId: string, panelId: string, fileBuffer: Buffer): Promise<PanelDTO> {

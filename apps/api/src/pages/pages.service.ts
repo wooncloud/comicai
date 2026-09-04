@@ -7,7 +7,7 @@ import {
 import { newId, prisma } from '@comicai/db';
 import type { PageDTO, ImageRef } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
-import { StorageService } from '../storage/storage.service';
+import { StoragePrefix, StorageService } from '../storage/storage.service';
 
 interface PageRow {
   id: string;
@@ -108,8 +108,15 @@ export class PagesService {
   }
 
   async remove(userId: string, id: string) {
-    await this.findOwned(userId, id);
+    const owned = await this.findOwned(userId, id);
+    // 컷의 오브젝트(업로드·콘티·렌더 결과)는 컷 prefix 아래에 있다. 페이지에는 자기
+    // prefix 가 없으므로 사라지기 전에 컷 id 를 모아 둔다.
+    const panels = await prisma.panel.findMany({ where: { pageId: id }, select: { id: true } });
     await prisma.page.delete({ where: { id } });
+    for (const panel of panels) {
+      await this.storage.deleteByPrefix(StoragePrefix.panel(owned.projectId, panel.id));
+    }
+    await this.storage.deleteByPrefix(StoragePrefix.pageExports(userId, id));
   }
 
   /**
