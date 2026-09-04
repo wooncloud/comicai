@@ -1,6 +1,7 @@
 'use client';
 import { useEffect } from 'react';
-import { type Editor, createShapeId } from 'tldraw';
+import type { Editor } from 'tldraw';
+import { shapeId } from './shape-id';
 import {
   ApiPaths,
   defaultPageTextStyle,
@@ -104,7 +105,7 @@ export function usePageTextSync({
           existing.delete(dto.id);
         } else {
           editor.createShape<PageTextShape>({
-            id: createShapeId(`ptext-${dto.id}`),
+            id: shapeId(`ptext-${dto.id}`),
             type: 'page-text',
             x: dto.x,
             y: dto.y,

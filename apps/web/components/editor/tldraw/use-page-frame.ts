@@ -1,6 +1,7 @@
 'use client';
 import { useEffect } from 'react';
-import { type Editor, type IndexKey, createShapeId } from 'tldraw';
+import type { Editor, IndexKey } from 'tldraw';
+import { shapeId } from './shape-id';
 import type { PageFrameShape } from './page-frame-shape';
 
 interface Args {
@@ -24,20 +25,17 @@ export function usePageFrame({ editor, pageId, size, label }: Args) {
   const h = size?.h;
   useEffect(() => {
     if (!editor || w == null || h == null) return;
-    const shapeId = createShapeId(`frame-${pageId}`);
+    const frameId = shapeId(`frame-${pageId}`);
     let isNew = false;
     editor.store.mergeRemoteChanges(() => {
-      const existing = editor.getShape(shapeId) as PageFrameShape | undefined;
+      const existing = editor.getShape(frameId);
       const dimsChanged =
-        !existing ||
-        existing.props.w !== w ||
-        existing.props.h !== h ||
-        existing.props.label !== label;
+        existing?.props.w !== w || existing.props.h !== h || existing.props.label !== label;
       if (dimsChanged) {
-        if (existing) editor.deleteShape(shapeId);
+        if (existing) editor.deleteShape(frameId);
         else isNew = true;
         editor.createShape<PageFrameShape>({
-          id: shapeId,
+          id: frameId,
           type: 'page-frame',
           x: 0,
           y: 0,
@@ -49,7 +47,7 @@ export function usePageFrame({ editor, pageId, size, label }: Args) {
     });
     // sendToBack은 user-op 계열이라 mergeRemoteChanges 밖에서 호출해야 reorder가 반영된다.
     // panel-sync가 새 패널을 위로 쌓아도 매 effect에서 다시 뒤로 보내는 폴백.
-    if (editor.getShape(shapeId)) editor.sendToBack([shapeId]);
+    if (editor.getShape(frameId)) editor.sendToBack([frameId]);
     if (isNew) editor.zoomToFit();
   }, [editor, pageId, w, h, label]);
 }

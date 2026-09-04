@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, API_BASE, ApiError } from '@/lib/api';
@@ -16,7 +17,13 @@ import {
   type ModelId,
 } from '@comicai/types';
 import { PencilRuler, Brush, Sparkles, Square } from 'lucide-react';
-import { PanelTextEditor } from './panel-editor';
+/*
+ * tiptap + prosemirror 는 50kB(gzip)인데, 이 에디터는 컷이 선택됐을 때만 그려진다.
+ * 정적 import 라 에디터 라우트 초기 로드에 그대로 실렸다.
+ */
+const PanelTextEditor = dynamic(() => import('./panel-editor').then((m) => m.PanelTextEditor), {
+  ssr: false,
+});
 import { PanelStatusBadge } from './panel-status-badge';
 import { SectionLabel } from './section-label';
 import { CollapseButton } from './collapse-button';

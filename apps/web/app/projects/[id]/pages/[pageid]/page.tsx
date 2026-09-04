@@ -24,7 +24,6 @@ import { SpeechBubbleInspector } from '@/components/editor/speech-bubble-inspect
 import { PageTextInspector } from '@/components/editor/page-text-inspector';
 import { PageLineInspector } from '@/components/editor/page-line-inspector';
 import { PageSidebar } from '@/components/editor/page-sidebar';
-import { ToolRail } from '@/components/editor/tool-rail';
 import { SaveStatus } from '@/components/editor/save-status';
 import { ExportDialog } from '@/components/editor/export-dialog';
 import { PageInspector } from '@/components/editor/page-inspector';
@@ -43,6 +42,17 @@ const ComicEditor = dynamic(
   () => import('@/components/editor/tldraw/comic-editor').then((m) => m.ComicEditor),
   { ssr: false, loading: () => <CanvasFallback /> },
 );
+
+/*
+ * ToolRail 도 경계 안으로 미룬다.
+ *
+ * 이 컴포넌트는 현재 도구를 `useValue`(tldraw 런타임 값)로 읽는데, 그 한 줄 때문에
+ * 정적 import 사슬이 tldraw 번들 전체를 끌어왔다 — 위 `dynamic()` 이 미루려던 바로
+ * 그것이다. 캔버스와 함께 나타나는 UI 라 같이 미뤄도 어색하지 않다.
+ */
+const ToolRail = dynamic(() => import('@/components/editor/tool-rail').then((m) => m.ToolRail), {
+  ssr: false,
+});
 
 type Selection =
   | { kind: 'panel'; id: string }

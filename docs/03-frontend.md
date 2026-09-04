@@ -238,6 +238,24 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 캔버스의 shape 트리는 tldraw `editor.store`가 소유한다. 우리 코드는 두 훅으로 React 상태와 동기화한다.
 
+#### tldraw 는 정말로 지연 로드된다 — `shape-id.ts` 가 그 전제다
+
+에디터 라우트는 `dynamic()` 으로 캔버스를 미룬다(`pages/[pageid]/page.tsx:42`). 그런데
+오랫동안 **그 경계가 실제로 미루는 건 18kB 뿐이었다** — tldraw 본체 384kB(gzip)는 초기
+로드에 그대로 실렸다. 원인은 정적 import 사슬이었다: 동기화 훅 5개와 `use-page-frame`
+이 `createShapeId` 를, `ToolRail` 이 `useValue` 를 **값으로** 가져왔고, 그 한 줄이 tldraw
+번들 전체를 끌어왔다.
+
+지금은 `tldraw/shape-id.ts:16` 의 `shapeId()` 를 쓴다(원본은 `` `shape:${id}` `` 한 줄이고
+우리 호출부는 전부 id 를 명시한다). tldraw 에서는 **타입만** 가져오고, 타입 import 는
+컴파일 시 지워진다. `ToolRail` 과 tiptap 에디터(`PanelTextEditor`, 50kB)는 각각
+`dynamic()` 안으로 내렸다.
+
+실측: 에디터 라우트 First Load JS **692 kB → 229 kB**.
+
+이 경계는 조용히 깨진다 — 이 폴더의 모듈에서 tldraw 값을 하나만 import 해도 원상복귀다.
+`import type` 인지 확인할 것.
+
 #### 캔버스 → 서버는 `use-shape-sync.ts` 한 곳이다
 
 `components/editor/tldraw/use-shape-sync.ts:76` — 컷·말풍선·자유 텍스트·자유 직선이 **같은 코드**를 쓴다.

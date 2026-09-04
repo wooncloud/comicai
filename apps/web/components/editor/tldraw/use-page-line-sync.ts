@@ -1,6 +1,7 @@
 'use client';
 import { useEffect } from 'react';
-import { type Editor, createShapeId } from 'tldraw';
+import type { Editor } from 'tldraw';
+import { shapeId } from './shape-id';
 import {
   ApiPaths,
   defaultPageLineStyle,
@@ -132,7 +133,7 @@ export function usePageLineSync({
           existing.delete(dto.id);
         } else {
           editor.createShape<PageLineShape>({
-            id: createShapeId(`pline-${dto.id}`),
+            id: shapeId(`pline-${dto.id}`),
             type: 'page-line',
             x: next.x,
             y: next.y,

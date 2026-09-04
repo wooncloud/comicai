@@ -1,6 +1,7 @@
 'use client';
 import { useEffect } from 'react';
-import { type Editor, createShapeId } from 'tldraw';
+import type { Editor } from 'tldraw';
+import { shapeId } from './shape-id';
 import {
   ApiPaths,
   defaultSpeechBubbleStyle,
@@ -124,7 +125,7 @@ export function useSpeechBubbleSync({
           existing.delete(dto.id);
         } else {
           editor.createShape<SpeechBubbleShape>({
-            id: createShapeId(`bubble-${dto.id}`),
+            id: shapeId(`bubble-${dto.id}`),
             type: 'speech-bubble',
             x: dto.shape.x,
             y: dto.shape.y,

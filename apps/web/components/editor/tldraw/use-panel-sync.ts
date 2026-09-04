@@ -1,6 +1,7 @@
 'use client';
 import { useEffect } from 'react';
-import { type Editor, createShapeId } from 'tldraw';
+import type { Editor } from 'tldraw';
+import { shapeId } from './shape-id';
 import {
   ApiPaths,
   shapeBoundingBox,
@@ -93,7 +94,7 @@ export function usePanelSync({
           existing.delete(panel.id);
         } else {
           editor.createShape<ComicPanelShape>({
-            id: createShapeId(`panel-${panel.id}`),
+            id: shapeId(`panel-${panel.id}`),
             type: 'comic-panel',
             x: bbox.x,
             y: bbox.y,
