@@ -79,7 +79,10 @@ export class ExportService {
     const page = await prisma.page.findUnique({
       where: { id: owned.id },
       include: {
-        panels: true,
+        // 나머지 셋과 같이 정렬해야 한다. 정렬이 없으면 Postgres 힙 순서가 나오고,
+        // 그 순서는 UPDATE 마다 바뀔 수 있어 **같은 페이지를 두 번 내보내면 겹친 컷의
+        // 앞뒤가 달라진다.** 에디터가 보는 순서(order asc)와도 어긋난다.
+        panels: { orderBy: { order: 'asc' } },
         speechBubbles: { orderBy: { order: 'asc' } },
         pageTexts: { orderBy: { order: 'asc' } },
         pageLines: { orderBy: { order: 'asc' } },

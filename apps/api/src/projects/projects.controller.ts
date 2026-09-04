@@ -25,7 +25,7 @@ class CreateDto {
 class PatchDto {
   static zodSchema = ProjectPatchSchema;
   name?: string;
-  thumbnail?: string | null;
+  thumbnail?: null;
   defaultStyleId?: string | null;
   defaultModel?: ModelId | null;
 }

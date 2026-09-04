@@ -141,7 +141,7 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
     // apiKeyId 는 breaker 기록에만 쓰므로 catch 에서도 읽을 수 있도록 밖에 둔다.
     let apiKeyId: string | null = null;
     try {
-      const resolved = await this.credentials.resolve(userId, model);
+      const resolved = await this.credentials.resolve(userId, model, renderJobId);
       apiKeyId = resolved.id;
       const req = adapter.buildRequest(ir, resolved.secret);
       const raw = await adapter.call(req, ac.signal, ctx);

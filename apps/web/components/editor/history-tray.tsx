@@ -14,7 +14,11 @@ interface Props {
 
 export function HistoryTray({ panelId, currentRenderId, onRestored }: Props) {
   const queryClient = useQueryClient();
-  const { data: items, isError } = useQuery<RenderJobDTO[]>({
+  const {
+    data: items,
+    isError,
+    refetch,
+  } = useQuery<RenderJobDTO[]>({
     queryKey: qk.panelHistory(panelId),
     queryFn: () => api<RenderJobDTO[]>(ApiPaths.panelHistory(panelId)),
     // 에디터는 오류 경계로 던지지 않는다 — 라우트가 교체되면 캔버스가 언마운트되고
@@ -31,6 +35,24 @@ export function HistoryTray({ panelId, currentRenderId, onRestored }: Props) {
     },
   });
 
+  /*
+   * 실패를 로딩과 구분한다. `throwOnError: false` 로 오류 경계에서 뺐으니 여기서
+   * 말해야 한다 — 안 그러면 조회가 죽었을 때 영원히 "불러오는 중…" 이다.
+   * (그게 오류 경계를 도입하며 고쳤다고 적은 바로 그 증상이다.)
+   */
+  if (isError)
+    return (
+      <div className="space-y-1 text-caption text-muted-foreground">
+        <p>생성 기록을 불러오지 못했습니다.</p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="underline hover:text-foreground"
+        >
+          다시 시도
+        </button>
+      </div>
+    );
   if (!items)
     return <div className="text-caption text-muted-foreground">생성 기록 불러오는 중…</div>;
   if (items.length === 0) {

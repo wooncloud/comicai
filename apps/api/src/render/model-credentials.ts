@@ -26,6 +26,8 @@ export class UsageLimitError extends Error {
 const DEFAULT_DAILY_LIMIT = 20;
 
 const USAGE_PREFIX = 'platform:usage:';
+/** 잡 단위 중복 청구 방지 표시. 값은 의미 없고 존재 여부만 본다. */
+const CHARGED_PREFIX = 'platform:charged:';
 /**
  * 카운터 키를 UTC 날짜로 끊으므로 TTL 은 하루보다 넉넉해야 한다. 정확히 24시간으로
  * 잡으면 자정 직전에 만들어진 키가 그날이 끝나기 전에 사라져 사용량이 0 으로 돌아간다.
@@ -60,7 +62,11 @@ export class ModelCredentials implements OnModuleDestroy {
     await this.redis.quit();
   }
 
-  async resolve(userId: string, model: ModelId): Promise<ModelCredential> {
+  /**
+   * @param chargeKey 같은 작업의 재시도를 한 번만 청구하기 위한 키(렌더 잡 id).
+   *   생략하면 호출마다 청구한다 — 참조 이미지 생성처럼 호출 자체가 곧 한 건인 경우다.
+   */
+  async resolve(userId: string, model: ModelId, chargeKey?: string): Promise<ModelCredential> {
     // mock 은 외부 호출이 없어 비용이 0 이다. 상한에 넣으면 개발·테스트가
     // 사용자의 하루치를 갉아먹는다.
     if (model === 'mock') return { id: null, secret: '', source: 'mock' };
@@ -83,7 +89,7 @@ export class ModelCredentials implements OnModuleDestroy {
       throw new ApiKeyMissingError(`no ${provider} key`);
     }
 
-    await this.consumePlatformQuota(userId);
+    await this.consumePlatformQuota(userId, chargeKey);
     return { id: null, secret: platform, source: 'platform' };
   }
 
@@ -108,9 +114,30 @@ export class ModelCredentials implements OnModuleDestroy {
    * Redis 가 죽으면 예외가 그대로 올라간다. 지출 상한은 열어 두는 쪽이 더 위험하고,
    * 아직 모델을 부르기 전이라 여기서 실패해도 돈이 나가지는 않는다.
    */
-  private async consumePlatformQuota(userId: string): Promise<void> {
+  private async consumePlatformQuota(userId: string, chargeKey?: string): Promise<void> {
     const limit = Number(process.env.PLATFORM_DAILY_RENDER_LIMIT ?? DEFAULT_DAILY_LIMIT);
     if (!Number.isFinite(limit) || limit <= 0) return;
+
+    /*
+     * **한 작업은 한 번만 청구한다.**
+     *
+     * 워커는 잡마다 이 함수를 부르는데, transient 실패는 BullMQ 가 3회까지 재시도한다.
+     * 그러면 그림 한 장에 상한이 3 소모돼, 정상 사용자가 상한의 1/3 만 쓰고 막혔다.
+     * 배포 중 stalled 재큐로 잡이 되살아나는 경로도 같은 문제다.
+     *
+     * SETNX 로 "이 잡은 이미 셌다" 를 표시한다. 표시가 있으면 상한 검사도 건너뛴다 —
+     * 이미 통과시킨 작업을 도중에 막으면 절반만 된 결과가 남는다.
+     */
+    if (chargeKey) {
+      const first = await this.redis.set(
+        `${CHARGED_PREFIX}${chargeKey}`,
+        '1',
+        'EX',
+        USAGE_TTL_SECONDS,
+        'NX',
+      );
+      if (first === null) return;
+    }
 
     const key = `${USAGE_PREFIX}${userId}:${utcDay()}`;
     const used = await this.redis.incr(key);

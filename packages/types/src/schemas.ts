@@ -97,7 +97,17 @@ export const ProjectCreateSchema = z.object({
 });
 export const ProjectPatchSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  thumbnail: z.string().nullable().optional(),
+  /*
+   * **해제(null)만 받는다.** 예전에는 임의 문자열이었고, 그게 그대로 S3 키로 쓰였다.
+   *
+   * 자기 프로젝트의 thumbnail 에 남의 오브젝트 키를 넣어 두고 썸네일을 교체하면,
+   * `setThumbnail` 이 "옛 썸네일 정리" 로 그 키를 지운다 — 계정 하나로 버킷의 임의
+   * 오브젝트를 삭제할 수 있었다(재현 확인). 읽기도 마찬가지로 presign 이 나갔다.
+   *
+   * 썸네일 설정은 업로드 엔드포인트(`POST /projects/:id/thumbnail`)만 한다. 거기서는
+   * 키를 서버가 만든다.
+   */
+  thumbnail: z.null().optional(),
   defaultStyleId: z.string().min(1).nullable().optional(),
   defaultModel: z.enum(MODEL_IDS).nullable().optional(),
 });

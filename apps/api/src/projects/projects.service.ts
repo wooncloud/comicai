@@ -73,7 +73,8 @@ export class ProjectsService {
     id: string,
     patch: {
       name?: string;
-      thumbnail?: string | null;
+      /** 해제만 가능하다. 키를 넣는 것은 업로드 엔드포인트뿐 — 스키마 주석 참조. */
+      thumbnail?: null;
       defaultStyleId?: string | null;
       defaultModel?: ModelId | null;
     },
@@ -93,9 +94,21 @@ export class ProjectsService {
       where: { id },
       data: { thumbnail: ref.storageKey },
     });
-    // 교체된 옛 썸네일은 아무도 가리키지 않는다. 지우지 않으면 10번 바꿀 때 9장이 쌓인다.
-    // 새 것을 먼저 올리고 나중에 지운다 — 반대 순서면 업로드가 실패했을 때 썸네일이 사라진다.
-    if (previous.thumbnail && previous.thumbnail !== ref.storageKey) {
+    /*
+     * 교체된 옛 썸네일은 아무도 가리키지 않는다. 지우지 않으면 10번 바꿀 때 9장이 쌓인다.
+     * 새 것을 먼저 올리고 나중에 지운다 — 반대 순서면 업로드가 실패했을 때 썸네일이 사라진다.
+     *
+     * **지우기 전에 그 키가 이 프로젝트 것인지 확인한다.** 스키마가 이미 임의 문자열을
+     * 막지만(ProjectPatchSchema.thumbnail), 여기서 한 번 더 본다 — 삭제는 되돌릴 수 없고,
+     * 스키마를 우회하는 경로가 하나라도 생기면 그 즉시 남의 오브젝트가 지워진다.
+     * 실제로 그 상태였고 계정 하나로 재현됐다. `consistency.attachImage` 도 같은 방식이다.
+     */
+    const ownPrefix = `projects/${id}/`;
+    if (
+      previous.thumbnail &&
+      previous.thumbnail !== ref.storageKey &&
+      previous.thumbnail.startsWith(ownPrefix)
+    ) {
       await this.storage.deleteKeys([previous.thumbnail]);
     }
     return this.withThumbnailUrl(row);

@@ -14,6 +14,7 @@ import {
   type RenderError,
   type RenderJobDTO,
   type RenderStatus,
+  isInProgressRender,
 } from '@comicai/types';
 import { PanelsService } from '../panels/panels.service';
 import { StorageService } from '../storage/storage.service';
@@ -186,7 +187,9 @@ export class RenderService {
     if (row?.userId !== userId) {
       throw new NotFoundException(apiError({ code: 'RESOURCE_NOT_FOUND' }));
     }
-    if (row.status === 'succeeded' || row.status === 'failed') {
+    // 손으로 적은 목록은 timeout·canceled 를 빠뜨려, 이미 끝난 잡을 다시 '취소' 로
+    // 덮고 finishedAt 을 바꿨다. 진행 중인 것만 취소할 수 있다.
+    if (!isInProgressRender(row.status as RenderStatus)) {
       throw new BadRequestException(
         apiError({ code: 'CONFLICT', message: '이미 완료된 작업입니다.' }),
       );
