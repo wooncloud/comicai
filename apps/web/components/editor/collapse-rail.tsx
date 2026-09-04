@@ -6,14 +6,14 @@ interface Props {
   /** 어느 쪽의 사이드인지 — 펼침 화살표 방향을 결정. */
   side: 'left' | 'right';
   onExpand: () => void;
-  /** 세로로 표시될 짧은 라벨. */
-  label?: string;
 }
 
 /**
  * 사이드 패널이 접혔을 때 보이는 얇은 레일. 클릭 시 펼친다.
+ *
+ * 예전에는 세로 라벨(`label`)을 받았는데 넘기는 호출부가 하나도 없었다.
  */
-export function CollapseRail({ side, onExpand, label }: Props) {
+export function CollapseRail({ side, onExpand }: Props) {
   const Icon = side === 'left' ? ChevronRight : ChevronLeft;
   return (
     <button
@@ -26,14 +26,6 @@ export function CollapseRail({ side, onExpand, label }: Props) {
       )}
     >
       <Icon className="h-4 w-4" />
-      {label && (
-        <span
-          className="text-caption font-medium [writing-mode:vertical-rl]"
-          style={{ transform: 'rotate(180deg)' }}
-        >
-          {label}
-        </span>
-      )}
     </button>
   );
 }

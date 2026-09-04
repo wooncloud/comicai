@@ -168,7 +168,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
   - `tool-rail.tsx` — 캔버스 좌측 도구 레일(`select`/`hand`/`comic-panel`/`page-text`/`page-line`/말풍선 진입). 한글 IME 안전을 위해 `KeyboardEvent.code` 매핑(예: `KeyL` → `page-line`)
   - `conti-dialog.tsx` — 콘티 업로드/제거 다이얼로그 (POST/DELETE `/v1/panels/:id/conti`)
 - `history-tray.tsx` — 패널별 렌더 히스토리 그리드. 후술
-- `panel-shape-picker.tsx`, `panel-status-badge.tsx`, `save-status.tsx`, `page-sidebar.tsx`, `page-size-select.tsx`, `export-dialog.tsx` — 보조 UI
+- `panel-status-badge.tsx`, `save-status.tsx`, `page-sidebar.tsx`, `page-size-select.tsx`, `export-dialog.tsx` — 보조 UI
 
 ### components/editor/tldraw (tldraw 측)
 
@@ -307,7 +307,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 ### 5.4 토스트 — sonner
 
-`components/ui/toast.tsx` — **sonner** 의 `Toaster` + `toast()` 를 얇게 래핑한다. `ToastProvider`(`:11-27`)는 sonner `<Toaster>` 를 mount(`position="bottom-right"`, `richColors`, `closeButton`, 카드 스타일 toast classNames). `useToast()` 훅은 sonner 호출을 `push(kind, message)` 시그니처로 감싸 기존 호출부 호환을 유지한다 — 마이그레이션 시 호출 코드 수정 없이 자작 토스트를 교체. `useEffectToastOnError` 같은 보조 훅도 함께 노출.
+`components/ui/toast.tsx` — **sonner** 의 `Toaster` + `toast()` 를 얇게 래핑한다. `ToastProvider`(`:11-27`)는 sonner `<Toaster>` 를 mount(`position="bottom-right"`, `richColors`, `closeButton`, 카드 스타일 toast classNames). `useToast()` 훅은 sonner 호출을 `push(kind, message)` 시그니처로 감싸 기존 호출부 호환을 유지한다 — 마이그레이션 시 호출 코드 수정 없이 자작 토스트를 교체. 예전에는 `useEffectToastOnError` 같은 보조 훅도 노출했는데 호출부가 없어 제거했다.
 
 ## 6. API 클라이언트 (lib/api.ts)
 
@@ -384,7 +384,7 @@ apps/web/
 │   │   ├── mention-{extension,suggestion}.{ts,tsx}
 │   │   ├── conti-dialog.tsx          # 콘티 업/다운/삭제
 │   │   ├── (number-field|hex-color-field|align-toggle|section-label|collapse-button|collapse-rail|tool-rail).tsx
-│   │   ├── (page-sidebar|page-size-select|export-dialog|save-status|panel-status-badge|panel-shape-picker).tsx
+│   │   ├── (page-sidebar|page-size-select|export-dialog|save-status|panel-status-badge).tsx
 │   │   └── tldraw/             # comic-editor, comic-panel-{shape,tool},
 │   │                           # polygon-{panel-tool,preview,state}, polygon-tool-base,
 │   │                           # speech-bubble-{shape,tools}, use-speech-bubble-sync,
@@ -400,7 +400,6 @@ apps/web/
     ├── cn.ts                   # clsx + tailwind-merge
     ├── error-message.ts        # ErrorCode → 사용자 문구 (단일 출처)
     ├── query-keys.ts           # react-query 캐시 키 (단일 출처)
-    ├── theme.ts
     ├── use-debounced.ts
     └── use-project.ts          # useQuery(['project', id])
 ```

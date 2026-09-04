@@ -26,26 +26,18 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   entityId: string;
+  /** style 엔티티에는 AI 탭이 의미 없어 업로드만 노출한다. */
   entityType: EntityType;
-  /** style 엔티티의 경우 AI 탭이 의미 없으므로 업로드만 노출. */
-  defaultModel?: ModelId;
   onUpdated: (e: ConsistencyEntityDTO) => void;
 }
 
 type Tab = 'ai' | 'upload';
 
-export function EntityImageDialog({
-  open,
-  onOpenChange,
-  entityId,
-  entityType,
-  defaultModel,
-  onUpdated,
-}: Props) {
+export function EntityImageDialog({ open, onOpenChange, entityId, entityType, onUpdated }: Props) {
   const aiAllowed = entityType !== 'style';
   const [tab, setTab] = useState<Tab>(aiAllowed ? 'ai' : 'upload');
 
-  const [model, setModel] = useState<ModelId>(defaultModel ?? 'gemini-3.1-flash-image-preview');
+  const [model, setModel] = useState<ModelId>('gemini-3.1-flash-image-preview');
   const [prompt, setPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -120,7 +120,7 @@ projects/
 
 컴포넌트 (`apps/web/components/`):
 
-- `editor/` — `panel-editor.tsx`, `panel-inspector.tsx`, `panel-shape-picker.tsx`, `tool-toggle.tsx`, `tldraw/`, `mention-extension.ts`, `mention-suggestion.tsx`, `history-tray.tsx`, `save-status.tsx`, `export-dialog.tsx`, `page-sidebar.tsx`, `page-size-select.tsx`, `panel-status-badge.tsx`
+- `editor/` — `panel-editor.tsx`, `panel-inspector.tsx`, `tool-toggle.tsx`, `tldraw/`, `mention-extension.ts`, `mention-suggestion.tsx`, `history-tray.tsx`, `save-status.tsx`, `export-dialog.tsx`, `page-sidebar.tsx`, `page-size-select.tsx`, `panel-status-badge.tsx`
 - `consistency/`, `dashboard/`, `auth/`, `shell/`, `ui/`
 - 최상위 `api-key-form.tsx`, `api-key-list.tsx`, `oauth-buttons.tsx`
 
