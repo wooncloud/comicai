@@ -19,12 +19,13 @@
               ⇢ { jobId }                                          (controller: HTTP 202)
 
 [BullMQ worker]
-   └─▶ RenderWorker.process               (apps/api/src/render/render.worker.ts:95)
-        ├─ status='running'  + SseHub.publish('status', running)   (render.worker.ts:99,105)
-        ├─ getAdapter(model) → buildRequest → call                 (render.worker.ts:112,130,131)
-        ├─ storage.putImage(MinIO/S3)                              (render.worker.ts:132 → storage.service.ts:78)
-        ├─ prisma.renderJob.update status='succeeded'+resultImage  (render.worker.ts:140)
-        └─ SseHub.publish('status', succeeded, resultImage)        (render.worker.ts:153)
+   └─▶ RenderWorker.process               (apps/api/src/render/render.worker.ts:96)
+        ├─ 종결 상태면 즉시 return                                 (render.worker.ts:108)
+        ├─ status='running'  + SseHub.publish('status', running)   (render.worker.ts:110,114)
+        ├─ getAdapter(model) → buildRequest → call                 (render.worker.ts:121,139,140)
+        ├─ storage.putImage(MinIO/S3)                              (render.worker.ts:141 → storage.service.ts:78)
+        ├─ renderJob.updateMany status='succeeded' (queued/running 한정) (render.worker.ts:152)
+        └─ SseHub.publish('status', succeeded, resultImage)        (render.worker.ts:175)
 
 [Browser EventSource]
    └─ es.addEventListener('status', …)    (panel-inspector.tsx:118)
@@ -98,7 +99,10 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
   8. 성공:
      - `storage.putImage({kind:'render', renderJobId}, bytes, mime, w, h)` →
        MinIO/S3 PUT, ImageRef 반환 (`apps/api/src/storage/storage.service.ts:75-96`).
-     - `prisma.renderJob.update({ status:'succeeded', resultImage, finishedAt })` (`render.worker.ts:140-147`).
+     - `prisma.renderJob.updateMany({ where: { id, status: { in: ['queued','running'] } }, ... })` —
+       **status 조건이 핵심이다**. 조건 없이 쓰면 사용자가 그 사이 취소해 `canceled` 로 바꿔 둔 행을
+       `succeeded` 로 덮어쓴다 (`render.worker.ts:152-160`). `count === 0` 이면 결과를 버리고
+       SSE 발행도 건너뛴다 — 낭비된 호출은 `outcome='discarded'` 로 지표에만 남긴다 (`:163-168`).
      - **콘티 자동 정리**: `prisma.panel.update({ data: { conti: Prisma.JsonNull } })` —
        역할을 다한 콘티가 다음 렌더에 잔존하지 않도록 자동 null화. R2 오브젝트는 그대로 두고 포인터만 끊음
        (추후 GC 대상, `render.worker.ts:91-96`).
@@ -273,10 +277,17 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 
 ### 5.2 워커 측 동작
 
-- **실행 중 abort는 없다.** Worker는 `process` 진입 시 한 번 `row.status === 'canceled'`를 확인하고
-  그렇다면 즉시 return 한다 (`render.worker.ts:49-50`). 이미 `running`에 들어간 어댑터 호출은
-  완료(또는 60s deadline)까지 진행되며, 결과 DB write는 `status='canceled'` row를 덮어쓸 수 있다.
-- 외부 AbortController는 `MODEL_CALL_TIMEOUT_MS`(60s) 만료에만 트리거된다 (`render.worker.ts:67-68`).
+- **실행 중 abort는 없다.** Worker는 `process` 진입 시 종결 상태(`queued`/`running` 이 아닌 것)를
+  확인하고 그렇다면 즉시 return 한다 (`render.worker.ts:108`). 이미 `running`에 들어간 어댑터 호출은
+  완료(또는 60s deadline)까지 진행된다 — 취소가 지출을 멈추지는 못한다.
+- 다만 **결과가 취소를 덮어쓰지는 않는다.** 성공·실패 확정 갱신이 모두 `status in (queued, running)`
+  조건부 `updateMany` 라(`render.worker.ts:152`, `:194`), 취소된 행은 그대로 `canceled` 로 남고
+  SSE 발행도 건너뛴다. 예전에는 조건 없는 `update` 라, 취소한 컷에 새로고침하면 그림이 들어와 있었다.
+- `process` 진입 검사가 `canceled` 만이 아니라 **모든 종결 상태**를 막는 이유: 워커가 `succeeded` 를
+  DB 에 쓴 직후 BullMQ 의 `moveToCompleted` 전에 죽으면(배포마다 일어난다) 잡이 stalled 로 재큐되고,
+  `succeeded` 행을 통과시키면 모델을 한 번 더 호출·과금한 뒤 결과를 덮어쓴다. 그 창을 좁히기 위해
+  worker 컨테이너에 `stop_grace_period: 90s` 를 준다 (`infra/compose/full.yml:172`).
+- 외부 AbortController는 `MODEL_CALL_TIMEOUT_MS`(60s) 만료에만 트리거된다 (`render.worker.ts:124-125`).
 - SSE 측은 컨트롤러가 명시적으로 `canceled` 이벤트를 보내지는 않는다 — UI는 다음번 `getJob` 폴링/페이지
   복귀 시 `canceled` 상태를 관찰하거나, worker가 종료 시 publish하는 status 이벤트로 알게 된다.
 
@@ -305,7 +316,7 @@ interface RenderError {
 
 ### 6.2 재시도 & 종결 매핑
 
-`render.worker.ts:191-195` `retryLimitFor`:
+`render.worker.ts:213-217` `retryLimitFor`:
 
 | category  | retry limit | 최종 status       |
 | --------- | ----------- | ----------------- |
@@ -317,7 +328,7 @@ interface RenderError {
 | invalid   | 1 (즉시)    | `failed`          |
 
 `auth` 카테고리는 추가로 `ApiKeyBreaker.recordAuthFailure`로 회로차단기 카운터를 누적시킨다
-(`render.worker.ts:108-110`).
+(`render.worker.ts:185-187`).
 
 ### 6.3 전파 경로
 

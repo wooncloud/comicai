@@ -97,7 +97,15 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
     const { renderJobId, userId, model } = data;
     const row = await prisma.renderJob.findUnique({ where: { id: renderJobId } });
     if (!row) return; // 취소 또는 삭제됨
-    if (row.status === 'canceled') return;
+    /*
+     * **종결된 잡은 무엇이든 다시 처리하지 않는다.** 'canceled' 만 걸러서는 부족하다.
+     *
+     * 워커가 succeeded 를 DB 에 쓴 직후, BullMQ 의 moveToCompleted 전에 죽으면 —
+     * 배포 때마다 일어난다 — 잡이 stalled 로 재큐된다(lockDuration 30s,
+     * maxStalledCount 1). 그때 succeeded 행을 그대로 통과시키면 running 으로
+     * 되돌리고 **모델을 한 번 더 호출·과금**한 뒤 결과를 덮어쓴다.
+     */
+    if (row.status !== 'queued' && row.status !== 'running') return;
 
     await prisma.renderJob.update({
       where: { id: renderJobId },
@@ -137,14 +145,27 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
         raw.width,
         raw.height,
       );
-      await prisma.renderJob.update({
-        where: { id: renderJobId },
+      // 확정 갱신에는 **반드시 status 조건이 붙어야 한다.** 조건 없이 쓰면, 사용자가
+      // 그 사이 취소해서 render.service.cancel 이 'canceled' 로 바꿔 둔 행을 워커가
+      // 'succeeded' 로 덮어쓴다. 새로고침하면 취소했다고 믿은 컷에 그림이 들어와 있다.
+      // finalizeOrphan 이 이미 같은 방어를 하고 있다(:76) — 정상 경로도 같아야 한다.
+      const { count } = await prisma.renderJob.updateMany({
+        where: { id: renderJobId, status: { in: ['queued', 'running'] } },
         data: {
           status: 'succeeded',
           resultImage: stored as unknown as Prisma.InputJsonValue,
           finishedAt: new Date(),
         },
       });
+      // 모델이 응답했다면 키는 멀쩡하다. 아래에서 결과를 버리더라도 차단기
+      // streak 은 리셋하는 것이 맞다.
+      if (apiKeyId) await this.breaker.recordSuccess(apiKeyId);
+      if (count === 0) {
+        // 취소된(또는 이미 종결된) 잡이다. 그림은 나왔고 비용도 나갔지만 사용자가
+        // 취소한 컷에 결과를 밀어 넣지는 않는다. 낭비된 호출은 지표로 남긴다.
+        outcome = 'discarded';
+        return;
+      }
       // 렌더 성공 시 콘티는 역할을 다했으므로 자동 제거(다음 렌더에 잔존하지 않도록).
       // R2 오브젝트는 일단 그대로 두고 panel.conti만 null화 — 추후 GC 대상.
       await prisma.panel.update({
@@ -157,7 +178,6 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
         status: 'succeeded',
         resultImage: stored,
       });
-      if (apiKeyId) await this.breaker.recordSuccess(apiKeyId);
       outcome = 'succeeded';
     } catch (err) {
       const classified = classifyModelError(err, adapter);
@@ -170,14 +190,16 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
         throw err;
       }
       const finalStatus: RenderStatus = classified.category === 'timeout' ? 'timeout' : 'failed';
-      await prisma.renderJob.update({
-        where: { id: renderJobId },
+      // 성공 경로와 같은 이유로 조건부다 — 취소한 잡을 실패로 되살리지 않는다.
+      const { count } = await prisma.renderJob.updateMany({
+        where: { id: renderJobId, status: { in: ['queued', 'running'] } },
         data: {
           status: finalStatus,
           error: classified as unknown as Prisma.InputJsonValue,
           finishedAt: new Date(),
         },
       });
+      if (count === 0) return;
       this.hub.publish(renderJobId, { type: 'error', jobId: renderJobId, error: classified });
       this.hub.publish(renderJobId, { type: 'status', jobId: renderJobId, status: finalStatus });
     } finally {

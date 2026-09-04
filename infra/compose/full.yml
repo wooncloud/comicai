@@ -166,6 +166,10 @@ services:
       dockerfile: infra/docker/api.Dockerfile
     container_name: comicai-worker
     restart: unless-stopped
+    # SIGTERM 을 받으면 worker.close() 가 처리 중인 잡이 끝나기를 기다린다
+    # (apps/api/src/worker.ts). 도커 기본 유예는 10초인데 렌더는 최대 60초라,
+    # 배포마다 SIGKILL 로 끊겨 잡이 stalled 재큐되고 모델을 한 번 더 호출한다.
+    stop_grace_period: 90s
     depends_on:
       postgres:
         condition: service_healthy

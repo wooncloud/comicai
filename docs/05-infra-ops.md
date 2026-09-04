@@ -55,7 +55,11 @@ ComicAI의 인프라/운영 자산은 세 위치에 모여 있다.
 
 `migrate`는 `prisma migrate deploy` 실행 후 종료(`restart: "no"`, `:92`), `api`/`worker`는 `service_completed_successfully` 조건으로 대기(`:107`, `:143`).
 
-`api` 컨테이너는 `RENDER_WORKER_DISABLED=1`로 BullMQ consumer를 끄고(`full.yml:114`), `worker` 컨테이너에서만 렌더링 큐를 처리(`RENDER_WORKER_DISABLED=0`, `:147`). `RENDER_CONCURRENCY` 기본 2 (`:148`).
+`api` 컨테이너는 `RENDER_WORKER_DISABLED=1`로 BullMQ consumer를 끄고(`full.yml:137`), `worker` 컨테이너에서만 렌더링 큐를 처리(`RENDER_WORKER_DISABLED=0`, `:184`). `RENDER_CONCURRENCY` 기본 2 (`:185`).
+
+`worker` 는 `stop_grace_period: 90s` 를 쓴다 (`full.yml:172`). SIGTERM 을 받으면 `worker.close()` 가
+처리 중인 잡을 기다리는데(`apps/api/src/worker.ts:14`), 도커 기본 유예 10초는 렌더 데드라인 60초보다
+짧아 배포마다 SIGKILL 로 끊긴다. 그러면 잡이 stalled 로 재큐되어 모델을 한 번 더 호출·과금한다.
 
 #### Profiles
 
