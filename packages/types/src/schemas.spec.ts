@@ -5,7 +5,9 @@ import {
   MAX_PAGE_DIMENSION,
   MAX_PANEL_COORD,
   PAGE_TEXT_FONT_FAMILIES,
+  PageLineStyleSchema,
   PageTextStyleSchema,
+  SpeechBubbleStyleSchema,
   PageCreateSchema,
   PagePatchSchema,
   PanelShapeSchema,
@@ -131,5 +133,38 @@ describe('PageTextStyleSchema fontFamily', () => {
   it('컨테이너에 없는 폰트는 거부한다', () => {
     expect(PageTextStyleSchema.safeParse({ fontFamily: 'Pretendard' }).success).toBe(false);
     expect(PageTextStyleSchema.safeParse({ fontFamily: 'Inter' }).success).toBe(false);
+  });
+});
+
+/**
+ * 색 검증이 없으면 `"not-a-color"` 가 그대로 저장되고, export 가 그것을 SVG 의
+ * fill/stroke 속성으로 내보낸다. 캔버스와 export 결과가 다르게 보이는데 **어느 쪽도
+ * 오류를 내지 않는다** — 사용자는 "왜 내보낸 그림만 다르지" 만 알게 된다.
+ * 웹은 이미 같은 정규식으로 막고 있었고(hex-color-field.tsx), 서버만 빠져 있었다.
+ */
+describe('스타일 색 검증', () => {
+  const cases = [
+    ['말풍선 선', SpeechBubbleStyleSchema, 'strokeColor'],
+    ['말풍선 채움', SpeechBubbleStyleSchema, 'fillColor'],
+    ['텍스트', PageTextStyleSchema, 'color'],
+    ['직선', PageLineStyleSchema, 'strokeColor'],
+  ] as const;
+
+  it.each(cases)('%s: hex 는 통과', (_label, schema, field) => {
+    expect(schema.safeParse({ [field]: '#ff0000' }).success).toBe(true);
+    expect(schema.safeParse({ [field]: '#f00' }).success).toBe(true);
+    expect(schema.safeParse({ [field]: '#ff0000aa' }).success).toBe(true);
+  });
+
+  it.each(cases)('%s: hex 가 아니면 거부', (_label, schema, field) => {
+    expect(schema.safeParse({ [field]: 'not-a-color' }).success).toBe(false);
+    expect(schema.safeParse({ [field]: 'red' }).success).toBe(false);
+    expect(schema.safeParse({ [field]: '' }).success).toBe(false);
+  });
+
+  it('생략하면 기본값이 채워진다 (부분 갱신 전제)', () => {
+    const r = SpeechBubbleStyleSchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.fillColor).toBe('#ffffff');
   });
 });

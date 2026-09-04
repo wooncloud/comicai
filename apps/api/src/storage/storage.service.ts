@@ -1,9 +1,11 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadBucketCommand,
   CreateBucketCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -14,7 +16,7 @@ import type { ImageRef, RenderStatus } from '@comicai/types';
 import { validateAndNormalizeImage } from './image-validator';
 
 export type ImageScope =
-  | { kind: 'render'; renderJobId: string }
+  | { kind: 'render'; projectId: string; panelId: string; renderJobId: string }
   | { kind: 'consistency-ref'; projectId: string; entityId: string }
   | { kind: 'panel-upload'; projectId: string; panelId: string }
   | { kind: 'panel-conti'; projectId: string; panelId: string }
@@ -23,6 +25,9 @@ export type ImageScope =
   | { kind: 'export'; userId: string; pageId: string };
 
 const PRESIGN_TTL_SECONDS = 15 * 60;
+
+/** ListObjectsV2 한 페이지의 상한이자 DeleteObjects 한 번의 상한. 둘 다 1000 이다. */
+const DELETE_PAGE_SIZE = 1000;
 
 @Injectable()
 export class StorageService implements OnModuleInit {
@@ -143,6 +148,71 @@ export class StorageService implements OnModuleInit {
     return (await this.presignDownload(image.storageKey)).url;
   }
 
+  /**
+   * prefix 아래를 전부 지운다. 지운 개수를 돌려준다.
+   *
+   * **실패해도 던지지 않는다.** 호출부는 전부 "DB 행을 이미 지운 뒤" 다. 여기서 던지면
+   * 사용자가 삭제에 성공했는데 500 을 받고, 다시 눌러도 지울 대상이 없어 계속 실패한다.
+   * 남은 오브젝트는 예전과 같은 미아일 뿐이므로, 실패는 로그로 남기고 넘어가는 쪽이 낫다.
+   *
+   * 규모가 커지면 GC 큐로 미루는 편이 낫지만, 지금 한 프로젝트가 가진 오브젝트는
+   * 수십~수백 개고 DeleteObjects 가 1000개씩 지우므로 왕복 몇 번이면 끝난다.
+   */
+  async deleteByPrefix(prefix: string): Promise<number> {
+    let deleted = 0;
+    try {
+      let token: string | undefined;
+      do {
+        const listed = await this.client.send(
+          new ListObjectsV2Command({
+            Bucket: this.bucket,
+            Prefix: prefix,
+            ContinuationToken: token,
+            MaxKeys: DELETE_PAGE_SIZE,
+          }),
+        );
+        const objects = (listed.Contents ?? []).flatMap((o) => (o.Key ? [{ Key: o.Key }] : []));
+        if (objects.length > 0) {
+          await this.client.send(
+            new DeleteObjectsCommand({
+              Bucket: this.bucket,
+              Delete: { Objects: objects, Quiet: true },
+            }),
+          );
+          deleted += objects.length;
+        }
+        token = listed.IsTruncated ? listed.NextContinuationToken : undefined;
+      } while (token);
+      if (deleted > 0) this.logger.log(`storage 정리: ${prefix} ${deleted}건`);
+    } catch (err) {
+      this.logger.error({ err, prefix, deleted }, 'storage prefix 삭제 실패');
+    }
+    return deleted;
+  }
+
+  /**
+   * 개별 키를 지운다. `storeUploadedImage` 가 만드는 파생 썸네일(`{key}.thumb.webp`)도 함께
+   * 지운다 — 원본만 지우면 그 썸네일이 아무도 가리키지 않는 채로 남는다.
+   *
+   * `deleteByPrefix` 와 같은 이유로 던지지 않는다.
+   */
+  async deleteKeys(keys: string[]): Promise<void> {
+    const targets = keys.flatMap((k) => [{ Key: k }, { Key: `${k}.thumb.webp` }]);
+    if (targets.length === 0) return;
+    try {
+      for (let i = 0; i < targets.length; i += DELETE_PAGE_SIZE) {
+        await this.client.send(
+          new DeleteObjectsCommand({
+            Bucket: this.bucket,
+            Delete: { Objects: targets.slice(i, i + DELETE_PAGE_SIZE), Quiet: true },
+          }),
+        );
+      }
+    } catch (err) {
+      this.logger.error({ err, count: keys.length }, 'storage 키 삭제 실패');
+    }
+  }
+
   async getBytes(key: string): Promise<{ bytes: Uint8Array; mimeType: string }> {
     const r = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
     const chunks: Buffer[] = [];
@@ -170,12 +240,42 @@ export class StorageService implements OnModuleInit {
   }
 }
 
-function buildKey(scope: ImageScope, mimeType: string): string {
+/**
+ * 소유 리소스별 삭제 prefix.
+ *
+ * `buildKey` 와 **같은 파일에 있어야 한다.** 키 규칙과 삭제 규칙이 떨어져 있으면, 키를
+ * 한쪽만 바꿨을 때 삭제가 조용히 아무것도 못 지우게 된다 — 실패가 아니라 0건으로 성공한다.
+ */
+export const StoragePrefix = {
+  project: (projectId: string) => `projects/${projectId}/`,
+  panel: (projectId: string, panelId: string) => `projects/${projectId}/panels/${panelId}/`,
+  consistencyEntity: (projectId: string, entityId: string) =>
+    `projects/${projectId}/refs/${entityId}/`,
+  /** export 결과는 프로젝트가 아니라 사용자 아래에 있다(`exports/{userId}/{pageId}/`). */
+  pageExports: (userId: string, pageId: string) => `exports/${userId}/${pageId}/`,
+} as const;
+
+/*
+ * 키는 **prefix 로 지울 수 있어야 한다.** 렌더 결과만 `projects/_/renders/` 로 projectId
+ * 자리를 뭉개 두어서, 프로젝트를 지울 때 그 프로젝트의 렌더 결과만 골라낼 방법이 없었다 —
+ * 다른 종류(refs/panels/thumbnail)는 전부 projectId 로 묶여 있는데 이것만 예외였다.
+ *
+ * 렌더 결과를 프로젝트가 아니라 **컷 아래**에 두는 이유: 그래야 프로젝트·페이지·컷
+ * 세 단계 삭제가 전부 prefix 하나로 끝난다. 프로젝트 바로 아래 `renders/{jobId}` 였다면
+ * 컷 하나를 지울 때 그 컷의 잡 id 를 모아 개별 키를 지워야 하고, 그건 "다 모았는가" 를
+ * 매번 다시 증명해야 하는 종류의 코드다. 업로드·콘티가 이미 컷 아래에 있으니 자리도 맞다.
+ *
+ * 이미 저장된 옛 키를 옮기지는 않는다. 지금까지는 어차피 지우는 경로가 없어 정리 대상이
+ * 쌓여 있지 않고(삭제가 처음 생기는 것이 이번 변경이다), 옛 키도 storageKey 를 그대로
+ * 들고 있으므로 읽기는 계속 된다. 옮기려면 S3 복사 + DB JSON 갱신이 필요한데, 얻는 것은
+ * "이미 미아가 된 오브젝트"뿐이라 값이 없다.
+ */
+export function buildKey(scope: ImageScope, mimeType: string): string {
   const ext = extensionFor(mimeType);
   const id = ulid();
   switch (scope.kind) {
     case 'render':
-      return `projects/_/renders/${scope.renderJobId}.${ext}`;
+      return `projects/${scope.projectId}/panels/${scope.panelId}/renders/${scope.renderJobId}.${ext}`;
     case 'consistency-ref':
       return `projects/${scope.projectId}/refs/${scope.entityId}/${id}.${ext}`;
     case 'panel-upload':

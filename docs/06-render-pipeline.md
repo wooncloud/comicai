@@ -362,7 +362,7 @@ interface RenderError {
 - `RESOURCE_NOT_FOUND` (`render.service.ts:150, 175; panels.service.ts:243`).
 - `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:178`),
   성공 아닌 잡 restore 시도(`panels.service.ts:245-249`).
-- `PANEL_NOT_FOUND`/`RESOURCE_FORBIDDEN` — `panels.service.ts:276-278`.
+- `PANEL_NOT_FOUND` — `panels.service.ts:304-306`. 소유권 실패도 같은 404 다(존재 여부가 새지 않도록).
 
 API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생하며 `category:'auth'`로 분류되어
 위 경로를 거쳐 SSE로 전달된다.

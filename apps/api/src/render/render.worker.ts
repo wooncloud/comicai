@@ -143,7 +143,9 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
       const req = adapter.buildRequest(ir, resolved.secret);
       const raw = await adapter.call(req, ac.signal, ctx);
       const stored: ImageRef = await this.storage.putImage(
-        { kind: 'render', renderJobId },
+        // projectId 는 IR 에 이미 들어 있다(ir.builder 가 채운다). 결과를 컷 아래에 두어야
+        // 프로젝트·페이지·컷 어느 단계를 지우든 prefix 하나로 정리된다.
+        { kind: 'render', projectId: ir.projectId, panelId: row.panelId, renderJobId },
         raw.bytes,
         raw.mimeType,
         raw.width,

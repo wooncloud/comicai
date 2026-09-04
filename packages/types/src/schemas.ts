@@ -120,6 +120,17 @@ export function isHexColor(v: unknown): v is string {
   return typeof v === 'string' && HEX_COLOR_REGEX.test(v);
 }
 
+/**
+ * 색은 전부 이걸 쓴다.
+ *
+ * 검증이 없으면 `"not-a-color"` 같은 값이 그대로 저장되고, export 가 그것을 SVG 의
+ * `fill`/`stroke`/`fill` 속성으로 내보낸다. 브라우저 캔버스와 export 결과가 서로 다르게
+ * 보이는데 어느 쪽도 오류를 내지 않는다 — 사용자는 "왜 내보낸 그림만 다르지" 만 알게 된다.
+ * (SVG 주입은 아니다. `escapeAttr` 이 따로 막는다.)
+ *
+ * 웹은 이미 같은 정규식으로 막고 있다(`hex-color-field.tsx` 의 `isHexColor`).
+ * 서버만 그 계약을 강제하지 않고 있었다.
+ */
 const ColorStringSchema = z
   .string()
   .trim()
@@ -127,8 +138,13 @@ const ColorStringSchema = z
   .max(32)
   .regex(HEX_COLOR_REGEX, '#RRGGBB 형식이어야 합니다.');
 
+/**
+ * `order` 는 일부러 없다. 순서 변경은 `PageReorderSchema` 를 쓰는 재정렬 엔드포인트로만
+ * 받는다 — 거기서만 "요청이 현재 페이지 집합의 순열인가" 를 검사할 수 있기 때문이다.
+ * PATCH 로 한 페이지의 order 를 직접 넣으면 두 페이지가 같은 order 를 갖게 되고, 그때부터
+ * `orderBy: { order }` 의 타이브레이크가 요청마다 달라져 순서가 흔들린다.
+ */
 export const PagePatchSchema = z.object({
-  order: z.number().int().nonnegative().optional(),
   size: PageSizeSchema.optional(),
   name: z.string().trim().min(1).max(80).nullable().optional(),
   backgroundColor: ColorStringSchema.nullable().optional(),
@@ -213,8 +229,8 @@ export const SpeechBubbleShapeSchema = z.object({
 
 export const SpeechBubbleStyleSchema = z.object({
   strokeWidth: z.number().nonnegative().max(20).default(2),
-  strokeColor: z.string().max(32).default('#000000'),
-  fillColor: z.string().max(32).default('#ffffff'),
+  strokeColor: ColorStringSchema.default('#000000'),
+  fillColor: ColorStringSchema.default('#ffffff'),
 });
 
 export const SpeechBubbleCreateSchema = z.object({
@@ -252,7 +268,7 @@ export const PAGE_TEXT_FONT_FAMILIES = ['sans-serif', 'serif', 'monospace'] as c
 export const PageTextStyleSchema = z.object({
   fontSize: z.number().min(6).max(200).default(24),
   fontFamily: z.enum(PAGE_TEXT_FONT_FAMILIES).default('sans-serif'),
-  color: z.string().max(32).default('#111111'),
+  color: ColorStringSchema.default('#111111'),
   textAlign: z.enum(TEXT_ALIGNS).default('left'),
 });
 
@@ -285,7 +301,7 @@ export const PageLineStrokeStyleSchema = z.enum(PAGE_LINE_STROKE_STYLES);
 
 export const PageLineStyleSchema = z.object({
   strokeWidth: z.number().positive().max(40).default(2),
-  strokeColor: z.string().max(32).default('#111111'),
+  strokeColor: ColorStringSchema.default('#111111'),
   strokeStyle: PageLineStrokeStyleSchema.default('solid'),
 });
 

@@ -7,6 +7,7 @@ import {
   type PageTextStyle,
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
+import { isReorderPermutation } from '../common/reorder';
 
 interface PageTextRow {
   id: string;
@@ -132,7 +133,7 @@ export class PageTextsService {
       select: { id: true },
     });
     const existingIds = new Set(existing.map((r) => r.id));
-    if (ids.length !== existing.length || !ids.every((id) => existingIds.has(id))) {
+    if (!isReorderPermutation(ids, existingIds)) {
       throw new ForbiddenException({
         code: 'INVALID_REORDER',
         message: 'ids 목록이 현재 페이지의 텍스트와 일치하지 않습니다.',
@@ -157,9 +158,9 @@ export class PageTextsService {
         page: { select: { project: { select: { userId: true } } } },
       },
     });
-    if (!row) throw new NotFoundException({ code: 'PAGE_TEXT_NOT_FOUND' });
-    if (row.page.project.userId !== userId)
-      throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
+    // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
+    if (row?.page.project.userId !== userId)
+      throw new NotFoundException({ code: 'PAGE_TEXT_NOT_FOUND' });
     return { id: row.id, pageId: row.pageId, style: row.style };
   }
 }

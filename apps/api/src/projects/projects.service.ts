@@ -1,7 +1,7 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { newId, prisma } from '@comicai/db';
 import type { ImageRef, ModelId, ProjectDTO } from '@comicai/types';
-import { StorageService } from '../storage/storage.service';
+import { StoragePrefix, StorageService } from '../storage/storage.service';
 
 interface ProjectRow {
   id: string;
@@ -52,8 +52,8 @@ export class ProjectsService {
       where: { id },
       include: { pages: { select: { id: true, order: true }, orderBy: { order: 'asc' } } },
     });
-    if (!row) throw new NotFoundException({ code: 'PROJECT_NOT_FOUND' });
-    if (row.userId !== userId) throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
+    // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
+    if (row?.userId !== userId) throw new NotFoundException({ code: 'PROJECT_NOT_FOUND' });
     const dto = await this.withThumbnailUrl(row);
     return { ...dto, pages: row.pages };
   }
@@ -74,7 +74,7 @@ export class ProjectsService {
   }
 
   async setThumbnail(userId: string, id: string, fileBuffer: Buffer): Promise<ProjectDTO> {
-    await this.assertOwned(userId, id);
+    const previous = await this.assertOwned(userId, id);
     const ref = await this.storage.storeUploadedImage(
       { kind: 'project-thumbnail', projectId: id },
       fileBuffer,
@@ -83,18 +83,46 @@ export class ProjectsService {
       where: { id },
       data: { thumbnail: ref.storageKey },
     });
+    // 교체된 옛 썸네일은 아무도 가리키지 않는다. 지우지 않으면 10번 바꿀 때 9장이 쌓인다.
+    // 새 것을 먼저 올리고 나중에 지운다 — 반대 순서면 업로드가 실패했을 때 썸네일이 사라진다.
+    if (previous.thumbnail && previous.thumbnail !== ref.storageKey) {
+      await this.storage.deleteKeys([previous.thumbnail]);
+    }
     return this.withThumbnailUrl(row);
   }
 
   async remove(userId: string, id: string): Promise<void> {
     await this.assertOwned(userId, id);
+    // export 결과는 프로젝트가 아니라 사용자 아래에 있어서 프로젝트 prefix 로 안 잡힌다.
+    // 페이지가 사라지기 전에 id 를 모아 둔다.
+    const pages = await prisma.page.findMany({ where: { projectId: id }, select: { id: true } });
+    // DB 를 먼저 지운다. 반대로 하면 S3 삭제 성공 뒤 DB 삭제가 실패했을 때, 화면에는 남아
+    // 있는데 이미지가 전부 깨진 프로젝트가 된다.
     await prisma.project.delete({ where: { id } });
+    await this.storage.deleteByPrefix(StoragePrefix.project(id));
+    for (const page of pages) {
+      await this.storage.deleteByPrefix(StoragePrefix.pageExports(userId, page.id));
+    }
   }
 
-  async assertOwned(userId: string, id: string) {
-    const row = await prisma.project.findUnique({ where: { id }, select: { userId: true } });
-    if (!row) throw new NotFoundException({ code: 'PROJECT_NOT_FOUND' });
-    if (row.userId !== userId) throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
+  async assertOwned(userId: string, id: string): Promise<{ thumbnail: string | null }> {
+    const row = await prisma.project.findUnique({
+      where: { id },
+      select: { userId: true, thumbnail: true },
+    });
+    /*
+     * **남의 것도, 없는 것도 똑같이 404 다.**
+     *
+     * 예전에는 남의 리소스에 403 을 줬는데, 그러면 "그 id 는 실존하며 남의 것" 이 확인된다.
+     * id 를 훑는 것만으로 다른 사용자의 리소스 존재 여부를 열거할 수 있다. 응답이 같아야
+     * 아무것도 새지 않는다.
+     *
+     * 코드는 `RESOURCE_NOT_FOUND` 가 아니라 도메인별 코드를 쓴다 — 웹의 문구 표에서
+     * `RESOURCE_NOT_FOUND` 는 null(문구 없음)이라 호출부 문맥에 기대게 되는데,
+     * 도메인 코드는 "프로젝트를 찾을 수 없습니다" 처럼 그 자체로 안내가 된다.
+     */
+    if (row?.userId !== userId) throw new NotFoundException({ code: 'PROJECT_NOT_FOUND' });
+    return { thumbnail: row.thumbnail };
   }
 
   /**

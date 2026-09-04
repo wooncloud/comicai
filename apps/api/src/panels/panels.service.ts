@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { newId, prisma, Prisma } from '@comicai/db';
 import {
   emptyDoc,
@@ -11,7 +11,8 @@ import {
   type RenderStatus,
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
-import { StorageService } from '../storage/storage.service';
+import { StoragePrefix, StorageService } from '../storage/storage.service';
+import { appendPanelRefImages } from '../common/ref-images';
 
 interface RenderRef {
   status: RenderStatus | null;
@@ -158,8 +159,11 @@ export class PanelsService {
   }
 
   async remove(userId: string, id: string) {
-    await this.assertOwned(userId, id);
+    const owned = await this.assertOwned(userId, id);
+    // 업로드·콘티·렌더 결과가 전부 이 prefix 아래에 있다. 렌더 잡 행은 FK cascade 가
+    // 지운다(schema.prisma:241) — 지우기 전에 잡 id 를 따로 모을 필요가 없다.
     await prisma.panel.delete({ where: { id } });
+    await this.storage.deleteByPrefix(StoragePrefix.panel(owned.projectId, owned.id));
   }
 
   async appendUpload(userId: string, panelId: string, fileBuffer: Buffer): Promise<PanelDTO> {
@@ -168,11 +172,9 @@ export class PanelsService {
       { kind: 'panel-upload', projectId: owned.projectId, panelId: owned.id },
       fileBuffer,
     );
-    const refs = (owned.refImages as ImageRef[]) ?? [];
-    const row = await prisma.panel.update({
-      where: { id: owned.id },
-      data: { refImages: [...refs, ref] as unknown as Prisma.InputJsonValue },
-    });
+    // 읽어서 통째로 덮어쓰면 동시 업로드가 서로를 지운다 — ref-images.ts 참고.
+    await appendPanelRefImages(owned.id, [ref]);
+    const row = await prisma.panel.findUniqueOrThrow({ where: { id: owned.id } });
     return panelDto(
       row,
       await this.loadRender(row.currentRenderId),
@@ -267,7 +269,9 @@ export class PanelsService {
       throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
     }
     if (job.status !== 'succeeded') {
-      throw new ForbiddenException({
+      // 403 + code:'CONFLICT' 였다 — 상태 코드와 코드가 서로 다른 말을 했다.
+      // 같은 상황을 다루는 render.service.cancel 과 같은 모양으로 맞춘다.
+      throw new BadRequestException({
         code: 'CONFLICT',
         message: '성공한 렌더만 복원할 수 있습니다.',
       });
@@ -297,9 +301,9 @@ export class PanelsService {
         page: { select: { project: { select: { userId: true, id: true } } } },
       },
     });
-    if (!row) throw new NotFoundException({ code: 'PANEL_NOT_FOUND' });
-    if (row.page.project.userId !== userId)
-      throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
+    // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
+    if (row?.page.project.userId !== userId)
+      throw new NotFoundException({ code: 'PANEL_NOT_FOUND' });
     return {
       id: row.id,
       pageId: row.pageId,

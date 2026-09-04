@@ -171,7 +171,22 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 | POST   | `/v1/projects/:id/thumbnail` | `uploadThumbnail` (`:60-68`) — multipart `file`, `MAX_UPLOAD_BYTES`. 썸네일 키 교체      |
 | DELETE | `/v1/projects/:id`           | `remove` (`:70-74`)                                                                      |
 
-`PATCH`의 `defaultStyleId`는 프로젝트 대표 그림체 엔티티 id를 지정한다(렌더 시 자동 주입). `defaultModel`은 패널 인스펙터 모델 select의 초기값. 소유권 체크: `assertOwned` (`projects/projects.service.ts`, public 헬퍼).
+`PATCH`의 `defaultStyleId`는 프로젝트 대표 그림체 엔티티 id를 지정한다(렌더 시 자동 주입). `defaultModel`은 패널 인스펙터 모델 select의 초기값. 소유권 체크: `assertOwned` (`projects/projects.service.ts:111`, public 헬퍼).
+
+#### 소유권 실패는 전부 404 다
+
+**남의 리소스도, 없는 리소스도 똑같이 404** 다 (`projects.service.ts:126`). 예전에는 남의 것에
+403 `RESOURCE_FORBIDDEN` 을 줬는데, 그러면 "그 id 는 실존하며 남의 것" 이 확인된다 — id 를
+훑는 것만으로 다른 사용자의 리소스 존재 여부를 열거할 수 있다. 응답이 같아야 아무것도 새지 않는다.
+
+코드는 `RESOURCE_NOT_FOUND` 가 아니라 도메인별 코드(`PROJECT_NOT_FOUND`, `PAGE_NOT_FOUND`,
+`PANEL_NOT_FOUND`, `CONSISTENCY_NOT_FOUND`, `SPEECH_BUBBLE_NOT_FOUND`, `PAGE_TEXT_NOT_FOUND`,
+`PAGE_LINE_NOT_FOUND`)를 쓴다. 웹의 문구 표에서 `RESOURCE_NOT_FOUND` 는 null(문구 없음)이라
+호출부 문맥에 기대게 되는데, 도메인 코드는 그 자체로 안내가 된다.
+
+같은 이유로 `PanelsService.restoreRender` 의 "성공한 렌더만 복원" 거부도 403 에서 400 으로
+바꿨다 (`panels.service.ts:274`) — 403 인데 code 가 `CONFLICT` 라 상태 코드와 코드가 서로 다른
+말을 하고 있었고, 같은 상황을 다루는 `RenderService.cancel` 은 이미 400 이다.
 
 ### 3.4 ConsistencyModule (`consistency/consistency.controller.ts`)
 
@@ -187,7 +202,15 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 | POST   | `/v1/consistency/:id/generate`        | `generate` (`:104-107`) — AI 모델로 참조 이미지 1장 생성 (storage 업로드만, refImages 미등록). style 엔티티는 거부                         |
 | POST   | `/v1/consistency/:id/images/attach`   | `attach` (`:110-113`) — `generate` 결과의 storageKey 를 refImages 에 등록 (key prefix 검증)                                                |
 
-AI 생성 로직은 `consistency.service.ts:221-299` (`generateImage`) / `:305-335` (`attachImage`). 엔티티 타입별 system prompt (`ENTITY_SYSTEM_PROMPTS`, `:68-75`) 와 출력 비율(`ENTITY_OUTPUT_SHAPE`, `:54-61`)이 적용되어 패널-룰 대신 캐릭터 시트/환경 콘셉트/세계관 무드 보드 톤을 강제한다. style 은 그림체 자체가 다른 패널 결과의 일관성 기준이라 `generate` 자체를 거부 (`CONSISTENCY_GENERATE_UNSUPPORTED`).
+`refImages` 에 이미지를 덧붙이는 세 경로(`appendImages` `:209`, `attachImage` `:327`,
+`PanelsService.appendUpload` `panels.service.ts:176`)는 **원자적 JSONB append** 를 쓴다
+(`common/ref-images.ts`). 읽어서 `[...기존, 새것]` 으로 통째 덮어쓰면 동시 업로드가 유실된다 —
+12장을 한 번에 드래그하면 전부 같은 배열을 읽고 각자 덮어써서 마지막 1장만 남고 나머지는
+S3 고아가 된다. Prisma 에 JSON 배열 append 프리미티브가 없어 raw SQL 이며, 엔티티 쪽은
+같은 문장에서 `version` 과 `updated_at` 도 올린다(`@updatedAt` 은 클라이언트가 채우는 값이라
+이 경로에서는 손으로 넣어야 한다).
+
+AI 생성 로직은 `consistency.service.ts:220-298` (`generateImage`) / `:304-334` (`attachImage`). 엔티티 타입별 system prompt (`ENTITY_SYSTEM_PROMPTS`, `:68-75`) 와 출력 비율(`ENTITY_OUTPUT_SHAPE`, `:54-61`)이 적용되어 패널-룰 대신 캐릭터 시트/환경 콘셉트/세계관 무드 보드 톤을 강제한다. style 은 그림체 자체가 다른 패널 결과의 일관성 기준이라 `generate` 자체를 거부 (`CONSISTENCY_GENERATE_UNSUPPORTED`).
 
 키 조회는 **`try` 안에 있다**(`consistency.service.ts:260`). 밖에 두면 쿼터 초과·키 없음 같은
 평범한 정책 거부가 `HttpException` 이 아닌 채로 예외 필터까지 올라가 500 `INTERNAL_ERROR` 가
@@ -201,14 +224,14 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 ### 3.5 PagesModule (`pages/pages.controller.ts`)
 
-| Method | Route                             | Handler                                                                |
-| ------ | --------------------------------- | ---------------------------------------------------------------------- |
-| GET    | `/v1/projects/:pid/pages`         | `list` (`pages.controller.ts:38-41`)                                   |
-| POST   | `/v1/projects/:pid/pages`         | `create` (`:43-47`)                                                    |
-| POST   | `/v1/projects/:pid/pages/reorder` | `reorder` (`:49-52`) — body `{ pageIds: string[] }`로 페이지 순서 갱신 |
-| GET    | `/v1/pages/:id`                   | `get` (`:54-57`)                                                       |
-| PATCH  | `/v1/pages/:id`                   | `patch` (`:59-62`) — `order?`, `size?`, `name?`, `backgroundColor?`    |
-| DELETE | `/v1/pages/:id`                   | `remove` (`:64-68`)                                                    |
+| Method | Route                             | Handler                                                                                                                                        |
+| ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/projects/:pid/pages`         | `list` (`pages.controller.ts:38-41`)                                                                                                           |
+| POST   | `/v1/projects/:pid/pages`         | `create` (`:43-47`)                                                                                                                            |
+| POST   | `/v1/projects/:pid/pages/reorder` | `reorder` (`:49-52`) — body `{ pageIds: string[] }`로 페이지 순서 갱신. **순서를 바꾸는 유일한 경로다** (`PagePatchSchema` 에 `order` 가 없다) |
+| GET    | `/v1/pages/:id`                   | `get` (`:54-57`)                                                                                                                               |
+| PATCH  | `/v1/pages/:id`                   | `patch` (`:59-62`) — `order?`, `size?`, `name?`, `backgroundColor?`                                                                            |
+| DELETE | `/v1/pages/:id`                   | `remove` (`:64-68`)                                                                                                                            |
 
 ### 3.6 PanelsModule (`panels/panels.controller.ts`)
 
@@ -223,7 +246,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 | POST   | `/v1/panels/:id/conti`     | `setConti` (`:75-83`) — multipart `file`, 콘티(러프 스케치) 단일 슬롯 교체            |
 | DELETE | `/v1/panels/:id/conti`     | `clearConti` (`:85-88`) — 콘티 제거                                                   |
 
-업로드는 `FileInterceptor`로 메모리 버퍼 수신 → `PanelsService.appendUpload` → `StorageService.storeUploadedImage`(검증+썸네일+패널 refImages append).
+업로드는 `FileInterceptor`로 메모리 버퍼 수신 → `PanelsService.appendUpload` (`:169`) → `StorageService.storeUploadedImage`(검증+썸네일) → `appendPanelRefImages` 로 원자적 append (`common/ref-images.ts`).
 
 리스트 응답은 currentRender의 presign URL + 콘티의 `contiUrl`을 동봉 — `panels/panels.service.ts`.
 
@@ -259,13 +282,20 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 페이지 직속 자유 직선 (가이드선/말풍선 연결선/패널 구분선 등). 패널·렌더와 독립이며, export 단계에서 최상단(말풍선·자유 텍스트 위) 레이어로 합성된다(`apps/api/src/export/page-line.render.ts`).
 
-| Method | Route                                  | Handler                                               |
-| ------ | -------------------------------------- | ----------------------------------------------------- |
-| GET    | `/v1/pages/:pageid/page-lines`         | `list` (`page-lines.controller.ts:51-54`)             |
-| POST   | `/v1/pages/:pageid/page-lines`         | `create` (`:56-60`) — `order`는 MAX+1 자동 할당       |
-| POST   | `/v1/pages/:pageid/page-lines/reorder` | `reorder` (`:62-65`) — body `{ ids: string[] }`       |
-| PATCH  | `/v1/page-lines/:id`                   | `patch` (`:67-70`) — `x1/y1/x2/y2`, `style` 부분 갱신 |
-| DELETE | `/v1/page-lines/:id`                   | `remove` (`:72-76`)                                   |
+| Method | Route                                  | Handler                                         |
+| ------ | -------------------------------------- | ----------------------------------------------- |
+| GET    | `/v1/pages/:pageid/page-lines`         | `list` (`page-lines.controller.ts:51-54`)       |
+| POST   | `/v1/pages/:pageid/page-lines`         | `create` (`:56-60`) — `order`는 MAX+1 자동 할당 |
+| POST   | `/v1/pages/:pageid/page-lines/reorder` | `reorder` (`:62-65`) — body `{ ids: string[] }` |
+
+네 재정렬 경로(pages / speech-bubbles / page-texts / page-lines)는 모두 `isReorderPermutation`
+(`common/reorder.ts:13`) 으로 **순열인지** 검사한다. 예전에는 각자 "길이가 같은가 + 전부 이
+페이지 소속인가" 만 봤는데, 그건 집합 비교라 `["a","a"]` 가 통과했다 — 길이 2, 둘 다 소속.
+통과하면 트랜잭션이 같은 행에 order 0·1 을 연달아 쓰고 밀려나야 할 행은 옛 order 를 그대로
+들고 있어, 두 항목이 같은 order 를 갖는다. 그때부터 순서가 요청마다 흔들린다
+(export 합성 순서·에디터 네비게이션에 그대로 나타난다).
+| PATCH | `/v1/page-lines/:id` | `patch` (`:67-70`) — `x1/y1/x2/y2`, `style` 부분 갱신 |
+| DELETE | `/v1/page-lines/:id` | `remove` (`:72-76`) |
 
 `style` 은 세 모듈(PageLine/PageText/SpeechBubble) 모두 PatchSchema 에서 `.partial()` 이므로,
 patch 는 **기본값 → 기존 값 → 입력** 3항 병합이어야 한다(`page-lines.service.ts:93-98`).
@@ -495,17 +525,37 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 - 환경 변수: `S3_ENDPOINT(=http://localhost:9000)`, `S3_PUBLIC_ENDPOINT`, `S3_REGION(=us-east-1)`, `S3_BUCKET(=comicai)`, `S3_ACCESS_KEY(=minioadmin)`, `S3_SECRET_KEY(=minioadmin)` — `:41-48`
 - 부팅 시 `HeadBucketCommand` → 없으면 `CreateBucketCommand` (`STORAGE_AUTO_CREATE_BUCKET=0`이면 skip) — `:56-71`
 - presign TTL: 15분 — `:23`
-- 키 스킴 (`buildKey`, `:168-187`):
-  - `projects/_/renders/{renderJobId}.{ext}` — render 결과
+- 키 스킴 (`buildKey`, `:183-202`) — **prefix 로 지울 수 있게 전부 소유 리소스로 묶는다**:
+  - `projects/{projectId}/panels/{panelId}/renders/{renderJobId}.{ext}` — render 결과. 예전에는
+    `projects/_/renders/{jobId}` 라 projectId 자리가 뭉개져 있어서, 프로젝트를 지울 때 그
+    프로젝트의 렌더 결과만 골라낼 방법이 없었다. **컷 아래**에 두는 이유는 그래야
+    프로젝트·페이지·컷 세 단계 삭제가 전부 prefix 하나로 끝나기 때문이다 — 프로젝트 바로
+    아래였다면 컷 하나를 지울 때 그 컷의 잡 id 를 모아 개별 키를 지워야 한다.
+    `projectId` 는 IR 에 이미 들어 있다(`ir.builder.ts:88` → `render.worker.ts:148`).
+    **옛 키를 옮기지는 않았다** — 삭제 경로 자체가 이번에 처음 생기므로 정리 대상이 쌓여 있지
+    않고, 옛 키도 `storageKey` 를 그대로 들고 있어 읽기는 계속 된다.
   - `projects/{projectId}/refs/{entityId}/{ulid}.{ext}` — consistency 참조 이미지 (수동 업로드 + AI generate 결과)
   - `projects/{projectId}/panels/{panelId}/upload/{ulid}.{ext}` — 패널 업로드
   - `projects/{projectId}/panels/{panelId}/conti/{ulid}.{ext}` — 콘티 스케치 (POST `/v1/panels/:id/conti`)
   - `projects/{projectId}/thumbnail/{ulid}.{ext}` — 프로젝트 썸네일 (POST `/v1/projects/:id/thumbnail`)
   - `users/{userId}/avatar/{ulid}.{ext}` — 사용자 아바타 자체 업로드 (POST `/v1/me/avatar`)
   - `exports/{userId}/{pageId}/{ulid}.{ext}` — 페이지 내보내기
-- 업로드는 `validateAndNormalizeImage`(`storage/image-validator.ts`)로 검증 후 sharp로 256×256 webp 썸네일 자동 생성 — `:106-121`
-- `presignIfSucceeded`: render status가 `succeeded`일 때만 presign URL 반환 — `:131-137`
-- `getBytes`는 어댑터 컨텍스트(`loadReference`)와 export 합성에서 사용 — `:139-152`
+- 삭제 (`deleteByPrefix`, `:161` / `deleteKeys`, `:199`) — **둘 다 던지지 않는다.** 호출부는
+  전부 "DB 행을 이미 지운 뒤" 라, 여기서 던지면 사용자는 삭제에 성공했는데 500 을 받고 다시
+  눌러도 지울 대상이 없어 계속 실패한다. 실패는 로그로 남기고 넘어간다 — 남은 오브젝트는
+  예전과 같은 미아일 뿐이다. `deleteKeys` 는 파생 썸네일(`{key}.thumb.webp`)도 같이 지운다.
+- 삭제 prefix 는 `StoragePrefix` (`:249`) 에 모여 있고 **`buildKey` 와 같은 파일에 있다.**
+  키 규칙과 삭제 규칙이 떨어져 있으면 키만 바꿨을 때 삭제가 조용히 0건이 된다 —
+  실패가 아니라 성공으로 보인다. 그 불변식은 `storage-keys.spec.ts` 가 고정한다.
+- 삭제가 걸린 지점: 프로젝트(`projects.service.ts:94`, prefix + 페이지별 export),
+  페이지(`pages.service.ts:110`, 컷별 prefix + export), 컷(`panels.service.ts:160`),
+  일관성 엔티티(`consistency.service.ts:188`), 프로젝트 썸네일 교체(`projects.service.ts:89`),
+  아바타 업로드·삭제·해제(`me.controller.ts:143`, `:157`, `:120`).
+  **DB 를 먼저 지우고 그다음 S3 다** — 반대 순서면 S3 삭제 성공 뒤 DB 삭제가 실패했을 때
+  화면에는 남아 있는데 이미지가 전부 깨진 리소스가 된다.
+- 업로드는 `validateAndNormalizeImage`(`storage/image-validator.ts`)로 검증 후 sharp로 256×256 webp 썸네일 자동 생성 — `:118-133`
+- `presignIfSucceeded`: render status가 `succeeded`일 때만 presign URL 반환 — `:143-149`
+- `getBytes`는 어댑터 컨텍스트(`loadReference`)와 export 합성에서 사용 — `:216-229`
 
 ---
 

@@ -204,11 +204,16 @@ model Panel {
   conti           Json?
   text            Json    @default("{}")
   refImages       Json    @default("[]") @map("ref_images")
+  /// RenderJob 을 가리키지만 FK 는 걸지 않는다. RenderJob.panelId 가 이미 이 테이블을
+  /// 참조하므로 FK 를 걸면 순환이 되고, 그 순환에서 cascade 삭제 순서가 미묘해진다.
+  /// 잡을 지우는 경로가 컷 삭제 cascade 하나뿐이라(코드에 renderJob.delete 는 없다)
+  /// 컷이 살아 있는 동안 이 값이 dangling 될 수 없다. 읽는 쪽도 잡이 없으면 null 로 흡수한다.
   currentRenderId String? @map("current_render_id")
   styleId         String? @map("style_id")
   history         String[] @default([])
 
-  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  page       Page        @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  renderJobs RenderJob[]
 
   @@index([pageId, order])
   @@map("panels")
@@ -228,6 +233,12 @@ model RenderJob {
   finishedAt  DateTime? @map("finished_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// 컷이 사라지면 그 컷의 잡도 사라져야 한다. FK 가 없을 때는 컷(또는 프로젝트)을 지워도
+  /// render_jobs 수십 건이 영구히 남았고 — cascade 가 pages→panels 에서 끝난다 —
+  /// 그 행들이 가리키는 S3 오브젝트를 되짚을 방법도 사라졌다. 잡을 지우는 코드 경로는
+  /// 저장소에 없으므로(renderJob.delete 0건) 이 cascade 가 유일한 수거 수단이다.
+  panel Panel @relation(fields: [panelId], references: [id], onDelete: Cascade)
 
   @@index([panelId, createdAt])
   @@index([userId, createdAt])
