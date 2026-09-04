@@ -25,6 +25,22 @@ interface GeminiRequest {
   };
 }
 
+/**
+ * 후보 단위 차단 사유. Gemini 는 **결과 이미지**가 정책에 걸리면 `promptFeedback.blockReason`
+ * 을 비워 둔 채 candidate 의 `finishReason` 에만 이유를 넣고 200 을 준다. 이걸 읽지 않으면
+ * "이미지 없음" 으로만 보여서 재시도 대상이 되고, 절대 통과 못 할 요청을 유료로 반복한다.
+ */
+const BLOCKED_FINISH_REASONS = new Set([
+  'SAFETY',
+  'IMAGE_SAFETY',
+  'PROHIBITED_CONTENT',
+  'IMAGE_PROHIBITED_CONTENT',
+  'RECITATION',
+  'IMAGE_RECITATION',
+  'BLOCKLIST',
+  'SPII',
+]);
+
 class GeminiHttpError extends Error {
   constructor(
     public status: number,
@@ -111,15 +127,24 @@ export const GeminiAdapter: ModelAdapter = {
     const json = (await res.json()) as {
       candidates?: {
         content?: { parts?: { inlineData?: { mimeType: string; data: string } }[] };
+        finishReason?: string;
       }[];
       promptFeedback?: { blockReason?: string };
     };
+    // 프롬프트 자체가 막힌 경우.
     if (json.promptFeedback?.blockReason) {
       throw new GeminiHttpError(200, `SAFETY: ${json.promptFeedback.blockReason}`, json);
     }
-    const part = json.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
+    const candidate = json.candidates?.[0];
+    // 결과가 막힌 경우. blockReason 은 비어 있고 parts 에 inlineData 도 없다.
+    const finishReason = candidate?.finishReason;
+    if (finishReason && BLOCKED_FINISH_REASONS.has(finishReason)) {
+      throw new GeminiHttpError(200, `SAFETY: ${finishReason}`, json);
+    }
+    const part = candidate?.content?.parts?.find((p) => p.inlineData);
     if (!part?.inlineData) {
-      throw new GeminiHttpError(200, 'no image in response', json);
+      const detail = finishReason ? ` (${finishReason})` : '';
+      throw new GeminiHttpError(200, `no image in response${detail}`, json);
     }
     const bytes = Uint8Array.from(Buffer.from(part.inlineData.data, 'base64'));
     return { bytes, width: 0, height: 0, mimeType: part.inlineData.mimeType };
@@ -136,6 +161,13 @@ export const GeminiAdapter: ModelAdapter = {
       if (err.status === 429) return { category: 'quota', message: m };
       if (err.status >= 500) return { category: 'transient', message: m };
       if (err.status === 400) return { category: 'invalid', message: m, rawResponse: err.raw };
+      /*
+       * 남는 것은 HTTP 는 성공했는데 쓸 이미지가 없는 응답(status 200)과, 요청을 만들지도
+       * 못한 경우(status 0)다. 'transient' 로 두면 retryLimitFor 가 3 을 주어 **절대 통과
+       * 못 할 요청을 세 번 호출·세 번 과금**하고 "잠시 후 다시" 를 안내한다. 같은 입력이면
+       * 결과도 같으니 재시도 대상이 아니다.
+       */
+      if (err.status < 400) return { category: 'invalid', message: m, rawResponse: err.raw };
       return { category: 'transient', message: m };
     }
     if ((err as { code?: string })?.code === 'ECONNRESET') {

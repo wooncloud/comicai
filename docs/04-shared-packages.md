@@ -289,8 +289,15 @@ availableModels(): ModelId[]
 - `MAX_REF_IMAGES = 16` (`:7`).
 - 요청 구조: `{ url, headers: { 'x-goog-api-key': apiKey }, body: { contents: [{role:'user', parts: GeminiPart[]}], generationConfig: { responseModalities: ['IMAGE','TEXT'], imageConfig: { aspectRatio } } } }` (`:16-26`, `:57-69`).
 - 프롬프트 빌드: styles/characters/backgrounds/worldviews를 각각 `[그림체: ...]`, `[캐릭터: ...]` 등 한국어 태그 텍스트 파트로, 그 뒤 reference 이미지 파트(placeholder), 마지막에 일관성 지시 + userPrompt + seed (`:42-55`).
-- 응답: `candidates[0].content.parts[*].inlineData{mimeType,data(base64)}`에서 첫 inlineData 추출, `promptFeedback.blockReason`은 `safety`로 분류 (`:101-115`).
-- 에러 분류 (`:118-135`): AbortError → `timeout`, `SAFETY:` 접두 → `safety`, 401/403 → `auth`, 429 → `quota`, 5xx → `transient`, 400 → `invalid`, ECONNRESET → `transient`.
+- 응답: `candidates[0].content.parts[*].inlineData{mimeType,data(base64)}`에서 첫 inlineData 추출 (`:127-149`).
+- **차단은 두 자리에서 온다.** 프롬프트가 막히면 `promptFeedback.blockReason` (`:135`), **결과
+  이미지**가 막히면 그 필드는 비어 있고 `candidates[0].finishReason` 에만 이유가 담긴 채 HTTP 200
+  이 온다 (`BLOCKED_FINISH_REASONS`, `:33-43`). 후자를 읽지 않으면 "이미지 없음"으로만 보여
+  `transient` 로 분류되고, `retryLimitFor` 가 3 이라 **통과할 수 없는 요청을 세 번 호출·세 번
+  과금**한 뒤 "잠시 후 다시" 를 안내하게 된다.
+- 에러 분류 (`classifyError`, `:153-177`): AbortError → `timeout`, `SAFETY:` 접두 → `safety`,
+  401/403 → `auth`, 429 → `quota`, 5xx → `transient`, 400 → `invalid`,
+  **400 미만(200 = 이미지 없는 응답, 0 = 요청 실패) → `invalid`**, ECONNRESET → `transient`.
 
 ### OpenAIAdapter (`src/openai.ts`)
 
@@ -302,7 +309,10 @@ availableModels(): ModelId[]
 - 요청 구조: `{ apiKey, prompt, size, referenceKeys[] }` (`:10-15`).
 - 프롬프트: 라인 단위 한국어 텍스트 직렬화(`그림체 X: ...`, `캐릭터 X: ...`, 등) + 패널 비율 안내 + seed + userPrompt (`:111-123`).
 - Aspect → size 매핑(`:125-132`): 정사각 `1024x1024`, 가로 `1536x1024`, 세로 `1024x1536`(gpt-image-2 허용 사이즈).
-- 응답: `{ data: [{ b64_json }] }`에서 첫 base64 추출, mimeType은 `image/png` 고정 (`:99-109`).
+- 응답: `{ data: [{ b64_json }] }`에서 첫 base64 추출, mimeType은 `image/png` 고정 (`:118-127`).
+- 에러 분류 (`classifyError`, `:92-116`): 400 + `content_policy` → `safety`, 그 외 400 → `invalid`,
+  401/403 → `auth`, 429 → `quota`, 5xx → `transient`. Gemini 와 같은 이유로 **400 미만(200 =
+  이미지 없는 응답) 도 `invalid`** 다 — `transient` 로 두면 소용없는 재시도를 3번 유료로 반복한다.
 - 에러 분류 (`:78-97`): AbortError → `timeout`, 401/403 → `auth`, 429 → `quota`, 5xx → `transient`, 400+`content_policy` → `safety`, 400 → `invalid`.
 
 ### MockAdapter (`src/mock.ts`)

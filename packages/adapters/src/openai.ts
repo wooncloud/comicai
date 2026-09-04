@@ -104,6 +104,11 @@ export const OpenAIAdapter: ModelAdapter = {
         }
         return { category: 'invalid', message: err.message, rawResponse: err.raw };
       }
+      // parseOpenAIImageResponse 의 status 200 'no image in response' 가 여기로 온다.
+      // transient 로 두면 소용없는 재시도를 3번 유료로 반복한다 — Gemini 와 같은 이유다.
+      if (err.status < 400) {
+        return { category: 'invalid', message: err.message, rawResponse: err.raw };
+      }
       return { category: 'transient', message: err.message };
     }
     return { category: 'transient', message: (err as Error)?.message ?? 'unknown' };

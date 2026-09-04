@@ -320,6 +320,10 @@ interface RenderError {
 ```
 
 분류는 각 어댑터의 `classifyError`가 결정한다 (`packages/adapters/src/gemini.ts`, `openai.ts`).
+분류가 곧 재시도 정책이라 **틀리면 돈이 샌다** — `transient` 만 3회 재시도되므로, 통과할 수 없는
+요청이 여기로 새면 세 번 호출되고 세 번 과금된다. 특히 Gemini 의 결과 차단은 HTTP 200 +
+`finishReason` 으로 오고, 상태 코드만 보는 분류는 그것을 놓친다.
+분류는 `packages/adapters/src/classify.spec.ts` 로 고정돼 있다.
 
 ### 6.2 재시도 & 종결 매핑
 
