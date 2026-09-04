@@ -232,6 +232,36 @@ pnpm dev
 
 ---
 
+## 6.5 노출 표면
+
+**의존 서비스 포트는 루프백에만 연다** — postgres(`full.yml:43`), redis(`:60`),
+minio(`:78,80`), api(`:142`). docker 의 publish 는 `0.0.0.0` 바인딩이고 iptables 를
+직접 건드리므로, 호스트 방화벽으로 막아도 인터넷에서 닿는다. 예전에는 이 넷이 전부
+공개돼 있었고 **redis 는 비밀번호조차 없었다** — 세션과 렌더 큐가 들어 있으므로
+읽히면 남의 세션을 그대로 쓸 수 있다. 지금은 `REDIS_PASSWORD` 가 필수다(`:58`).
+
+> ⚠ api 를 루프백으로 옮기면서 확인할 것: 터널 라우팅은 Cloudflare 대시보드에 있어
+> 이 저장소에서 볼 수 없다. public hostname 이 `http://api:4000`(도커 네트워크
+> 이름)을 가리키면 안전하고, 호스트 주소(host.docker.internal)로 돼 있으면 닿지 않는다.
+
+**`trust proxy` 는 포트를 닫은 뒤에 켠다**(`apps/api/src/bootstrap.ts:28`).
+순서가 중요하다 — api 포트가 인터넷에 직접 열린 상태에서 먼저 켜면, 프록시를 건너뛴
+요청이 `X-Forwarded-For` 를 마음대로 넣어 rate limit 을 완전히 무력화할 수 있다.
+켜기 전에는 프록시 뒤 모든 요청의 IP 가 같아서, 한 명이 로그인을 몇 번 틀리면
+그 1분 동안 전원이 로그인하지 못했다.
+
+**`COOKIE_SECURE` 는 비워 두는 것이 기본이다.** 값이 있으면 코드의 "프로덕션이면
+자동 켜기" 판정을 덮는다. 예전에는 compose 가 `${COOKIE_SECURE:-0}` 으로 **항상**
+`0` 을 넘겨서 프로덕션 세션 쿠키에 Secure 가 안 붙었다. 빈 문자열도 같은 문제를
+일으키므로 코드가 3상태로 읽는다(`apps/api/src/auth/session.service.ts:137`).
+이 경계는 `session-cookie.spec.ts` 가 고정한다.
+
+**`healthz` 는 의존성을 실제로 검사한다**(`apps/api/src/health/health.controller.ts:26`).
+예전에는 상수만 돌려줘서, Postgres 가 죽어도 컨테이너는 영원히 healthy 였고 앞단은
+계속 트래픽을 밀어 넣었다. 지금은 db/redis/s3 를 병렬로 재고 하나라도 죽으면 503 이다.
+검사마다 2초 타임아웃이 걸려 있다 — 하나가 매달리면 "죽었다" 와 "응답이 없다" 를
+구분할 수 없기 때문이다.
+
 ## 7. Cloudflare Tunnel
 
 `infra/compose/full.yml:169-180` 에 `cloudflared` 서비스가 `profile: ["tunnel"]` 로 정의돼 있다.

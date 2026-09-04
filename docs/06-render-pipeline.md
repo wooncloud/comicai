@@ -13,18 +13,18 @@
         └─▶ RenderController.start        (apps/api/src/render/render.controller.ts:25)
              └─▶ RenderService.startRender(apps/api/src/render/render.service.ts:17)
                   ├─ buildRenderIR        (apps/api/src/render/ir.builder.ts:21)
-                  ├─ prisma.renderJob.create  status='queued'      (render.service.ts:38)
-                  ├─ RenderQueue.enqueue  (BullMQ)                 (render.service.ts:48 → render.queue.ts:34)
-                  └─ panel.currentRenderId/history 갱신            (render.service.ts:50)
+                  ├─ prisma.renderJob.create  status='queued'      (render.service.ts:54)
+                  ├─ RenderQueue.enqueue  (BullMQ)                 (render.service.ts:64 → render.queue.ts:34)
+                  └─ panel.currentRenderId/history 갱신            (render.service.ts:68)
               ⇢ { jobId }                                          (controller: HTTP 202)
 
 [BullMQ worker]
-   └─▶ RenderWorker.process               (apps/api/src/render/render.worker.ts:46)
-        ├─ status='running'  + SseHub.publish('status', running)   (render.worker.ts:52,56)
-        ├─ getAdapter(model) → buildRequest → call                 (render.worker.ts:63,74,75)
-        ├─ storage.putImage(MinIO/S3)                              (render.worker.ts:76 → storage.service.ts:73)
-        ├─ prisma.renderJob.update status='succeeded'+resultImage  (render.worker.ts:83)
-        └─ SseHub.publish('status', succeeded, resultImage)        (render.worker.ts:91)
+   └─▶ RenderWorker.process               (apps/api/src/render/render.worker.ts:95)
+        ├─ status='running'  + SseHub.publish('status', running)   (render.worker.ts:99,105)
+        ├─ getAdapter(model) → buildRequest → call                 (render.worker.ts:112,130,131)
+        ├─ storage.putImage(MinIO/S3)                              (render.worker.ts:132 → storage.service.ts:78)
+        ├─ prisma.renderJob.update status='succeeded'+resultImage  (render.worker.ts:140)
+        └─ SseHub.publish('status', succeeded, resultImage)        (render.worker.ts:153)
 
 [Browser EventSource]
    └─ es.addEventListener('status', …)    (panel-inspector.tsx:118)
@@ -98,7 +98,7 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
   8. 성공:
      - `storage.putImage({kind:'render', renderJobId}, bytes, mime, w, h)` →
        MinIO/S3 PUT, ImageRef 반환 (`apps/api/src/storage/storage.service.ts:75-96`).
-     - `prisma.renderJob.update({ status:'succeeded', resultImage, finishedAt })` (`render.worker.ts:83-90`).
+     - `prisma.renderJob.update({ status:'succeeded', resultImage, finishedAt })` (`render.worker.ts:140-147`).
      - **콘티 자동 정리**: `prisma.panel.update({ data: { conti: Prisma.JsonNull } })` —
        역할을 다한 콘티가 다음 렌더에 잔존하지 않도록 자동 null화. R2 오브젝트는 그대로 두고 포인터만 끊음
        (추후 GC 대상, `render.worker.ts:91-96`).
@@ -153,6 +153,36 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 - `'error'` 리스너 (`:149`): payload의 `error.message`를 인스펙터 상단 배너에 표시.
 
 ---
+
+## 2.5 잡이 고착되지 않게 하는 장치
+
+이 파이프라인에서 가장 위험한 실패는 "에러가 나는 것"이 아니라 **아무 일도 안 일어난
+것처럼 보이는 것**이다. 잡이 `running` 인 채로 남으면 그 컷은 영구히 잠긴다 —
+인스펙터의 생성 버튼이 상태로 비활성이기 때문이다. 세 겹으로 막는다.
+
+1. **`running` 으로 올린 뒤부터는 전부 `try` 안에서 한다**
+   (`render.worker.ts:128` 부터). 예전에는 `resolveApiKey` 가 그 바깥에 있어서,
+   키가 없으면 예외가 `process()` 밖으로 튀어나가 상태 갱신과 SSE 발행이 통째로
+   건너뛰어졌다. 행은 `status='running', error=null` 로 영원히 남았다.
+   `apiKeyId` 만 `catch` 에서도 읽을 수 있게 밖에 둔다(breaker 기록용).
+2. **워커 레벨 안전망** — `worker.on('failed')`(`render.worker.ts:58`)가
+   `queued`/`running` 인 행을 실패로 마감한다. `try` 로도 못 잡는 경우(워커 OOM,
+   `getAdapter` 실패)를 덮는다. `status` 조건이 핵심이다 — 조건 없이 쓰면 정상 실패
+   경로가 방금 기록한 분류된 에러를 덮어쓴다.
+3. **취소 버튼** — 생성 중에는 UI 에 취소가 나온다
+   (`apps/web/components/editor/panel-inspector.tsx:402`). 취소 API 는 원래 있었지만
+   웹에서 부르는 곳이 한 군데도 없었다.
+
+### 재시도가 실제로 다시 돌게
+
+`jobId` 는 `(ir, userId, model)` 해시이고 IR 은 결정적이다. 그래서 같은 컷을 같은
+내용으로 다시 그리면 같은 id 가 나온다 — 그게 더블클릭 방어의 근거다.
+
+그런데 예전에는 같은 id 의 행이 있으면 **상태를 보지 않고 그대로 돌려줬다.**
+한 번 실패한 컷은 원인을 고친 뒤에도 다시 그릴 방법이 없었다. 지금은
+`queued`/`running` 일 때만 합치고, 끝난 잡은 새 id 를 발급한다
+(`render.service.ts:52`). 행을 재사용하지 않는 이유는 패널 히스토리에서 옛 시도가
+사라지고, 아직 그 id 를 들고 있는 워커와 경합하기 때문이다.
 
 ## 3. `RenderStatus` 상태 머신
 
@@ -262,7 +292,7 @@ interface RenderError {
 
 ### 6.2 재시도 & 종결 매핑
 
-`render.worker.ts:152-156` `retryLimitFor`:
+`render.worker.ts:208-212` `retryLimitFor`:
 
 | category  | retry limit | 최종 status       |
 | --------- | ----------- | ----------------- |

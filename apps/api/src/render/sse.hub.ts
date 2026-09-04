@@ -101,6 +101,18 @@ export class SseHub implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Keep-alive heartbeat. 다른 프로세스에 전파할 필요 없으므로 local-only. */
+  /**
+   * Redis 가 실제로 응답하는지. 헬스체크 전용이다.
+   *
+   * SSE_HUB_DISABLED 로 Redis 를 안 쓰는 구성에서는 검사할 대상이 없으므로 통과시킨다 —
+   * 없는 의존성을 죽었다고 보고하면 헬스체크가 영영 빨간색이 된다.
+   */
+  async healthPing(): Promise<void> {
+    const client = this.publisher ?? this.subscriber;
+    if (!client) return;
+    await client.ping();
+  }
+
   ping(jobId: string): void {
     this.deliver(jobId, { type: 'ping', at: new Date().toISOString() });
   }

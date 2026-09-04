@@ -39,6 +39,11 @@ export class StorageService implements OnModuleInit {
 
   constructor(private readonly config: ConfigService) {}
 
+  /** 버킷에 실제로 닿는지. 헬스체크 전용. */
+  async healthPing(): Promise<void> {
+    await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+  }
+
   async onModuleInit() {
     const endpoint = this.config.get<string>('S3_ENDPOINT') ?? 'http://localhost:9000';
     const publicEndpoint = this.config.get<string>('S3_PUBLIC_ENDPOINT') ?? endpoint;

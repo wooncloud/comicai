@@ -134,6 +134,24 @@ export function PanelInspector({
     },
   });
 
+  const cancelRender = useMutation({
+    mutationFn: () => api(ApiPaths.renderJobCancel(activeJobId!), { method: 'POST' }),
+    onSuccess: () => {
+      // 서버가 canceled 로 바꾸면 SSE 가 알려 주지만, 잡이 이미 멈춰 있어
+      // 이벤트가 안 올 수도 있다. 화면은 즉시 풀어 준다.
+      esRef.current?.close();
+      esRef.current = null;
+      patchRender({ currentRenderStatus: 'canceled' });
+      queryClient.setQueryData<RenderJobDTO>(qk.renderJob(activeJobId), (prev) =>
+        prev ? { ...prev, status: 'canceled' } : prev,
+      );
+      toast.push('success', '이미지 생성을 취소했습니다.');
+    },
+    onError: (err) => {
+      toast.push('error', errorMessage(err, '생성을 취소'));
+    },
+  });
+
   function subscribeJob(jobId: string) {
     esRef.current?.close();
     const es = new EventSource(`${API_BASE}${ApiPaths.renderJobEvents(jobId)}`, {
@@ -163,9 +181,18 @@ export function PanelInspector({
           void queryClient.invalidateQueries({ queryKey: qk.panelHistory(panel.id) });
           es.close();
           esRef.current = null;
-        } else if (next === 'failed' || next === 'canceled') {
+        } else if (next === 'failed' || next === 'canceled' || next === 'timeout') {
+          // 예전에는 'timeout' 이 이 분기에서 빠져 있어, 시간 초과로 끝난 잡은
+          // 토스트도 없고 EventSource 도 닫히지 않은 채 조용히 지나갔다.
           patchRender({ currentRenderStatus: next });
-          toast.push('error', next === 'failed' ? '이미지 생성 실패' : '이미지 생성 취소됨');
+          toast.push(
+            'error',
+            next === 'canceled'
+              ? '이미지 생성을 취소했습니다.'
+              : next === 'timeout'
+                ? '시간이 오래 걸려 중단했습니다. 다시 시도해 주세요.'
+                : '이미지를 만들지 못했습니다.',
+          );
           void queryClient.invalidateQueries({ queryKey: qk.panelHistory(panel.id) });
           es.close();
           esRef.current = null;
@@ -360,13 +387,34 @@ export function PanelInspector({
             ))}
           </SelectContent>
         </Select>
-        <Button
-          onClick={() => startRender.mutate()}
-          disabled={status === 'queued' || status === 'running' || startRender.isPending}
-          className="w-full"
-        >
-          {status === 'queued' || status === 'running' ? '생성 중…' : '생성하기'}
-        </Button>
+        {status === 'queued' || status === 'running' ? (
+          /*
+            생성 중에는 취소를 내보낸다. 취소 API 는 원래 있었는데 부르는 곳이
+            한 군데도 없어서, 잡이 어떤 이유로든 멈추면 그 컷은 영구히 잠겼다 —
+            생성 버튼이 status 로 비활성이라 다시 그릴 수도 없었다.
+          */
+          <div className="flex gap-2">
+            <Button disabled className="flex-1">
+              생성 중…
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => cancelRender.mutate()}
+              disabled={cancelRender.isPending}
+              className="shrink-0"
+            >
+              취소
+            </Button>
+          </div>
+        ) : (
+          <Button
+            onClick={() => startRender.mutate()}
+            disabled={startRender.isPending}
+            className="w-full"
+          >
+            생성하기
+          </Button>
+        )}
       </div>
 
       <HistoryTray

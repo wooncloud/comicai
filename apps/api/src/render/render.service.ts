@@ -29,11 +29,27 @@ export class RenderService {
       });
     }
 
-    const jobId = idempotencyKey(ir, userId, model);
-    const existing = await prisma.renderJob.findUnique({ where: { id: jobId } });
-    if (existing) {
-      return { jobId };
+    /*
+     * jobId 는 (ir, userId, model) 해시다. IR 이 결정적이라 같은 컷을 같은 내용으로
+     * 다시 그리면 같은 id 가 나온다.
+     *
+     * 예전에는 같은 id 의 행이 있으면 상태를 보지 않고 그대로 돌려줬다. 그래서 한 번
+     * 실패한 컷은 원인을 고친 뒤에도 **다시 그릴 방법이 없었다** — 버튼을 눌러도 죽은
+     * 잡의 id 를 받아 갔고, 화면은 옛 실패를 다시 보여 주거나 그대로 멈춰 있었다.
+     *
+     * 아직 돌고 있는 잡만 합친다. 그게 이 해시의 실제 목적(더블클릭·중복 제출 방어)이다.
+     * 끝난 잡은 성공이든 실패든 새로 만든다 — 같은 문장으로 다시 뽑아 보는 것도
+     * 정상적인 사용이다.
+     */
+    const baseId = idempotencyKey(ir, userId, model);
+    const existing = await prisma.renderJob.findUnique({ where: { id: baseId } });
+    if (existing && (existing.status === 'queued' || existing.status === 'running')) {
+      return { jobId: baseId };
     }
+
+    // 재시도는 새 id 를 받는다. 행을 재사용하면 패널 히스토리에서 옛 시도가 사라지고,
+    // 아직 그 id 를 들고 있는 워커와도 경합한다.
+    const jobId = existing ? `${baseId}_r${await this.retryCount(panel.id)}` : baseId;
 
     await prisma.renderJob.create({
       data: {
@@ -52,6 +68,11 @@ export class RenderService {
       data: { currentRenderId: jobId, history: { push: jobId } },
     });
     return { jobId };
+  }
+
+  /** 이 패널에서 지금까지 만든 잡 수. 재시도 id 를 서로 다르게 만드는 데만 쓴다. */
+  private async retryCount(panelId: string): Promise<number> {
+    return prisma.renderJob.count({ where: { panelId } });
   }
 
   async getJob(userId: string, id: string): Promise<RenderJobDTO> {

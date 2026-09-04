@@ -127,12 +127,22 @@ export const SESSION_COOKIE = 'comicai_sid';
 // 운영에서 web/api 가 서로 다른 서브도메인일 때 (예: comic.* / comic-api.*)
 // JS 가 CSRF 쿠키를 읽으려면 부모 도메인으로 스코프해야 함. 로컬은 undefined.
 const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
+/**
+ * 3상태로 읽는다: 설정됨(true/false) / 설정 안 됨(undefined).
+ *
+ * `!= null` 로 판정하면 안 된다 — compose 의 `${COOKIE_SECURE:-}` 는 변수를 지우는 게
+ * 아니라 **빈 문자열**을 넘기고, 그러면 "설정됨 + 거짓"으로 읽혀 프로덕션 자동 판정이
+ * 조용히 덮인다. 세션 쿠키에서 Secure 플래그가 빠지면 평문으로 새어 나갈 수 있다.
+ */
+function boolEnv(raw: string | undefined): boolean | undefined {
+  if (raw == null || raw.trim() === '') return undefined;
+  const v = raw.trim().toLowerCase();
+  return v === '1' || v === 'true';
+}
+
 export const SESSION_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure:
-    process.env.COOKIE_SECURE != null
-      ? process.env.COOKIE_SECURE === '1'
-      : process.env.NODE_ENV === 'production',
+  secure: boolEnv(process.env.COOKIE_SECURE) ?? process.env.NODE_ENV === 'production',
   sameSite: 'lax' as const,
   maxAge: SESSION_TTL_SECONDS * 1000,
   path: '/',

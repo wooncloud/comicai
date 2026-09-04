@@ -22,7 +22,7 @@ x-s3-env: &s3-env
 x-api-env: &api-env
   <<: [*db-env, *s3-env]
   NODE_ENV: production
-  REDIS_URL: redis://redis:6379
+  REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD 필수 — .env에 설정하세요}@redis:6379
   MASTER_KEY: ${MASTER_KEY:?MASTER_KEY 필수 — .env에 설정하세요}
   # 관리자 허용 목록과 기능 플래그. 비어 있으면 각각 "관리자 없음", "기능 꺼짐".
   ADMIN_EMAILS: ${ADMIN_EMAILS:-}
@@ -38,7 +38,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comicai}
       POSTGRES_DB: ${POSTGRES_DB:-comicai}
     ports:
-      - "5433:5432"
+      # 루프백에만 연다. docker 의 publish 는 0.0.0.0 바인딩이고 iptables 를
+      # 직접 건드리므로, 호스트 방화벽으로 막아도 인터넷에서 닿는다.
+      - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -51,12 +53,15 @@ services:
     image: redis:7-alpine
     container_name: comicai-redis
     restart: unless-stopped
+    # 기본 설정의 redis 는 인증이 없다. 세션과 렌더 큐가 들어 있으므로
+    # 읽히면 남의 세션을 그대로 쓸 수 있다.
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD 필수 — .env에 설정하세요}"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-}", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -70,8 +75,9 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      # 9001 은 MinIO 콘솔이다. 운영에 필요하면 SSH 터널로 연결한다.
+      - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -115,7 +121,10 @@ services:
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       SESSION_SECRET: ${SESSION_SECRET:-}
       RENDER_WORKER_DISABLED: "1"
-      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+      # 기본을 0 으로 두면 코드의 "프로덕션이면 자동 secure" 판정(session.service.ts)이
+      # 항상 덮인다. 빈 값으로 넘겨 코드가 NODE_ENV 로 판단하게 두고,
+      # 로컬에서 http 로 띄울 때만 .env 에 0 을 넣는다.
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
@@ -123,7 +132,14 @@ services:
       GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
       API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:4000}
     ports:
-      - "4000:4000"
+      # 외부 접근은 cloudflared 터널을 통해서만. 직접 노출하면 터널의
+      # 접근 제어를 우회할 수 있고, trust proxy 와 겹치면 헤더 위조도 가능해진다.
+      #
+      # ⚠ 터널 라우팅은 Cloudflare 대시보드에 있어 이 저장소에서 확인할 수 없다.
+      #   대시보드의 public hostname 이 `http://api:4000`(도커 네트워크 이름)을
+      #   가리키면 이 변경은 안전하다. `host.docker.internal:4000` 으로 돼 있다면
+      #   루프백 바인딩 때문에 닿지 않으므로, 서비스 이름으로 바꿔야 한다.
+      - "127.0.0.1:4000:4000"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:4000/healthz"]
       interval: 5s
