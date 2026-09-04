@@ -58,7 +58,7 @@ export class PanelsService {
 
   async list(userId: string, pageId: string): Promise<PanelDTO[]> {
     await this.pages.findOwned(userId, pageId);
-    const rows = await prisma.panel.findMany({ where: { pageId } });
+    const rows = await prisma.panel.findMany({ where: { pageId }, orderBy: { order: 'asc' } });
     const renderIds = rows.flatMap((r) => (r.currentRenderId ? [r.currentRenderId] : []));
     const jobs = renderIds.length
       ? await prisma.renderJob.findMany({
@@ -102,10 +102,17 @@ export class PanelsService {
 
   async create(userId: string, pageId: string, shape: PanelShape): Promise<PanelDTO> {
     await this.pages.findOwned(userId, pageId);
+    // 맨 위에 쌓는다. 형제 모듈(말풍선·텍스트·직선)과 같은 채번 방식이다.
+    const last = await prisma.panel.findFirst({
+      where: { pageId },
+      orderBy: { order: 'desc' },
+      select: { order: true },
+    });
     const row = await prisma.panel.create({
       data: {
         id: newId('panel'),
         pageId,
+        order: (last?.order ?? -1) + 1,
         shape: shape as unknown as Prisma.InputJsonValue,
         text: emptyDoc() as unknown as Prisma.InputJsonValue,
       },
@@ -116,11 +123,28 @@ export class PanelsService {
   async patch(
     userId: string,
     id: string,
-    patch: { shape?: PanelShape; text?: unknown; styleId?: string | null },
+    patch: {
+      shape?: PanelShape;
+      stroke?: { strokeColor?: string; strokeWidth?: number };
+      text?: unknown;
+      styleId?: string | null;
+    },
   ) {
     await this.assertOwned(userId, id);
     const data: Record<string, unknown> = {};
     if (patch.shape) data.shape = patch.shape;
+    /*
+     * 테두리만 바꾸는 경로. 저장된 shape 를 읽어 두 필드만 덮어쓴다.
+     *
+     * 인스펙터가 shape 전체를 보내던 때는 선택 시점의 낡은 좌표까지 같이 써서,
+     * 컷을 옮긴 직후 색을 바꾸면 이동이 취소됐다. 좌표는 캔버스가 쓰고, 테두리는
+     * 인스펙터가 쓰되 서로의 필드를 건드리지 않게 나눈다.
+     */
+    if (patch.stroke) {
+      const cur = await prisma.panel.findUnique({ where: { id }, select: { shape: true } });
+      if (!cur) throw new NotFoundException({ code: 'PANEL_NOT_FOUND' });
+      data.shape = { ...(cur.shape as unknown as PanelShape), ...patch.stroke };
+    }
     if (patch.text) data.text = patch.text;
     if ('styleId' in patch) data.styleId = patch.styleId ?? null;
     const row = await prisma.panel.update({ where: { id }, data: data as never });

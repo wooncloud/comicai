@@ -30,12 +30,15 @@ const STROKE_STYLE_LABEL: Record<PageLineStrokeStyle, string> = {
 export function PageLineInspector({ editor, shapeId, shape, onCollapse }: Props) {
   const p = shape.props;
 
+  /*
+   * **바뀐 키만 넘긴다.** `updateShape` 는 props 를 부분 병합하므로 스프레드가
+   * 필요 없고, 스프레드하면 오히려 해롭다 — `shape` 는 선택 시점의 스냅샷이라
+   * 그 사이 서버가 채워 준 `lineId` 이 아직 null 인 낡은 값일 수 있다. 그걸
+   * 되쓰면 id 가 다시 null 이 되고, 그 뒤 이 도형의 모든 편집이 저장 큐에서
+   * "id 없음" 으로 걸러진다 — 색을 한 번 바꿨을 뿐인데 영구히 저장되지 않았다.
+   */
   function patch(next: Partial<PageLineShape['props']>) {
-    editor.updateShape<PageLineShape>({
-      id: shapeId,
-      type: 'page-line',
-      props: { ...shape.props, ...next },
-    });
+    editor.updateShape<PageLineShape>({ id: shapeId, type: 'page-line', props: next });
   }
 
   return (

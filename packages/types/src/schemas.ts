@@ -155,8 +155,25 @@ export const PanelShapeSchema = z.object({
 });
 export type PanelShapeInput = z.infer<typeof PanelShapeSchema>;
 export const PanelCreateSchema = z.object({ shape: PanelShapeSchema });
+/**
+ * 테두리만 바꾸는 부분 갱신.
+ *
+ * 인스펙터가 `shape` 전체를 보내면 **선택 시점의 낡은 좌표까지 함께 씁니다** —
+ * 컷을 옮긴 직후 테두리 색을 바꾸면 이동이 취소됐다. 좌표를 아예 실어 보내지
+ * 않는 경로를 따로 두어 그 경합을 없앤다. 좌표는 캔버스만 쓴다.
+ */
+export const PanelStrokePatchSchema = z
+  .object({
+    strokeColor: ColorStringSchema.optional(),
+    strokeWidth: z.number().int().min(1).max(40).optional(),
+  })
+  .refine((v) => v.strokeColor !== undefined || v.strokeWidth !== undefined, {
+    message: '변경할 항목이 없습니다.',
+  });
+
 export const PanelPatchSchema = z.object({
   shape: PanelShapeSchema.optional(),
+  stroke: PanelStrokePatchSchema.optional(),
   text: z.any().optional(),
   styleId: z.string().min(1).nullable().optional(),
 });

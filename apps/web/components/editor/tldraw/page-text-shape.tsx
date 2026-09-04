@@ -81,22 +81,31 @@ function PageTextBody({ shape, util }: { shape: PageTextShape; util: PageTextSha
   const editableRef = useRef<HTMLDivElement>(null);
   const composingRef = useRef(false);
 
-  // 외부 변경(예: DTO sync, 인스펙터에서 다른 필드 변경 후 re-render)만 textContent 에 반영.
+  /*
+   * 외부 변경(DTO sync, 인스펙터에서 다른 필드 변경 후 re-render)만 textContent 에 반영.
+   *
+   * **편집 중에는 건드리지 않는다.** POST 응답 뒤의 refetch 가 조금 전 본문을 들고
+   * 오는데, 그 사이 사용자가 이어 친 글자가 여기서 지워지고 캐럿이 앞으로 튀었다.
+   * 편집이 끝나면 `isEditing` 이 false 가 되면서 이 이펙트가 다시 돌아 맞춰진다.
+   */
   useLayoutEffect(() => {
+    if (isEditing) return;
     const el = editableRef.current;
     if (!el) return;
     if ((el.textContent ?? '') !== text) {
       el.textContent = text;
     }
-  }, [text]);
+  }, [text, isEditing]);
 
   function commit(next: string) {
     const sliced = next.slice(0, 2000);
     if (sliced === shape.props.text) return;
+    // 바뀐 키만. `updateShape` 는 props 를 부분 병합하므로 스프레드하면 낡은
+    // 스냅샷(특히 아직 null 인 textId)을 되쓰게 된다.
     util.editor.updateShape<PageTextShape>({
       id: shape.id,
       type: 'page-text',
-      props: { ...shape.props, text: sliced },
+      props: { text: sliced },
     });
   }
 

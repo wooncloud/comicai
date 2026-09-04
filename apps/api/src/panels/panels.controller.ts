@@ -26,6 +26,8 @@ class CreateDto {
 class PatchDto {
   static zodSchema = PanelPatchSchema;
   shape?: PanelShapeInput;
+  /** 좌표를 건드리지 않고 테두리만. 인스펙터 전용 경로다. */
+  stroke?: { strokeColor?: string; strokeWidth?: number };
   text?: unknown;
   styleId?: string | null;
 }

@@ -1,7 +1,6 @@
 'use client';
 import { useEffect } from 'react';
-import { type Editor, type TLShapeId, createShapeId } from 'tldraw';
-import { api } from '@/lib/api';
+import { type Editor, createShapeId } from 'tldraw';
 import {
   ApiPaths,
   defaultPageTextStyle,
@@ -9,8 +8,7 @@ import {
   type PageTextStyle,
 } from '@comicai/types';
 import type { PageTextShape } from './page-text-shape';
-
-const SAVE_DEBOUNCE_MS = 1500;
+import { useShapeSync, type ShapeSyncSpec } from './use-shape-sync';
 
 interface Args {
   editor: Editor | null;
@@ -120,113 +118,20 @@ export function usePageTextSync({
     });
   }, [editor, texts]);
 
-  // canvas → DTO
-  useEffect(() => {
-    if (!editor) return;
-    const pending = new Map<TLShapeId, PageTextShape>();
-    const creates = new Set<TLShapeId>();
-    const deletes = new Set<string>();
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let cancelled = false;
-
-    function schedule() {
-      onSavingChange(true);
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(flush, SAVE_DEBOUNCE_MS);
-    }
-
-    async function flush() {
-      timer = null;
-      const ops: Promise<void>[] = [];
-      const needsRefetch = creates.size > 0;
-      for (const id of deletes) ops.push(deleteOne(id));
-      for (const id of creates) {
-        const shape = editor!.getShape<PageTextShape>(id);
-        if (shape) ops.push(createOne(shape));
-      }
-      for (const [, shape] of pending) {
-        if (shape.props.textId) ops.push(patchOne(shape));
-      }
-      creates.clear();
-      pending.clear();
-      deletes.clear();
-      try {
-        await Promise.all(ops);
-        if (cancelled) return;
-        if (needsRefetch) {
-          const list = await api<PageTextDTO[]>(ApiPaths.pagePageTexts(pageId));
-          if (!cancelled) onTextsChanged(list);
-        }
-      } catch (err) {
-        if (!cancelled) onSaveError?.(err);
-      } finally {
-        if (!cancelled) onSavingChange(false);
-      }
-    }
-
-    async function createOne(shape: PageTextShape) {
-      const created = await api<PageTextDTO>(ApiPaths.pagePageTexts(pageId), {
-        method: 'POST',
-        body: JSON.stringify(toApi(shape)),
-      });
-      const live = editor!.getShape<PageTextShape>(shape.id);
-      if (!live) return;
-      editor!.store.mergeRemoteChanges(() => {
-        editor!.updateShape<PageTextShape>({
-          id: shape.id,
-          type: 'page-text',
-          props: { ...live.props, textId: created.id },
-        });
-      });
-    }
-
-    async function patchOne(shape: PageTextShape) {
-      if (!shape.props.textId) return;
-      await api<PageTextDTO>(ApiPaths.pageText(shape.props.textId), {
-        method: 'PATCH',
-        body: JSON.stringify(toApi(shape)),
-      });
-    }
-
-    async function deleteOne(id: string) {
-      await api(ApiPaths.pageText(id), { method: 'DELETE' });
-    }
-
-    const unsubscribe = editor.store.listen(
-      (entry) => {
-        let dirty = false;
-        for (const record of Object.values(entry.changes.added)) {
-          if (record.typeName === 'shape' && record.type === 'page-text') {
-            creates.add(record.id);
-            dirty = true;
-          }
-        }
-        for (const [, after] of Object.values(entry.changes.updated)) {
-          if (after.typeName === 'shape' && after.type === 'page-text') {
-            const shape = after as PageTextShape;
-            if (creates.has(shape.id)) continue;
-            pending.set(shape.id, shape);
-            dirty = true;
-          }
-        }
-        for (const record of Object.values(entry.changes.removed)) {
-          if (record.typeName === 'shape' && record.type === 'page-text') {
-            const shape = record as PageTextShape;
-            if (shape.props.textId) deletes.add(shape.props.textId);
-            creates.delete(shape.id);
-            pending.delete(shape.id);
-            dirty = true;
-          }
-        }
-        if (dirty) schedule();
-      },
-      { source: 'user', scope: 'document' },
-    );
-
-    return () => {
-      cancelled = true;
-      unsubscribe();
-      if (timer) clearTimeout(timer);
-    };
-  }, [editor, pageId, onTextsChanged, onSavingChange, onSaveError]);
+  useShapeSync<PageTextShape, PageTextDTO>(SPEC, {
+    editor,
+    pageId,
+    onItemsChanged: onTextsChanged,
+    onSavingChange,
+    onSaveError,
+  });
 }
+
+/** 모듈 상수여야 한다 — useShapeSync 의 의존성 배열에 들어간다. */
+const SPEC: ShapeSyncSpec<PageTextShape, PageTextDTO> = {
+  type: 'page-text',
+  idProp: 'textId',
+  listPath: ApiPaths.pagePageTexts,
+  itemPath: ApiPaths.pageText,
+  toBody: toApi,
+};

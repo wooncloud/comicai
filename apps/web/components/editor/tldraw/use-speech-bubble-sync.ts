@@ -1,7 +1,6 @@
 'use client';
 import { useEffect } from 'react';
-import { type Editor, type TLShapeId, createShapeId } from 'tldraw';
-import { api } from '@/lib/api';
+import { type Editor, createShapeId } from 'tldraw';
 import {
   ApiPaths,
   defaultSpeechBubbleStyle,
@@ -11,8 +10,7 @@ import {
   type SpeechBubbleStyle,
 } from '@comicai/types';
 import type { SpeechBubbleShape } from './speech-bubble-shape';
-
-const SAVE_DEBOUNCE_MS = 1500;
+import { useShapeSync, type ShapeSyncSpec } from './use-shape-sync';
 
 interface Args {
   editor: Editor | null;
@@ -140,113 +138,20 @@ export function useSpeechBubbleSync({
     });
   }, [editor, bubbles]);
 
-  // canvas → DTO
-  useEffect(() => {
-    if (!editor) return;
-    const pending = new Map<TLShapeId, SpeechBubbleShape>();
-    const creates = new Set<TLShapeId>();
-    const deletes = new Set<string>();
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let cancelled = false;
-
-    function schedule() {
-      onSavingChange(true);
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(flush, SAVE_DEBOUNCE_MS);
-    }
-
-    async function flush() {
-      timer = null;
-      const ops: Promise<void>[] = [];
-      const needsRefetch = creates.size > 0;
-      for (const id of deletes) ops.push(deleteOne(id));
-      for (const id of creates) {
-        const shape = editor!.getShape<SpeechBubbleShape>(id);
-        if (shape) ops.push(createOne(shape));
-      }
-      for (const [, shape] of pending) {
-        if (shape.props.bubbleId) ops.push(patchOne(shape));
-      }
-      creates.clear();
-      pending.clear();
-      deletes.clear();
-      try {
-        await Promise.all(ops);
-        if (cancelled) return;
-        if (needsRefetch) {
-          const list = await api<SpeechBubbleDTO[]>(ApiPaths.pageSpeechBubbles(pageId));
-          if (!cancelled) onBubblesChanged(list);
-        }
-      } catch (err) {
-        if (!cancelled) onSaveError?.(err);
-      } finally {
-        if (!cancelled) onSavingChange(false);
-      }
-    }
-
-    async function createOne(shape: SpeechBubbleShape) {
-      const created = await api<SpeechBubbleDTO>(ApiPaths.pageSpeechBubbles(pageId), {
-        method: 'POST',
-        body: JSON.stringify(toApi(shape)),
-      });
-      const live = editor!.getShape<SpeechBubbleShape>(shape.id);
-      if (!live) return;
-      editor!.store.mergeRemoteChanges(() => {
-        editor!.updateShape<SpeechBubbleShape>({
-          id: shape.id,
-          type: 'speech-bubble',
-          props: { ...live.props, bubbleId: created.id },
-        });
-      });
-    }
-
-    async function patchOne(shape: SpeechBubbleShape) {
-      if (!shape.props.bubbleId) return;
-      await api<SpeechBubbleDTO>(ApiPaths.speechBubble(shape.props.bubbleId), {
-        method: 'PATCH',
-        body: JSON.stringify(toApi(shape)),
-      });
-    }
-
-    async function deleteOne(id: string) {
-      await api(ApiPaths.speechBubble(id), { method: 'DELETE' });
-    }
-
-    const unsubscribe = editor.store.listen(
-      (entry) => {
-        let dirty = false;
-        for (const record of Object.values(entry.changes.added)) {
-          if (record.typeName === 'shape' && record.type === 'speech-bubble') {
-            creates.add(record.id);
-            dirty = true;
-          }
-        }
-        for (const [, after] of Object.values(entry.changes.updated)) {
-          if (after.typeName === 'shape' && after.type === 'speech-bubble') {
-            const shape = after as SpeechBubbleShape;
-            if (creates.has(shape.id)) continue;
-            pending.set(shape.id, shape);
-            dirty = true;
-          }
-        }
-        for (const record of Object.values(entry.changes.removed)) {
-          if (record.typeName === 'shape' && record.type === 'speech-bubble') {
-            const shape = record as SpeechBubbleShape;
-            if (shape.props.bubbleId) deletes.add(shape.props.bubbleId);
-            creates.delete(shape.id);
-            pending.delete(shape.id);
-            dirty = true;
-          }
-        }
-        if (dirty) schedule();
-      },
-      { source: 'user', scope: 'document' },
-    );
-
-    return () => {
-      cancelled = true;
-      unsubscribe();
-      if (timer) clearTimeout(timer);
-    };
-  }, [editor, pageId, onBubblesChanged, onSavingChange, onSaveError]);
+  useShapeSync<SpeechBubbleShape, SpeechBubbleDTO>(SPEC, {
+    editor,
+    pageId,
+    onItemsChanged: onBubblesChanged,
+    onSavingChange,
+    onSaveError,
+  });
 }
+
+/** 모듈 상수여야 한다 — useShapeSync 의 의존성 배열에 들어간다. */
+const SPEC: ShapeSyncSpec<SpeechBubbleShape, SpeechBubbleDTO> = {
+  type: 'speech-bubble',
+  idProp: 'bubbleId',
+  listPath: ApiPaths.pageSpeechBubbles,
+  itemPath: ApiPaths.speechBubble,
+  toBody: toApi,
+};

@@ -195,6 +195,11 @@ model PageLine {
 model Panel {
   id              String  @id
   pageId          String  @map("page_id")
+  /// 페이지 안에서의 앞뒤 순서. 없을 때는 findMany 에 orderBy 가 없어서 Postgres 의
+  /// 힙 순서가 그대로 나갔고, 그 순서는 UPDATE(이동·렌더 완료)마다 바뀔 수 있었다 —
+  /// 겹쳐 둔 컷이 새로고침할 때마다 앞뒤가 뒤바뀌었다. 말풍선·텍스트·직선은 처음부터
+  /// 이 컬럼이 있었다.
+  order           Int     @default(0)
   shape           Json
   conti           Json?
   text            Json    @default("{}")
@@ -205,7 +210,7 @@ model Panel {
 
   page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
-  @@index([pageId])
+  @@index([pageId, order])
   @@map("panels")
 }
 

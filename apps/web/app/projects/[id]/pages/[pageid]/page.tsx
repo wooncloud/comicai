@@ -9,6 +9,7 @@ import { useLocalStorageBoolean } from '@/lib/use-local-storage-state';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { MobileBlocker } from '@/components/shell/mobile-blocker';
 import { Button } from '@/components/ui/button';
+import { errorMessage } from '@/lib/error-message';
 import {
   ApiPaths,
   pageLabel,
@@ -74,24 +75,48 @@ export default function PageEditor() {
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [leftCollapsed, setLeftCollapsed] = useLocalStorageBoolean('editor.leftCollapsed');
   const [rightCollapsed, setRightCollapsed] = useLocalStorageBoolean('editor.rightCollapsed');
+  const [loadError, setLoadError] = useState<unknown>(null);
+  /** "다시 시도" 가 로드 이펙트를 다시 돌리게 하는 값. */
+  const [reloadKey, setReloadKey] = useState(0);
 
+  /*
+   * 이 화면의 주 데이터는 react-query 밖이라 전역 오류 경계가 덮지 못한다.
+   * (에디터는 캔버스 상태를 직접 들고 있어야 해서 아직 옮기지 못했다.)
+   *
+   * 그래서 실패를 여기서 직접 다룬다. 예전에는 `catch` 가 없어 하나만 실패해도
+   * 다섯 setState 가 전부 건너뛰어졌고, 화면은 **빈 캔버스에 오류 표시도 없이**
+   * 남았다 — 사용자는 자기 컷이 다 사라진 줄 안다.
+   *
+   * `cancelled` 가드도 같이 넣는다. 없으면 페이지를 빠르게 전환할 때 늦게 온
+   * 응답이 다른 페이지의 컷을 덮어쓴다.
+   */
   useEffect(() => {
     if (!pageId) return;
+    let cancelled = false;
+    setLoadError(null);
     void (async () => {
-      const [p, list, bubs, txs, lns] = await Promise.all([
-        api<PageDTO>(ApiPaths.page(pageId)),
-        api<PanelDTO[]>(ApiPaths.pagePanels(pageId)),
-        api<SpeechBubbleDTO[]>(ApiPaths.pageSpeechBubbles(pageId)),
-        api<PageTextDTO[]>(ApiPaths.pagePageTexts(pageId)),
-        api<PageLineDTO[]>(ApiPaths.pagePageLines(pageId)),
-      ]);
-      setPage(p);
-      setPanels(list);
-      setBubbles(bubs);
-      setTexts(txs);
-      setLines(lns);
+      try {
+        const [p, list, bubs, txs, lns] = await Promise.all([
+          api<PageDTO>(ApiPaths.page(pageId)),
+          api<PanelDTO[]>(ApiPaths.pagePanels(pageId)),
+          api<SpeechBubbleDTO[]>(ApiPaths.pageSpeechBubbles(pageId)),
+          api<PageTextDTO[]>(ApiPaths.pagePageTexts(pageId)),
+          api<PageLineDTO[]>(ApiPaths.pagePageLines(pageId)),
+        ]);
+        if (cancelled) return;
+        setPage(p);
+        setPanels(list);
+        setBubbles(bubs);
+        setTexts(txs);
+        setLines(lns);
+      } catch (err) {
+        if (!cancelled) setLoadError(err);
+      }
     })();
-  }, [pageId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [pageId, reloadKey]);
 
   const onSavingChange = useCallback((v: boolean) => {
     setSaveState((prev) => (v ? 'saving' : prev === 'error' ? 'error' : 'idle'));
@@ -145,22 +170,46 @@ export default function PageEditor() {
 
   useEffect(() => {
     if (!editor) return;
-    const sync = () => {
-      const ids = editor.getSelectedShapeIds();
-      if (ids.length === 0) return setSelection(null);
-      const shape = editor.getShape(ids[0] as TLShapeId);
+
+    function compute(): Selection | null {
+      const ids = editor!.getSelectedShapeIds();
+      if (ids.length === 0) return null;
+      const shape = editor!.getShape(ids[0] as TLShapeId);
       if (shape?.type === 'comic-panel') {
         const panelId = (shape as ComicPanelShape).props.panelId;
-        setSelection(panelId ? { kind: 'panel', id: panelId } : null);
-      } else if (shape?.type === 'speech-bubble') {
-        setSelection({ kind: 'bubble', shape: shape as SpeechBubbleShape });
-      } else if (shape?.type === 'page-text') {
-        setSelection({ kind: 'text', shape: shape as PageTextShape });
-      } else if (shape?.type === 'page-line') {
-        setSelection({ kind: 'line', shape: shape as PageLineShape });
-      } else {
-        setSelection(null);
+        return panelId ? { kind: 'panel', id: panelId } : null;
       }
+      if (shape?.type === 'speech-bubble')
+        return { kind: 'bubble', shape: shape as SpeechBubbleShape };
+      if (shape?.type === 'page-text') return { kind: 'text', shape: shape as PageTextShape };
+      if (shape?.type === 'page-line') return { kind: 'line', shape: shape as PageLineShape };
+      return null;
+    }
+
+    /*
+     * 같은 선택이면 setState 를 건너뛴다.
+     *
+     * tldraw 는 **모든 pointer_move 마다 store 에 pointer 레코드를 쓴다.** 그래서
+     * 이 리스너가 60~120Hz 로 깨어나는데, 매번 새 객체를 넣으면 에디터 트리 전체가
+     * (사이드바 · 툴레일 · tiptap · 히스토리 그리드까지) 그만큼 다시 그려진다.
+     * scope 필터로는 못 거른다 — 선택 상태(instance_page_state)도 pointer 와 같은
+     * 'session' scope 라 같이 걸러지기 때문이다.
+     *
+     * shape 레코드는 불변이라 바뀌지 않으면 참조가 그대로다. 참조 비교로 충분하다.
+     */
+    function same(a: Selection | null, b: Selection | null): boolean {
+      if (a === b) return true;
+      if (!a || a.kind !== b?.kind) return false;
+      if (a.kind === 'panel') return a.id === (b as typeof a).id;
+      return a.shape === (b as typeof a).shape;
+    }
+
+    let prev: Selection | null = null;
+    const sync = () => {
+      const next = compute();
+      if (same(prev, next)) return;
+      prev = next;
+      setSelection(next);
     };
     const unsub = editor.store.listen(sync, { source: 'user' });
     sync();
@@ -172,6 +221,28 @@ export default function PageEditor() {
       selection?.kind === 'panel' ? (panels.find((p) => p.id === selection.id) ?? null) : null,
     [panels, selection],
   );
+
+  /*
+   * 실패했으면 캔버스를 아예 그리지 않는다. 빈 캔버스를 띄우면 사용자가 자기 컷이
+   * 사라진 것으로 읽고, 거기서 뭔가 그리면 그건 정말로 덮어쓰기가 된다.
+   */
+  if (loadError) {
+    return (
+      <div className="flex h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
+        <h1 className="text-title-lg font-semibold">페이지를 불러오지 못했습니다</h1>
+        <p className="text-body-sm text-muted-foreground [text-wrap:pretty]">
+          {errorMessage(loadError)}
+        </p>
+        <p className="text-caption text-muted-foreground">저장된 작업이 사라진 것은 아닙니다.</p>
+        <div className="mt-2 flex gap-2">
+          <Button onClick={() => setReloadKey((k) => k + 1)}>다시 시도</Button>
+          <Button variant="outline" asChild>
+            <a href={`/projects/${projectId}`}>프로젝트로</a>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-dvh flex-col">

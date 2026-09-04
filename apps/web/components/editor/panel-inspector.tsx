@@ -255,11 +255,16 @@ export function PanelInspector({
 
       <PanelStrokeEditor
         shape={panel.shape}
-        onChange={async (next) => {
+        onChange={async (stroke) => {
           try {
+            /*
+             * 좌표를 실어 보내지 않는다. 예전에는 `{ shape: next }` 로 shape 전체를
+             * 보냈는데, `panel.shape` 은 선택 시점의 DTO 라 그 사이 캔버스에서 옮긴
+             * 좌표가 반영돼 있지 않다 — 컷을 옮긴 직후 색을 바꾸면 이동이 취소됐다.
+             */
             const updated = await api<PanelDTO>(ApiPaths.panel(panel.id), {
               method: 'PATCH',
-              body: JSON.stringify({ shape: next }),
+              body: JSON.stringify({ stroke }),
             });
             onPanelUpdated(updated);
           } catch (err) {
@@ -457,18 +462,19 @@ function PanelStrokeEditor({
   onChange,
 }: {
   shape: PanelShape;
-  onChange: (next: PanelShape) => void | Promise<void>;
+  /** 바뀐 필드만 넘긴다 — 좌표는 캔버스 소관이다. */
+  onChange: (next: { strokeColor?: string; strokeWidth?: number }) => void | Promise<void>;
 }) {
   const color = shape.strokeColor ?? '#000000';
   const width = shape.strokeWidth ?? 2;
 
   function commitColor(next: string) {
     if (next === shape.strokeColor) return;
-    void onChange({ ...shape, strokeColor: next });
+    void onChange({ strokeColor: next });
   }
   function commitWidth(next: number) {
     if (next === shape.strokeWidth) return;
-    void onChange({ ...shape, strokeWidth: next });
+    void onChange({ strokeWidth: next });
   }
 
   return (

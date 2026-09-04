@@ -207,13 +207,50 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 캔버스의 shape 트리는 tldraw `editor.store`가 소유한다. 우리 코드는 두 훅으로 React 상태와 동기화한다.
 
-#### `use-panel-sync.ts`
+#### 캔버스 → 서버는 `use-shape-sync.ts` 한 곳이다
 
-`components/editor/tldraw/use-panel-sync.ts:33` — 양방향:
+`components/editor/tldraw/use-shape-sync.ts:76` — 컷·말풍선·자유 텍스트·자유 직선이 **같은 코드**를 쓴다.
+각 훅은 `ShapeSyncSpec`(shape type, id prop 이름, 경로 두 개, `toBody`)만 넘긴다.
 
-- **Down (React → tldraw)**: `panels` prop이 바뀌면 기존 shape map과 diff 떠서 `mergeRemoteChanges` 안에서 create/update/delete. `'user'` 스코프 listener에 잡히지 않게 하기 위해 반드시 mergeRemoteChanges로 감싼다 (`:50-108`)
-- **Up (tldraw → API)**: `editor.store.listen(..., { source: 'user', scope: 'document' })`로 added/updated/removed 추적, 1500ms 디바운스 후 flush. 새로 만든 shape는 `createPanel`로 백엔드 id를 받아와 `mergeRemoteChanges`로 다시 props.panelId를 채움 (`:154-168`). 디바운스 시작에 `onSavingChange(true)`, flush 끝에 false 호출 → 헤더 `SaveStatus` 표시
-- polygon은 bbox 기준 정규화 좌표로 저장/복원 (`normalizePolygonPoints`, `:242-251`)
+예전에는 이 108줄이 네 파일에 복제돼 있었다. 정규화해서 비교하면 세 벌은 **0줄 차이**였고,
+그래서 아래 결함을 고치려면 같은 수정을 네 번 해야 했다. 실제로 갈라지기 시작해서 같은 개념을
+한 곳은 `needsIdAssignment`, 나머지는 `needsRefetch` 라고 불렀다.
+
+이 훅이 고정하는 것은 전부 **"디바운스 1.5초 창 안에서 무슨 일이 일어나는가"** 에 대한 답이다.
+
+- **실패한 저장은 큐로 되돌린다**(`:180`). 예전에는 `await` 앞에서 큐를 비워서, PATCH 가 실패해도
+  캔버스에는 옮긴 위치가 그대로 남았다 — 사용자는 저장됐다고 믿고 작업을 계속하다 새로고침에서
+  전부 잃었다. 지금은 실패한 항목만 되돌려 2·4·8초로 재시도하고, 끝내 안 되면 서버 상태를 다시
+  읽어 캔버스를 되돌린다(`:196`). 저장되지 않은 상태를 화면에 남기는 것이 가장 나쁘다.
+- **떠날 때 남은 편집을 보낸다**(`:214`, `flushNow`). 예전에는 정리 함수가 `clearTimeout` 만 해서,
+  사이드바에서 다른 페이지를 클릭하면 방금 옮긴 위치가 서버에 한 번도 가지 않았다. `keepalive` 로
+  내보내고, `beforeunload` 에서는 확인도 받는다(`:224`).
+- **대기 중인 변경은 shape 스냅샷이 아니라 id 로 들고 있다**(`:81`). 스냅샷을 들면, 생성 응답으로
+  서버 id 가 주입될 때(그 갱신은 `mergeRemoteChanges` 안이라 리스너가 보지 못한다) 스냅샷이 낡은
+  채로 남아 "id 가 없다" 는 이유로 통째로 버려졌다.
+- **되살리기는 생성이 아니라 복구다**(`:238`). 삭제를 Cmd+Z 로 되돌리면 tldraw 는 `added` 로
+  알려 주는데, 예전에는 새 행 생성으로 처리해서 DELETE 와 POST 가 같은 플러시에 함께 나갔다.
+  새로 만들어진 컷에는 장면 설명도 그림체도 생성 기록도 없다.
+
+#### `use-panel-sync.ts` — 반대 방향
+
+`components/editor/tldraw/use-panel-sync.ts:41` — **DTO → 캔버스** 쪽만 남았다. 이 방향은 shape 마다
+좌표 해석이 정말 달라서(직선은 두 점, 컷은 폴리곤 정규화) 합치면 파라미터가 로직보다 길어진다.
+
+- `panels` prop이 바뀌면 기존 shape map과 diff 떠서 `mergeRemoteChanges` 안에서 create/update/delete.
+  감싸지 않으면 이 갱신이 `'user'` 스코프 listener에 잡혀 곧바로 서버에 되쓰인다
+- polygon은 bbox 기준 정규화 좌표로 저장/복원 (`normalizePolygonPoints`, `:148-157`)
+
+#### 인스펙터는 바뀐 키만 넘긴다
+
+`page-line-inspector.tsx:38`·`page-text-inspector.tsx:34`·`speech-bubble-inspector.tsx:26` 의 `patch()` 는
+`updateShape` 에 **변경 키만** 준다. `updateShape` 는 props 를 부분 병합하므로 스프레드가 불필요하고,
+스프레드하면 해롭다 — `shape` 는 선택 시점의 스냅샷이라 그 사이 서버가 채워 준 id 가 아직 null 일 수
+있고, 그걸 되쓰면 그 뒤 이 도형의 모든 편집이 저장 큐에서 "id 없음" 으로 걸러진다. 색을 한 번
+바꿨을 뿐인데 영구히 저장되지 않았다.
+
+컷 테두리는 아예 다른 경로를 쓴다 — `PATCH /v1/panels/:id` 의 `stroke` 필드(`panel-inspector.tsx:262`).
+`shape` 전체를 보내면 낡은 좌표까지 같이 써서 방금 옮긴 위치가 되돌아간다.
 
 #### `use-page-frame.ts`
 
