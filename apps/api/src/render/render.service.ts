@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import { prisma, Prisma } from '@comicai/db';
 import type { ModelId, RenderJobDTO, RenderStatus, ImageRef, RenderError } from '@comicai/types';
 import { PanelsService } from '../panels/panels.service';
@@ -42,14 +43,26 @@ export class RenderService {
      * 정상적인 사용이다.
      */
     const baseId = idempotencyKey(ir, userId, model);
-    const existing = await prisma.renderJob.findUnique({ where: { id: baseId } });
-    if (existing && (existing.status === 'queued' || existing.status === 'running')) {
-      return { jobId: baseId };
+
+    // 이 컷에서 이미 돌고 있는 잡이 있으면 그걸 돌려준다. 더블클릭·중복 제출 방어의
+    // 실제 목적이 이것이다. baseId 만 보면 안 된다 — 재시도로 만든 잡은 id 가 달라서
+    // 요청할 때마다 새 잡이 쌓인다.
+    const active = await prisma.renderJob.findFirst({
+      where: { panelId: panel.id, status: { in: ['queued', 'running'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (active && (active.id === baseId || active.id.startsWith(`${baseId}_r`))) {
+      return { jobId: active.id };
     }
 
-    // 재시도는 새 id 를 받는다. 행을 재사용하면 패널 히스토리에서 옛 시도가 사라지고,
-    // 아직 그 id 를 들고 있는 워커와도 경합한다.
-    const jobId = existing ? `${baseId}_r${await this.retryCount(panel.id)}` : baseId;
+    // 끝난 잡이 있으면 새 id 로 다시 만든다. 행을 재사용하면 패널 히스토리에서 옛 시도가
+    // 사라지고, 아직 그 id 를 들고 있는 워커와도 경합한다.
+    // 접미사는 개수가 아니라 난수다 — 개수를 세면 두 요청이 같은 값을 읽어 충돌한다.
+    const taken = await prisma.renderJob.findUnique({
+      where: { id: baseId },
+      select: { id: true },
+    });
+    const jobId = taken ? `${baseId}_r${randomBytes(4).toString('hex')}` : baseId;
 
     await prisma.renderJob.create({
       data: {
@@ -61,18 +74,13 @@ export class RenderService {
         status: 'queued',
       },
     });
-    await this.queue.enqueue({ renderJobId: jobId, userId, model }, ir);
+    await this.queue.enqueue({ renderJobId: jobId, userId, model });
 
     await prisma.panel.update({
       where: { id: panel.id },
       data: { currentRenderId: jobId, history: { push: jobId } },
     });
     return { jobId };
-  }
-
-  /** 이 패널에서 지금까지 만든 잡 수. 재시도 id 를 서로 다르게 만드는 데만 쓴다. */
-  private async retryCount(panelId: string): Promise<number> {
-    return prisma.renderJob.count({ where: { panelId } });
   }
 
   async getJob(userId: string, id: string): Promise<RenderJobDTO> {
