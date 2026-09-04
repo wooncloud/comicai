@@ -7,7 +7,14 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { prisma, Prisma } from '@comicai/db';
-import type { ModelId, RenderJobDTO, RenderStatus, ImageRef, RenderError } from '@comicai/types';
+import {
+  IN_PROGRESS_RENDER_STATUSES,
+  type ImageRef,
+  type ModelId,
+  type RenderError,
+  type RenderJobDTO,
+  type RenderStatus,
+} from '@comicai/types';
 import { PanelsService } from '../panels/panels.service';
 import { StorageService } from '../storage/storage.service';
 import { buildRenderIR } from './ir.builder';
@@ -64,7 +71,7 @@ export class RenderService {
     // 실제 목적이 이것이다. baseId 만 보면 안 된다 — 재시도로 만든 잡은 id 가 달라서
     // 요청할 때마다 새 잡이 쌓인다.
     const active = await prisma.renderJob.findFirst({
-      where: { panelId: panel.id, status: { in: ['queued', 'running'] } },
+      where: { panelId: panel.id, status: { in: [...IN_PROGRESS_RENDER_STATUSES] } },
       orderBy: { createdAt: 'desc' },
     });
     if (active && (active.id === baseId || active.id.startsWith(`${baseId}_r`))) {

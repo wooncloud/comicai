@@ -29,11 +29,14 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 ### 모델/렌더 enum
 
 - `ModelProvider = 'gemini' | 'openai' | 'mock'` (`src/index.ts:9`).
-- `ModelId = 'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock'` (`src/index.ts:10`).
+- `ModelId = 'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock'`. **값 목록은
+  `MODEL_IDS` (`src/schemas.ts:92`) 하나뿐이고** `index.ts:22` 는 거기서 타입만 파생시킨다.
+  예전에는 같은 문자열이 세 곳(이 유니온, `RenderModelSchema`, `ProjectPatchSchema.defaultModel`)
+  에 적혀 있어서, 하나만 늘리면 나머지가 조용히 거부했다.
 - `RENDER_STATUSES = ['queued','running','succeeded','failed','timeout','canceled']` (`src/index.ts:26-33`).
 - `IN_PROGRESS_RENDER_STATUSES`, `TERMINAL_RENDER_STATUSES`, `isInProgressRender()` 헬퍼 (`src/index.ts:35-40`).
-- `PANEL_SHAPE_TYPES = ['rect','rounded','oval','diamond','parallelogram','polygon']` (`src/index.ts:108-116`). 인스펙터 picker용 `PANEL_SHAPE_PRESETS`는 polygon 제외(`src/index.ts:119-120`).
-- `SPEECH_BUBBLE_VARIANTS = ['ellipse','rect','spike','polygon']` (`src/index.ts:153`). cloud/thought 는 2026-05-19 migration에서 제거되어 ellipse 로 일괄 변환됨.
+- `PANEL_SHAPE_TYPES = ['rect','rounded','oval','diamond','parallelogram','polygon']` (`src/schemas.ts:196`). 인스펙터 picker용 `PANEL_SHAPE_PRESETS`는 polygon 제외이며 `satisfies readonly PanelShapeType[]` 로 부분집합임이 강제된다(`src/index.ts:140`).
+- `SPEECH_BUBBLE_VARIANTS = ['ellipse','rect','spike','polygon']` (`src/schemas.ts:239`). cloud/thought 는 2026-05-19 migration에서 제거되어 ellipse 로 일괄 변환됨.
 - `PAGE_TEXT_FONT_FAMILIES = ['sans-serif','serif','monospace']` (`src/schemas.ts:274`) — 캔버스(CSS)와
   export(SVG) 양쪽에서 실제로 해석되는 것만. `index.ts` 는 여기서 타입만 파생시킨다
   (`PageTextFontFamily`, `src/index.ts:203`). 값을 양쪽에 두면 지역 선언이 `export *` 를 가려
@@ -41,7 +44,7 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/schemas.ts:310`). PageLine 의 선 종류.
   폰트와 같은 이유로 값은 `schemas.ts` 에만 있고, `index.ts:246` 은 타입만 파생시킨다.
 - `RenderErrorCategory = 'transient'|'auth'|'quota'|'safety'|'invalid'|'timeout'` (`src/index.ts:396`).
-- `EntityType = 'style'|'character'|'background'|'worldview'` (`src/index.ts:85`).
+- `EntityType = 'style'|'character'|'background'|'worldview'` — 값은 `ENTITY_TYPES` (`src/schemas.ts:366`), 타입은 `src/index.ts:114`. `packages/db` 의 `entityIdPrefix` 도 이걸 받아서, 타입이 늘면 그 switch 가 컴파일 에러로 걸린다.
 - `OAUTH_PROVIDERS = ['google','github']` (`src/index.ts:23`).
 - `TEXT_ALIGNS = ['left','center','right']` (`src/schemas.ts:4`) — PageText/말풍선 인스펙터 공용 정렬 enum.
 
@@ -126,14 +129,14 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - 렌더: `RenderModelSchema`(ModelId enum과 동일), `RenderStartSchema` (`src/schemas.ts:160-165`).
 - 내보내기: `ExportFormatSchema = 'png'|'jpg'`, `ExportRequestSchema`(dpi 72~600, 기본 150) (`src/schemas.ts:168-173`).
 - 패널: `PanelShapeSchema` — points 3~64개, 좌표는 ±`MAX_PANEL_COORD`(=페이지 상한×2) 범위, strokeColor 기본 `#000000`, strokeWidth 기본 2 (`src/schemas.ts:163-197`).
-- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림 — strokeWidth/Color/fillColor 만), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts:215-258`).
+- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림 — strokeWidth/Color/fillColor 만), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts:215-279`).
 - **입력 타입은 스키마에서 파생시킨다** — `SpeechBubbleCreateInput`/`PatchInput`,
   `PageTextCreateInput`/`PatchInput`, `PageLineCreateInput`/`PatchInput` (`z.infer`).
   예전에는 세 서비스가 같은 모양을 손으로 다시 선언했다(모듈마다 두 개씩, 총 6개).
   스키마를 고쳐도 그 선언은 따라오지 않으므로 검증기가 받는 것과 서비스가 기대하는 것이
   조용히 갈라질 수 있었다.
-- 페이지 텍스트: `PAGE_TEXT_FONT_FAMILIES`, `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`src/schemas.ts:260-306`).
-- 페이지 직선: `PAGE_LINE_STROKE_STYLES`, `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`src/schemas.ts:308-340`).
+- 페이지 텍스트: `PAGE_TEXT_FONT_FAMILIES`, `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`src/schemas.ts:260-327`).
+- 페이지 직선: `PAGE_LINE_STROKE_STYLES`, `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`src/schemas.ts:308-361`).
 - 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`(`prompt+model`), `ConsistencyAttachSchema`(`storageKey`) (`src/schemas.ts:313-332`).
 
 ### Panel path 헬퍼 (panel-path.ts)

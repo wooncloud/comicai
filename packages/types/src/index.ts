@@ -1,6 +1,14 @@
 // ComicAI 공통 타입 (계약). 변경 시 owner: A-Backend.
 
-import { type PAGE_LINE_STROKE_STYLES, PAGE_TEXT_FONT_FAMILIES, type TextAlign } from './schemas';
+import {
+  ENTITY_TYPES,
+  MODEL_IDS,
+  type PAGE_LINE_STROKE_STYLES,
+  PAGE_TEXT_FONT_FAMILIES,
+  type PANEL_SHAPE_TYPES,
+  type SPEECH_BUBBLE_VARIANTS,
+  type TextAlign,
+} from './schemas';
 
 export * from './envelope';
 export * from './schemas';
@@ -8,7 +16,10 @@ export * from './paths';
 export * from './features';
 
 export type ModelProvider = 'gemini' | 'openai' | 'mock';
-export type ModelId = 'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock';
+// 값 목록은 schemas.ts 가 유일한 출처다(Zod 검증기가 보는 배열이 곧 계약이다).
+// 여기서 다시 선언하면 지역 선언이 `export *` 를 가려, 소비자와 검증기가 **조용히**
+// 다른 목록을 보게 된다 — 폰트 목록에서 실제로 있었던 일이다.
+export type ModelId = (typeof MODEL_IDS)[number];
 
 /**
  * 모델 → 제공자. 예전엔 호출부마다 `model.startsWith('gemini')` 로 추측했는데,
@@ -33,11 +44,26 @@ export const RENDER_STATUSES = [
   'canceled',
 ] as const;
 
-export const IN_PROGRESS_RENDER_STATUSES = ['queued', 'running'] as const;
-export const TERMINAL_RENDER_STATUSES = ['succeeded', 'failed', 'timeout', 'canceled'] as const;
+/**
+ * "아직 도는 중" 과 "끝남". 둘을 합치면 `RENDER_STATUSES` 다.
+ *
+ * 이 두 상수는 있었지만 **사용처가 0** 이었고, 대신 같은 목록을 손으로 적은 곳이 넷이었다
+ * (`render.service`·`render.worker` 3곳의 `['queued','running']`, `sse.hub` 의 터미널 목록).
+ * 상태가 하나 늘면 그 넷을 전부 찾아야 하는데, 놓쳐도 컴파일은 통과한다.
+ */
+export const IN_PROGRESS_RENDER_STATUSES = [
+  'queued',
+  'running',
+] as const satisfies readonly RenderStatus[];
+export const TERMINAL_RENDER_STATUSES = [
+  'succeeded',
+  'failed',
+  'timeout',
+  'canceled',
+] as const satisfies readonly RenderStatus[];
 
 export function isInProgressRender(status: RenderStatus | null | undefined): boolean {
-  return status === 'queued' || status === 'running';
+  return status != null && (IN_PROGRESS_RENDER_STATUSES as readonly string[]).includes(status);
 }
 
 export interface SessionInfo {
@@ -88,7 +114,7 @@ export interface AdapterImage {
 }
 
 // ─── 일관성 ─────────────────────────────────────
-export type EntityType = 'style' | 'character' | 'background' | 'worldview';
+export type EntityType = (typeof ENTITY_TYPES)[number];
 
 export interface ConsistencyEntityDTO {
   id: string;
@@ -106,23 +132,21 @@ export interface ConsistencyEntityDTO {
 }
 
 // ─── 패널 ──────────────────────────────────────
+export type PanelShapeType = (typeof PANEL_SHAPE_TYPES)[number];
+
 /**
- * 패널 시각적 형태.
- * - 'rect'/'rounded'/'oval'/'diamond'/'parallelogram': `points`는 4점 bbox.
- * - 'polygon': `points`가 그대로 다각형의 vertex들 (3점 이상). bbox는 min/max로 도출.
+ * 인스펙터 picker에 노출되는 프리셋 — polygon은 별도 도구로만 진입.
+ *
+ * `satisfies` 로 묶어 둔다. 이건 전체 목록의 **부분집합**이어야 하는데, 그냥 문자열
+ * 배열이면 오타나 사라진 모양이 조용히 남는다.
  */
-export const PANEL_SHAPE_TYPES = [
+export const PANEL_SHAPE_PRESETS = [
   'rect',
   'rounded',
   'oval',
   'diamond',
   'parallelogram',
-  'polygon',
-] as const;
-export type PanelShapeType = (typeof PANEL_SHAPE_TYPES)[number];
-
-/** 인스펙터 picker에 노출되는 프리셋 — polygon은 별도 도구로만 진입. */
-export const PANEL_SHAPE_PRESETS = ['rect', 'rounded', 'oval', 'diamond', 'parallelogram'] as const;
+] as const satisfies readonly PanelShapeType[];
 export type PanelShapePreset = (typeof PANEL_SHAPE_PRESETS)[number];
 
 export * from './panel-path';
@@ -155,8 +179,7 @@ export interface PanelDTO {
 }
 
 // ─── 말풍선 ─────────────────────────────────────
-// 모양·선·채움만 담당. 텍스트는 PageText 로 분리.
-export const SPEECH_BUBBLE_VARIANTS = ['ellipse', 'rect', 'spike', 'polygon'] as const;
+// 값 목록은 폰트·모델 ID 와 같은 이유로 schemas.ts 에만 둔다.
 export type SpeechBubbleVariant = (typeof SPEECH_BUBBLE_VARIANTS)[number];
 
 export interface SpeechBubbleShape {

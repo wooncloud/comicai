@@ -82,6 +82,15 @@ export const ApiKeyCreateSchema = z.object({
 });
 export type ApiKeyCreate = z.infer<typeof ApiKeyCreateSchema>;
 
+/**
+ * 등록된 모델.
+ *
+ * 값 목록은 여기 하나뿐이다. 예전에는 `index.ts` 의 `ModelId` 유니온, 이 파일의
+ * `RenderModelSchema`, `ProjectPatchSchema.defaultModel` 세 곳에 같은 문자열이 적혀 있었다 —
+ * 하나만 늘리면 나머지가 조용히 거부한다.
+ */
+export const MODEL_IDS = ['gemini-3.1-flash-image-preview', 'gpt-image-2', 'mock'] as const;
+
 // ─── 프로젝트 ─────────────────────────────────
 export const ProjectCreateSchema = z.object({
   name: z.string().min(1).max(100),
@@ -90,10 +99,7 @@ export const ProjectPatchSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   thumbnail: z.string().nullable().optional(),
   defaultStyleId: z.string().min(1).nullable().optional(),
-  defaultModel: z
-    .enum(['gemini-3.1-flash-image-preview', 'gpt-image-2', 'mock'])
-    .nullable()
-    .optional(),
+  defaultModel: z.enum(MODEL_IDS).nullable().optional(),
 });
 
 // ─── 페이지 ───────────────────────────────────
@@ -157,7 +163,7 @@ export const PageReorderSchema = z.object({
 export type PageReorderInput = z.infer<typeof PageReorderSchema>;
 
 // ─── 렌더 ─────────────────────────────────────
-export const RenderModelSchema = z.enum(['gemini-3.1-flash-image-preview', 'gpt-image-2', 'mock']);
+export const RenderModelSchema = z.enum(MODEL_IDS);
 export const RenderStartSchema = z.object({
   model: RenderModelSchema,
   seed: z.number().int().optional(),
@@ -181,8 +187,23 @@ export type ExportRequest = z.infer<typeof ExportRequestSchema>;
 export const MAX_PANEL_COORD = MAX_PAGE_DIMENSION * 2;
 const PanelCoordSchema = z.number().min(-MAX_PANEL_COORD).max(MAX_PANEL_COORD);
 export const PanelPointSchema = z.object({ x: PanelCoordSchema, y: PanelCoordSchema });
+
+/**
+ * 패널 시각적 형태.
+ * - 'rect'/'rounded'/'oval'/'diamond'/'parallelogram': `points`는 4점 bbox.
+ * - 'polygon': `points`가 그대로 다각형의 vertex들 (3점 이상). bbox는 min/max로 도출.
+ */
+export const PANEL_SHAPE_TYPES = [
+  'rect',
+  'rounded',
+  'oval',
+  'diamond',
+  'parallelogram',
+  'polygon',
+] as const;
+
 export const PanelShapeSchema = z.object({
-  type: z.enum(['rect', 'rounded', 'oval', 'diamond', 'parallelogram', 'polygon']),
+  type: z.enum(PANEL_SHAPE_TYPES),
   points: z.array(PanelPointSchema).min(3).max(64),
   strokeColor: z.string().max(32).default('#000000'),
   strokeWidth: z.number().nonnegative().default(2),
@@ -214,7 +235,9 @@ export const PanelPatchSchema = z.object({
 
 // ─── 말풍선 ───────────────────────────────────
 // 모양·선·채움만. 텍스트는 PageText 로 분리됨.
-export const SpeechBubbleVariantSchema = z.enum(['ellipse', 'rect', 'spike', 'polygon']);
+/** 모양·선·채움만 담당. 텍스트는 PageText 로 분리. */
+export const SPEECH_BUBBLE_VARIANTS = ['ellipse', 'rect', 'spike', 'polygon'] as const;
+export const SpeechBubbleVariantSchema = z.enum(SPEECH_BUBBLE_VARIANTS);
 
 const PointSchema = z.object({ x: z.number(), y: z.number() });
 
@@ -340,7 +363,8 @@ export const PageLineReorderSchema = z.object({
 });
 
 // ─── 일관성 ───────────────────────────────────
-export const EntityTypeSchema = z.enum(['style', 'character', 'background', 'worldview']);
+export const ENTITY_TYPES = ['style', 'character', 'background', 'worldview'] as const;
+export const EntityTypeSchema = z.enum(ENTITY_TYPES);
 export const ConsistencyCreateSchema = z.object({
   type: EntityTypeSchema,
   name: z.string().min(1).max(120),

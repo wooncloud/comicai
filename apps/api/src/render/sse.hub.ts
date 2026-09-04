@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import type { Response } from 'express';
 import Redis from 'ioredis';
-import { isFlagOn } from '@comicai/types';
+import { isFlagOn, TERMINAL_RENDER_STATUSES } from '@comicai/types';
 import {
   decodePubSubEnvelope,
   encodePubSubEnvelope,
@@ -19,7 +19,7 @@ interface BufferedEvent {
 
 const BUFFER_LIMIT = 64;
 const TERMINAL_RETENTION_MS = 5 * 60_000;
-const TERMINAL_STATUSES = new Set(['succeeded', 'failed', 'timeout', 'canceled']);
+const TERMINAL_STATUSES = new Set<string>(TERMINAL_RENDER_STATUSES);
 const CHANNEL_PREFIX = 'render:events:';
 const CHANNEL_PATTERN = CHANNEL_PREFIX + '*';
 

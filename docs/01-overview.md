@@ -15,7 +15,7 @@ ComicAI는 **AI가 만화의 일관성(캐릭터·배경·세계관·그림체)�
 - 패널 렌더 큐(BullMQ) + 어댑터(mock/Gemini/OpenAI) + SSE 진행률 스트리밍 (`apps/api/src/render`, `packages/adapters`, `packages/events`)
 - 페이지 내보내기 (`apps/api/src/export` — `panel-mask.ts`로 패널 알파 마스크 합성)
 
-`packages/types/src/index.ts` 의 `ModelId` 는 현재 `'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock'` 세 가지가 등록되어 있다.
+`packages/types/src/schemas.ts` 의 `MODEL_IDS` 에 현재 `'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock'` 세 가지가 등록되어 있다(`index.ts` 의 `ModelId` 는 여기서 파생된다).
 
 ## 2. 최상위 레이아웃
 

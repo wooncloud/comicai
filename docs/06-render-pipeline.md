@@ -370,8 +370,8 @@ interface RenderError {
 
 ### 6.4 컨트롤러 단의 동기 에러
 
-- `RENDER_INVALID_INPUT` (`render.service.ts:41`) — 본문/콘티/참조 비어있음. HTTP 400.
-- `RENDER_ENQUEUE_FAILED` (`render.service.ts:139`) — BullMQ enqueue 실패. HTTP 503.
+- `RENDER_INVALID_INPUT` (`render.service.ts:50`) — 본문/콘티/참조 비어있음. HTTP 400.
+- `RENDER_ENQUEUE_FAILED` (`render.service.ts:146`) — BullMQ enqueue 실패. HTTP 503.
   행은 `failed`(category `transient`)로 마감된 뒤라 좀비가 남지 않는다.
 - `RESOURCE_NOT_FOUND` (`render.service.ts:150, 175; panels.service.ts:243`).
 - `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:178`),
