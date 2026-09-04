@@ -80,9 +80,8 @@ export class PagesService {
   }
 
   async get(userId: string, id: string): Promise<PageDTO> {
-    await this.findOwned(userId, id);
-    const row = await prisma.page.findUniqueOrThrow({ where: { id } });
-    return this.withBackgroundUrl(row);
+    // findOwned 가 페이지 컬럼을 전부 들고 오므로 여기서 같은 행을 다시 읽지 않는다.
+    return this.withBackgroundUrl(await this.findOwned(userId, id));
   }
 
   async patch(
@@ -144,10 +143,18 @@ export class PagesService {
     return Promise.all(rows.map((r) => this.withBackgroundUrl(r)));
   }
 
-  async findOwned(userId: string, id: string) {
+  /**
+   * 소유권 확인 + 페이지 행.
+   *
+   * `select` 로 id/projectId 만 읽고 호출부가 같은 행을 다시 읽으면 왕복이 두 번이다 —
+   * `get()` 이 정확히 그랬고, 에디터가 페이지를 열 때마다 발생했다. 페이지 행은 작으므로
+   * 소유권만 필요한 호출부(panels·말풍선·텍스트·직선)가 조금 더 읽는 비용보다,
+   * 왕복 하나를 없애는 쪽이 낫다.
+   */
+  async findOwned(userId: string, id: string): Promise<PageRow & { project: { userId: string } }> {
     const row = await prisma.page.findUnique({
       where: { id },
-      select: { id: true, projectId: true, project: { select: { userId: true } } },
+      include: { project: { select: { userId: true } } },
     });
     // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
     if (row?.project.userId !== userId) throw new NotFoundException({ code: 'PAGE_NOT_FOUND' });

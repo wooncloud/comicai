@@ -171,7 +171,16 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 | POST   | `/v1/projects/:id/thumbnail` | `uploadThumbnail` (`:60-68`) — multipart `file`, `MAX_UPLOAD_BYTES`. 썸네일 키 교체      |
 | DELETE | `/v1/projects/:id`           | `remove` (`:70-74`)                                                                      |
 
-`PATCH`의 `defaultStyleId`는 프로젝트 대표 그림체 엔티티 id를 지정한다(렌더 시 자동 주입). `defaultModel`은 패널 인스펙터 모델 select의 초기값. 소유권 체크: `assertOwned` (`projects/projects.service.ts:111`, public 헬퍼).
+`PATCH`의 `defaultStyleId`는 프로젝트 대표 그림체 엔티티 id를 지정한다(렌더 시 자동 주입). `defaultModel`은 패널 인스펙터 모델 select의 초기값. 소유권 체크: `assertOwned` (`projects/projects.service.ts:116`, public 헬퍼).
+
+#### 목록의 폴백 썸네일은 한 번에 읽는다
+
+`thumbnail` 이 없으면 첫 페이지의 `background` 를 폴백 썸네일로 쓴다. 예전에는 그 조회가
+프로젝트마다 한 번씩 나가는 N+1 이었다 — `thumbnail` 은 명시적 업로드로만 채워지므로
+**기본 상태에서는 전부 폴백**이고, 프로젝트 20개면 21쿼리였다. `list` 는 썸네일 없는 id 를
+모아 `firstBackgroundByProject` (`projects.service.ts:159`) 로 한 번에 읽는다
+(`distinct: ['projectId']` + `orderBy [projectId, order]` — 정렬 뒤 프로젝트마다 첫 행).
+단건 경로(create/detail/patch)는 모아 올 것이 없으므로 그대로 그 자리에서 한 번 읽는다.
 
 #### 소유권 실패는 전부 404 다
 
@@ -262,7 +271,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 | PATCH  | `/v1/speech-bubbles/:id`                   | `patch` (`:64-67`) — `variant`/`shape`/`style` (text X) |
 | DELETE | `/v1/speech-bubbles/:id`                   | `remove` (`:69-73`)                                     |
 
-소유 검증은 `page→project→userId` 체인을 `PagesService.findOwned` 와 자체 `assertOwned`로 처리 — `panels.service.ts` 패턴과 동일.
+소유 검증은 `page→project→userId` 체인을 `PagesService.findOwned` (`pages.service.ts:154`) 와 자체 `assertOwned`로 처리 — `panels.service.ts` 패턴과 동일. `findOwned` 는 **페이지 행 전체**를 돌려준다: 예전에는 id/projectId 만 읽어서 `PagesService.get` 이 곧바로 같은 행을 다시 읽었고(에디터가 페이지를 열 때마다 왕복 2회), 페이지 행은 작으므로 소유권만 필요한 호출부가 조금 더 읽는 비용보다 왕복 하나를 없애는 쪽이 낫다.
 
 ### 3.6c PageTextsModule (`page-texts/*`)
 
