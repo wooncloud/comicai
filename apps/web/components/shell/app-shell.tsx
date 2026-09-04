@@ -73,6 +73,11 @@ export function Topbar({ authed = false }: { authed?: boolean }) {
         <span className="h-11 w-11 shrink-0 md:hidden" aria-hidden />
       ) : null}
 
+      {/*
+        드로어에도 같은 로고가 있지만 감추지 않는다. 드로어는 모달 오버레이라
+        열리면 이 헤더를 덮으므로 둘이 동시에 보이는 일이 없고, 여기서 빼면 좁은
+        화면의 헤더에 햄버거만 남아 텅 빈다(nav 와 아바타는 이미 md 미만에서 숨김).
+      */}
       <Link
         href={me ? '/dashboard' : '/'}
         className="flex shrink-0 items-center gap-2 text-title-md font-semibold touch:min-h-11"

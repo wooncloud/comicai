@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
@@ -43,7 +44,22 @@ export function MobileNav({ me }: { me: SessionUser }) {
       <SheetContent side="left" className="p-0">
         <SheetTitle className="sr-only">메뉴</SheetTitle>
 
-        <div className="flex items-center gap-3 border-b border-border px-4 py-4 pr-14">
+        {/*
+          로고가 드로어 맨 위에 있다. 높이를 상단바와 같은 h-14 로 맞춘 이유:
+          드로어가 열릴 때 로고가 원래 있던 자리에 그대로 남아 있는 것처럼 보인다.
+          위치가 튀면 같은 로고가 두 개인 것처럼 읽힌다.
+        */}
+        <div className="flex h-14 shrink-0 items-center border-b border-border px-4 pr-14">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 text-title-md font-semibold touch:min-h-11"
+          >
+            <Image src="/brush.svg" alt="" width={26} height={26} />
+            ComicAI
+          </Link>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-4">
           <Avatar className="h-9 w-9 shrink-0">
             {me.avatarUrl && <AvatarImage src={me.avatarUrl} alt="" />}
             <AvatarFallback>{initials}</AvatarFallback>
