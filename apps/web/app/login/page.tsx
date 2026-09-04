@@ -86,11 +86,6 @@ export default function LoginPage() {
           {pending ? '로그인 중…' : '로그인'}
         </Button>
       </form>
-      <div className="my-6 flex items-center gap-3 text-caption text-muted-foreground">
-        <span className="h-px flex-1 bg-border" />
-        또는
-        <span className="h-px flex-1 bg-border" />
-      </div>
       <OAuthButtons />
       <div className="mt-6 flex items-center justify-between text-body-sm text-muted-foreground">
         <Link href="/signup" className="tap-link underline">

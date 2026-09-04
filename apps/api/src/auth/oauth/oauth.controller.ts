@@ -15,6 +15,21 @@ export class OAuthController {
     private readonly config: ConfigService,
   ) {}
 
+  /**
+   * 켜져 있는 소셜 로그인 목록.
+   *
+   * 없으면 웹이 버튼을 감춘다. 예전에는 환경변수와 무관하게 항상 보여서, 설정하지
+   * 않은 상태로 누르면 API 도메인의 JSON 에러 화면에 떨어졌다 — 앱 밖으로 나가
+   * 돌아올 방법도 안내되지 않았다.
+   *
+   * `:provider` 보다 위에 있어야 한다. 아래에 두면 'providers' 가 provider 이름으로
+   * 잡혀 라우트가 가려진다.
+   */
+  @Get('providers')
+  providers(): { providers: OAuthProvider[] } {
+    return { providers: OAUTH_PROVIDERS.filter((p) => this.oauth.enabled(p)) };
+  }
+
   @Get(':provider')
   async redirect(
     @Param('provider') provider: string,

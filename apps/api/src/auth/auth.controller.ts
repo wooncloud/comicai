@@ -16,6 +16,7 @@ import {
   CredentialsSchema,
   PasswordResetConfirmSchema,
   PasswordResetRequestSchema,
+  SignupSchema,
 } from '@comicai/types';
 import { AuthService } from './auth.service';
 import { AuthTokensService } from './auth-tokens.service';
@@ -28,6 +29,13 @@ class CredentialsDto {
   static zodSchema = CredentialsSchema;
   email!: string;
   password!: string;
+}
+
+class SignupDto {
+  static zodSchema = SignupSchema;
+  email!: string;
+  password!: string;
+  agreeToTerms!: true;
 }
 
 class PasswordResetRequestDto {
@@ -54,7 +62,7 @@ export class AuthController {
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(201)
   async signup(
-    @Body() body: CredentialsDto,
+    @Body() body: SignupDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {

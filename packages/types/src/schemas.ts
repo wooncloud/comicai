@@ -22,6 +22,19 @@ export const CredentialsSchema = z.object({
 });
 export type Credentials = z.infer<typeof CredentialsSchema>;
 
+/**
+ * 가입 전용. 로그인과 스키마를 나눈 이유는 동의가 가입 시점에만 필요하기 때문이다.
+ *
+ * `literal(true)` 라서 값이 없거나 false 면 검증에서 막힌다 — 화면의 체크박스를
+ * 우회해 직접 요청을 보내도 동의 없이 계정이 만들어지지 않는다.
+ */
+export const SignupSchema = CredentialsSchema.extend({
+  agreeToTerms: z.literal(true, {
+    errorMap: () => ({ message: '약관과 개인정보 처리방침에 동의해야 가입할 수 있습니다.' }),
+  }),
+});
+export type SignupInput = z.infer<typeof SignupSchema>;
+
 export const PasswordResetRequestSchema = z.object({
   email: z.string().email().max(255),
 });

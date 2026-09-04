@@ -7,6 +7,7 @@ export const ApiPaths = {
   signup: '/auth/signup',
   login: '/auth/login',
   logout: '/auth/logout',
+  oauthProviders: '/auth/oauth/providers',
   oauthRedirect: (provider: string) => `/auth/oauth/${provider}`,
   oauthCallback: (provider: string) => `/auth/oauth/${provider}/callback`,
   verifyEmailRequest: '/auth/verify-email/request',

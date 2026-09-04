@@ -1,7 +1,8 @@
 'use client';
+import { useQuery } from '@tanstack/react-query';
 import { ApiPaths, type OAuthProvider } from '@comicai/types';
 import type { SVGProps } from 'react';
-import { API_BASE } from '@/lib/api';
+import { api, API_BASE } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 
 // Icon from Material Design Icons by Pictogrammers — https://github.com/Templarian/MaterialDesign/blob/master/LICENSE
@@ -40,19 +41,46 @@ interface Props {
 }
 
 export function OAuthButtons({ returnTo }: Props) {
+  /*
+   * 서버가 켜져 있다고 알려 준 것만 보여 준다.
+   *
+   * 예전에는 환경변수와 무관하게 항상 보였다. 설정하지 않은 상태로 누르면 API 도메인의
+   * JSON 에러 화면에 떨어졌고, 거기서는 앱으로 돌아올 방법도 안내되지 않았다.
+   *
+   * 응답이 오기 전에는 아무것도 그리지 않는다 — 버튼을 먼저 보였다가 없애면 누르려던
+   * 손가락 밑에서 사라진다.
+   */
+  const { data } = useQuery<{ providers: OAuthProvider[] }>({
+    queryKey: ['oauth-providers'],
+    queryFn: () => api<{ providers: OAuthProvider[] }>(ApiPaths.oauthProviders),
+    // 배포 중에 바뀌지 않는 값이다. 화면을 옮길 때마다 다시 물을 이유가 없다.
+    staleTime: Infinity,
+    retry: false,
+  });
+  const enabled = data?.providers;
+  if (!enabled || enabled.length === 0) return null;
+
   return (
-    <div className="space-y-2">
-      {PROVIDERS.map(({ id, label, Icon }) => {
-        const qs = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
-        return (
-          <Button key={id} asChild variant="outline" className="w-full">
-            <a href={`${API_BASE}${ApiPaths.oauthRedirect(id)}${qs}`}>
-              <Icon className="h-4 w-4 shrink-0" />
-              {label}
-            </a>
-          </Button>
-        );
-      })}
-    </div>
+    <>
+      {/* 구분선도 여기 있어야 한다. 밖에 두면 버튼이 숨겨졌을 때 "또는" 만 남는다. */}
+      <div className="my-6 flex items-center gap-3 text-caption text-muted-foreground">
+        <span className="h-px flex-1 bg-border" />
+        또는
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <div className="space-y-2">
+        {PROVIDERS.filter((p) => enabled.includes(p.id)).map(({ id, label, Icon }) => {
+          const qs = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
+          return (
+            <Button key={id} asChild variant="outline" className="w-full">
+              <a href={`${API_BASE}${ApiPaths.oauthRedirect(id)}${qs}`}>
+                <Icon className="h-4 w-4 shrink-0" />
+                {label}
+              </a>
+            </Button>
+          );
+        })}
+      </div>
+    </>
   );
 }

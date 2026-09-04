@@ -16,13 +16,17 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setPending(true);
     try {
-      await api(ApiPaths.signup, { method: 'POST', body: JSON.stringify({ email, password }) });
+      await api(ApiPaths.signup, {
+        method: 'POST',
+        body: JSON.stringify({ email, password, agreeToTerms: agreed }),
+      });
       router.push('/dashboard');
     } catch (err) {
       setError(errorMessage(err, '회원가입'));
@@ -60,16 +64,33 @@ export default function SignupPage() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </label>
+        {/*
+          동의는 가입 시점에만 받는다. 기본은 체크 해제 — 미리 체크해 두면 동의를
+          받았다고 보기 어렵고, 서버도 literal(true) 로 막고 있어 어차피 통과하지 않는다.
+        */}
+        <label className="flex cursor-pointer items-start gap-2.5 pt-1 text-body-sm">
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-input accent-primary"
+          />
+          <span className="text-muted-foreground">
+            <Link href="/terms" target="_blank" className="text-foreground underline">
+              이용약관
+            </Link>
+            과{' '}
+            <Link href="/privacy" target="_blank" className="text-foreground underline">
+              개인정보 처리방침
+            </Link>
+            에 동의합니다.
+          </span>
+        </label>
         {error && <p className="text-body-sm text-destructive">{error}</p>}
-        <Button type="submit" disabled={pending} className="w-full">
+        <Button type="submit" disabled={pending || !agreed} className="w-full">
           {pending ? '가입 중…' : '회원가입'}
         </Button>
       </form>
-      <div className="my-6 flex items-center gap-3 text-caption text-muted-foreground">
-        <span className="h-px flex-1 bg-border" />
-        또는
-        <span className="h-px flex-1 bg-border" />
-      </div>
       <OAuthButtons />
       <p className="mt-6 text-body-sm text-muted-foreground">
         이미 계정이 있나요?{' '}

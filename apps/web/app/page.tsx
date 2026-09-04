@@ -164,25 +164,32 @@ export default function HomePage() {
               aria-hidden="true"
             />
             <div className="flex flex-col gap-2">
-              <h3 className="text-title-md font-bold">API 키 등록 안내</h3>
+              <h3 className="text-title-md font-bold">알아두실 점</h3>
               <p className="max-w-3xl text-body-sm text-muted-foreground [text-wrap:pretty]">
-                ComicAI는 사용자가 직접 발급한 API 키로 동작합니다. Gemini는 Google AI Studio에서,
-                OpenAI는 OpenAI Platform에서 발급받은 키를 설정 화면에 등록하면 됩니다. 키는 서버에
-                안전하게 암호화되어 저장됩니다.
+                그림은 외부 AI 서비스를 거쳐 만들어집니다. 비용이 들기 때문에 계정마다 하루 생성
+                횟수에 상한이 있고, 같은 문장이어도 결과는 매번 조금씩 다릅니다. 만드신 작품은 다른
+                사용자에게 보이지 않습니다.
               </p>
             </div>
           </div>
         </section>
 
         <footer className="border-t border-border">
-          <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-6 text-caption text-muted-foreground">
+          <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-6 text-caption text-muted-foreground">
             <span>© 2026 ComicAI</span>
-            <Link
-              href="/health"
-              className="-mr-3 flex h-11 items-center px-3 hover:text-foreground"
-            >
-              상태
-            </Link>
+            {/* 약관·개인정보 처리방침은 어디서든 닿아야 한다. 가입 화면에만 두면
+                이미 가입한 사람은 다시 볼 방법이 없다. */}
+            <div className="-mr-3 flex items-center">
+              <Link href="/terms" className="flex h-11 items-center px-3 hover:text-foreground">
+                이용약관
+              </Link>
+              <Link href="/privacy" className="flex h-11 items-center px-3 hover:text-foreground">
+                개인정보 처리방침
+              </Link>
+              <Link href="/health" className="flex h-11 items-center px-3 hover:text-foreground">
+                상태
+              </Link>
+            </div>
           </div>
         </footer>
       </main>

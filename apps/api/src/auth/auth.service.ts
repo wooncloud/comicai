@@ -8,7 +8,11 @@ export class AuthService {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) throw new ConflictException({ code: 'EMAIL_TAKEN' });
     const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
-    const user = await prisma.user.create({ data: { id: newId('user'), email, passwordHash } });
+    // 동의 시각을 계정 생성과 같은 트랜잭션에 남긴다. 나중에 채우면 "동의는 받았는데
+    // 기록이 없는" 계정이 생길 수 있고, 그러면 재동의 대상을 가려낼 수 없다.
+    const user = await prisma.user.create({
+      data: { id: newId('user'), email, passwordHash, termsAgreedAt: new Date() },
+    });
     return { id: user.id, email: user.email };
   }
 

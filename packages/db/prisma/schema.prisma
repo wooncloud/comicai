@@ -18,6 +18,10 @@ model User {
   avatarStorageKey String?  @map("avatar_storage_key")
   oauthProviders  Json      @default("[]") @map("oauth_providers")
   emailVerifiedAt DateTime? @map("email_verified_at")
+  /// 약관·개인정보 처리방침 동의 시각. 불리언이 아니라 시각인 이유는
+  /// "동의했다"만으로는 언제·어느 판본에 동의했는지 알 수 없기 때문이다.
+  /// 문서를 개정해 재동의를 받아야 할 때 이 값이 판단 근거가 된다.
+  termsAgreedAt   DateTime? @map("terms_agreed_at")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
