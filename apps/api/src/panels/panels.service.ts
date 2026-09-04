@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { newId, prisma, Prisma } from '@comicai/db';
 import {
   emptyDoc,
@@ -269,7 +269,9 @@ export class PanelsService {
       throw new NotFoundException({ code: 'RESOURCE_NOT_FOUND' });
     }
     if (job.status !== 'succeeded') {
-      throw new ForbiddenException({
+      // 403 + code:'CONFLICT' 였다 — 상태 코드와 코드가 서로 다른 말을 했다.
+      // 같은 상황을 다루는 render.service.cancel 과 같은 모양으로 맞춘다.
+      throw new BadRequestException({
         code: 'CONFLICT',
         message: '성공한 렌더만 복원할 수 있습니다.',
       });
@@ -299,9 +301,9 @@ export class PanelsService {
         page: { select: { project: { select: { userId: true, id: true } } } },
       },
     });
-    if (!row) throw new NotFoundException({ code: 'PANEL_NOT_FOUND' });
-    if (row.page.project.userId !== userId)
-      throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
+    // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
+    if (row?.page.project.userId !== userId)
+      throw new NotFoundException({ code: 'PANEL_NOT_FOUND' });
     return {
       id: row.id,
       pageId: row.pageId,

@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -340,8 +339,9 @@ export class ConsistencyService {
         project: { select: { userId: true } },
       },
     });
-    if (!row) throw new NotFoundException({ code: 'CONSISTENCY_NOT_FOUND' });
-    if (row.project.userId !== userId) throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
+    // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
+    if (row?.project.userId !== userId)
+      throw new NotFoundException({ code: 'CONSISTENCY_NOT_FOUND' });
     return row;
   }
 
@@ -355,8 +355,9 @@ export class ConsistencyService {
         project: { select: { userId: true } },
       },
     });
-    if (!row) throw new NotFoundException({ code: 'CONSISTENCY_NOT_FOUND' });
-    if (row.project.userId !== userId) throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
+    // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
+    if (row?.project.userId !== userId)
+      throw new NotFoundException({ code: 'CONSISTENCY_NOT_FOUND' });
     return row;
   }
 }

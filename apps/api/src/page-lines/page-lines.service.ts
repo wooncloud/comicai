@@ -138,9 +138,9 @@ export class PageLinesService {
         page: { select: { project: { select: { userId: true } } } },
       },
     });
-    if (!row) throw new NotFoundException({ code: 'PAGE_LINE_NOT_FOUND' });
-    if (row.page.project.userId !== userId)
-      throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
+    // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
+    if (row?.page.project.userId !== userId)
+      throw new NotFoundException({ code: 'PAGE_LINE_NOT_FOUND' });
     return { id: row.id, pageId: row.pageId, style: row.style };
   }
 }

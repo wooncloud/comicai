@@ -171,7 +171,22 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 | POST   | `/v1/projects/:id/thumbnail` | `uploadThumbnail` (`:60-68`) — multipart `file`, `MAX_UPLOAD_BYTES`. 썸네일 키 교체      |
 | DELETE | `/v1/projects/:id`           | `remove` (`:70-74`)                                                                      |
 
-`PATCH`의 `defaultStyleId`는 프로젝트 대표 그림체 엔티티 id를 지정한다(렌더 시 자동 주입). `defaultModel`은 패널 인스펙터 모델 select의 초기값. 소유권 체크: `assertOwned` (`projects/projects.service.ts`, public 헬퍼).
+`PATCH`의 `defaultStyleId`는 프로젝트 대표 그림체 엔티티 id를 지정한다(렌더 시 자동 주입). `defaultModel`은 패널 인스펙터 모델 select의 초기값. 소유권 체크: `assertOwned` (`projects/projects.service.ts:111`, public 헬퍼).
+
+#### 소유권 실패는 전부 404 다
+
+**남의 리소스도, 없는 리소스도 똑같이 404** 다 (`projects.service.ts:126`). 예전에는 남의 것에
+403 `RESOURCE_FORBIDDEN` 을 줬는데, 그러면 "그 id 는 실존하며 남의 것" 이 확인된다 — id 를
+훑는 것만으로 다른 사용자의 리소스 존재 여부를 열거할 수 있다. 응답이 같아야 아무것도 새지 않는다.
+
+코드는 `RESOURCE_NOT_FOUND` 가 아니라 도메인별 코드(`PROJECT_NOT_FOUND`, `PAGE_NOT_FOUND`,
+`PANEL_NOT_FOUND`, `CONSISTENCY_NOT_FOUND`, `SPEECH_BUBBLE_NOT_FOUND`, `PAGE_TEXT_NOT_FOUND`,
+`PAGE_LINE_NOT_FOUND`)를 쓴다. 웹의 문구 표에서 `RESOURCE_NOT_FOUND` 는 null(문구 없음)이라
+호출부 문맥에 기대게 되는데, 도메인 코드는 그 자체로 안내가 된다.
+
+같은 이유로 `PanelsService.restoreRender` 의 "성공한 렌더만 복원" 거부도 403 에서 400 으로
+바꿨다 (`panels.service.ts:274`) — 403 인데 code 가 `CONFLICT` 라 상태 코드와 코드가 서로 다른
+말을 하고 있었고, 같은 상황을 다루는 `RenderService.cancel` 은 이미 400 이다.
 
 ### 3.4 ConsistencyModule (`consistency/consistency.controller.ts`)
 

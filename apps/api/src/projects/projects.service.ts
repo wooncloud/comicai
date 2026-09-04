@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { newId, prisma } from '@comicai/db';
 import type { ImageRef, ModelId, ProjectDTO } from '@comicai/types';
 import { StoragePrefix, StorageService } from '../storage/storage.service';
@@ -52,8 +52,8 @@ export class ProjectsService {
       where: { id },
       include: { pages: { select: { id: true, order: true }, orderBy: { order: 'asc' } } },
     });
-    if (!row) throw new NotFoundException({ code: 'PROJECT_NOT_FOUND' });
-    if (row.userId !== userId) throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
+    // 남의 것도 없는 것도 404 — 이유는 projects.service.ts 의 assertOwned 참고.
+    if (row?.userId !== userId) throw new NotFoundException({ code: 'PROJECT_NOT_FOUND' });
     const dto = await this.withThumbnailUrl(row);
     return { ...dto, pages: row.pages };
   }
@@ -110,8 +110,18 @@ export class ProjectsService {
       where: { id },
       select: { userId: true, thumbnail: true },
     });
-    if (!row) throw new NotFoundException({ code: 'PROJECT_NOT_FOUND' });
-    if (row.userId !== userId) throw new ForbiddenException({ code: 'RESOURCE_FORBIDDEN' });
+    /*
+     * **남의 것도, 없는 것도 똑같이 404 다.**
+     *
+     * 예전에는 남의 리소스에 403 을 줬는데, 그러면 "그 id 는 실존하며 남의 것" 이 확인된다.
+     * id 를 훑는 것만으로 다른 사용자의 리소스 존재 여부를 열거할 수 있다. 응답이 같아야
+     * 아무것도 새지 않는다.
+     *
+     * 코드는 `RESOURCE_NOT_FOUND` 가 아니라 도메인별 코드를 쓴다 — 웹의 문구 표에서
+     * `RESOURCE_NOT_FOUND` 는 null(문구 없음)이라 호출부 문맥에 기대게 되는데,
+     * 도메인 코드는 "프로젝트를 찾을 수 없습니다" 처럼 그 자체로 안내가 된다.
+     */
+    if (row?.userId !== userId) throw new NotFoundException({ code: 'PROJECT_NOT_FOUND' });
     return { thumbnail: row.thumbnail };
   }
 
