@@ -341,9 +341,14 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 | DELETE | `/v1/page-lines/:id` | `remove` (`:72-76`) |
 
 `style` 은 세 모듈(PageLine/PageText/SpeechBubble) 모두 PatchSchema 에서 `.partial()` 이므로,
-patch 는 **기본값 → 기존 값 → 입력** 3항 병합이어야 한다(`page-lines.service.ts:93-98`).
-기존 값을 빼먹으면 명시하지 않은 필드가 기본값으로 되돌아간다 — 굵기 8인 선의 색만 바꿔도
-굵기가 리셋된다. 병합 규칙은 `common/style-merge.spec.ts` 가 고정한다.
+patch 는 **기본값 → 기존 값 → 입력** 3항 병합이어야 한다. 기존 값을 빼먹으면 명시하지 않은
+필드가 기본값으로 되돌아간다 — 굵기 8인 선의 색만 바꿔도 굵기가 리셋된다.
+
+병합은 세 모듈이 공유하는 `mergeStyle` (`common/style-merge.ts:15`) 한 곳에서만 한다.
+예전에는 세 서비스가 각자 인라인으로 병합하고, 규칙을 고정한다는 `style-merge.spec.ts` 는
+**그 파일 안에 자기만의 `merge` 를 정의해 두고 있었다** — 테스트가 통과해도 서비스가 그
+규칙을 지킨다는 보장이 없었던 셈이다. 지금 spec 은 서비스가 쓰는 바로 그 함수를 가져온다.
+PageText 만 병합 뒤에 폰트 보정이 한 겹 더 붙는다(`page-texts.service.ts:33`).
 
 좌표는 페이지 좌표계 절대값 두 점(x1/y1/x2/y2)으로 저장된다. tldraw 측은 BaseBoxShape 패턴(bbox + bbox 내 normalized 두 끝점)으로 표현하며, sync hook(`apps/web/components/editor/tldraw/use-page-line-sync.ts`)이 두 표현을 양방향 변환한다. `style` 은 `PageLineStyle` (`strokeWidth/strokeColor/strokeStyle='solid'|'dashed'`) 의 partial 머지로 정규화 — `page-lines.service.ts:63-84` (`create`) / `:86-99` (`patch`).
 

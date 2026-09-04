@@ -9,6 +9,7 @@ import {
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { isReorderPermutation } from '../common/reorder';
+import { mergeStyle } from '../common/style-merge';
 import { apiError } from '../common/api-error';
 
 interface BubbleRow {
@@ -28,7 +29,7 @@ function toDto(row: BubbleRow): SpeechBubbleDTO {
     pageId: row.pageId,
     variant: row.variant as SpeechBubbleVariant,
     shape: row.shape as SpeechBubbleShape,
-    style: { ...defaultSpeechBubbleStyle(), ...((row.style as Partial<SpeechBubbleStyle>) ?? {}) },
+    style: mergeStyle(defaultSpeechBubbleStyle(), row.style as Partial<SpeechBubbleStyle> | null),
     order: row.order,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -67,14 +68,14 @@ export class SpeechBubblesService {
       _max: { order: true },
     });
     const order = (max._max.order ?? -1) + 1;
-    const style = { ...defaultSpeechBubbleStyle(), ...(input.style ?? {}) };
+    const style = mergeStyle(defaultSpeechBubbleStyle(), input.style);
     const row = await prisma.speechBubble.create({
       data: {
         id: newId('bubble'),
         pageId,
         variant: input.variant,
         shape: input.shape as unknown as Prisma.InputJsonValue,
-        style: style,
+        style: style as unknown as Prisma.InputJsonValue,
         order,
       },
     });
@@ -87,10 +88,12 @@ export class SpeechBubblesService {
     if (input.variant) data.variant = input.variant;
     if (input.shape) data.shape = input.shape as unknown as Prisma.InputJsonValue;
     if (input.style) {
-      // PatchSchema 의 style 은 .partial() 이다. 기존 값을 빼먹으면 명시하지 않은
-      // 필드가 기본값으로 되돌아간다(굵기 8인 선의 색만 바꿔도 굵기가 리셋됨).
-      const current = (owned.style ?? {}) as Partial<SpeechBubbleStyle>;
-      data.style = { ...defaultSpeechBubbleStyle(), ...current, ...input.style };
+      // 기존 값을 빼먹으면 명시하지 않은 필드가 기본값으로 되돌아간다 — style-merge.ts 참고.
+      data.style = mergeStyle(
+        defaultSpeechBubbleStyle(),
+        owned.style as Partial<SpeechBubbleStyle> | null,
+        input.style,
+      ) as unknown as Prisma.InputJsonValue;
     }
     const row = await prisma.speechBubble.update({ where: { id: owned.id }, data });
     return toDto(row);

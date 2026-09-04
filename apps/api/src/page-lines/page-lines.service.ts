@@ -3,6 +3,7 @@ import { newId, prisma, Prisma } from '@comicai/db';
 import { defaultPageLineStyle, type PageLineDTO, type PageLineStyle } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
 import { isReorderPermutation } from '../common/reorder';
+import { mergeStyle } from '../common/style-merge';
 import { apiError } from '../common/api-error';
 
 interface PageLineRow {
@@ -26,7 +27,7 @@ function toDto(row: PageLineRow): PageLineDTO {
     y1: row.y1,
     x2: row.x2,
     y2: row.y2,
-    style: { ...defaultPageLineStyle(), ...((row.style as Partial<PageLineStyle>) ?? {}) },
+    style: mergeStyle(defaultPageLineStyle(), row.style as Partial<PageLineStyle> | null),
     order: row.order,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -69,7 +70,7 @@ export class PageLinesService {
       _max: { order: true },
     });
     const order = (max._max.order ?? -1) + 1;
-    const style = { ...defaultPageLineStyle(), ...(input.style ?? {}) };
+    const style = mergeStyle(defaultPageLineStyle(), input.style);
     const row = await prisma.pageLine.create({
       data: {
         id: newId('pline'),
@@ -78,7 +79,7 @@ export class PageLinesService {
         y1: input.y1,
         x2: input.x2,
         y2: input.y2,
-        style: style,
+        style: style as unknown as Prisma.InputJsonValue,
         order,
       },
     });
@@ -93,10 +94,12 @@ export class PageLinesService {
     if (input.x2 !== undefined) data.x2 = input.x2;
     if (input.y2 !== undefined) data.y2 = input.y2;
     if (input.style) {
-      // PatchSchema 의 style 은 .partial() 이다. 기존 값을 빼먹으면 명시하지 않은
-      // 필드가 기본값으로 되돌아간다(굵기 8인 선의 색만 바꿔도 굵기가 리셋됨).
-      const current = (owned.style ?? {}) as Partial<PageLineStyle>;
-      data.style = { ...defaultPageLineStyle(), ...current, ...input.style };
+      // 기존 값을 빼먹으면 명시하지 않은 필드가 기본값으로 되돌아간다 — style-merge.ts 참고.
+      data.style = mergeStyle(
+        defaultPageLineStyle(),
+        owned.style as Partial<PageLineStyle> | null,
+        input.style,
+      ) as unknown as Prisma.InputJsonValue;
     }
     const row = await prisma.pageLine.update({ where: { id: owned.id }, data });
     return toDto(row);
