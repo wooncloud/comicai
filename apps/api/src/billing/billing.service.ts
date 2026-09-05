@@ -50,7 +50,11 @@ export class BillingService {
     );
   }
 
-  async createOrder(userId: string, packageId: string): Promise<TokenOrderDTO> {
+  async createOrder(
+    userId: string,
+    packageId: string,
+    depositorName?: string,
+  ): Promise<TokenOrderDTO> {
     this.assertOrderable();
     const pkg = TOKEN_PACKAGES.find((p) => p.id === packageId);
     if (!pkg) {
@@ -65,6 +69,7 @@ export class BillingService {
         packageId: pkg.id,
         tokens: pkg.tokens,
         amountKrw: pkg.amountKrw,
+        depositorName: depositorName ?? null,
         status: 'pending',
         // 결제 수단이 붙기 전까지는 사람이 확인한다.
         provider: 'manual',
@@ -142,6 +147,7 @@ export class BillingService {
 function toDto(row: {
   id: string;
   packageId: string;
+  depositorName: string | null;
   tokens: number;
   amountKrw: number;
   status: string;
@@ -152,6 +158,7 @@ function toDto(row: {
   return {
     id: row.id,
     packageId: row.packageId,
+    depositorName: row.depositorName,
     tokens: row.tokens,
     amountKrw: row.amountKrw,
     status: row.status as TokenOrderStatus,

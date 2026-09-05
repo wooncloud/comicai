@@ -431,6 +431,14 @@ export const TOKEN_PACKAGE_IDS = TOKEN_PACKAGES.map((p) => p.id) as unknown as r
 
 export const TokenOrderCreateSchema = z.object({
   packageId: z.enum(TOKEN_PACKAGE_IDS),
+  /**
+   * 통장에 찍힐 이름. 스키마에서는 선택이지만 **폼에서는 받아야 한다** — 없으면 운영자가
+   * 이메일로 추측하게 되고, 그건 입금자명이 이메일과 다른 순간(대부분) 실패한다.
+   *
+   * 선택으로 둔 것은 저장 가능한 형태를 말할 뿐이다: 옛 주문에는 없고, PG 가 붙으면
+   * 아예 필요 없어진다.
+   */
+  depositorName: z.string().trim().min(1).max(40).optional(),
 });
 
 /**

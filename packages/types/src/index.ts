@@ -609,6 +609,8 @@ export interface AdminOrderRow extends TokenOrderDTO {
 export interface TokenOrderDTO {
   id: string;
   packageId: string;
+  /** 통장에 찍힐 이름. 운영자가 입금과 짝짓는 열쇠다. */
+  depositorName: string | null;
   tokens: number;
   amountKrw: number;
   status: TokenOrderStatus;

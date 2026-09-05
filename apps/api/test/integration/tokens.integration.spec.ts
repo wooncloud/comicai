@@ -286,6 +286,20 @@ describe('운영자 주문 처리 (testcontainers)', () => {
     await assertLedgerMatchesBalance(userId);
   });
 
+  /*
+   * 통장에 찍히는 것은 이메일이 아니라 **입금자명**이다. 한국 계좌이체에서 그 이름은
+   * 가입 이메일과 아무 관계가 없다(가족·회사 명의). 같은 날 두 사람이 같은 패키지를
+   * 사면 금액으로도 구분이 안 되므로, 이 값이 없으면 운영자는 짝을 지을 수 없다.
+   */
+  it('주문에 적은 입금자명이 운영자 목록까지 간다', async () => {
+    const userId = await makeUser();
+    const order = await billing.createOrder(userId, 'basic', '김입금');
+
+    expect(order.depositorName).toBe('김입금');
+    const row = await ctx.prisma.tokenOrder.findUniqueOrThrow({ where: { id: order.id } });
+    expect(row.depositorName).toBe('김입금');
+  });
+
   it('접은 주문은 처리되지 않는다', async () => {
     const userId = await makeUser();
     const order = await billing.createOrder(userId, 'starter');

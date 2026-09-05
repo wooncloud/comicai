@@ -129,6 +129,7 @@ export class AdminController {
       userId: o.userId,
       email: o.user.email,
       packageId: o.packageId,
+      depositorName: o.depositorName,
       tokens: o.tokens,
       amountKrw: o.amountKrw,
       status: o.status as TokenOrderStatus,

@@ -6,6 +6,7 @@ import { BillingService } from './billing.service';
 class OrderCreateDto {
   static zodSchema = TokenOrderCreateSchema;
   packageId!: string;
+  depositorName?: string;
 }
 
 @Controller('billing')
@@ -28,7 +29,7 @@ export class BillingController {
    */
   @Post('orders')
   async create(@Req() req: AuthedRequest, @Body() body: OrderCreateDto): Promise<TokenOrderDTO> {
-    return this.billing.createOrder(req.user.id, body.packageId);
+    return this.billing.createOrder(req.user.id, body.packageId, body.depositorName);
   }
 
   /** 아직 처리되지 않은 주문 접기. 잘못 누른 것이 영원히 남지 않게 한다. */

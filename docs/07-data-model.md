@@ -214,6 +214,70 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 
 ---
 
+### 2.13 TokenAccount — `token_accounts` (`schema.prisma:258-269`)
+
+| 필드      | 타입     | nullable | 비고                       |
+| --------- | -------- | -------- | -------------------------- |
+| userId    | String   | —        | PK 이자 FK. 사용자당 한 행 |
+| balance   | Int      | —        | 기본 0                     |
+| updatedAt | DateTime | —        |                            |
+
+**`token_ledger` 의 amount 합과 항상 같아야 한다.** 합을 매번 세지 않는 이유는 읽기
+성능도 있지만, 더 중요한 것은 이 행이 **동시성 통제 지점**이라는 것이다. 차감은
+`UPDATE … WHERE balance >= ?` 한 문장이고 그 조건이 곧 "잔액보다 많이 쓸 수 없다" 는
+보장이다 — 애플리케이션에서 읽고-검사하고-쓰면 동시에 들어온 두 요청이 같은 잔액을 읽어
+둘 다 통과한다. 자세한 것은 `docs/02-backend.md` §3.12.
+
+행은 첫 적립 때 생긴다(upsert). 없으면 잔액 0 이다.
+
+### 2.14 TokenLedger — `token_ledger` (`schema.prisma:271-311`)
+
+| 필드           | 타입     | nullable | 비고                                       |
+| -------------- | -------- | -------- | ------------------------------------------ |
+| id             | String   | —        | `tkl_` + ULID                              |
+| userId         | String   | —        | FK cascade                                 |
+| amount         | Int      | —        | 양수 적립, 음수 차감                       |
+| balanceAfter   | Int      | —        | 이 항목 직후 잔액                          |
+| kind           | String   | —        | `TOKEN_LEDGER_KINDS` 6종                   |
+| idempotencyKey | String?  | O        | **unique.** 같은 사건의 이중 기록을 막는다 |
+| memo           | String?  | O        | 사람이 읽는 사유                           |
+| refId          | String?  | O        | 렌더 잡 id·주문 id                         |
+| createdAt      | DateTime | —        | `@@index([userId, createdAt])`             |
+
+추가만 하고 고치거나 지우지 않는다. 잔액이 틀렸을 때 되짚을 수 있는 유일한 근거이고,
+사용자에게 보여 주는 내역이기도 하다.
+
+`balanceAfter` 를 저장하는 이유는 내역 화면이 페이지 단위로 읽어 누적합을 다시 계산할 수
+없기 때문이다. 차감과 같은 트랜잭션의 `UPDATE … RETURNING` 에서 받은 값이라 경쟁
+상태에서도 실제 순서와 어긋나지 않는다.
+
+`idempotencyKey` 규칙: 렌더 차감 `render:{jobId}`, 환급 `refund:{jobId}`, 구매
+`order:{orderId}`, 가입 지급 `signup:{userId}`. 운영자 지급·회수만 키가 없다 — 같은
+사유로 두 번 지급하는 것이 **의도된 경우**가 있고, 자동 재시도가 없는 유일한 경로다.
+
+### 2.15 TokenOrder — `token_orders` (`schema.prisma:313-352`)
+
+| 필드          | 타입      | nullable | 비고                                         |
+| ------------- | --------- | -------- | -------------------------------------------- |
+| id            | String    | —        | `ord_` + ULID                                |
+| userId        | String    | —        | FK cascade                                   |
+| packageId     | String    | —        | 주문 시점의 패키지 id                        |
+| tokens        | Int       | —        | 주문 시점 값을 **복사**                      |
+| amountKrw     | Int       | —        | 주문 시점 값을 **복사**                      |
+| depositorName | String?   | O        | 통장에 찍힐 이름                             |
+| status        | String    | —        | pending / paid / canceled / failed           |
+| provider      | String    | —        | 지금은 `manual` 하나                         |
+| providerRef   | String?   | O        | PG 식별자·입금 메모                          |
+| createdAt     | DateTime  | —        | `@@index([userId, createdAt])`, `([status])` |
+| paidAt        | DateTime? | O        |                                              |
+
+**수량과 금액을 복사해 두는 이유**: 패키지 표(`TOKEN_PACKAGES`)를 참조만 하면 가격을
+올리는 순간 옛 주문의 금액이 함께 바뀌어 영수증이 거짓말이 된다.
+
+`depositorName` 은 대사(對査)의 실제 축이다. 한국 계좌이체에서 입금자명은 가입 이메일과
+아무 관계가 없고(가족·회사 명의), 같은 날 두 사람이 같은 패키지를 사면 금액으로도 구분이
+안 된다. `providerRef` 는 처리한 **뒤에** 남기는 값이라 이 문제를 풀지 못한다.
+
 ## 3. 중요 Enum / Union 상수
 
 | 이름                        | 값                                                      | 출처                             |

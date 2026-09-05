@@ -323,6 +323,15 @@ model TokenOrder {
   tokens    Int
   amountKrw Int @map("amount_krw")
 
+  /// **통장에 찍힐 이름.** 대사(對査)의 실제 축이다.
+  ///
+  /// 한국 계좌이체에서 입금자명은 가입 이메일과 아무 관계가 없다 — 가족 명의, 회사 명의,
+  /// 예금주명으로 들어온다. 이게 없으면 운영자가 가진 것은 이메일과 금액뿐인데, 같은 날
+  /// 두 사람이 같은 패키지를 사면 금액으로 구분이 안 되고 이름이 다르면 한 건이어도 짝을
+  /// 못 짓는다. `provider_ref`(처리 후 기록)로는 이 문제를 풀 수 없다 — 짝을 지어야
+  /// 처리할 수 있으므로 **주문을 만들 때** 받아야 한다.
+  depositorName String? @map("depositor_name")
+
   /// pending | paid | canceled | failed
   status String
 
