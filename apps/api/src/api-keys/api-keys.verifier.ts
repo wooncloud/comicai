@@ -37,7 +37,7 @@ export async function verifyApiKey(
     }
     return { ok: false, status: res.status, category: 'unknown', message: `http ${res.status}` };
   } catch (err) {
-    if ((err as { name?: string })?.name === 'AbortError') {
+    if ((err as { name?: string } | null)?.name === 'AbortError') {
       return { ok: false, status: 0, category: 'transient', message: 'aborted' };
     }
     return { ok: false, status: 0, category: 'transient', message: (err as Error).message };

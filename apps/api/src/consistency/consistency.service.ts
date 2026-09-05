@@ -9,7 +9,6 @@ import {
 import { entityIdPrefix, newId, prisma } from '@comicai/db';
 import { getAdapter, type AdapterContext } from '@comicai/adapters';
 import {
-  MODEL_PROVIDER,
   type ConsistencyEntityDTO,
   type EntityType,
   type ImageRef,
@@ -24,8 +23,8 @@ import { ModelCredentials } from '../render/model-credentials';
 import { classifyModelError } from '../render/model-error';
 import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
 import { MetricsService } from '../metrics/metrics.service';
-import { open } from '../api-keys/crypto';
 import { apiError } from '../common/api-error';
+import { jsonColumn } from '../common/json-column';
 
 const GENERATE_TIMEOUT_MS = 120_000;
 
@@ -97,7 +96,7 @@ function toDto(
     name: row.name,
     aliases: row.aliases,
     description: row.description,
-    refImages: (row.refImages as ImageRef[]) ?? [],
+    refImages: jsonColumn<ImageRef[]>(row.refImages) ?? [],
     refImageUrls,
     version: row.version,
     createdAt: row.createdAt.toISOString(),
@@ -131,7 +130,7 @@ export class ConsistencyService {
   }
 
   private async dtoWithUrls(row: Parameters<typeof toDto>[0]): Promise<ConsistencyEntityDTO> {
-    const refs = (row.refImages as ImageRef[]) ?? [];
+    const refs = jsonColumn<ImageRef[]>(row.refImages) ?? [];
     const urls = await Promise.all(
       refs.map(async (ref) => (await this.storage.presignDownload(ref.storageKey)).url),
     );

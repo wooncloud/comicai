@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
+  type ArgumentsHost,
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -12,8 +13,8 @@ import { ZodError, ZodIssueCode } from 'zod';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 
 function mockHost() {
-  const res = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() } as any;
-  const host = { switchToHttp: () => ({ getResponse: () => res }) } as any;
+  const res = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() };
+  const host = { switchToHttp: () => ({ getResponse: () => res }) } as unknown as ArgumentsHost;
   return { host, res };
 }
 

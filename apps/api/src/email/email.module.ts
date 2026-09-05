@@ -6,6 +6,7 @@ import {
   ResendEmailProvider,
   type EmailProvider,
 } from './email.provider';
+import { nonEmpty } from '../common/non-empty';
 
 /**
  * `RESEND_API_KEY` 가 있으면 실제 발송, 없으면 콘솔 출력.
@@ -16,7 +17,7 @@ import {
 function createProvider(): EmailProvider {
   const key = process.env.RESEND_API_KEY?.trim();
   if (!key) return new ConsoleEmailProvider();
-  const from = process.env.EMAIL_FROM?.trim() || 'ComicAI <onboarding@resend.dev>';
+  const from = nonEmpty(process.env.EMAIL_FROM?.trim()) ?? 'ComicAI <onboarding@resend.dev>';
   return new ResendEmailProvider(key, from);
 }
 

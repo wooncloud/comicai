@@ -5,6 +5,7 @@ import { prisma } from '@comicai/db';
 import { MODEL_PROVIDER, type ModelId, type ModelProvider } from '@comicai/types';
 import { open } from '../api-keys/crypto';
 import { redisUrl } from '../common/env';
+import { nonEmpty } from '../common/non-empty';
 
 /** 그림 생성에 쓸 자격 증명. `id` 는 사용자 키일 때만 있다(차단기 기록용). */
 export interface ModelCredential {
@@ -37,7 +38,7 @@ const USAGE_TTL_SECONDS = 26 * 60 * 60;
 function platformKeyFor(provider: ModelProvider): string | undefined {
   const raw =
     provider === 'gemini' ? process.env.PLATFORM_GEMINI_KEY : process.env.PLATFORM_OPENAI_KEY;
-  return raw?.trim() || undefined;
+  return nonEmpty(raw?.trim());
 }
 
 /**

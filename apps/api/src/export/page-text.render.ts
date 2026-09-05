@@ -24,7 +24,7 @@ export function renderPageTextLayer(
 }
 
 function buildTextFragment(t: PageTextInput): string {
-  const text = (t.text ?? '').trim();
+  const text = t.text.trim();
   if (!text) return '';
   const defaults = defaultPageTextStyle();
   const style = { ...defaults, ...t.style };

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { urlSafeToken } from '../common/tokens';
 import { redisUrl } from '../common/env';
+import { nonEmpty } from '../common/non-empty';
 
 const SESSION_TTL_SECONDS = 14 * 24 * 60 * 60; // 14일
 /**
@@ -149,7 +150,7 @@ export class SessionService implements OnModuleDestroy {
 export const SESSION_COOKIE = 'comicai_sid';
 // 운영에서 web/api 가 서로 다른 서브도메인일 때 (예: comic.* / comic-api.*)
 // JS 가 CSRF 쿠키를 읽으려면 부모 도메인으로 스코프해야 함. 로컬은 undefined.
-const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
+const COOKIE_DOMAIN = nonEmpty(process.env.COOKIE_DOMAIN);
 /**
  * 3상태로 읽는다: 설정됨(true/false) / 설정 안 됨(undefined).
  *

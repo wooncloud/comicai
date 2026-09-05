@@ -117,6 +117,10 @@ export class ExportService {
     const composites = (
       await mapLimit(page.panels, PANEL_COMPOSITE_CONCURRENCY, async (panel) => {
         const shape = panel.shape as unknown as PanelShape;
+        // 저장된 JSON 은 읽을 때 파싱하지 않는다. strokeColor/strokeWidth 는 Zod
+        // 기본값이라 **쓰기 시점에만** 채워지므로 그 필드가 생기기 전 행에는 없다.
+        // 캐스트가 그걸 가리므로 여기서 되살린다 — 없으면 SVG 에 undefined 가 실린다.
+        const { strokeColor, strokeWidth } = shape as Partial<PanelShape>;
         const box = shapeBoundingBox(shape);
         // 캔버스보다 큰 패널은 어차피 밖이 잘려 나간다. 그대로 sharp 에 넘기면 패널
         // 하나가 캔버스보다 훨씬 큰 버퍼를 요구한다.
@@ -145,8 +149,8 @@ export class ExportService {
           shape,
           W,
           H,
-          shape.strokeColor ?? '#000000',
-          shape.strokeWidth ?? 2,
+          strokeColor ?? '#000000',
+          strokeWidth ?? 2,
         );
         if (strokeSvg) {
           overlays.push({ input: strokeSvg, left: Math.round(box.x), top: Math.round(box.y) });

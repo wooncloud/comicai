@@ -39,7 +39,10 @@ interface Owned {
 }
 
 describe('교차 테넌트 접근 (testcontainers)', () => {
-  let ctx: IntegrationContext;
+  // `beforeAll` 의 컨테이너 기동이 실패하면 여기는 비어 있는 채로 afterAll 이 돈다.
+  // TS 는 클로저 안 대입을 추적하지 못해 항상 할당된 것으로 보지만, 그 말을 믿고
+  // afterAll 의 가드를 지우면 진짜 실패가 stopIntegration 의 TypeError 에 가려진다.
+  let ctx: IntegrationContext | undefined;
   let prisma: PrismaClient;
   let alice: Actor;
   let bob: Actor;
@@ -58,7 +61,7 @@ describe('교차 테넌트 접근 (testcontainers)', () => {
   });
 
   function server() {
-    return ctx.app.getHttpServer();
+    return ctx!.app.getHttpServer();
   }
 
   async function signup(tag: string): Promise<Actor> {

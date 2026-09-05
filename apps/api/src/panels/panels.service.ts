@@ -14,6 +14,7 @@ import { PagesService } from '../pages/pages.service';
 import { StoragePrefix, StorageService } from '../storage/storage.service';
 import { appendPanelRefImages } from '../common/ref-images';
 import { apiError } from '../common/api-error';
+import { jsonColumn } from '../common/json-column';
 
 interface RenderRef {
   status: RenderStatus | null;
@@ -39,10 +40,10 @@ function panelDto(
     id: row.id,
     pageId: row.pageId,
     shape: row.shape as PanelShape,
-    conti: (row.conti as ImageRef) ?? null,
+    conti: jsonColumn<ImageRef>(row.conti),
     contiUrl,
-    text: (row.text as TipTapDoc) ?? emptyDoc(),
-    refImages: (row.refImages as ImageRef[]) ?? [],
+    text: jsonColumn<TipTapDoc>(row.text) ?? emptyDoc(),
+    refImages: jsonColumn<ImageRef[]>(row.refImages) ?? [],
     currentRenderId: row.currentRenderId,
     currentRenderStatus: render.status,
     currentRenderImageUrl: render.imageUrl,
@@ -245,7 +246,7 @@ export class PanelsService {
       userId: r.userId,
       model: r.model as ModelId,
       status: r.status as RenderStatus,
-      resultImage: (r.resultImage as unknown as ImageRef) ?? null,
+      resultImage: jsonColumn<ImageRef>(r.resultImage),
       error: r.error as unknown as RenderJobDTO['error'],
       attempts: r.attempts,
       createdAt: r.createdAt.toISOString(),

@@ -8,7 +8,10 @@ import {
 } from './setup';
 
 describe('Auth integration (testcontainers)', () => {
-  let ctx: IntegrationContext;
+  // `beforeAll` 의 컨테이너 기동이 실패하면 여기는 비어 있는 채로 afterAll 이 돈다.
+  // TS 는 클로저 안 대입을 추적하지 못해 항상 할당된 것으로 보지만, 그 말을 믿고
+  // afterAll 의 가드를 지우면 진짜 실패가 stopIntegration 의 TypeError 에 가려진다.
+  let ctx: IntegrationContext | undefined;
 
   beforeAll(async () => {
     ctx = await startIntegration();
@@ -19,7 +22,7 @@ describe('Auth integration (testcontainers)', () => {
   });
 
   it('signup → me → logout 라이프사이클', async () => {
-    const server = ctx.app.getHttpServer();
+    const server = ctx!.app.getHttpServer();
     const email = `int-${Date.now()}@example.com`;
     const password = 'Pa55word!ok';
 
@@ -52,7 +55,7 @@ describe('Auth integration (testcontainers)', () => {
   });
 
   it('잘못된 비밀번호로 로그인 실패', async () => {
-    const server = ctx.app.getHttpServer();
+    const server = ctx!.app.getHttpServer();
     const email = `int2-${Date.now()}@example.com`;
 
     await request(server)

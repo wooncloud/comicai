@@ -53,7 +53,7 @@ export class RenderController {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders?.();
+    res.flushHeaders();
     const lastEventId =
       typeof req.headers['last-event-id'] === 'string' ? req.headers['last-event-id'] : undefined;
     this.hub.subscribe(id, res, lastEventId, snapshotEvents(job));

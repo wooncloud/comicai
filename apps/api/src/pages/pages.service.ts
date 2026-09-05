@@ -5,6 +5,7 @@ import { ProjectsService } from '../projects/projects.service';
 import { StoragePrefix, StorageService } from '../storage/storage.service';
 import { isReorderPermutation } from '../common/reorder';
 import { apiError } from '../common/api-error';
+import { jsonColumn } from '../common/json-column';
 
 interface PageRow {
   id: string;
@@ -36,7 +37,7 @@ function toDtoBase(row: PageRow): PageDTO {
     order: row.order,
     name: row.name,
     size: toSize(row.size),
-    background: (row.background as ImageRef) ?? null,
+    background: jsonColumn<ImageRef>(row.background),
     backgroundColor: row.backgroundColor,
     createdAt: row.createdAt.toISOString(),
   };

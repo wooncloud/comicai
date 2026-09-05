@@ -13,6 +13,7 @@ import {
   shapeBoundingBox,
 } from '@comicai/types';
 import { resolveMentionIds, serializeTextWithNameReplacement } from '@comicai/events';
+import { jsonColumn } from '../common/json-column';
 
 /**
  * Panel + Project 컨텍스트에서 RenderIR을 합성.
@@ -27,9 +28,9 @@ export async function buildRenderIR(panelId: string, seed?: number): Promise<Ren
   if (!panel) throw new Error('panel not found');
 
   const projectId = panel.page.project.id;
-  const text = (panel.text as unknown as TipTapDoc) ?? emptyDoc();
-  const refImages = (panel.refImages as unknown as ImageRef[]) ?? [];
-  const conti = (panel.conti as unknown as ImageRef) ?? null;
+  const text = jsonColumn<TipTapDoc>(panel.text) ?? emptyDoc();
+  const refImages = jsonColumn<ImageRef[]>(panel.refImages) ?? [];
+  const conti = jsonColumn<ImageRef>(panel.conti);
   const shape = panel.shape as unknown as PanelShape;
 
   // 그림체 자동 주입: 패널 override → 프로젝트 대표 → 없음.
@@ -53,7 +54,7 @@ export async function buildRenderIR(panelId: string, seed?: number): Promise<Ren
   const worldviews: WorldviewPayload[] = [];
 
   for (const e of entities) {
-    const refs = (e.refImages as unknown as ImageRef[]) ?? [];
+    const refs = jsonColumn<ImageRef[]>(e.refImages) ?? [];
     const common = {
       entityId: e.id,
       entityVersion: e.version,

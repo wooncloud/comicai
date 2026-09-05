@@ -21,6 +21,7 @@ import { StorageService } from '../storage/storage.service';
 import { buildRenderIR } from './ir.builder';
 import { RenderQueue, idempotencyKey } from './render.queue';
 import { apiError } from '../common/api-error';
+import { jsonColumn } from '../common/json-column';
 
 /** id 가 이미 있는 행과 부딪혔는가. RenderJob 의 unique 는 primary key 하나뿐이다. */
 function isUniqueViolation(err: unknown): boolean {
@@ -162,7 +163,7 @@ export class RenderService {
     if (row?.userId !== userId) {
       throw new NotFoundException(apiError({ code: 'RESOURCE_NOT_FOUND' }));
     }
-    const resultImage = (row.resultImage as unknown as ImageRef) ?? null;
+    const resultImage = jsonColumn<ImageRef>(row.resultImage);
     const status = row.status as RenderStatus;
     return {
       id: row.id,
@@ -172,7 +173,7 @@ export class RenderService {
       status,
       resultImage,
       resultImageUrl: await this.storage.presignIfSucceeded(resultImage, status),
-      error: (row.error as unknown as RenderError) ?? null,
+      error: jsonColumn<RenderError>(row.error),
       attempts: row.attempts,
       createdAt: row.createdAt.toISOString(),
       finishedAt: row.finishedAt?.toISOString() ?? null,

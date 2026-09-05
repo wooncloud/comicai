@@ -1,14 +1,4 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  HttpCode,
-  Param,
-  Post,
-  Req,
-  Res,
-  Logger,
-} from '@nestjs/common';
+import { Body, Controller, HttpCode, Param, Post, Req, Res, Logger } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import argon2 from 'argon2';
 import type { Request, Response } from 'express';
@@ -118,7 +108,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(204)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const sid = req.cookies?.[SESSION_COOKIE];
+    const sid = req.cookies[SESSION_COOKIE];
     if (sid) await this.sessions.destroy(sid);
     res.clearCookie(SESSION_COOKIE, { ...SESSION_COOKIE_OPTIONS, maxAge: 0 });
     res.clearCookie(CSRF_COOKIE, {
@@ -131,7 +121,7 @@ export class AuthController {
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(204)
   async requestEmailVerification(@Req() req: Request) {
-    const sid = req.cookies?.[SESSION_COOKIE];
+    const sid = req.cookies[SESSION_COOKIE];
     if (!sid) return; // 비로그인은 조용히 통과(레코나이즈드 패턴).
     const payload = await this.sessions.read(sid);
     if (!payload) return;

@@ -7,7 +7,6 @@ import {
   IN_PROGRESS_RENDER_STATUSES,
   isFlagOn,
   type ImageRef,
-  type ModelId,
   type RenderError,
   type RenderIR,
   type RenderStatus,
