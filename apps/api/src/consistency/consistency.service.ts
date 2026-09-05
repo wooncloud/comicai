@@ -25,7 +25,7 @@ import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
 import { MetricsService } from '../metrics/metrics.service';
 import { apiError } from '../common/api-error';
 import { jsonColumn } from '../common/json-column';
-import { TokensService } from '../tokens/tokens.service';
+import { InsufficientTokensError, TokensService } from '../tokens/tokens.service';
 
 const GENERATE_TIMEOUT_MS = 120_000;
 
@@ -286,6 +286,13 @@ export class ConsistencyService {
        * 여기 오는데, 그때는 원장에 기록이 없어 아무 일도 하지 않는다.
        */
       await this.tokens.refundRender(chargeKey, `참조 이미지 생성 실패 (${classified.category})`);
+      /*
+       * 토큰 부족은 **그대로 올려 보낸다.** `CONSISTENCY_GENERATE_FAILED` 로 감싸면
+       * 예외가 들고 있는 `required`/`balance` 가 버려지고, 화면은 숫자 없는 "토큰이
+       * 부족합니다" 만 받는다 — 얼마를 채워야 하는지 알 수 없다. 예외 필터가 이 타입을
+       * 알아보고 `INSUFFICIENT_TOKENS` 봉투로 옮긴다.
+       */
+      if (err instanceof InsufficientTokensError) throw err;
       if (classified.category === 'auth' && apiKeyId) {
         await this.breaker.recordAuthFailure(apiKeyId);
       }

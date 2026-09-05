@@ -202,7 +202,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | panelId     | String                | no       | FK→panels (cascade, `schema.prisma:241`)    |
 | userId      | String                | no       | FK→users (cascade)                          |
 | model       | String                | no       | `RenderModelSchema` enum (`schemas.ts:160`) |
-| ir          | Json                  | no       | `RenderIR` (`index.ts:486`)                 |
+| ir          | Json                  | no       | `RenderIR` (`index.ts:491`)                 |
 | status      | String                | no       | `RENDER_STATUSES` (`index.ts:73`)           |
 | resultImage | Json (`result_image`) | yes      | `ImageRef`                                  |
 | error       | Json                  | yes      | `RenderError` (`index.ts:467`)              |
@@ -297,7 +297,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | TEXT_ALIGNS                 | `left, center, right`                                   | `schemas.ts:4`                   |
 
 **값 목록은 전부 `schemas.ts` 에만 있다.** `index.ts` 는 타입만 파생시킨다
-(`ModelId` `index.ts:22`, `EntityType` `:149`). 예전에는 같은 문자열이 두세 곳에 적혀 있었고,
+(`ModelId` `index.ts:22`, `EntityType` `:154`). 예전에는 같은 문자열이 두세 곳에 적혀 있었고,
 `index.ts` 의 지역 선언이 `export * from './schemas'` 를 가리기 때문에 **컴파일 에러 없이**
 소비자와 Zod 검증기가 다른 목록을 볼 수 있었다 — 폰트 목록에서 실제로 일어난 일이다.
 `RENDER_STATUSES` 의 두 부분집합은 `satisfies` 로 묶이고, "빠짐없이 덮는가" 는
@@ -343,8 +343,8 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 
 ### 미디어 공통
 
-- `ImageRef` (`index.ts:133`): `{ storageKey, width, height, mimeType }` — DB `Json` 컬럼에 저장되는 표준 구조.
-- `AdapterImage` (`index.ts:141`): 어댑터→워커 전달용 raw bytes (영속화되지 않음).
+- `ImageRef` (`index.ts:138`): `{ storageKey, width, height, mimeType }` — DB `Json` 컬럼에 저장되는 표준 구조.
+- `AdapterImage` (`index.ts:146`): 어댑터→워커 전달용 raw bytes (영속화되지 않음).
 
 ---
 

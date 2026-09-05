@@ -245,7 +245,7 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 | POST   | `/v1/consistency/:id/generate`        | `generate` (`:104-107`) — AI 모델로 참조 이미지 1장 생성 (storage 업로드만, refImages 미등록). style 엔티티는 거부                         |
 | POST   | `/v1/consistency/:id/images/attach`   | `attach` (`:110-113`) — `generate` 결과의 storageKey 를 refImages 에 등록 (key prefix 검증)                                                |
 
-`refImages` 에 이미지를 덧붙이는 세 경로(`appendImages` `:194`, `attachImage` `:316`,
+`refImages` 에 이미지를 덧붙이는 세 경로(`appendImages` `:194`, `attachImage` `:323`,
 `PanelsService.appendUpload` `panels.service.ts:176`)는 **원자적 JSONB append** 를 쓴다
 (`common/ref-images.ts`). 읽어서 `[...기존, 새것]` 으로 통째 덮어쓰면 동시 업로드가 유실된다 —
 12장을 한 번에 드래그하면 전부 같은 배열을 읽고 각자 덮어써서 마지막 1장만 남고 나머지는
@@ -513,7 +513,7 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
 
 **왜 캐시를 따로 두는가.** 읽기 성능도 있지만, 더 중요한 이유는 그 행이 **동시성 통제
 지점**이라는 것이다. 차감은 `UPDATE … WHERE balance >= ?` 한 문장이고
-(`tokens.service.ts:244`), 그 `WHERE` 가 곧 "잔액보다 많이 쓸 수 없다" 는 보장이다.
+(`tokens.service.ts:264`), 그 `WHERE` 가 곧 "잔액보다 많이 쓸 수 없다" 는 보장이다.
 애플리케이션에서 읽고-검사하고-쓰면 동시에 들어온 두 요청이 같은 잔액을 읽어 **둘 다
 통과한다** — 렌더는 버튼 연타나 여러 컷 일괄 생성으로 실제로 동시에 들어온다.
 
@@ -524,7 +524,7 @@ SETNX(26시간 TTL)와 달리 영구적이고, 환급에도 같은 키를 쓴다
 
 **실패하면 돌려준다.** 차감이 곧 예약이다 — 시작하는 순간 잔액이 줄어 잔액 1로 100장을
 동시에 시작할 수 없고, 실패·시간초과·취소로 끝나면 `refund` 항목을 더해 되돌린다
-(`refundRender`, `tokens.service.ts:127`). **돌려줄 금액은 원장에서 읽는다** — 워커가
+(`refundRender`, `tokens.service.ts:146`). **돌려줄 금액은 원장에서 읽는다** — 워커가
 기억했다가 넘기면 재배포나 stalled 재큐로 다른 프로세스가 마무리할 때 그 값이 없다.
 차감 기록이 없으면(BYOK·mock) 아무것도 하지 않는다. 이 검사가 없으면 쓴 적 없는 토큰이
 생기는 무한 증식 경로가 된다.

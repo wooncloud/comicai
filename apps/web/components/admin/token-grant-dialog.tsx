@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
-import { errorMessage } from '@/lib/error-message';
+import { adminTokenErrorMessage } from '@/lib/error-message';
 import { formatTokens } from '@/lib/tokens';
 
 interface Props {
@@ -50,7 +50,7 @@ export function TokenGrantDialog({ user, onOpenChange }: Props) {
       toast.push('success', `처리했습니다. 잔액 ${formatTokens(balance)}토큰.`);
       close();
     },
-    onError: (err) => toast.push('error', errorMessage(err, '토큰을 조정')),
+    onError: (err) => toast.push('error', adminTokenErrorMessage(err)),
   });
 
   function close() {

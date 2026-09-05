@@ -130,6 +130,23 @@ function insufficientTokensMessage(details: unknown): string | undefined {
   return `토큰이 ${d.required}개 필요한데 잔액이 ${d.balance}개입니다. 충전 후 다시 시도해 주세요.`;
 }
 
+/**
+ * 운영자의 토큰 지급·회수 실패.
+ *
+ * 일반 `errorMessage` 를 쓰면 잔액보다 많이 회수했을 때 **운영자에게 "충전 후 다시
+ * 시도해 주세요" 라고 말한다** — 자기 잔액 이야기가 아니고, 운영자가 할 수 있는 일도
+ * 아니다. 서버가 `required`/`balance` 를 실어 보내니 그걸 그대로 쓴다.
+ */
+export function adminTokenErrorMessage(err: unknown): string {
+  if (err instanceof ApiError && err.code === 'INSUFFICIENT_TOKENS') {
+    const d = err.details as { required?: unknown; balance?: unknown } | null | undefined;
+    if (typeof d?.required === 'number' && typeof d.balance === 'number') {
+      return `회수할 수 있는 것보다 많습니다 (요청 ${d.required}, 잔액 ${d.balance}).`;
+    }
+  }
+  return errorMessage(err, '토큰을 조정');
+}
+
 /** 이미지 생성 실패. category 가 실려 오면 그 사유를, 아니면 코드/문맥 기반 문구를 쓴다. */
 export function renderErrorMessage(err: unknown, action: string): string {
   if (err instanceof ApiError) {

@@ -96,6 +96,9 @@ export const TERMINAL_RENDER_STATUSES = [
   'canceled',
 ] as const satisfies readonly RenderStatus[];
 
+/** 더 이상 바뀌지 않는 상태. 마감 함수는 이것만 받아야 한다. */
+export type TerminalRenderStatus = (typeof TERMINAL_RENDER_STATUSES)[number];
+
 export function isInProgressRender(status: RenderStatus | null | undefined): boolean {
   return status != null && (IN_PROGRESS_RENDER_STATUSES as readonly string[]).includes(status);
 }
@@ -558,6 +561,13 @@ export type TokenPackage = (typeof TOKEN_PACKAGES)[number];
 
 export interface TokenBalanceDTO {
   balance: number;
+  /**
+   * **이 사용자 기준** 모델별 단가. 자기 키를 넣은 모델은 0 이다.
+   *
+   * 전역 `MODEL_TOKEN_COST` 를 화면이 직접 읽으면 BYOK 사용자에게 틀린 숫자가 나간다 —
+   * 서버는 그 렌더를 공짜로 처리하는데 화면만 "4토큰 필요" 라고 말한다.
+   */
+  costs: Record<ModelId, number>;
   /**
    * 현재 잔액으로 각 모델을 몇 장 만들 수 있는지. 화면이 매번 나눗셈하지 않게 서버가 준다.
    *

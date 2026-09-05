@@ -97,12 +97,18 @@ export interface Affordability {
  * 이 모델로 지금 한 장 만들 수 있는가.
  *
  * 잔액을 못 읽었을 때 `short` 로 접으면 **잔액 조회가 실패한 사용자의 버튼이 잠긴다.**
- * 그건 서버가 막을 일이지 화면이 추측으로 막을 일이 아니다. 그래서 세 상태다.
+ * 그건 서버가 막을 일이지 화면이 추측으로 막을 일이 아니다.
  */
 export function affordability(balance: TokenBalanceDTO | undefined, model: ModelId): Affordability {
-  const cost = MODEL_TOKEN_COST[model];
-  // 잔액을 못 읽었으면 `short: false` 다 — 모르는 것과 부족한 것을 같이 다루면 조회가
-  // 실패한 사용자의 생성 버튼이 잠긴다. 그건 서버가 막을 일이지 화면이 추측할 일이 아니다.
-  if (!balance) return { cost, short: false };
-  return { cost, short: balance.balance < cost };
+  /*
+   * 단가는 **서버가 준 것**을 쓴다. 전역 `MODEL_TOKEN_COST` 는 자기 키를 넣은 사용자를
+   * 모르기 때문에, 그걸 그대로 읽으면 BYOK 사용자에게 "4토큰 필요 · 잔액 0" 을 보여
+   * 준다 — 서버는 그 렌더를 공짜로 처리하는데.
+   *
+   * 잔액을 아직 못 읽었을 때만 전역 표로 떨어진다. 그때는 버튼도 잠그지 않으므로
+   * (아래 `short: false`) 틀린 숫자로 막는 일은 없고, 비용 표시만 근사치가 된다.
+   */
+  if (!balance) return { cost: MODEL_TOKEN_COST[model], short: false };
+  const cost = balance.costs[model];
+  return { cost, short: cost > 0 && balance.balance < cost };
 }

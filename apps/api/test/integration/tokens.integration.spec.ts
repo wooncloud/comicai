@@ -11,6 +11,7 @@ import type {
   InsufficientTokensError as InsufficientTokens,
 } from '../../src/tokens/tokens.service';
 import type { BillingService } from '../../src/billing/billing.service';
+import type { finalizeRenderJob as FinalizeRenderJob } from '../../src/render/finalize';
 
 /*
  * 토큰은 돈이다. 여기서 틀리면 사용자가 낸 돈이 사라지거나, 우리가 낸 API 비용이
@@ -22,10 +23,10 @@ import type { BillingService } from '../../src/billing/billing.service';
 
 let ctx: IntegrationContext;
 let tokens: TokensService;
-/** 클래스 자체를 담는다 — `instanceof` 검사에는 런타임 값이 필요하다. */
 let billing: BillingService;
 /** 차감·환급이 같은 규칙으로 키를 만드는지까지 스펙이 따라간다. */
 let renderChargeKey: (jobId: string) => string;
+let finalizeRenderJob: typeof FinalizeRenderJob;
 /** 클래스 자체를 담는다 — `instanceof` 검사에는 런타임 값이 필요하다. */
 let InsufficientTokensError: new (required: number, balance: number) => InsufficientTokens;
 
@@ -40,6 +41,21 @@ let InsufficientTokensError: new (required: number, balance: number) => Insuffic
  */
 function testId(prefix: string): string {
   return `${prefix}_${randomUUID().replace(/-/g, '')}`;
+}
+
+/** 렌더 잡을 매달 컷 하나. 잡에는 FK 가 걸려 있다. */
+async function seedPanel(userId: string): Promise<string> {
+  const project = testId('proj');
+  const page = testId('page');
+  const panel = testId('panel');
+  await ctx.prisma.project.create({ data: { id: project, userId, name: 't' } });
+  await ctx.prisma.page.create({
+    data: { id: page, projectId: project, order: 0, size: { w: 800, h: 1200 } },
+  });
+  await ctx.prisma.panel.create({
+    data: { id: panel, pageId: page, shape: {}, order: 0 },
+  });
+  return panel;
 }
 
 async function makeUser(): Promise<string> {
@@ -68,6 +84,7 @@ beforeAll(async () => {
   const billingMod = await import('../../src/billing/billing.service');
   billing = ctx.app.get(billingMod.BillingService);
   ({ renderChargeKey } = mod);
+  ({ finalizeRenderJob } = await import('../../src/render/finalize'));
 }, 180_000);
 
 afterAll(async () => {
@@ -323,5 +340,95 @@ describe('운영자 주문 처리 (testcontainers)', () => {
     await expect(billing.cancelOrder(stranger, order.id)).rejects.toThrow();
     const row = await ctx.prisma.tokenOrder.findUniqueOrThrow({ where: { id: order.id } });
     expect(row.status).toBe('pending');
+  });
+});
+
+/*
+ * 마감과 환급이 한 몸인지. 여기서 갈리면 사용자가 취소한 그림값이 조용히 탄다 —
+ * 오류도 없고, BYOK 로 그린 잡과 구별되지도 않는다.
+ */
+describe('렌더 마감 (testcontainers)', () => {
+  async function makeJob(userId: string, status: string): Promise<string> {
+    const panel = await seedPanel(userId);
+    const id = testId('job');
+    await ctx.prisma.renderJob.create({
+      data: { id, panelId: panel, userId, model: 'mock', ir: {}, status },
+    });
+    return id;
+  }
+
+  /*
+   * 흔한 순서: 사용자가 취소를 누르는데 그때 워커는 아직 키를 안 받아 갔다 → 취소 쪽
+   * 환급은 원장에 찾을 것이 없어 그냥 지나간다 → 그 뒤 워커가 차감하고 결과를 만들고
+   * 마감 경합에서 진다. 예전에는 그대로 반환해서 **차감이 그대로 남았다.**
+   */
+  it('마감 경합에서 져도, 이긴 쪽이 성공이 아니면 돌려준다', async () => {
+    const userId = await makeUser();
+    await tokens.credit(userId, 10, { kind: 'admin_grant', idempotencyKey: `seed:${userId}` });
+    const jobId = await makeJob(userId, 'canceled'); // 이미 취소된 잡
+
+    await tokens.charge(userId, 4, { kind: 'render', idempotencyKey: renderChargeKey(jobId) });
+    expect(await tokens.balance(userId)).toBe(6);
+
+    const won = await finalizeRenderJob(tokens, jobId, 'succeeded', { reason: '성공' });
+
+    expect(won).toBe(false);
+    expect(await tokens.balance(userId)).toBe(10);
+  });
+
+  /*
+   * stalled 재큐로 워커 둘이 같은 잡을 처리하면 진 쪽도 여기 온다. 차감은 잡 id 로
+   * 하나뿐이라, 그걸 돌려주면 성공한 그림이 공짜가 된다.
+   */
+  it('이긴 쪽이 성공이면 돌려주지 않는다', async () => {
+    const userId = await makeUser();
+    await tokens.credit(userId, 10, { kind: 'admin_grant', idempotencyKey: `seed:${userId}` });
+    const jobId = await makeJob(userId, 'succeeded');
+
+    await tokens.charge(userId, 4, { kind: 'render', idempotencyKey: renderChargeKey(jobId) });
+    const won = await finalizeRenderJob(tokens, jobId, 'failed', { reason: '생성 실패' });
+
+    expect(won).toBe(false);
+    expect(await tokens.balance(userId)).toBe(6);
+  });
+
+  it('진행 중인 잡을 실패로 마감하면 돌려준다', async () => {
+    const userId = await makeUser();
+    await tokens.credit(userId, 10, { kind: 'admin_grant', idempotencyKey: `seed:${userId}` });
+    const jobId = await makeJob(userId, 'running');
+
+    await tokens.charge(userId, 4, { kind: 'render', idempotencyKey: renderChargeKey(jobId) });
+    const won = await finalizeRenderJob(tokens, jobId, 'failed', { reason: '생성 실패' });
+
+    expect(won).toBe(true);
+    expect(await tokens.balance(userId)).toBe(10);
+  });
+});
+
+describe('사용자 기준 단가 (testcontainers)', () => {
+  /*
+   * 서버는 자기 키를 알아보고 공짜로 처리하는데 잔액 DTO 만 전역 단가표를 쓰면, BYOK
+   * 사용자가 잔액 0 일 때 화면에 "0장 · 토큰이 모자랍니다" 가 뜬다.
+   */
+  it('자기 키가 있는 모델은 단가가 0 이고 제한이 없다', async () => {
+    const userId = await makeUser();
+    await ctx.prisma.apiKey.create({
+      data: {
+        id: testId('apikey'),
+        userId,
+        provider: 'openai',
+        label: 'test',
+        ciphertext: 'x',
+        nonce: 'y',
+        isActive: true,
+      },
+    });
+
+    const dto = await tokens.balanceDto(userId);
+
+    expect(dto.costs['gpt-image-2']).toBe(0);
+    expect(dto.affordable['gpt-image-2']).toBeNull();
+    // 키를 안 넣은 쪽은 그대로 유료다.
+    expect(dto.costs['gemini-3.1-flash-image-preview']).toBe(1);
   });
 });

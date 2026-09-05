@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import {
   ApiPaths,
-  MODEL_TOKEN_COST,
   type TokenLedgerEntryDTO,
   type TokenOrderDTO,
   type TokenPackage,
@@ -67,7 +66,12 @@ function BalanceSection() {
                 <li key={m.id}>
                   {m.label} <span className="tabular-nums text-foreground">{text}</span>
                   <span className="ml-1 text-caption">
-                    (장당 {formatTokens(MODEL_TOKEN_COST[m.id])})
+                    {/* 서버가 준 사용자 기준 단가. 자기 키를 넣은 모델은 0 이라 "무료" 다. */}
+                    {data
+                      ? data.costs[m.id] > 0
+                        ? `(장당 ${formatTokens(data.costs[m.id])})`
+                        : '(무료)'
+                      : null}
                   </span>
                 </li>
               );

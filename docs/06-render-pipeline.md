@@ -64,27 +64,35 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
 - 인증: `SessionGuard` 클래스 레벨 적용 (`render.controller.ts:17`).
 - DTO 검증: `RenderStartSchema` (zod, `render.controller.ts:11`).
 
-`RenderService.startRender` (`apps/api/src/render/render.service.ts:35`):
+`RenderService.startRender` (`apps/api/src/render/render.service.ts:73`):
 
-1. `panels.assertOwned` — 소유권 확인 (`:37`).
+1. `panels.assertOwned`(소유권)와 `credentials.previewCost`(이 사용자가 낼 값)를 **나란히**
+   조회한다 (`:84-87`). 둘은 서로를 기다릴 이유가 없다.
 2. `buildRenderIR(panel.id, seed)` — 텍스트/콘티/참조이미지를 IR로 직렬화. 그림체는
    `panel.styleId ?? project.defaultStyleId`를 `effectiveStyleId`로 자동 주입하며 멘션 대상이 아님
    (`apps/api/src/render/ir.builder.ts:21, 35, 62-64`).
 3. 입력 검증 — 본문/콘티/참조 중 하나도 없으면
-   `BadRequestException({ code: 'RENDER_INVALID_INPUT' })` (`:40-44`).
+   `BadRequestException({ code: 'RENDER_INVALID_INPUT' })` (`:89-96`).
+   3-b. **잔액 검사**(`assertAffordable`, `:103`). 입력 검증 **뒤**에 있는 것이 중요하다 —
+   앞에 두면 빈 컷을 가진 잔액 0 사용자가 "토큰이 부족합니다" 를 보고 충전하러 갔다가,
+   돌아와서야 컷이 비었다는 걸 안다. 고칠 수 있는 문제를 뒤로 숨기게 된다.
+   비용은 `ModelCredentials.previewCost` 가 정한다(`model-credentials.ts:48`) — 자기 키를 넣은 사용자는 0 이라
+   통과한다. 여기서 단가표만 보면 **토큰을 한 개도 안 쓰는 렌더가 문 앞에서 막힌다.**
+   진짜 차감은 워커가 키를 받아 갈 때 원자적으로 일어나므로 이 검사는 권위가 아니라 안내다.
 4. **Idempotency key** = `sha256({ ir, userId, model }).slice(0,32)` →
    `'job_' + …` (`render.queue.ts:56-58`). 아직 **돌고 있는** 잡만 합친다 (`:64-67`) —
    끝난 잡은 성공이든 실패든 난수 접미사로 새로 만든다 (`:75-79`).
-5. `prisma.renderJob.create({ status: 'queued', ir })` (`:81-91`). unique 위반(P2002)은
+5. `prisma.renderJob.create({ status: 'queued', ir })` (`render.service.ts:140-155`). unique 위반(P2002)은
    더블클릭 두 요청이 같은 `baseId` 로 동시에 들어온 경우다 — 이긴 쪽이 만든 잡의 id 를
-   돌려준다 (`isUniqueViolation`, `:98-105`). 예전에는 이게 500 `INTERNAL_ERROR` 로 나갔다:
+   돌려준다 (`isUniqueViolation`, `render.service.ts:157-164`). 예전에는 이게 500 `INTERNAL_ERROR` 로 나갔다:
    해시가 막으려던 바로 그 더블클릭에서 dedup 이 뚫렸다.
 6. `RenderQueue.enqueue` — BullMQ `Queue.add('render', data, { jobId, attempts:3, backoff: exponential(2000) })`
    (`render.queue.ts:36-42`). **실패하면 그 자리에서 행을 `failed`(category `transient`)로 마감하고
-   `RENDER_ENQUEUE_FAILED`(HTTP 503)를 돌려준다** (`:108-138`). 마감하지 않으면 BullMQ 잡이 없는
+   `RENDER_ENQUEUE_FAILED`(HTTP 503)를 돌려준다** (`render.service.ts:167-196`). 마감은 `finalizeRenderJob` 을
+   지난다 — 종결 상태를 쓰는 길이 하나여야 환급을 잊는 경로가 생기지 않는다. 마감하지 않으면 BullMQ 잡이 없는
    `queued` 좀비가 남아 워커도 `finalizeOrphan` 도 영원히 돌지 않고, 다음 요청이 4번의 active 조회에서
    그 죽은 행을 찾아 죽은 jobId 를 돌려주므로 그 컷이 영구히 '생성 중…' 으로 잠긴다.
-7. `panel.currentRenderId`와 `history.push(jobId)` 동시 갱신 (`:140-143`) — enqueue 가 성공했을 때만.
+7. `panel.currentRenderId`와 `history.push(jobId)` 동시 갱신 (`render.service.ts:198-201`) — enqueue 가 성공했을 때만.
 
 ### 2.3 Worker — 어댑터 호출 & 저장
 
@@ -342,7 +350,7 @@ interface RenderError {
 
 ### 6.2 재시도 & 종결 매핑
 
-`render.worker.ts:193-197` `retryLimitFor`:
+`render.worker.ts:227-231` `retryLimitFor`:
 
 | category  | retry limit | 최종 status       |
 | --------- | ----------- | ----------------- |
@@ -399,7 +407,7 @@ API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생�
 | EventSource subscribe                            | `apps/web/components/editor/panel-inspector.tsx:140`      |
 | API 경로 헬퍼                                    | `packages/types/src/paths.ts:48,56-60`                    |
 | 컨트롤러 (POST render/get/cancel/restore/events) | `apps/api/src/render/render.controller.ts:25,31,36,42,47` |
-| `RenderService.startRender`                      | `apps/api/src/render/render.service.ts:35`                |
+| `RenderService.startRender`                      | `apps/api/src/render/render.service.ts:73`                |
 | `RenderService.getJob`                           | `apps/api/src/render/render.service.ts:147`               |
 | `RenderService.cancel`                           | `apps/api/src/render/render.service.ts:169`               |
 | BullMQ enqueue & idempotency                     | `apps/api/src/render/render.queue.ts:34,56`               |

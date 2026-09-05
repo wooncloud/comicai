@@ -85,8 +85,6 @@ export class RenderService {
       this.panels.assertOwned(userId, panelId),
       this.credentials.previewCost(userId, model),
     ]);
-    await this.assertAffordable(userId, chargeable);
-
     const ir = await buildRenderIR(panel.id, seed);
     if (!ir.userPrompt.trim() && !ir.contiSketch && ir.userImages.length === 0) {
       throw new BadRequestException(
@@ -96,6 +94,13 @@ export class RenderService {
         }),
       );
     }
+
+    /*
+     * 잔액 검사는 **입력 검증 뒤**다. 앞에 두면 빈 컷을 가진 잔액 0 사용자가 "토큰이
+     * 부족합니다" 를 보고 충전하러 갔다가, 돌아와서야 컷이 비었다는 걸 안다 — 고칠 수
+     * 있는 문제를 뒤로 숨긴 셈이다. `previewCost` 조회는 위에서 이미 병렬로 끝났다.
+     */
+    await this.assertAffordable(userId, chargeable);
 
     /*
      * jobId 는 (ir, userId, model) 해시다. IR 이 결정적이라 같은 컷을 같은 내용으로
@@ -172,19 +177,16 @@ export class RenderService {
         category: 'transient',
         message: '렌더 대기열에 넣지 못했습니다.',
       };
-      await prisma.renderJob
-        .update({
-          where: { id: jobId },
-          data: {
-            status: 'failed',
-            error: error as unknown as Prisma.InputJsonValue,
-            finishedAt: new Date(),
-          },
-        })
-        .catch((e: unknown) =>
-          // 마감까지 실패하면 좀비 행이 남는다. 최소한 흔적은 남겨야 손으로 찾을 수 있다.
-          this.logger.error({ err: e, renderJobId: jobId }, 'enqueue 실패 잡 마감 실패'),
-        );
+      // **마감은 한 길로만 간다**(`finalizeRenderJob`). 여기가 네 번째 마감 경로였는데
+      // 조건 없이 쓰고 환급도 안 했다 — 지금은 차감이 워커에서 일어나 무해하지만, 차감을
+      // 앞당기는 순간 조용히 토큰이 타는 자리가 된다. 그 가능성을 남기지 않는다.
+      await finalizeRenderJob(this.tokens, jobId, 'failed', {
+        reason: '큐 적재 실패',
+        data: { error: error as unknown as Prisma.InputJsonValue },
+      }).catch((e: unknown) =>
+        // 마감까지 실패하면 좀비 행이 남는다. 최소한 흔적은 남겨야 손으로 찾을 수 있다.
+        this.logger.error({ err: e, renderJobId: jobId }, 'enqueue 실패 잡 마감 실패'),
+      );
       throw new ServiceUnavailableException(
         apiError({
           code: 'RENDER_ENQUEUE_FAILED',

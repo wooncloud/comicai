@@ -3,6 +3,7 @@ import { prisma } from '@comicai/db';
 import { MODEL_PROVIDER, type ModelId, type ModelProvider } from '@comicai/types';
 import { open } from '../api-keys/crypto';
 import { nonEmpty } from '../common/non-empty';
+import { costFor } from '../tokens/model-cost';
 import { TokensService, renderChargeKey } from '../tokens/tokens.service';
 
 /** 그림 생성에 쓸 자격 증명. `id` 는 사용자 키일 때만 있다(차단기 기록용). */
@@ -46,11 +47,11 @@ export class ModelCredentials {
    */
   async previewCost(userId: string, model: ModelId): Promise<number> {
     if (model === 'mock') return 0;
-    const hasOwnKey = await prisma.apiKey.findFirst({
+    const own = await prisma.apiKey.findFirst({
       where: { userId, provider: MODEL_PROVIDER[model], isActive: true },
       select: { id: true },
     });
-    return hasOwnKey ? 0 : this.tokens.costOf(model);
+    return costFor(model, own !== null);
   }
 
   /**

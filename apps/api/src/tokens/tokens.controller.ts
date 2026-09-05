@@ -1,6 +1,7 @@
 import { Controller, Get, Query, Req } from '@nestjs/common';
 import type { TokenBalanceDTO, TokenLedgerEntryDTO } from '@comicai/types';
 import { AuthedRequest } from '../auth/session.guard';
+import { clampTake } from '../common/clamp-take';
 import { TokensService } from './tokens.service';
 
 /**
@@ -21,8 +22,6 @@ export class TokensController {
     @Req() req: AuthedRequest,
     @Query('limit') limit?: string,
   ): Promise<TokenLedgerEntryDTO[]> {
-    // 문자열이 숫자가 아니면 NaN 이고, 서비스가 그걸 기본값으로 되돌린다.
-    const n = Number(limit);
-    return this.tokens.history(req.user.id, Number.isFinite(n) ? n : undefined);
+    return this.tokens.history(req.user.id, clampTake(limit));
   }
 }

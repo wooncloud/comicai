@@ -44,7 +44,7 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/schemas.ts:310`). PageLine 의 선 종류.
   폰트와 같은 이유로 값은 `schemas.ts` 에만 있고, `index.ts:246` 은 타입만 파생시킨다.
 - `RenderErrorCategory = 'transient'|'auth'|'quota'|'safety'|'invalid'|'timeout'` (`src/index.ts:396`).
-- `EntityType = 'style'|'character'|'background'|'worldview'` — 값은 `ENTITY_TYPES` (`src/schemas.ts:376`), 타입은 `src/index.ts:149`. `packages/db` 의 `entityIdPrefix` 도 이걸 받아서, 타입이 늘면 그 switch 가 컴파일 에러로 걸린다.
+- `EntityType = 'style'|'character'|'background'|'worldview'` — 값은 `ENTITY_TYPES` (`src/schemas.ts:376`), 타입은 `src/index.ts:154`. `packages/db` 의 `entityIdPrefix` 도 이걸 받아서, 타입이 늘면 그 switch 가 컴파일 에러로 걸린다.
 - `OAUTH_PROVIDERS = ['google','github']` (`src/index.ts:23`).
 - `TEXT_ALIGNS = ['left','center','right']` (`src/schemas.ts:4`) — PageText/말풍선 인스펙터 공용 정렬 enum.
 
@@ -59,7 +59,7 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 | `SpeechBubbleDTO`                                                        | `src/index.ts:181-190` | `id, pageId, variant(ellipse/rect/spike/polygon), shape{x,y,w,h,points?,tail?}, style, order` — Page 직속, 패널과 독립. **text 필드는 더 이상 존재하지 않음** (PageText 로 분리)             |
 | `SpeechBubbleStyle`                                                      | `src/index.ts:167-171` | `strokeWidth, strokeColor, fillColor` — `defaultSpeechBubbleStyle()` 헬퍼 (`:162-168`). 텍스트 관련 필드는 모두 제거됨                                                                       |
 | `PageTextDTO`                                                            | `src/index.ts:268-280` | `id, pageId, x, y, w, h, text(평문), style(PageTextStyle), order` — Page 직속 자유 텍스트 박스                                                                                               |
-| `PageTextStyle`                                                          | `src/index.ts:247-252` | `fontSize, fontFamily, color, textAlign` — `defaultPageTextStyle()` 헬퍼 (`:259-266`)                                                                                                        |
+| `PageTextStyle`                                                          | `src/index.ts:257-262` | `fontSize, fontFamily, color, textAlign` — `defaultPageTextStyle()` 헬퍼 (`:259-266`)                                                                                                        |
 | `PageLineDTO`                                                            | `src/index.ts:262-273` | `id, pageId, x1, y1, x2, y2, style(PageLineStyle), order` — Page 직속 자유 직선                                                                                                              |
 | `PageLineStyle`                                                          | `src/index.ts:248-252` | `strokeWidth, strokeColor, strokeStyle('solid'\|'dashed')` — `defaultPageLineStyle()` 헬퍼 (`:294-300`)                                                                                      |
 | `ConsistencyEntityDTO`                                                   | `src/index.ts:87-100`  | `type, name, aliases[], description, refImages[], refImageUrls[](presigned), version`                                                                                                        |

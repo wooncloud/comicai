@@ -2,9 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { MODEL_TOKEN_COST, TOKEN_LEDGER_KINDS, type TokenBalanceDTO } from '@comicai/types';
 import { LEDGER_KIND_LABEL, affordability, affordableText, formatKrw } from './tokens';
 
+/** 플랫폼 키로 도는 보통 사용자. 단가는 전역 표와 같다. */
 const balance = (n: number): TokenBalanceDTO => ({
   balance: n,
+  costs: { 'gemini-3.1-flash-image-preview': 1, 'gpt-image-2': 4, mock: 0 },
   affordable: { 'gemini-3.1-flash-image-preview': n, 'gpt-image-2': Math.floor(n / 4), mock: null },
+});
+
+/** 자기 OpenAI 키를 넣은 사용자 — 그 모델은 토큰을 쓰지 않는다. */
+const byokBalance = (n: number): TokenBalanceDTO => ({
+  balance: n,
+  costs: { 'gemini-3.1-flash-image-preview': 1, 'gpt-image-2': 0, mock: 0 },
+  affordable: { 'gemini-3.1-flash-image-preview': n, 'gpt-image-2': null, mock: null },
 });
 
 describe('affordability', () => {
@@ -14,6 +23,15 @@ describe('affordability', () => {
 
   it('충분하면 short 가 아니다', () => {
     expect(affordability(balance(4), 'gpt-image-2').short).toBe(false);
+  });
+
+  /*
+   * 서버는 자기 키를 알아보고 공짜로 처리하는데 화면만 전역 단가표를 읽으면, BYOK
+   * 사용자가 잔액 0 일 때 "4토큰 필요 · 토큰이 모자랍니다" 를 본다. 쓰지도 않는 토큰을
+   * 채우러 간다.
+   */
+  it('자기 키가 있는 모델은 잔액 0 이어도 모자라지 않다', () => {
+    expect(affordability(byokBalance(0), 'gpt-image-2')).toEqual({ cost: 0, short: false });
   });
 
   it('잔액을 못 읽었으면 short 가 아니다', () => {

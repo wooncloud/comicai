@@ -357,12 +357,6 @@
     },
     {
       "doc": "docs/04-shared-packages.md",
-      "raw": "index.ts:246",
-      "target": "packages/types/src/index.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/04-shared-packages.md",
       "raw": "render.queue.ts:36",
       "target": "apps/api/src/render/render.queue.ts",
       "count": 1
@@ -483,12 +477,6 @@
     },
     {
       "doc": "docs/06-render-pipeline.md",
-      "raw": ":108-138",
-      "target": "apps/api/src/render/render.queue.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/06-render-pipeline.md",
       "raw": ":116-123",
       "target": "apps/api/src/render/render.worker.ts",
       "count": 1
@@ -507,12 +495,6 @@
     },
     {
       "doc": "docs/06-render-pipeline.md",
-      "raw": ":140-143",
-      "target": "apps/api/src/render/render.queue.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/06-render-pipeline.md",
       "raw": ":148-150",
       "target": "packages/adapters/src/index.ts",
       "count": 1
@@ -521,12 +503,6 @@
       "doc": "docs/06-render-pipeline.md",
       "raw": ":194",
       "target": "apps/api/src/render/render.worker.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/06-render-pipeline.md",
-      "raw": ":40-44",
-      "target": "apps/api/src/render/render.service.ts",
       "count": 1
     },
     {
@@ -543,20 +519,8 @@
     },
     {
       "doc": "docs/06-render-pipeline.md",
-      "raw": ":81-91",
-      "target": "apps/api/src/render/render.queue.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/06-render-pipeline.md",
       "raw": ":95",
       "target": "apps/api/src/render/render.controller.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/06-render-pipeline.md",
-      "raw": ":98-105",
-      "target": "apps/api/src/render/render.queue.ts",
       "count": 1
     },
     {

@@ -1,5 +1,5 @@
 import { prisma, type Prisma } from '@comicai/db';
-import { IN_PROGRESS_RENDER_STATUSES, type RenderStatus } from '@comicai/types';
+import { IN_PROGRESS_RENDER_STATUSES, type TerminalRenderStatus } from '@comicai/types';
 import type { TokensService } from '../tokens/tokens.service';
 
 /**
@@ -23,14 +23,35 @@ import type { TokensService } from '../tokens/tokens.service';
 export async function finalizeRenderJob(
   tokens: TokensService,
   jobId: string,
-  status: RenderStatus,
+  status: TerminalRenderStatus,
   opts: { reason: string; data?: Prisma.RenderJobUpdateInput },
 ): Promise<boolean> {
   const { count } = await prisma.renderJob.updateMany({
     where: { id: jobId, status: { in: [...IN_PROGRESS_RENDER_STATUSES] } },
     data: { ...opts.data, status, finishedAt: new Date() },
   });
-  if (count === 0) return false;
+
+  if (count === 0) {
+    /*
+     * 경합에서 졌다 — 다른 쪽이 먼저 종결했다.
+     *
+     * **그래도 환급은 봐야 한다.** 흔한 순서가 이렇다: 사용자가 취소를 누르는데 그
+     * 시점에는 워커가 아직 키를 안 받아 갔다 → 취소 쪽 환급은 원장에 찾을 것이 없어
+     * 그냥 지나간다 → 그 뒤 워커가 차감하고, 결과를 만들고, 여기서 진다. 예전에는
+     * 그대로 `return` 해서 **사용자가 취소한 그림값이 그대로 탔다.**
+     *
+     * 이긴 쪽이 성공이면 돌려주지 않는다. stalled 재큐로 워커 둘이 같은 잡을 처리하면
+     * 진 쪽이 여기 오는데, 차감은 잡 id 로 하나뿐이라 그걸 돌려주면 성공한 그림이
+     * 공짜가 된다.
+     */
+    const row = await prisma.renderJob.findUnique({
+      where: { id: jobId },
+      select: { status: true },
+    });
+    if (row && row.status !== 'succeeded') await tokens.refundRender(jobId, opts.reason);
+    return false;
+  }
+
   // 성공만 값을 받았다. 나머지는 결과가 없으므로 돌려준다 — 차감된 적이 없으면
   // (BYOK·mock) `refundRender` 가 알아서 아무것도 하지 않는다.
   if (status !== 'succeeded') await tokens.refundRender(jobId, opts.reason);

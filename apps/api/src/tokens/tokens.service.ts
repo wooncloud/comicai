@@ -9,6 +9,7 @@ import {
   type TokenLedgerEntryDTO,
   type TokenLedgerKind,
 } from '@comicai/types';
+import { costFor, hasOwnKeyFor, providersWithOwnKey } from './model-cost';
 
 export class InsufficientTokensError extends Error {
   readonly category = 'quota' as const;
@@ -72,16 +73,33 @@ export class TokensService {
     return row?.balance ?? 0;
   }
 
+  /**
+   * 화면이 쓰는 잔액 묶음.
+   *
+   * 단가는 **이 사용자 기준**이다. 자기 키를 넣은 모델은 0 이고 따라서 "제한 없음" 이다 —
+   * 전역 단가표를 그대로 보내면 BYOK 사용자가 잔액 0 일 때 "0장 · 토큰이 모자랍니다" 를
+   * 보는데, 그 렌더는 토큰을 쓰지 않는다. 규칙은 `costFor` 하나가 안다.
+   */
   async balanceDto(userId: string): Promise<TokenBalanceDTO> {
-    const balance = await this.balance(userId);
+    const [balance, keyRows] = await Promise.all([
+      this.balance(userId),
+      prisma.apiKey.findMany({
+        where: { userId, isActive: true },
+        select: { provider: true },
+        distinct: ['provider'],
+      }),
+    ]);
+    const owned = providersWithOwnKey(keyRows);
+    const costs = {} as Record<ModelId, number>;
     const affordable = {} as Record<ModelId, number | null>;
     for (const model of MODEL_IDS) {
-      const cost = this.costOf(model);
-      // 공짜 모델(mock)은 제한이 없다. `Infinity` 는 JSON 에서 null 이 되므로 처음부터
+      const cost = costFor(model, hasOwnKeyFor(model, owned));
+      costs[model] = cost;
+      // 비용이 0 이면 제한이 없다. `Infinity` 는 JSON 에서 null 이 되므로 처음부터
       // null 로 보낸다 — 타입도 그렇게 말한다.
       affordable[model] = cost <= 0 ? null : Math.floor(balance / cost);
     }
-    return { balance, affordable };
+    return { balance, costs, affordable };
   }
 
   /**
@@ -140,11 +158,12 @@ export class TokensService {
     });
   }
 
-  async history(userId: string, limit = 50): Promise<TokenLedgerEntryDTO[]> {
+  /** `take` 는 이미 접혀서 온다(`clampTake`). 여기서 또 접으면 접는 곳이 둘이 된다. */
+  async history(userId: string, take: number): Promise<TokenLedgerEntryDTO[]> {
     const rows = await prisma.tokenLedger.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
-      take: Math.min(Math.max(limit, 1), 200),
+      take,
     });
     return rows.map((r) => ({
       id: r.id,

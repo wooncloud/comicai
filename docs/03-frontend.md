@@ -675,7 +675,7 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 - `BY_CODE` 는 `Record<ErrorCode | 'HTTP_ERROR', string | null>` (`lib/error-message.ts:21`) 이라
   `packages/types` 에 코드가 추가되면 **컴파일 에러**로 잡힌다. `null` 은 "코드만으로는 안내할
   내용이 없음" 이고, 그때만 호출부가 넘긴 문맥을 쓴다.
-- `renderErrorMessage`(`:134`) 는 워커가 실어 보내는 `RenderError.category` 를, `oauthErrorMessage`(`:158`)
+- `renderErrorMessage`(`:151`) 는 워커가 실어 보내는 `RenderError.category` 를, `oauthErrorMessage`(`:158`)
   는 OAuth 콜백 쿼리 파라미터를 각각 다룬다. 셋 다 같은 파일에 있다.
 - 이렇게 모으기 전에는 `저장 실패: ${err.code}` 로 영문 enum 이, `(err as Error).message` 로 NestJS
   기본 영문 메시지가 화면에 노출됐고 스윕할 때마다 몇 곳씩 놓쳤다.
