@@ -45,23 +45,23 @@ ComicAI의 인프라/운영 자산은 세 위치에 모여 있다.
 
 | 서비스                     | 이미지/빌드                                                                     | 호스트 포트                    | depends_on                         |
 | -------------------------- | ------------------------------------------------------------------------------- | ------------------------------ | ---------------------------------- |
-| `postgres` (`full.yml:41`) | `postgres:16`                                                                   | `5433` (`:51`)                 | —                                  |
-| `redis` (`:61`)            | `redis:7-alpine`                                                                | `6379` (`:73`)                 | —                                  |
-| `minio` (`:83`)            | `minio/minio:latest`                                                            | `9000` (`:92`), `9001` (`:93`) | —                                  |
-| `migrate` (`:102`)         | `infra/docker/api.Dockerfile`                                                   | —                              | postgres(healthy)                  |
-| `api` (`:116`)             | `infra/docker/api.Dockerfile`                                                   | `4000` (`:154`)                | postgres, redis, minio, migrate    |
-| `worker` (`:161`)          | `infra/docker/api.Dockerfile` (`command: node apps/api/dist/worker.js`, `:184`) | —                              | 동일 + migrate                     |
-| `web` (`:186`)             | `infra/docker/web.Dockerfile`                                                   | `3000` (`:208`)                | api(healthy)                       |
-| `cloudflared` (`:213`)     | `cloudflare/cloudflared:latest`                                                 | —                              | web, api (profile `tunnel`)        |
-| `backup` (`:225`)          | `../backup`                                                                     | —                              | postgres, minio (profile `backup`) |
+| `postgres` (`full.yml:42`) | `postgres:16`                                                                   | `5433` (`:52`)                 | —                                  |
+| `redis` (`:62`)            | `redis:7-alpine`                                                                | `6379` (`:74`)                 | —                                  |
+| `minio` (`:84`)            | `minio/minio:latest`                                                            | `9000` (`:93`), `9001` (`:94`) | —                                  |
+| `migrate` (`:103`)         | `infra/docker/api.Dockerfile`                                                   | —                              | postgres(healthy)                  |
+| `api` (`:117`)             | `infra/docker/api.Dockerfile`                                                   | `4000` (`:155`)                | postgres, redis, minio, migrate    |
+| `worker` (`:162`)          | `infra/docker/api.Dockerfile` (`command: node apps/api/dist/worker.js`, `:185`) | —                              | 동일 + migrate                     |
+| `web` (`:187`)             | `infra/docker/web.Dockerfile`                                                   | `3000` (`:209`)                | api(healthy)                       |
+| `cloudflared` (`:214`)     | `cloudflare/cloudflared:latest`                                                 | —                              | web, api (profile `tunnel`)        |
+| `backup` (`:226`)          | `../backup`                                                                     | —                              | postgres, minio (profile `backup`) |
 
 > 호스트 포트는 전부 `127.0.0.1` 바인딩이다. 이유는 §6.5.
 
-`migrate`는 `prisma migrate deploy` 실행 후 종료(`command`, `:114` / `restart: 'no'`, `:113`), `api`/`worker`는 `service_completed_successfully` 조건으로 대기(`:130-131`, `:180-181`).
+`migrate`는 `prisma migrate deploy` 실행 후 종료(`command`, `:115` / `restart: 'no'`, `:114`), `api`/`worker`는 `service_completed_successfully` 조건으로 대기(`:130-131`, `:180-181`).
 
-`api` 컨테이너는 `RENDER_WORKER_DISABLED=1`로 BullMQ consumer를 끄고(`full.yml:135`), `worker` 컨테이너에서만 렌더링 큐를 처리(`RENDER_WORKER_DISABLED`, `:183`). `RENDER_CONCURRENCY` 기본 2 (`:184`).
+`api` 컨테이너는 `RENDER_WORKER_DISABLED=1`로 BullMQ consumer를 끄고(`full.yml:136`), `worker` 컨테이너에서만 렌더링 큐를 처리(`RENDER_WORKER_DISABLED`, `:184`). `RENDER_CONCURRENCY` 기본 2 (`:185`).
 
-`worker` 는 `stop_grace_period: 90s` 를 쓴다 (`full.yml:170`). SIGTERM 을 받으면 `worker.close()` 가
+`worker` 는 `stop_grace_period: 90s` 를 쓴다 (`full.yml:171`). SIGTERM 을 받으면 `worker.close()` 가
 처리 중인 잡을 기다리는데(`apps/api/src/worker.ts:14`), 도커 기본 유예 10초는 렌더 데드라인 60초보다
 짧아 배포마다 SIGKILL 로 끊긴다. 그러면 잡이 stalled 로 재큐되어 모델을 한 번 더 호출·과금한다.
 
@@ -180,7 +180,7 @@ pg_dump 가 중간에 죽거나 디스크가 차면 `out.sql.gz` 는 **열리기
 DB·오브젝트·백업이 함께 죽는다. 목적지는 사람이 정해야 해서 기본값을 둘 수 없다.
 
 한 단계 약한 대안으로 `BACKUP_HOST_PATH` 에 다른 디스크/NAS 마운트 경로를 적으면 백업이
-그쪽에 쌓인다(`full.yml:256-259`). 비우면 도커 볼륨(`backup_data`)이라 같은 디스크다.
+그쪽에 쌓인다(`full.yml:257-259`). 비우면 도커 볼륨(`backup_data`)이라 같은 디스크다.
 
 `.env` 는 일부러 백업하지 않는다. 담긴 값이 그대로 외부 저장소로 나가면 그 저장소 하나가
 뚫리는 순간 전부가 뚫린다. 잃으면 곤란한 것은 `MASTER_KEY` 하나뿐이니 그것만 사람이
@@ -194,7 +194,7 @@ DB·오브젝트·백업이 함께 죽는다. 목적지는 사람이 정해야 �
 - `RUN_ON_START=1`이면 컨테이너 기동 즉시 1회 실행 (`:22-25`).
 - `crond -f -l 8` foreground 실행 (`:27`).
 
-볼륨은 `${BACKUP_HOST_PATH:-backup_data}:/backup` (`full.yml:258`).
+볼륨은 `${BACKUP_HOST_PATH:-backup_data}:/backup` (`full.yml:259`).
 
 ---
 
@@ -248,21 +248,21 @@ ComicAI 개발용 cmux 워크스페이스 `comicai-dev` 를 생성한다 (`cmux-
 | --------------- | ------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | **DB**          | `POSTGRES_USER` / `_PASSWORD` / `_DB`                         | `comicai`                                                           | compose 환경에 그대로 전달                                                                                      |
 |                 | `DATABASE_URL`                                                | `postgresql://comicai:comicai@localhost:5433/comicai?schema=public` | 로컬 호스트는 `:5433`, 컨테이너 내부는 `postgres:5432` (full.yml의 `x-db-env`가 자동 오버라이드)                |
-| **Redis**       | `REDIS_PASSWORD`                                              | (필수)                                                              | compose 가 이 값으로 `--requirepass` 를 건다 (`full.yml:70-71`). `:?` 로 강제 (`:25`)                           |
+| **Redis**       | `REDIS_PASSWORD`                                              | (필수)                                                              | compose 가 이 값으로 `--requirepass` 를 건다 (`full.yml:71-71`). `:?` 로 강제 (`:25`)                           |
 |                 | `REDIS_URL`                                                   | `redis://localhost:6379`                                            | compose 없이 직접 띄울 때만 쓴다. 컨테이너 안에서는 `x-api-env` 가 비밀번호를 넣어 조립 (`full.yml:25`)         |
 | **S3 (MinIO)**  | `S3_ENDPOINT`                                                 | `http://localhost:9000`                                             | 컨테이너 내부는 `http://minio:9000`                                                                             |
 |                 | `S3_PUBLIC_ENDPOINT`                                          | `http://localhost:9000`                                             | **브라우저용** presigned URL 서명 host (`.env.example:19`, `full.yml:16`)                                       |
 |                 | `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `us-east-1` / `comicai` / `minioadmin` / `minioadmin`               |                                                                                                                 |
 |                 | `MINIO_ROOT_USER` / `_PASSWORD`                               | `minioadmin`                                                        |                                                                                                                 |
 | **보안**        | `MASTER_KEY`                                                  | (필수, 32-byte base64)                                              | AES-256-GCM KEK. `full.yml:26`에서 `:?` 로 강제                                                                 |
-|                 | `COOKIE_SECURE`                                               | (비움)                                                              | 세션 쿠키의 Secure 플래그. **비우는 것이 기본** (`.env.example:47`, `full.yml:139`). §6.5 참고                  |
-|                 | `COOKIE_DOMAIN`                                               | (비움)                                                              | web/api 가 다른 서브도메인일 때만 부모 도메인 (`.env.example:51`, `full.yml:140`)                               |
+|                 | `COOKIE_SECURE`                                               | (비움)                                                              | 세션 쿠키의 Secure 플래그. **비우는 것이 기본** (`.env.example:47`, `full.yml:140`). §6.5 참고                  |
+|                 | `COOKIE_DOMAIN`                                               | (비움)                                                              | web/api 가 다른 서브도메인일 때만 부모 도메인 (`.env.example:51`, `full.yml:141`)                               |
 | **앱**          | `API_PORT`                                                    | `4000`                                                              |                                                                                                                 |
 |                 | `WEB_PORT`                                                    | `3000`                                                              | `apps/web` `next dev -p ${WEB_PORT:-3000}`                                                                      |
 |                 | `NEXT_PUBLIC_API_URL`                                         | `http://localhost:4000`                                             | Next 빌드 시 인라인 (`web.Dockerfile:29`)                                                                       |
-|                 | `INTERNAL_API_URL`                                            | `http://api:4000`                                                   | full.yml 내부 server→server (`full.yml:202`)                                                                    |
-|                 | `API_PUBLIC_URL`                                              | `http://localhost:4000`                                             | OAuth callback URL용 (`full.yml:145`)                                                                           |
-|                 | `WEB_ORIGIN`                                                  | `http://localhost:3000`                                             | 한 값이 셋을 정한다 — CORS 허용 오리진, OAuth 콜백 리다이렉트, 메일 링크 (`.env.example:37-41`, `full.yml:134`) |
+|                 | `INTERNAL_API_URL`                                            | `http://api:4000`                                                   | full.yml 내부 server→server (`full.yml:203`)                                                                    |
+|                 | `API_PUBLIC_URL`                                              | `http://localhost:4000`                                             | OAuth callback URL용 (`full.yml:146`)                                                                           |
+|                 | `WEB_ORIGIN`                                                  | `http://localhost:3000`                                             | 한 값이 셋을 정한다 — CORS 허용 오리진, OAuth 콜백 리다이렉트, 메일 링크 (`.env.example:37-41`, `full.yml:135`) |
 | **렌더 워커**   | `RENDER_WORKER_DISABLED`                                      | `0`                                                                 | api 컨테이너=1, worker 컨테이너=0                                                                               |
 |                 | `RENDER_CONCURRENCY`                                          | `2`                                                                 | BullMQ 워커 동시성                                                                                              |
 | **OAuth**       | `GOOGLE_OAUTH_CLIENT_ID/SECRET`                               | —                                                                   |                                                                                                                 |
@@ -273,15 +273,15 @@ ComicAI 개발용 cmux 워크스페이스 `comicai-dev` 를 생성한다 (`cmux-
 |                 | `BACKUP_RUN_ON_START`                                         | `0`                                                                 | 컨테이너 기동 직후 1회 실행                                                                                     |
 |                 | `BACKUP_STALE_HOURS`                                          | `26`                                                                | healthcheck 한도. 스케줄을 성기게 바꾸면 같이 올린다 (`healthcheck.sh:13`)                                      |
 |                 | `BACKUP_WEBHOOK_URL`                                          | —                                                                   | 실패 시 JSON POST. 비면 로그 + healthcheck 만 (`backup.sh:65-79`)                                               |
-|                 | `BACKUP_HOST_PATH`                                            | (도커 볼륨)                                                         | 백업을 다른 디스크에 두려면 마운트 경로 (`full.yml:258`)                                                        |
+|                 | `BACKUP_HOST_PATH`                                            | (도커 볼륨)                                                         | 백업을 다른 디스크에 두려면 마운트 경로 (`full.yml:259`)                                                        |
 |                 | `BACKUP_REMOTE_ENDPOINT/_ACCESS_KEY/_SECRET_KEY/_BUCKET`      | —                                                                   | 채우면 매 회차 외부 S3 로 사본 (`backup.sh:166-175`)                                                            |
 | **운영자**      | `ADMIN_EMAILS`                                                | (비움)                                                              | `/admin` 접근 허용 이메일, 쉼표 구분. 비면 관리자 없음 (`.env.example:95`, `full.yml:28`)                       |
 | **관측**        | `METRICS_TOKEN`                                               | (비움)                                                              | `/v1/metrics` Bearer 토큰. 비면 404 (`.env.example:102`, `full.yml:31`)                                         |
 | **기능 플래그** | `FEATURE_API_KEYS`                                            | `0`                                                                 | BYOK 화면·API. 서버와 웹 둘 다 켜야 한다 (`.env.example:117`, `full.yml:29`)                                    |
-|                 | `NEXT_PUBLIC_FEATURE_API_KEYS`                                | `0`                                                                 | 위의 웹 쪽 짝. 빌드 시 인라인 (`full.yml:193`)                                                                  |
+|                 | `NEXT_PUBLIC_FEATURE_API_KEYS`                                | `0`                                                                 | 위의 웹 쪽 짝. 빌드 시 인라인 (`full.yml:194`)                                                                  |
 | **메일**        | `RESEND_API_KEY`                                              | (비움)                                                              | 비면 콘솔 로그만 — 이메일 인증·비밀번호 재설정을 끝낼 수 없다 (`.env.example:123`, `full.yml:33`)               |
 |                 | `EMAIL_FROM`                                                  | `ComicAI <onboarding@resend.dev>`                                   | 발신 주소 (`.env.example:125`, `full.yml:34`)                                                                   |
-| **플랫폼 키**   | `PLATFORM_GEMINI_KEY` / `PLATFORM_OPENAI_KEY`                 | (비움)                                                              | 사용자 키가 없을 때 쓰는 회사 키 (`full.yml:36`, `:37`)                                                         |
+| **플랫폼 키**   | `PLATFORM_GEMINI_KEY` / `PLATFORM_OPENAI_KEY`                 | (비움)                                                              | 사용자 키가 없을 때 쓰는 회사 키 (`full.yml:37`, `:37`)                                                         |
 
 > `apps/api`, `apps/web`에 별도 `.env.*`는 존재하지 않으며 루트 `.env` 만 사용.
 
@@ -338,7 +338,7 @@ pnpm dev
 
 ## 6.5 노출 표면
 
-**의존 서비스 포트는 루프백에만 연다** — postgres(`full.yml:52`), redis(`:73`),
+**의존 서비스 포트는 루프백에만 연다** — postgres(`full.yml:53`), redis(`:73`),
 minio(`:92`, `:93`), api(`:156`), web(`:210`). docker 의 publish 는 `0.0.0.0` 바인딩이고 iptables 를
 직접 건드리므로, 호스트 방화벽으로 막아도 인터넷에서 닿는다. 예전에는 이 넷이 전부
 공개돼 있었고 **redis 는 비밀번호조차 없었다** — 세션과 렌더 큐가 들어 있으므로
@@ -381,7 +381,7 @@ minio(`:92`, `:93`), api(`:156`), web(`:210`). docker 의 publish 는 `0.0.0.0` 
 
 - 이미지: `cloudflare/cloudflared:latest`
 - 커맨드: `tunnel --no-autoupdate run` (`:216`)
-- 인증: `TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}` — Cloudflare Zero Trust 대시보드에서 발급한 토큰을 `.env`에 채워야 한다. 빈 값이면 즉시 종료 (`full.yml:219` 주석, `TUNNEL_TOKEN` `:219`).
+- 인증: `TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}` — Cloudflare Zero Trust 대시보드에서 발급한 토큰을 `.env`에 채워야 한다. 빈 값이면 즉시 종료 (`full.yml:220` 주석, `TUNNEL_TOKEN` `:219`).
 - 의존: `web`, `api` (단순 `depends_on` `:222-224`, healthcheck 조건 없음)
 
 활성화:
@@ -425,7 +425,7 @@ $compose up -d --build backup cloudflared
 
 `git reset --hard` 이므로 프로덕션 호스트에 남은 로컬 변경은 유실된다. `.env` 는 git 추적 대상이 아니라 보존된다.
 
-**마이그레이션 동반 실행**: `--force-recreate` 대상은 `web`/`api`/`worker` 3개지만, `api`·`worker` 가 `migrate` 를 `service_completed_successfully` 로 의존하므로(`full.yml:130-131`, `:178-179`) `migrate` 컨테이너가 함께 뜨며 `prisma migrate deploy` 가 실행된다(`full.yml:113`). 즉 **마이그레이션이 포함된 커밋을 `main` 에 push 하면 프로덕션 DB 스키마도 함께 변경된다.**
+**마이그레이션 동반 실행**: `--force-recreate` 대상은 `web`/`api`/`worker` 3개지만, `api`·`worker` 가 `migrate` 를 `service_completed_successfully` 로 의존하므로(`full.yml:131-131`, `:178-179`) `migrate` 컨테이너가 함께 뜨며 `prisma migrate deploy` 가 실행된다(`full.yml:114`). 즉 **마이그레이션이 포함된 커밋을 `main` 에 push 하면 프로덕션 DB 스키마도 함께 변경된다.**
 
 `postgres`·`redis`·`minio` 는 재생성 대상이 아니므로 그대로 유지된다.
 

@@ -56,6 +56,8 @@ export type ErrorCode =
   | 'RENDER_SAFETY_BLOCK'
   | 'RENDER_AUTH_FAILED'
   | 'RENDER_TIMEOUT'
+  // 토큰
+  | 'INSUFFICIENT_TOKENS'
   // 업로드
   | 'UPLOAD_TYPE_NOT_ALLOWED'
   | 'UPLOAD_TOO_LARGE'

@@ -47,13 +47,13 @@
 
 ### 1.4 AppModule (`app.module.ts`)
 
-- `ConfigModule.forRoot({ isGlobal: true })` — `app.module.ts:26`
+- `ConfigModule.forRoot({ isGlobal: true })` — `app.module.ts:30`
 - `LoggerModule.forRoot(...)`: pino redact 경로(`req.headers.cookie`, `authorization`, `*.apiKey`, `*.secret`, `*.token`, `*.ciphertext`, `*.password`, `*.passwordHash`), `/healthz`는 autoLogging 제외 — `app.module.ts:27-59`
 - `ThrottlerModule.forRoot([{ ttl: 60s, limit: 120 }])`, `APP_GUARD = ThrottlerGuard`로 글로벌 적용 — `app.module.ts:62, 82`
-- `APP_GUARD = SessionGuard` 도 함께 등록 — `app.module.ts:93` (아래 §2.2)
-- `configure(consumer)`에서 `CsrfMiddleware`를 모든 라우트(`'*'`)에 부착 — `app.module.ts:83-85`
+- `APP_GUARD = SessionGuard` 도 함께 등록 — `app.module.ts:97` (아래 §2.2)
+- `configure(consumer)`에서 `CsrfMiddleware`를 모든 라우트(`'*'`)에 부착 — `app.module.ts:101-103`
 - 등록 모듈: `MetricsModule, EmailModule, AuthModule, OAuthModule, MeModule, ApiKeysModule, ProjectsModule, ConsistencyModule, PagesModule, PanelsModule, SpeechBubblesModule, PageTextsModule, PageLinesModule, RenderModule, ExportModule` — `app.module.ts:61-75`
-- 직접 등록 컨트롤러: `HealthController` — `app.module.ts:79`
+- 직접 등록 컨트롤러: `HealthController` — `app.module.ts:84`
 
 ---
 
@@ -476,10 +476,10 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
 
 | Method | Path                 | Handler                               |
 | ------ | -------------------- | ------------------------------------- |
-| GET    | `/v1/admin/overview` | `overview` (`admin.controller.ts:19`) |
-| GET    | `/v1/admin/users`    | `users` (`:54`)                       |
+| GET    | `/v1/admin/overview` | `overview` (`admin.controller.ts:41`) |
+| GET    | `/v1/admin/users`    | `users` (`:105`)                      |
 
-- 가드는 `SessionGuard` → `AdminGuard` 순서다(`admin.controller.ts:17`). `req.user` 를
+- 가드는 `SessionGuard` → `AdminGuard` 순서다(`admin.controller.ts:34`). `req.user` 를
   채우는 것이 `SessionGuard` 이므로 순서가 뒤바뀌면 안 된다.
 - 허용 목록은 환경변수 `ADMIN_EMAILS`(쉼표 구분)에서만 온다 — **이 저장소는 공개라**
   코드에 이메일을 적으면 그대로 공개된다. 모듈 로드 시 한 번 파싱한다

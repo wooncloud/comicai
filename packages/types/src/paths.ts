@@ -62,4 +62,13 @@ export const ApiPaths = {
   renderJobEvents: (id: string) => `/render-jobs/${id}/events`,
   renderJobRestore: (id: string) => `/render-jobs/${id}/restore`,
   panelHistory: (id: string) => `/panels/${id}/history`,
+
+  // 토큰·결제
+  myTokens: '/me/tokens',
+  myTokenHistory: '/me/tokens/history',
+  billingPackages: '/billing/packages',
+  billingOrders: '/billing/orders',
+  billingOrder: (id: string) => `/billing/orders/${id}`,
+  adminUserTokens: (id: string) => `/admin/users/${id}/tokens`,
+  adminOrderMarkPaid: (id: string) => `/admin/orders/${id}/mark-paid`,
 } as const;

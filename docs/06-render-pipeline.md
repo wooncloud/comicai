@@ -291,7 +291,7 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 
 - `POST /render-jobs/:id/cancel` — `apps/api/src/render/render.controller.ts:36-40`,
   `@HttpCode(204)`.
-- 서비스 `RenderService.cancel` (`render.service.ts:169-184`):
+- 서비스 `RenderService.cancel` (`render.service.ts:212-235`):
   - 소유자 확인.
   - `status in (succeeded|failed)`이면 `BadRequestException({ code:'CONFLICT' })`.
   - 그 외(`queued`/`running`/`timeout`/`canceled`)는 DB row를 `status='canceled', finishedAt=now`로 강제 갱신.
@@ -360,7 +360,7 @@ interface RenderError {
 1. **워커 → SSE**: `{ type:'error', error: RenderError }`(`render.worker.ts:124`) +
    `{ type:'status', status:'failed'|'timeout' }` (`:125`).
 2. **DB**: `RenderJob.error` JSON 컬럼에 `RenderError` 저장 (`:116-123`).
-3. **GET /render-jobs/:id 응답**: `RenderJobDTO.error`로 노출 (`render.service.ts:162`).
+3. **GET /render-jobs/:id 응답**: `RenderJobDTO.error`로 노출 (`render.service.ts:205`).
 4. **UI**:
    - `panel-inspector.tsx:178-183` `'error'` 이벤트 리스너가 `setError(payload.error.message)`로
      배너 표시 (`:305-309`).
@@ -371,7 +371,7 @@ interface RenderError {
 ### 6.4 컨트롤러 단의 동기 에러
 
 - `RENDER_INVALID_INPUT` (`render.service.ts:54`) — 본문/콘티/참조 비어있음. HTTP 400.
-- `RENDER_ENQUEUE_FAILED` (`render.service.ts:150`) — BullMQ enqueue 실패. HTTP 503.
+- `RENDER_ENQUEUE_FAILED` (`render.service.ts:177`) — BullMQ enqueue 실패. HTTP 503.
   행은 `failed`(category `transient`)로 마감된 뒤라 좀비가 남지 않는다.
 - `RESOURCE_NOT_FOUND` (`render.service.ts:150, 175; panels.service.ts:243`).
 - `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:178`),

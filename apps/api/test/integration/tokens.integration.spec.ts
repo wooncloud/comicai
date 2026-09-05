@@ -10,6 +10,7 @@ import type {
   TokensService,
   InsufficientTokensError as InsufficientTokens,
 } from '../../src/tokens/tokens.service';
+import type { BillingService } from '../../src/billing/billing.service';
 
 /*
  * 토큰은 돈이다. 여기서 틀리면 사용자가 낸 돈이 사라지거나, 우리가 낸 API 비용이
@@ -183,5 +184,73 @@ describe('토큰 원장 (testcontainers)', () => {
     const history = await tokens.history(userId);
     expect(history.map((h) => h.amount)).toEqual([-1, -4, 10]);
     expect(history.map((h) => h.balanceAfter)).toEqual([5, 6, 10]);
+  });
+});
+
+/*
+ * 구매는 돈이 실제로 오가는 자리다. PG 가 아직 없어 지금은 운영자가 `markPaid` 를
+ * 부르지만, 결제 수단이 붙어도 웹훅이 부르는 것은 **같은 함수**다. 웹훅 재전송은 흔하다.
+ */
+describe('토큰 구매 (testcontainers)', () => {
+  let billing: BillingService;
+
+  beforeAll(async () => {
+    const mod = await import('../../src/billing/billing.service');
+    billing = ctx.app.get(mod.BillingService);
+  });
+
+  it('주문만으로는 토큰이 들어가지 않는다', async () => {
+    const userId = await makeUser();
+    const order = await billing.createOrder(userId, 'basic');
+
+    expect(order.status).toBe('pending');
+    expect(await tokens.balance(userId)).toBe(0);
+  });
+
+  it('결제 확인은 몇 번을 불러도 한 번만 지급한다', async () => {
+    const userId = await makeUser();
+    const order = await billing.createOrder(userId, 'basic');
+
+    await billing.markPaid(order.id, 'pg-ref-1');
+    await billing.markPaid(order.id, 'pg-ref-1');
+    const final = await billing.markPaid(order.id, 'pg-ref-1');
+
+    expect(final.status).toBe('paid');
+    expect(await tokens.balance(userId)).toBe(120);
+    const purchases = await ctx.prisma.tokenLedger.findMany({
+      where: { userId, kind: 'purchase' },
+    });
+    expect(purchases).toHaveLength(1);
+    await assertLedgerMatchesBalance(userId);
+  });
+
+  /*
+   * 안내가 없으면 주문을 받지 않는다. 받아 두면 사용자는 눌렀고, 주문은 생겼고, 그다음에
+   * 할 수 있는 일이 없다 — 성공한 것처럼 보여서 버튼이 없는 것보다 나쁘다.
+   */
+  it('충전 안내가 없으면 주문을 거부한다', async () => {
+    const userId = await makeUser();
+    const saved = process.env.BILLING_NOTICE;
+    process.env.BILLING_NOTICE = '';
+    try {
+      await expect(billing.createOrder(userId, 'basic')).rejects.toThrow();
+      expect(billing.packages().notice).toBeNull();
+    } finally {
+      process.env.BILLING_NOTICE = saved;
+    }
+  });
+
+  /*
+   * 주문에 금액을 복사해 두는 이유. 패키지 표만 참조하면 가격을 올리는 순간 옛 주문의
+   * 금액이 함께 바뀌어 영수증이 거짓말이 된다.
+   */
+  it('주문은 만들어질 때의 수량·금액을 자기가 들고 있다', async () => {
+    const userId = await makeUser();
+    const order = await billing.createOrder(userId, 'starter');
+
+    const row = await ctx.prisma.tokenOrder.findUniqueOrThrow({ where: { id: order.id } });
+    expect(row.tokens).toBe(50);
+    expect(row.amountKrw).toBe(5000);
+    expect(row.packageId).toBe('starter');
   });
 });

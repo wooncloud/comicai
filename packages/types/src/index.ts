@@ -556,8 +556,14 @@ export type TokenPackage = (typeof TOKEN_PACKAGES)[number];
 
 export interface TokenBalanceDTO {
   balance: number;
-  /** 현재 잔액으로 각 모델을 몇 장 만들 수 있는지. 화면이 매번 나눗셈하지 않게 서버가 준다. */
-  affordable: Record<ModelId, number>;
+  /**
+   * 현재 잔액으로 각 모델을 몇 장 만들 수 있는지. 화면이 매번 나눗셈하지 않게 서버가 준다.
+   *
+   * **`null` 은 "비용이 없어 제한이 없다"** 는 뜻이다(mock). JSON 에는 Infinity 가 없어서
+   * 그걸 그대로 담으면 `null` 로 나가는데, 타입이 `number` 라고 말하면 화면이 그 자리에서
+   * 0 이나 NaN 을 보여 준다. 전송되는 형태를 타입이 그대로 말하게 둔다.
+   */
+  affordable: Record<ModelId, number | null>;
 }
 
 export interface TokenLedgerEntryDTO {
@@ -569,6 +575,22 @@ export interface TokenLedgerEntryDTO {
   memo: string | null;
   refId: string | null;
   createdAt: string;
+}
+
+/**
+ * 충전 화면이 받는 것.
+ *
+ * `notice` 는 **어떻게 돈을 내는지**다. PG 가 붙기 전까지 이게 없으면 "충전 요청" 버튼이
+ * 아무 데도 닿지 않는다 — 사용자는 눌렀고, 주문은 생겼고, 그다음에 할 수 있는 일이 없다.
+ * 성공한 것처럼 보이기 때문에 버튼이 없는 것보다 나쁘다.
+ *
+ * 저장소가 공개라 계좌 정보는 코드에 둘 수 없어 환경변수(`BILLING_NOTICE`)로 받는다.
+ * **비어 있으면 화면은 주문 버튼을 내지 않는다** — 안내할 수 없으면 받지도 않는다.
+ * PG 가 붙으면 이 값을 비우고 결제 흐름으로 바꾸면 된다.
+ */
+export interface TokenPackagesDTO {
+  packages: TokenPackage[];
+  notice: string | null;
 }
 
 export interface TokenOrderDTO {

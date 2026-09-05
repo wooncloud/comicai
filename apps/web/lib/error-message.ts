@@ -77,6 +77,7 @@ const BY_CODE: Record<Code, string | null> = {
   RENDER_SAFETY_BLOCK: 'AI가 안전 정책상 생성을 거부했습니다. 내용을 바꿔 다시 시도해 주세요.',
   RENDER_AUTH_FAILED: '지금은 그림을 만들 수 없습니다. 잠시 후 다시 시도해 주세요.',
   RENDER_TIMEOUT: `생성이 시간을 초과했습니다. ${RETRY}`,
+  INSUFFICIENT_TOKENS: '토큰이 부족합니다. 충전 후 다시 시도해 주세요.',
 
   // ── 업로드 ──────────────────────────────────────
   UPLOAD_TYPE_NOT_ALLOWED: '지원하지 않는 파일 형식입니다. PNG·JPG·WebP 를 올려 주세요.',

@@ -65,6 +65,9 @@ export async function startIntegration(): Promise<IntegrationContext> {
   process.env.STORAGE_AUTO_CREATE_BUCKET = '0';
   // SSE Redis 연결이 필요 없는 테스트에서 publish/subscribe 비활성화.
   process.env.SSE_HUB_DISABLED = '1';
+  // 비어 있으면 충전 요청 자체가 거부된다(안내할 수 없으면 받지 않는다). 주문 경로를
+  // 실제로 돌려 보기 위해 세운다 — 비었을 때의 거부는 스펙에서 따로 확인한다.
+  process.env.BILLING_NOTICE = '테스트 안내';
 
   execSync('npx prisma migrate deploy', {
     cwd: DB_PACKAGE,

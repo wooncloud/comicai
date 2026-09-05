@@ -58,6 +58,33 @@ export class RenderService {
     }
 
     /*
+     * 잔액을 **큐에 넣기 전에** 본다.
+     *
+     * 진짜 차감은 워커가 키를 받아 갈 때 원자적으로 일어나므로 이 검사는 권위가 아니다.
+     * 그래도 여기 두는 이유는 그게 없으면 사용자가 왕복을 한 번 다 돌고 나서야 "토큰이
+     * 없다" 를 알게 되기 때문이다 — 잡이 큐에 들어가 running 까지 갔다가 quota 로 죽고,
+     * 화면에는 재시도해도 소용없는 실패가 "잠시 후 다시" 로 뜬다.
+     *
+     * 필요량과 잔액을 details 에 실어 보낸다. "부족합니다" 만으로는 얼마를 채워야 하는지
+     * 알 수 없다.
+     */
+    const cost = this.tokens.costOf(model);
+    if (cost > 0) {
+      const balance = await this.tokens.balance(userId);
+      if (balance < cost) {
+        throw new BadRequestException(
+          apiError({
+            code: 'INSUFFICIENT_TOKENS',
+            message: `토큰이 부족합니다 (필요 ${cost}, 잔액 ${balance}).`,
+            // 여분 필드는 예외 필터가 `details` 로 옮겨 담는다 — 여기서 직접 감싸면 이중이 된다.
+            required: cost,
+            balance,
+          }),
+        );
+      }
+    }
+
+    /*
      * jobId 는 (ir, userId, model) 해시다. IR 이 결정적이라 같은 컷을 같은 내용으로
      * 다시 그리면 같은 id 가 나온다.
      *

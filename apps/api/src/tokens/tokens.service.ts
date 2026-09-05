@@ -74,11 +74,12 @@ export class TokensService {
 
   async balanceDto(userId: string): Promise<TokenBalanceDTO> {
     const balance = await this.balance(userId);
-    const affordable = {} as Record<ModelId, number>;
+    const affordable = {} as Record<ModelId, number | null>;
     for (const model of MODEL_IDS) {
       const cost = MODEL_TOKEN_COST[model];
-      // 공짜 모델(mock)은 잔액과 무관하게 무한이다. 0 으로 나누지 않는다.
-      affordable[model] = cost <= 0 ? Number.POSITIVE_INFINITY : Math.floor(balance / cost);
+      // 공짜 모델(mock)은 제한이 없다. `Infinity` 는 JSON 에서 null 이 되므로 처음부터
+      // null 로 보낸다 — 타입도 그렇게 말한다.
+      affordable[model] = cost <= 0 ? null : Math.floor(balance / cost);
     }
     return { balance, affordable };
   }
