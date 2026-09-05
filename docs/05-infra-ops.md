@@ -17,14 +17,14 @@ ComicAI의 인프라/운영 자산은 세 위치에 모여 있다.
 
 | 서비스     | 이미지                       | 호스트 포트              | 컨테이너 포트 | 볼륨                    |
 | ---------- | ---------------------------- | ------------------------ | ------------- | ----------------------- |
-| `postgres` | `postgres:16` (`dev.yml:5`)  | `5433` (`:13`)           | 5432          | `postgres_data` (`:15`) |
-| `redis`    | `redis:7-alpine` (`:23`)     | `6379` (`:27`)           | 6379          | `redis_data` (`:29`)    |
-| `minio`    | `minio/minio:latest` (`:37`) | `9000`/`9001` (`:45-46`) | 9000/9001     | `minio_data` (`:48`)    |
+| `postgres` | `postgres:16` (`dev.yml:5`)  | `5433` (`:15`)           | 5432          | `postgres_data` (`:17`) |
+| `redis`    | `redis:7-alpine` (`:25`)     | `6379` (`:29`)           | 6379          | `redis_data` (`:31`)    |
+| `minio`    | `minio/minio:latest` (`:39`) | `9000`/`9001` (`:47-48`) | 9000/9001     | `minio_data` (`:50`)    |
 
 모두 `restart: unless-stopped` + healthcheck 포함.
 
-- Postgres healthcheck: `pg_isready -U $POSTGRES_USER` (`dev.yml:17`)
-- Redis healthcheck: `redis-cli ping` (`dev.yml:31`)
+- Postgres healthcheck: `pg_isready -U $POSTGRES_USER` (`dev.yml:19`)
+- Redis healthcheck: `redis-cli ping` (`dev.yml:33`)
 - MinIO healthcheck: `GET /minio/health/live` (`dev.yml:50`)
 
 > 주의: Postgres는 **호스트 5433** 으로 노출된다 — `DATABASE_URL`에 `localhost:5433` 사용.
@@ -38,8 +38,8 @@ ComicAI의 인프라/운영 자산은 세 위치에 모여 있다.
 - `x-db-env` (`full.yml:9`) — `DATABASE_URL` (in-cluster hostname `postgres:5432`)
 - `x-s3-env` (`full.yml:12`) — `S3_ENDPOINT=http://minio:9000`, `S3_PUBLIC_ENDPOINT` (브라우저용)
 - `x-api-env` (`full.yml:22`) — DB+S3 + `REDIS_URL` (`:25`, `REDIS_PASSWORD` 를 `:?` 로 강제해
-  `redis://:<pw>@redis:6379` 로 조립), `MASTER_KEY` (`:26`, 필수), `ADMIN_EMAILS`·`FEATURE_API_KEYS`
-  (`:28-29`), `METRICS_TOKEN`
+  `redis://:<pw>@redis:6379` 로 조립), `MASTER_KEY` (`:26`, 필수),
+  `ADMIN_EMAILS`·`FEATURE_API_KEYS` (`:28-29`), `METRICS_TOKEN` (`:31`)
 
 #### 서비스 일람
 
@@ -49,11 +49,11 @@ ComicAI의 인프라/운영 자산은 세 위치에 모여 있다.
 | `redis` (`:61`)            | `redis:7-alpine`                                                                | `6379` (`:74`)                 | —                                  |
 | `minio` (`:83`)            | `minio/minio:latest`                                                            | `9000` (`:92`), `9001` (`:94`) | —                                  |
 | `migrate` (`:103`)         | `infra/docker/api.Dockerfile`                                                   | —                              | postgres(healthy)                  |
-| `api` (`:117`)             | `infra/docker/api.Dockerfile`                                                   | `4000` (`:156`)                | postgres, redis, minio, migrate    |
-| `worker` (`:163`)          | `infra/docker/api.Dockerfile` (`command: node apps/api/dist/worker.js`, `:186`) | —                              | 동일 + migrate                     |
-| `web` (`:188`)             | `infra/docker/web.Dockerfile`                                                   | `3000` (`:210`)                | api(healthy)                       |
+| `api` (`:117`)             | `infra/docker/api.Dockerfile`                                                   | `4000` (`:155`)                | postgres, redis, minio, migrate    |
+| `worker` (`:162`)          | `infra/docker/api.Dockerfile` (`command: node apps/api/dist/worker.js`, `:185`) | —                              | 동일 + migrate                     |
+| `web` (`:187`)             | `infra/docker/web.Dockerfile`                                                   | `3000` (`:209`)                | api(healthy)                       |
 | `cloudflared` (`:213`)     | `cloudflare/cloudflared:latest`                                                 | —                              | web, api (profile `tunnel`)        |
-| `backup` (`:227`)          | `../backup`                                                                     | —                              | postgres, minio (profile `backup`) |
+| `backup` (`:226`)          | `../backup`                                                                     | —                              | postgres, minio (profile `backup`) |
 
 > 호스트 포트는 전부 `127.0.0.1` 바인딩이다. 이유는 §6.5.
 
@@ -108,7 +108,7 @@ EXPOSE `4000`.
 3-stage (`web.Dockerfile:1-57`).
 
 1. **`deps`** — 동일하게 워크스페이스 락 설치 (`:6-20`).
-2. **`builder`** — `packages/`, `apps/web/` 복사. `ARG NEXT_PUBLIC_API_URL` (`:29`, 기본 `http://localhost:4000`)을 build-time env로 주입해 Next 빌드 시 인라인. `@comicai/types` 빌드 → `next build` (`:33-34`).
+2. **`builder`** — `packages/`, `apps/web/` 복사. `ARG NEXT_PUBLIC_API_URL` (`:29`, 기본 `http://localhost:4000`)을 build-time env로 주입해 Next 빌드 시 인라인. `NEXT_PUBLIC_FEATURE_API_KEYS` 도 같은 방식으로 받는다 (`:33-34`). 그 뒤 `@comicai/types` 빌드 → `next build` (`:37-38`).
 3. **`runner`** — Next standalone 산출물(`apps/web/.next/standalone`)만 복사 (`:46`). `dumb-init` + `nextjs:1001` 사용자 (`:42`). `PORT=3000`, `HOSTNAME=0.0.0.0` (`:52-53`). 실행: `node apps/web/server.js`.
 
 EXPOSE `3000`.
@@ -139,12 +139,13 @@ EXPOSE `3000`.
 **① 삭제는 백업으로 전파되지 않는다.** 예전에는 `mc mirror --overwrite --remove` 였다.
 소스에서 사라진 오브젝트를 백업에서도 지운다는 뜻이고, 그러면 실수로 지운 그날 밤 백업이
 증거를 마저 없앤다 — 백업이 막아야 할 사고가 정확히 그 사고인데. 지금은 `--remove` 없이
-미러하고(`backup.sh:133`), 소스에서 사라진 파일을 `minio-trash/<ts>/` 로 **옮긴다**.
+`mc mirror --overwrite` 만 돌리고(`backup.sh:139`), 소스에서 사라진 파일은
+`minio-trash/<ts>/` 로 **옮긴다**.
 보존 기간이 지나야 지워진다(`:182-183`).
 
 목록이 비어 보이면 격리를 통째로 건너뛴다(`:147`). "버킷이 진짜 비었다" 와 "목록을 못
 읽었다" 를 구별할 수 없어서인데, 여기서 잘못 판단하면 이 스크립트가 막으려던 일을 스스로
-하게 된다. 그래서 `mc find` 는 파이프가 아니라 파일로 받는다(`:137`) — `| sort` 로 넘기면
+하게 된다. 그래서 `mc find` 는 파이프가 아니라 파일로 받는다(`:144`) — `| sort` 로 넘기면
 mc 가 실패해도 `sort` 가 0 을 내서 두 경우가 같아 보인다.
 
 **② 끝까지 못 쓴 덤프는 남기지 않는다.** 예전에는 `pg_dump | gzip > out.sql.gz` 였다.
@@ -164,7 +165,7 @@ pg_dump 가 중간에 죽거나 디스크가 차면 `out.sql.gz` 는 **열리기
 
 **③ 실패를 알린다.** cron 은 조용히 실패하고, `restart: unless-stopped` 인 컨테이너가 살아
 있는 것과 백업이 실제로 돈 것은 `docker ps` 에서 똑같아 보인다. 검증을 전부 통과한 회차만
-`last-success` 에 epoch 를 남기고(`:187`), `healthcheck.sh` 가 그 나이를 본다
+`last-success` 에 epoch 를 남기고(`:194`), `healthcheck.sh` 가 그 나이를 본다
 (`healthcheck.sh:15-22`, 한도 `BACKUP_STALE_HOURS` 기본 26시간). `BACKUP_WEBHOOK_URL` 이
 있으면 실패를 JSON POST 로도 던진다(`backup.sh:65-79`). 예상치 못한 경로로 죽어도 EXIT 트랩이
 같은 알림을 낸다(`:83-90`).
@@ -279,7 +280,7 @@ ComicAI 개발용 cmux 워크스페이스 `comicai-dev` 를 생성한다 (`cmux-
 | **기능 플래그** | `FEATURE_API_KEYS`                                            | `0`                                                                 | BYOK 화면·API. 서버와 웹 둘 다 켜야 한다 (`.env.example:117`, `full.yml:29`)                                    |
 |                 | `NEXT_PUBLIC_FEATURE_API_KEYS`                                | `0`                                                                 | 위의 웹 쪽 짝. 빌드 시 인라인 (`full.yml:194`)                                                                  |
 | **메일**        | `RESEND_API_KEY`                                              | (비움)                                                              | 비면 콘솔 로그만 — 이메일 인증·비밀번호 재설정을 끝낼 수 없다 (`.env.example:123`, `full.yml:33`)               |
-|                 | `EMAIL_FROM`                                                  | `ComicAI <onboarding@resend.dev>`                                   | 발신 주소 (`.env.example:130`, `full.yml:34`)                                                                   |
+|                 | `EMAIL_FROM`                                                  | `ComicAI <onboarding@resend.dev>`                                   | 발신 주소 (`.env.example:125`, `full.yml:34`)                                                                   |
 | **플랫폼 키**   | `PLATFORM_GEMINI_KEY` / `PLATFORM_OPENAI_KEY`                 | (비움)                                                              | 사용자 키가 없을 때 쓰는 회사 키 (`full.yml:36`, `:37`)                                                         |
 |                 | `PLATFORM_DAILY_RENDER_LIMIT`                                 | `20`                                                                | 플랫폼 키 사용 시 1인 1일 상한. `0` 이면 무제한 (`full.yml:38`)                                                 |
 
@@ -329,10 +330,10 @@ pnpm dev
 | ------ | ---------------------- | ------------------------------------------------------------- |
 | `3000` | Next.js web            | `apps/web/package.json` `next dev -p ${WEB_PORT:-3000}`       |
 | `4000` | NestJS api             | `apps/api/package.json` `nest start --watch`, `API_PORT=4000` |
-| `5433` | Postgres (호스트 노출) | `dev.yml:13`                                                  |
-| `6379` | Redis                  | `dev.yml:27`                                                  |
-| `9000` | MinIO S3 API           | `dev.yml:45`                                                  |
-| `9001` | MinIO Console          | `dev.yml:46`                                                  |
+| `5433` | Postgres (호스트 노출) | `dev.yml:15`                                                  |
+| `6379` | Redis                  | `dev.yml:29`                                                  |
+| `9000` | MinIO S3 API           | `dev.yml:47`                                                  |
+| `9001` | MinIO Console          | `dev.yml:48`                                                  |
 
 ---
 
@@ -380,7 +381,7 @@ minio(`:92`, `:94`), api(`:156`), web(`:210`). docker 의 publish 는 `0.0.0.0` 
 `infra/compose/full.yml:213-224` 에 `cloudflared` 서비스가 `profiles: ['tunnel']` 로 정의돼 있다(`:217`).
 
 - 이미지: `cloudflare/cloudflared:latest`
-- 커맨드: `tunnel --no-autoupdate run` (`:218`)
+- 커맨드: `tunnel --no-autoupdate run` (`:217`)
 - 인증: `TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}` — Cloudflare Zero Trust 대시보드에서 발급한 토큰을 `.env`에 채워야 한다. 빈 값이면 즉시 종료 (`full.yml:219` 주석, `TUNNEL_TOKEN` `:220`).
 - 의존: `web`, `api` (단순 `depends_on` `:222-224`, healthcheck 조건 없음)
 

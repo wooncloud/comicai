@@ -144,7 +144,7 @@ pnpm --filter @comicai/db migrate
 
 - 트리거: `push` → `main`, 모든 `pull_request`
 - concurrency: 동일 ref의 이전 실행을 취소 (`ci.yml:8-10`)
-- 러너: `build`·docs 워크플로는 **GitHub 호스팅 `ubuntu-latest`** (`ci.yml:17`, `docs-drift.yml:25`, `docs-nudge.yml:20`), `deploy` 만 **`[self-hosted, comicai]`** (`deploy.yml:24`). 액션은 모두 v6 라인 (`actions/checkout@v6`, `pnpm/action-setup@v6`, `actions/setup-node@v6`).
+- 러너: `build`·docs 워크플로는 **GitHub 호스팅 `ubuntu-latest`** (`ci.yml:17`, `docs-drift.yml:29`, `docs-nudge.yml:20`), `deploy` 만 **`[self-hosted, comicai]`** (`deploy.yml:24`). 액션은 모두 v6 라인 (`actions/checkout@v6`, `pnpm/action-setup@v6`, `actions/setup-node@v6`).
   - 원래는 전부 self-hosted 였는데, 러너가 내려가자 CI 가 통째로 멈추고 실행이 큐에서 취소됐다(2026-09). 저장소가 공개라 호스팅 러너는 무료이므로 검증은 러너 가동 여부와 무관하게 항상 돈다. 배포만 프로덕션 호스트의 compose 를 만져야 해서 self-hosted 로 남는다.
 - `build` job (15분 타임아웃):
   1. checkout
@@ -166,7 +166,7 @@ pnpm --filter @comicai/db migrate
 
 ## 6. Git 훅
 
-- 도구: **Husky v9** (`package.json:49`). `prepare` 스크립트가 `husky`를 호출 (`package.json:31`).
+- 도구: **Husky v9** (`package.json:49`). `prepare` 스크립트가 `husky`를 호출 (`package.json:35`).
 - `pre-commit` 훅: `.husky/pre-commit:1`
   ```sh
   pnpm exec lint-staged
