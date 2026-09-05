@@ -28,7 +28,7 @@ export const MockAdapter: ModelAdapter = {
     return { bytes: BLACK_PNG_1x1, width: 1, height: 1, mimeType: 'image/png' };
   },
   classifyError(err): RenderError {
-    if ((err as { name?: string })?.name === 'AbortError') {
+    if ((err as { name?: string } | null)?.name === 'AbortError') {
       return { category: 'timeout', message: 'mock aborted' };
     }
     return { category: 'transient', message: 'mock failure' };
