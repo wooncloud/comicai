@@ -21,7 +21,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                   <Link
                     href={tab.href}
                     className={cn(
-                      'flex items-center whitespace-nowrap border-b-2 px-4 py-2 text-body-sm transition-colors touch:min-h-11',
+                      '-mb-px flex items-center whitespace-nowrap border-b-2 px-4 py-2 text-body-sm transition-colors touch:min-h-11',
                       active
                         ? 'border-foreground font-medium text-foreground'
                         : 'border-transparent text-muted-foreground hover:text-foreground',
