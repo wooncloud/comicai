@@ -98,6 +98,15 @@ export function useSpeechBubbleSync({
   onSavingChange,
   onSaveError,
 }: Args) {
+  // 역방향 투영보다 **먼저** 불러야 한다 — 아래 이펙트가 이 훅의 `hasUnsaved` 를 읽는다.
+  const sync = useShapeSync<SpeechBubbleShape, SpeechBubbleDTO>(SPEC, {
+    editor,
+    pageId,
+    onItemsChanged: onBubblesChanged,
+    onSavingChange,
+    onSaveError,
+  });
+
   // DTO → canvas
   useEffect(() => {
     if (!editor) return;
@@ -111,6 +120,15 @@ export function useSpeechBubbleSync({
     editor.store.mergeRemoteChanges(() => {
       for (const dto of bubbles) {
         const shape = existing.get(dto.id);
+        /*
+         * 저장 대기 중인 도형은 건너뛴다 — 그쪽은 서버가 아니라 캔버스가 최신이다.
+         * 없으면 왕복이 도는 사이의 편집이 재조회에 덮여 사라진다. 이유 전체는
+         * `useShapeSync` 의 §"왕복 중의 편집" 에 있다.
+         */
+        if (sync.hasUnsaved(dto.id)) {
+          existing.delete(dto.id);
+          continue;
+        }
         const props = flatten(dto);
         if (shape) {
           if (!samePropsAsDto(shape, dto)) {
@@ -137,19 +155,11 @@ export function useSpeechBubbleSync({
         editor.deleteShape(orphan.id);
       }
     });
-  }, [editor, bubbles]);
-
-  useShapeSync<SpeechBubbleShape, SpeechBubbleDTO>(SPEC, {
-    editor,
-    pageId,
-    onItemsChanged: onBubblesChanged,
-    onSavingChange,
-    onSaveError,
-  });
+  }, [editor, bubbles, sync]);
 }
 
 /** 모듈 상수여야 한다 — useShapeSync 의 의존성 배열에 들어간다. */
-const SPEC: ShapeSyncSpec<SpeechBubbleShape, SpeechBubbleDTO> = {
+const SPEC: ShapeSyncSpec<SpeechBubbleShape> = {
   type: 'speech-bubble',
   idProp: 'bubbleId',
   listPath: ApiPaths.pageSpeechBubbles,

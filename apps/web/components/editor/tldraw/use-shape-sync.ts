@@ -1,5 +1,5 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Editor, TLShape, TLShapeId, TLShapePartial } from 'tldraw';
 import { api } from '@/lib/api';
 
@@ -19,8 +19,8 @@ const RETRY_DELAYS_MS = [2000, 4000, 8000];
  *
  * ## 이 훅이 고정하는 것
  *
- * 편집을 잃지 않는 것이 전부다. 아래 네 가지가 전부 "디바운스 1.5초 창 안에서
- * 무슨 일이 일어나는가" 에 대한 답이다.
+ * 편집을 잃지 않는 것이 전부다. 전부 "디바운스 1.5초 창과 왕복이 겹치는 동안 무슨 일이
+ * 일어나는가" 에 대한 답이다.
  *
  * 1. **실패한 저장은 큐로 되돌린다.** 예전에는 `await` 앞에서 큐를 비워서, PATCH 가
  *    실패해도 캔버스에는 옮긴 위치가 그대로 남았다. 사용자는 저장됐다고 믿고 작업을
@@ -35,8 +35,26 @@ const RETRY_DELAYS_MS = [2000, 4000, 8000];
  * 4. **되살리기는 생성이 아니라 복구다.** 삭제를 Cmd+Z 로 되돌리면 tldraw 는 `added`
  *    로 알려 주는데, 예전에는 그걸 새 행 생성으로 처리해서 DELETE 와 POST 가 같은
  *    플러시에 함께 나갔다. 새로 만들어진 컷에는 장면 설명도 생성 기록도 없다.
+ * 5. **왕복이 도는 동안 한 일은 왕복이 끝나도 살아 있다.** 재조회가 덮지 않고, 지운
+ *    것이 되살아나지 않고, 시도된 적 없는 편집이 실패한 편집과 함께 버려지지 않는다.
+ *    §"왕복 중의 편집" 참조.
+ *
+ * ## 왕복 중의 편집
+ *
+ * 생성이 성공하면 서버 목록을 다시 읽어 부모에게 넘긴다(`onItemsChanged`). 부모는 그
+ * 목록으로 캔버스를 다시 그린다 — 즉 **재조회는 캔버스를 서버 상태로 덮어쓴다.** 왕복이
+ * 도는 수백 ms 사이에 사용자가 도형을 옮겼다면 그 편집이 그대로 지워졌다. 되돌려진
+ * 좌표가 다음 PATCH 로 서버에 굳어져서, 편집은 화면에서도 서버에서도 사라졌다.
+ *
+ * 그래서 이 훅은 **아직 서버에 못 보낸 편집이 있는 서버 id 집합**을 밖으로 노출한다
+ * (`hasUnsaved`). 역방향 투영(각 `use*-sync` 의 첫 이펙트)은 그 id 를 건너뛴다 — 그
+ * 도형에 대해서는 서버가 아니라 캔버스가 최신이기 때문이다.
+ *
+ * 노출이 필요한 이유는 재조회가 이 훅 밖에서도 일어나기 때문이다. 렌더가 끝나거나
+ * 다른 사용자가 바꿔도 목록 prop 이 갱신되고, 그때마다 같은 덮어쓰기가 일어난다.
+ * 재조회를 없애는 것으로는 안 되고, 투영이 더러운 도형을 알아야 한다.
  */
-export interface ShapeSyncSpec<TShape extends TLShape, TDto extends { id: string }> {
+export interface ShapeSyncSpec<TShape extends TLShape> {
   /** tldraw shape type. store 리스너가 이걸로 자기 것만 고른다. */
   type: TShape['type'];
   /** `shape.props` 안에서 서버 id 를 담는 키. 없으면 아직 저장된 적 없는 도형이다. */
@@ -47,6 +65,17 @@ export interface ShapeSyncSpec<TShape extends TLShape, TDto extends { id: string
   itemPath: (id: string) => string;
   /** shape → 요청 본문. 생성과 갱신이 같은 모양이다. */
   toBody: (shape: TShape) => unknown;
+}
+
+/** 역방향 투영이 이 훅에게 묻는 것. 반환값의 정체성은 렌더 간에 고정된다. */
+export interface ShapeSyncState {
+  /**
+   * 이 서버 id 에 아직 서버로 못 보낸 편집(또는 삭제)이 있는가.
+   *
+   * `true` 면 서버 목록이 아니라 캔버스가 최신이므로, 투영은 그 항목을 건드리지 않고
+   * 지우지도 않아야 한다.
+   */
+  hasUnsaved: (serverId: string) => boolean;
 }
 
 interface Args<TDto> {
@@ -71,9 +100,16 @@ function serverIdOf(shape: TLShape, idProp: string): string | null {
 }
 
 export function useShapeSync<TShape extends TLShape, TDto extends { id: string }>(
-  spec: ShapeSyncSpec<TShape, TDto>,
+  spec: ShapeSyncSpec<TShape>,
   { editor, pageId, onItemsChanged, onSavingChange, onSaveError }: Args<TDto>,
-) {
+): ShapeSyncState {
+  // 큐는 이펙트 클로저 안에 산다(pageId 가 바뀌면 새 큐여야 한다). 밖에서 읽어야 하는
+  // 것은 질문 하나뿐이라 함수만 ref 로 내보낸다.
+  const hasUnsavedRef = useRef<(serverId: string) => boolean>(() => false);
+  const [state] = useState<ShapeSyncState>(() => ({
+    hasUnsaved: (serverId: string) => hasUnsavedRef.current(serverId),
+  }));
+
   useEffect(() => {
     if (!editor) return;
 
@@ -83,6 +119,14 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
     const deletes = new Set<string>();
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
+    /**
+     * `cancelled` 를 함수로 읽는다.
+     *
+     * 이 값은 `await` 사이에 정리 함수가 뒤집는다. TS 의 흐름 분석은 `await` 를 건너
+     * 좁히기를 유지하므로 `if (cancelled) return` 뒤의 `if (!cancelled)` 를 "항상 참"
+     * 으로 본다 — 그 판정을 믿고 조건을 지우면 언마운트된 화면에 결과를 쓴다.
+     */
+    const alive = () => !cancelled;
     let failures = 0;
     /** 플러시가 도는 동안 들어온 변경이 같은 플러시에 다시 실리지 않게 한다. */
     let inFlight = false;
@@ -90,6 +134,17 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
     function hasWork() {
       return creates.size > 0 || pending.size > 0 || deletes.size > 0;
     }
+
+    /** 위 §"왕복 중의 편집". 큐에 든 것만 보면 된다 — 왕복 중 편집도 결국 큐로 온다. */
+    function hasUnsaved(serverId: string): boolean {
+      if (deletes.has(serverId)) return true;
+      for (const id of pending) {
+        const shape = editor!.getShape<TShape>(id);
+        if (shape && serverIdOf(shape, spec.idProp) === serverId) return true;
+      }
+      return false;
+    }
+    hasUnsavedRef.current = hasUnsaved;
 
     function schedule(delay = SAVE_DEBOUNCE_MS) {
       onSavingChange(true);
@@ -124,10 +179,28 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
               body,
               keepalive,
             });
+            const live = editor!.getShape<TShape>(shapeId);
+            if (!live) {
+              /*
+               * 응답을 기다리는 사이에 지웠다. 지울 때는 서버 id 가 아직 없어서
+               * DELETE 를 큐에 넣을 수 없었고, 지금은 서버에 임자 없는 행이 남았다.
+               * 그냥 두면 다음 재조회가 그 행으로 **도형을 되살린다** — 사용자가
+               * 방금 지운 것이 돌아온다.
+               *
+               * 언마운트 뒤라면 큐가 다시 돌지 않으므로 그 자리에서 보낸다.
+               */
+              if (!alive()) {
+                void api(spec.itemPath(created.id), { method: 'DELETE', keepalive: true }).catch(
+                  () => {},
+                );
+              } else {
+                deletes.add(created.id);
+                schedule();
+              }
+              return;
+            }
             // 서버 id 를 캔버스에 되돌려 준다. remote 로 감싸야 이 갱신이 다시
             // 저장 큐로 들어오지 않는다.
-            const live = editor!.getShape<TShape>(shapeId);
-            if (!live) return;
             editor!.store.mergeRemoteChanges(() => {
               /*
                * 캐스트가 필요하다 — `[spec.idProp]` 는 동적 키라 TS 가
@@ -145,9 +218,12 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
       }
       for (const shapeId of pending) {
         const shape = editor!.getShape<TShape>(shapeId);
-        // id 가 아직 없으면 생성이 진행 중이라는 뜻이다. 다음 플러시에 잡힌다.
-        if (!shape || !serverIdOf(shape, spec.idProp)) continue;
-        const serverId = serverIdOf(shape, spec.idProp)!;
+        if (!shape) continue; // 지워졌다. removed 처리에서 DELETE 로 이미 잡혔다.
+        const serverId = serverIdOf(shape, spec.idProp);
+        // 아직 생성 중이라 PATCH 할 대상이 없다. 버려도 잃는 것이 없다 — 위 create 의
+        // 본문은 지금 이 shape 을 읽어서 만들므로 이 편집을 이미 담고 있고, 생성이
+        // 끝나면 서버 id 가 붙어 다음 편집부터 PATCH 로 나간다.
+        if (!serverId) continue;
         const body = JSON.stringify(spec.toBody(shape));
         ops.push({
           kind: 'patch',
@@ -169,6 +245,13 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
       else pending.add(op.key as TLShapeId);
     }
 
+    /** 큐가 빈 것과 "보낼 수 있는 게 없을 뿐" 을 구별한다. */
+    function settle() {
+      if (!alive()) return;
+      if (hasWork()) schedule();
+      else onSavingChange(false);
+    }
+
     async function flush() {
       timer = null;
       if (inFlight) {
@@ -178,7 +261,7 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
       }
       const ops = drain(false);
       if (ops.length === 0) {
-        if (!cancelled) onSavingChange(false);
+        if (alive()) onSavingChange(false);
         return;
       }
       const needsRefetch = ops.some((o) => o.kind === 'create');
@@ -189,44 +272,60 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
 
         if (failed.length === 0) {
           failures = 0;
-          if (cancelled) return;
+          if (!alive()) return;
           if (needsRefetch) {
             const list = await api<TDto[]>(spec.listPath(pageId));
-            if (!cancelled) onItemsChanged(list);
+            if (alive()) onItemsChanged(list);
           }
-          onSavingChange(false);
+          // 생성이 끝나 서버 id 가 붙은 뒤에야 보낼 수 있던 편집이 남아 있을 수 있다.
+          settle();
           return;
         }
 
-        const err = results.find((r) => r.status === 'rejected');
-        failed.forEach(requeue);
         failures += 1;
-
         const delay = RETRY_DELAYS_MS[failures - 1];
         if (delay !== undefined) {
-          if (!cancelled) schedule(delay);
+          failed.forEach(requeue);
+          if (alive()) schedule(delay);
           return;
         }
 
         /*
-         * 재시도를 다 썼다. 큐를 비우고 서버 상태를 다시 읽는다.
+         * 재시도를 다 썼다. **실패한 것만 버리고 서버 상태를 다시 읽는다.**
          *
          * 캔버스에 저장되지 않은 상태를 계속 두는 것이 가장 나쁘다 — 사용자는
          * 저장됐다고 믿는다. 되돌리는 편이 정직하다.
+         *
+         * 큐를 통째로 비우지는 않는다. 이 왕복이 도는 동안 들어온 편집은 한 번도
+         * 시도되지 않았고, 그건 실패한 적이 없다. 예전에는 여기서 같이 지워졌다.
          */
-        creates.clear();
-        pending.clear();
-        deletes.clear();
+        const err = results.find((r) => r.status === 'rejected');
         failures = 0;
-        if (cancelled) return;
+        if (!alive()) return;
+
+        /*
+         * 끝내 만들지 못한 도형은 캔버스에서 지운다. 서버 id 가 없으니 재조회로도
+         * 사라지지 않고(투영은 서버 id 로 짝을 맞춘다), 이후 편집은 PATCH 할 대상이
+         * 없어 영영 저장되지 않는다 — 화면에는 "저장됨" 이라고 뜬 채로. 남겨 두는
+         * 쪽이 더 정직해 보이지만, 새로고침 한 번이면 어차피 사라진다.
+         */
+        const stillborn = failed
+          .filter((o) => o.kind === 'create')
+          .map((o) => o.key as TLShapeId)
+          .filter((id) => editor!.getShape(id) !== undefined);
+        if (stillborn.length > 0) {
+          // remote 로 감싸야 이 삭제가 DELETE 요청으로 되돌아오지 않는다.
+          editor!.store.mergeRemoteChanges(() => editor!.deleteShapes(stillborn));
+        }
+
         onSaveError?.(err?.reason);
         try {
           const list = await api<TDto[]>(spec.listPath(pageId));
-          if (!cancelled) onItemsChanged(list);
+          if (alive()) onItemsChanged(list);
         } catch {
           // 재조회까지 실패하면 할 수 있는 게 없다. 위에서 이미 알렸다.
         }
-        if (!cancelled) onSavingChange(false);
+        settle();
       } finally {
         inFlight = false;
       }
@@ -284,6 +383,8 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
           if (record.typeName !== 'shape' || record.type !== spec.type) continue;
           const serverId = serverIdOf(record, spec.idProp);
           if (serverId) deletes.add(serverId);
+          // 서버 id 가 없으면 생성이 아직 안 끝난 것이다. 그 경우의 삭제는 생성 응답이
+          // 돌아온 자리에서 처리한다(위 create send 참조) — 여기서는 알 수 있는 id 가 없다.
           creates.delete(record.id);
           pending.delete(record.id);
           dirty = true;
@@ -297,10 +398,13 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
       window.removeEventListener('beforeunload', onBeforeUnload);
       unsubscribe();
       if (timer) clearTimeout(timer);
-      // 디바운스 중이던 편집을 버리지 않는다 — 위 2번. cancelled 는 그 뒤에 세워야
-      // 한다(먼저 세우면 아래 전송이 자기 자신을 건너뛴다).
+      hasUnsavedRef.current = () => false;
+      // 디바운스 중이던 편집을 버리지 않는다 — 위 2번.
       flushNow();
+      // 이 뒤에 도착하는 응답은 화면에 반영하지 않는다. 컴포넌트가 이미 없다.
       cancelled = true;
     };
   }, [editor, pageId, spec, onItemsChanged, onSavingChange, onSaveError]);
+
+  return state;
 }

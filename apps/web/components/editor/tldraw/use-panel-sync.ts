@@ -8,7 +8,6 @@ import {
   shapeBoundingBox,
   type PanelDTO,
   type PanelShape,
-  type PanelShapeType,
 } from '@comicai/types';
 import type { ComicPanelShape } from './comic-panel-shape';
 import { useShapeSync, type ShapeSyncSpec } from './use-shape-sync';
@@ -41,6 +40,15 @@ export function usePanelSync({
   onSavingChange,
   onSaveError,
 }: Args) {
+  // 역방향 투영보다 **먼저** 불러야 한다 — 아래 이펙트가 이 훅의 `hasUnsaved` 를 읽는다.
+  const sync = useShapeSync<ComicPanelShape, PanelDTO>(SPEC, {
+    editor,
+    pageId,
+    onItemsChanged: onPanelsChanged,
+    onSavingChange,
+    onSaveError,
+  });
+
   useEffect(() => {
     if (!editor) return;
     const existing = new Map<string, ComicPanelShape>();
@@ -52,6 +60,15 @@ export function usePanelSync({
     }
     editor.store.mergeRemoteChanges(() => {
       for (const panel of panels) {
+        /*
+         * 저장 대기 중인 도형은 건너뛴다 — 그쪽은 서버가 아니라 캔버스가 최신이다.
+         * 없으면 왕복이 도는 사이의 편집이 재조회에 덮여 사라진다. 이유 전체는
+         * `useShapeSync` 의 §"왕복 중의 편집" 에 있다.
+         */
+        if (sync.hasUnsaved(panel.id)) {
+          existing.delete(panel.id);
+          continue;
+        }
         const bbox = shapeBoundingBox(panel.shape);
         const shape = existing.get(panel.id);
         const status = panel.currentRenderStatus ?? null;
@@ -125,19 +142,11 @@ export function usePanelSync({
         editor.deleteShape(orphan.id);
       }
     });
-  }, [editor, panels]);
-
-  useShapeSync<ComicPanelShape, PanelDTO>(SPEC, {
-    editor,
-    pageId,
-    onItemsChanged: onPanelsChanged,
-    onSavingChange,
-    onSaveError,
-  });
+  }, [editor, panels, sync]);
 }
 
 /** 모듈 상수여야 한다 — useShapeSync 의 의존성 배열에 들어간다. */
-const SPEC: ShapeSyncSpec<ComicPanelShape, PanelDTO> = {
+const SPEC: ShapeSyncSpec<ComicPanelShape> = {
   type: 'comic-panel',
   idProp: 'panelId',
   listPath: ApiPaths.pagePanels,
