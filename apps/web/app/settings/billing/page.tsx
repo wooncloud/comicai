@@ -7,9 +7,11 @@ import {
   MODEL_TOKEN_COST,
   type TokenLedgerEntryDTO,
   type TokenOrderDTO,
+  type TokenPackage,
   type TokenPackagesDTO,
 } from '@comicai/types';
 import { Button } from '@/components/ui/button';
+import { ChargeDialog } from '@/components/billing/charge-dialog';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm';
 import { errorMessage } from '@/lib/error-message';
@@ -78,28 +80,11 @@ function BalanceSection() {
 }
 
 function PackagesSection() {
-  const toast = useToast();
-  const queryClient = useQueryClient();
+  const [charging, setCharging] = useState<TokenPackage | null>(null);
   const { data, isError } = useQuery<TokenPackagesDTO>({
     queryKey: qk.billingPackages(),
     queryFn: () => api<TokenPackagesDTO>(ApiPaths.billingPackages),
     throwOnError: false,
-  });
-
-  const create = useMutation({
-    mutationFn: (packageId: string) =>
-      api<TokenOrderDTO>(ApiPaths.billingOrders, {
-        method: 'POST',
-        body: JSON.stringify({ packageId }),
-      }),
-    onSuccess: (order) => {
-      void queryClient.invalidateQueries({ queryKey: qk.billingOrders() });
-      toast.push(
-        'success',
-        `충전 요청을 접수했습니다. 입금이 확인되면 ${formatTokens(order.tokens)}토큰이 들어옵니다.`,
-      );
-    },
-    onError: (err) => toast.push('error', errorMessage(err, '충전을 요청')),
   });
 
   if (isError) {
@@ -154,18 +139,20 @@ function PackagesSection() {
               </p>
             </div>
             {open ? (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={create.isPending}
-                onClick={() => create.mutate(p.id)}
-              >
+              <Button size="sm" variant="outline" onClick={() => setCharging(p)}>
                 충전 요청
               </Button>
             ) : null}
           </li>
         ))}
       </ul>
+
+      {/* `notice` 가 없으면 위에서 버튼 자체를 내지 않으므로 여기까지 올 수 없다. */}
+      <ChargeDialog
+        pkg={charging}
+        notice={data?.notice ?? ''}
+        onOpenChange={(o) => (o ? null : setCharging(null))}
+      />
     </section>
   );
 }
@@ -204,6 +191,8 @@ function OrdersSection() {
                 {formatTokens(o.tokens)}토큰 · {formatKrw(o.amountKrw)}
               </p>
               <p className="text-caption text-muted-foreground">
+                {/* 어떤 이름으로 보내야 하는지를 나중에 다시 확인할 수 있어야 한다. */}
+                {o.depositorName ? `${o.depositorName} · ` : ''}
                 {new Date(o.createdAt).toLocaleDateString('ko-KR')} 접수
                 {o.paidAt ? ` · ${new Date(o.paidAt).toLocaleDateString('ko-KR')} 지급` : ''}
               </p>

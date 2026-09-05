@@ -62,7 +62,7 @@ export function PendingOrders({ enabled }: { enabled: boolean }) {
           <table className="w-full text-body-sm">
             <thead className="border-b border-border bg-muted/40 text-caption text-muted-foreground">
               <tr>
-                <th className="px-3 py-2 text-left font-medium">입금자 (가입 이메일)</th>
+                <th className="px-3 py-2 text-left font-medium">입금자명 · 가입 이메일</th>
                 <th className="whitespace-nowrap px-3 py-2 text-right font-medium">금액</th>
                 <th className="whitespace-nowrap px-3 py-2 text-right font-medium">지급 토큰</th>
                 <th className="whitespace-nowrap px-3 py-2 text-right font-medium">접수</th>
@@ -74,8 +74,16 @@ export function PendingOrders({ enabled }: { enabled: boolean }) {
               {orders.map((o) => (
                 <tr key={o.id}>
                   <td className="max-w-0 px-3 py-2">
-                    <div className="truncate font-medium">{o.email}</div>
-                    <div className="truncate text-caption text-muted-foreground">{o.packageId}</div>
+                    {/*
+                      통장에 찍히는 것은 **입금자명**이고 가입 이메일과 아무 관계가 없다.
+                      그래서 이름이 위, 이메일이 아래다 — 운영자가 맞춰 보는 축이 이름이다.
+                      옛 주문에는 이름이 없으므로 그때는 이메일로 떨어진다.
+                    */}
+                    <div className="truncate font-medium">{o.depositorName ?? o.email}</div>
+                    <div className="truncate text-caption text-muted-foreground">
+                      {o.depositorName ? `${o.email} · ` : ''}
+                      {o.packageId}
+                    </div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums">
                     {formatKrw(o.amountKrw)}
@@ -96,7 +104,7 @@ export function PendingOrders({ enabled }: { enabled: boolean }) {
                           // 지급은 되돌리는 경로가 회수(admin_revoke)뿐이라 한 번 묻는다.
                           const ok = await confirm({
                             title: `${o.email} 에게 ${formatTokens(o.tokens)}토큰을 지급할까요?`,
-                            body: `${formatKrw(o.amountKrw)} 입금을 확인했을 때만 누르세요. 지급하면 사용자가 바로 쓸 수 있습니다.`,
+                            body: `${o.depositorName ? `${o.depositorName} 이름으로 ` : ''}${formatKrw(o.amountKrw)} 입금을 확인했을 때만 누르세요. 지급하면 사용자가 바로 쓸 수 있습니다.`,
                             confirmLabel: '지급',
                           });
                           if (ok) markPaid.mutate(o.id);
