@@ -325,11 +325,13 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 페이지 직속 자유 직선 (가이드선/말풍선 연결선/패널 구분선 등). 패널·렌더와 독립이며, export 단계에서 최상단(말풍선·자유 텍스트 위) 레이어로 합성된다(`apps/api/src/export/page-line.render.ts`).
 
-| Method | Route                                  | Handler                                         |
-| ------ | -------------------------------------- | ----------------------------------------------- |
-| GET    | `/v1/pages/:pageid/page-lines`         | `list` (`page-lines.controller.ts:38-41`)       |
-| POST   | `/v1/pages/:pageid/page-lines`         | `create` (`:56-60`) — `order`는 MAX+1 자동 할당 |
-| POST   | `/v1/pages/:pageid/page-lines/reorder` | `reorder` (`:62-65`) — body `{ ids: string[] }` |
+| Method | Route                                  | Handler                                               |
+| ------ | -------------------------------------- | ----------------------------------------------------- |
+| GET    | `/v1/pages/:pageid/page-lines`         | `list` (`page-lines.controller.ts:38-41`)             |
+| POST   | `/v1/pages/:pageid/page-lines`         | `create` (`:56-60`) — `order`는 MAX+1 자동 할당       |
+| POST   | `/v1/pages/:pageid/page-lines/reorder` | `reorder` (`:62-65`) — body `{ ids: string[] }`       |
+| PATCH  | `/v1/page-lines/:id`                   | `patch` (`:67-70`) — `x1/y1/x2/y2`, `style` 부분 갱신 |
+| DELETE | `/v1/page-lines/:id`                   | `remove` (`:72-76`)                                   |
 
 네 재정렬 경로(pages / speech-bubbles / page-texts / page-lines)는 모두 `isReorderPermutation`
 (`common/reorder.ts:13`) 으로 **순열인지** 검사한다. 예전에는 각자 "길이가 같은가 + 전부 이
@@ -337,9 +339,6 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 통과하면 트랜잭션이 같은 행에 order 0·1 을 연달아 쓰고 밀려나야 할 행은 옛 order 를 그대로
 들고 있어, 두 항목이 같은 order 를 갖는다. 그때부터 순서가 요청마다 흔들린다
 (export 합성 순서·에디터 네비게이션에 그대로 나타난다).
-| PATCH | `/v1/page-lines/:id` | `patch` (`:67-70`) — `x1/y1/x2/y2`, `style` 부분 갱신 |
-| DELETE | `/v1/page-lines/:id` | `remove` (`:72-76`) |
-
 `style` 은 세 모듈(PageLine/PageText/SpeechBubble) 모두 PatchSchema 에서 `.partial()` 이므로,
 patch 는 **기본값 → 기존 값 → 입력** 3항 병합이어야 한다. 기존 값을 빼먹으면 명시하지 않은
 필드가 기본값으로 되돌아간다 — 굵기 8인 선의 색만 바꿔도 굵기가 리셋된다.

@@ -202,10 +202,10 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | panelId     | String                | no       | FK→panels (cascade, `schema.prisma:241`)    |
 | userId      | String                | no       | FK→users (cascade)                          |
 | model       | String                | no       | `RenderModelSchema` enum (`schemas.ts:160`) |
-| ir          | Json                  | no       | `RenderIR` (`index.ts:467`)                 |
+| ir          | Json                  | no       | `RenderIR` (`index.ts:454`)                 |
 | status      | String                | no       | `RENDER_STATUSES` (`index.ts:38`)           |
 | resultImage | Json (`result_image`) | yes      | `ImageRef`                                  |
-| error       | Json                  | yes      | `RenderError` (`index.ts:445`)              |
+| error       | Json                  | yes      | `RenderError` (`index.ts:432`)              |
 | attempts    | Int                   | no       | `0`                                         |
 | createdAt   | DateTime              | no       | `now()`                                     |
 | finishedAt  | DateTime              | yes      | —                                           |
@@ -216,22 +216,21 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 
 ## 3. 중요 Enum / Union 상수
 
-| 이름                        | 값                                                           | 출처                             |
-| --------------------------- | ------------------------------------------------------------ | -------------------------------- |
-| RENDER_STATUSES             | `queued, running, succeeded, failed, timeout, canceled`      | `packages/types/src/index.ts:38` |
-| IN_PROGRESS_RENDER_STATUSES | `queued, running`                                            | `index.ts:54`                    |
-| TERMINAL_RENDER_STATUSES    | `succeeded, failed, timeout, canceled`                       | `index.ts:55`                    |
-| PANEL_SHAPE_TYPES           | `rect, rounded, oval, diamond, parallelogram, polygon`       | `schemas.ts:196`                 |
-| PANEL_SHAPE_PRESETS         | `rect, rounded, oval, diamond, parallelogram` (polygon 제외) | `index.ts:119`                   |
-| SPEECH_BUBBLE_VARIANTS      | `ellipse, rect, spike, polygon` (cloud/thought 제거됨)       | `schemas.ts:239`                 |
-| PAGE_TEXT_FONT_FAMILIES     | `sans-serif, serif, monospace`                               | `schemas.ts:274`                 |
-| EntityType                  | `style, character, background, worldview`                    | `schemas.ts:366`                 |
-| ModelProvider               | `gemini, openai, mock`                                       | `index.ts:9`                     |
-| ModelId                     | `gemini-3.1-flash-image-preview, gpt-image-2, mock`          | `schemas.ts:92`                  |
-| OAUTH_PROVIDERS             | `google, github`                                             | `index.ts:23`                    |
-| RenderErrorCategory         | `transient, auth, quota, safety, invalid, timeout`           | `index.ts:396`                   |
-| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                              | `schemas.ts:310`                 |
-| TEXT_ALIGNS                 | `left, center, right`                                        | `schemas.ts:4`                   |
+| 이름                        | 값                                                      | 출처                             |
+| --------------------------- | ------------------------------------------------------- | -------------------------------- |
+| RENDER_STATUSES             | `queued, running, succeeded, failed, timeout, canceled` | `packages/types/src/index.ts:38` |
+| IN_PROGRESS_RENDER_STATUSES | `queued, running`                                       | `index.ts:54`                    |
+| TERMINAL_RENDER_STATUSES    | `succeeded, failed, timeout, canceled`                  | `index.ts:55`                    |
+| PANEL_SHAPE_TYPES           | `rect, rounded, oval, diamond, parallelogram, polygon`  | `schemas.ts:196`                 |
+| SPEECH_BUBBLE_VARIANTS      | `ellipse, rect, spike, polygon` (cloud/thought 제거됨)  | `schemas.ts:239`                 |
+| PAGE_TEXT_FONT_FAMILIES     | `sans-serif, serif, monospace`                          | `schemas.ts:274`                 |
+| EntityType                  | `style, character, background, worldview`               | `schemas.ts:366`                 |
+| ModelProvider               | `gemini, openai, mock`                                  | `index.ts:9`                     |
+| ModelId                     | `gemini-3.1-flash-image-preview, gpt-image-2, mock`     | `schemas.ts:92`                  |
+| OAUTH_PROVIDERS             | `google, github`                                        | `index.ts:23`                    |
+| RenderErrorCategory         | `transient, auth, quota, safety, invalid, timeout`      | `index.ts:396`                   |
+| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                         | `schemas.ts:310`                 |
+| TEXT_ALIGNS                 | `left, center, right`                                   | `schemas.ts:4`                   |
 
 **값 목록은 전부 `schemas.ts` 에만 있다.** `index.ts` 는 타입만 파생시킨다
 (`ModelId` `index.ts:22`, `EntityType` `:114`). 예전에는 같은 문자열이 두세 곳에 적혀 있었고,

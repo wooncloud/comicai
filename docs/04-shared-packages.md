@@ -35,7 +35,7 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
   에 적혀 있어서, 하나만 늘리면 나머지가 조용히 거부했다.
 - `RENDER_STATUSES = ['queued','running','succeeded','failed','timeout','canceled']` (`src/index.ts:26-33`).
 - `IN_PROGRESS_RENDER_STATUSES`, `TERMINAL_RENDER_STATUSES`, `isInProgressRender()` 헬퍼 (`src/index.ts:35-40`).
-- `PANEL_SHAPE_TYPES = ['rect','rounded','oval','diamond','parallelogram','polygon']` (`src/schemas.ts:196`). 인스펙터 picker용 `PANEL_SHAPE_PRESETS`는 polygon 제외이며 `satisfies readonly PanelShapeType[]` 로 부분집합임이 강제된다(`src/index.ts:140`).
+- `PANEL_SHAPE_TYPES = ['rect','rounded','oval','diamond','parallelogram','polygon']` (`src/schemas.ts:196`).
 - `SPEECH_BUBBLE_VARIANTS = ['ellipse','rect','spike','polygon']` (`src/schemas.ts:239`). cloud/thought 는 2026-05-19 migration에서 제거되어 ellipse 로 일괄 변환됨.
 - `PAGE_TEXT_FONT_FAMILIES = ['sans-serif','serif','monospace']` (`src/schemas.ts:274`) — 캔버스(CSS)와
   export(SVG) 양쪽에서 실제로 해석되는 것만. `index.ts` 는 여기서 타입만 파생시킨다

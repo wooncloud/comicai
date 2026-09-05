@@ -79,12 +79,19 @@ Pretendard 는 `next/font/local` 이 아니라 `app/pretendard.css` 의 `@font-f
 
 - **이미 보여 준 데이터가 있으면 던지지 않는다** (`query.state.data !== undefined`). 백그라운드
   갱신이 한 번 실패했다고 보고 있던 화면을 치우는 건 더 나쁘다.
-- **401 은 던지지 않는다.** 자기 복구 경로가 따로 있다 — `Topbar` 가 `/login` 으로 보낸다.
-  여기서 던지면 만료된 세션이 오류 화면으로 보인다.
+- **401 은 던지지 않는다.** 자기 복구 경로가 따로 있다 — `lib/api.ts` 가 `/login` 으로
+  보낸다(바로 아래 절). 여기서 던지면 만료된 세션이 오류 화면으로 보인다.
 
-조회 단위로 빠지는 곳은 두 곳이다: `oauth-buttons.tsx:64`(제공자 목록 — 못 물어봤다고 이메일
-로그인까지 막을 이유가 없다), `panel-inspector.tsx:75`(렌더 잡 — 잡 하나를 못 읽었다고 에디터를
-통째로 오류 화면으로 바꿀 수 없다).
+조회 단위로 `throwOnError: false` 를 다는 곳은 여섯이고, 이유는 두 부류다.
+
+| 위치                            | 왜 빼는가                                                                                       |
+| ------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `oauth-buttons.tsx:65`          | 제공자 목록. 못 물어봤다고 이메일 로그인까지 막을 이유가 없다                                   |
+| `app-shell.tsx:67`              | `Topbar` 의 세션 조회. 랜딩도 이걸 쓰므로 던지면 비로그인 방문자가 히어로 대신 오류 화면을 본다 |
+| `history-tray.tsx:26`           | 렌더 기록. 캔버스를 통째로 치울 일이 아니다                                                     |
+| `panel-inspector.tsx:84,98,104` | 렌더 잡·프로젝트·엔티티. 인스펙터가 사라지면 디바운스 중이던 편집도 함께 사라진다               |
+
+앞의 둘은 **없어도 되는 정보**라 빼고, 뒤의 넷은 **던지면 편집을 잃어서** 뺀다.
 
 ### 401 은 `lib/api.ts` 가 처리한다
 
@@ -117,7 +124,10 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 - `useQuery<SessionUser>({ queryKey: qk.me(), retry: false, throwOnError: false })` (`app-shell.tsx:54-70`)
   — 던지지 않는다. Topbar 는 랜딩도 쓰므로, API 가 죽었을 때 여기서 던지면 처음 온
   비로그인 방문자에게 히어로 대신 오류 화면이 뜬다
-- 로그아웃은 `POST /logout` 후 `queryClient.setQueryData(qk.me(), null)`로 캐시 무효화 (`lib/nav.ts:69`)
+- 로그아웃은 `POST /logout` 후 `queryClient.clear()` (`lib/nav.ts:77`). `setQueryData(qk.me(), null)`
+  이 아닌 이유가 그 위 주석에 있다(`:71`) — 그건 "로그아웃 시각에 신선하게 저장된 null" 이라
+  다음 로그인까지 캐시에 남는다. 남의 계정으로 로그인해도 전 사용자의 프로젝트 목록이
+  잠깐 비친다
 - Avatar 드롭다운으로 설정·로그아웃 메뉴 노출
 
 푸터(`app-shell.tsx:37`)는 `FooterLinks`(`components/shell/footer-links.tsx:19`) 하나만 담는다.
@@ -212,13 +222,13 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 현재 코드에 등장하는 쿼리 키는 5개뿐이다.
 
-| 쿼리 키                      | 위치                                          | 용도                                                                                                                          |
-| ---------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `['me']`                     | `components/shell/app-shell.tsx:39`           | 현재 세션 사용자. `retry: false`, 401 시 `/login` redirect. 로그아웃 시 `setQueryData(['me'], null)`                          |
-| `['projects']`               | `app/dashboard/page.tsx:14`                   | 프로젝트 목록. 생성/패치/삭제는 모두 `queryClient.setQueryData<ProjectDTO[]>(['projects'], ...)`로 옵티미스틱 갱신 (`:19-33`) |
-| `['project', id]`            | `lib/use-project.ts:8`                        | 단일 프로젝트. `enabled: !!projectId`                                                                                         |
-| `['panel-history', panelId]` | `components/editor/history-tray.tsx:16`       | 패널의 렌더 잡 목록. `restore` mutation 성공 시 `invalidateQueries` (`:25`)                                                   |
-| `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:72-76` | 단일 렌더 잡. `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치 (후술)                               |
+| 쿼리 키                      | 위치                                          | 용도                                                                                                                                          |
+| ---------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `['me']`                     | `components/shell/app-shell.tsx:64`           | 현재 세션 사용자. `retry: false`, `throwOnError: false`. 401 리다이렉트는 여기가 아니라 `lib/api.ts:92` 다. 로그아웃 시 `queryClient.clear()` |
+| `['projects']`               | `app/dashboard/page.tsx:14`                   | 프로젝트 목록. 생성/패치/삭제는 모두 `queryClient.setQueryData<ProjectDTO[]>(['projects'], ...)`로 옵티미스틱 갱신 (`:19-33`)                 |
+| `['project', id]`            | `lib/use-project.ts:8`                        | 단일 프로젝트. `enabled: !!projectId`                                                                                                         |
+| `['panel-history', panelId]` | `components/editor/history-tray.tsx:16`       | 패널의 렌더 잡 목록. `restore` mutation 성공 시 `invalidateQueries` (`:25`)                                                                   |
+| `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:72-76` | 단일 렌더 잡. `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치 (후술)                                               |
 
 뮤테이션은 `useMutation`을 두 곳에서 사용한다.
 

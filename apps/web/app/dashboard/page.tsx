@@ -54,7 +54,7 @@ export default function DashboardPage() {
           5xx·네트워크 실패는 여기서 다루지 않는다 — app/providers.tsx 가 던지고
           app/error.tsx 가 받는다.
 
-          다만 401 은 던지지 않기로 했으므로(Topbar 가 /login 으로 보낸다) `items` 가
+          다만 401 은 던지지 않기로 했으므로(`lib/api.ts` 가 /login 으로 보낸다) `items` 가
           undefined 인 채로 여기 도달할 수 있다. 그때 목록 분기로 떨어지면 테두리만
           있는 빈 상자가 보인다 — 마지막 분기를 `items` 가 있을 때로 좁힌다.
         */}

@@ -130,7 +130,13 @@ mc alias set src "${S3_ENDPOINT}" "${S3_ACCESS_KEY}" "${S3_SECRET_KEY}" >/dev/nu
   || fail "mc alias set 실패 (S3 접속 불가)"
 
 # --remove 없음. 의도적이다 — 파일 맨 위 설명 참조.
-mc mirror --overwrite "src/${S3_BUCKET}" "${mirror_dir}" || fail "mc mirror 실패"
+#
+# `exports/` 는 뺀다. 내보내기 산출물은 페이지·컷에서 **언제든 다시 만들 수 있고**,
+# 원본 오브젝트 중 가장 크고 가장 빨리 쌓인다. 백업에 넣으면 복구에 필요 없는 것을
+# 두 벌로 들고 있게 된다. (이미 미러된 옛 산출물은 소스에도 남아 있는 한 격리 대상이
+# 아니라 그대로 있다 — 지우려면 사람이 한 번 치우면 된다.)
+mc mirror --overwrite --exclude "exports/*" "src/${S3_BUCKET}" "${mirror_dir}" \
+  || fail "mc mirror 실패"
 
 # 목록을 따로 받는다. 파이프로 바로 sort 에 넘기면 mc 가 실패해도 sort 가 0 을 내서
 # "버킷이 비었다" 와 구별이 안 된다 — 그 구별이 아래 안전장치의 전부다.

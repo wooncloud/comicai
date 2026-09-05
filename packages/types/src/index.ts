@@ -134,21 +134,6 @@ export interface ConsistencyEntityDTO {
 // ─── 패널 ──────────────────────────────────────
 export type PanelShapeType = (typeof PANEL_SHAPE_TYPES)[number];
 
-/**
- * 인스펙터 picker에 노출되는 프리셋 — polygon은 별도 도구로만 진입.
- *
- * `satisfies` 로 묶어 둔다. 이건 전체 목록의 **부분집합**이어야 하는데, 그냥 문자열
- * 배열이면 오타나 사라진 모양이 조용히 남는다.
- */
-export const PANEL_SHAPE_PRESETS = [
-  'rect',
-  'rounded',
-  'oval',
-  'diamond',
-  'parallelogram',
-] as const satisfies readonly PanelShapeType[];
-export type PanelShapePreset = (typeof PANEL_SHAPE_PRESETS)[number];
-
 export * from './panel-path';
 export * from './bubble-path';
 

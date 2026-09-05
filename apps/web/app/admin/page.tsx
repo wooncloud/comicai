@@ -24,7 +24,7 @@ export default function AdminPage() {
     retry: false,
   });
   const allowed = me?.isAdmin === true;
-  // 401 은 오류 경계로 던지지 않기로 했으므로(Topbar 가 /login 으로 보낸다) 여기까지
+  // 401 은 오류 경계로 던지지 않기로 했으므로(`lib/api.ts` 가 /login 으로 보낸다) 여기까지
   // 온다. 구분하지 않으면 세션이 만료된 운영자에게 "권한이 없다" 고 말하게 된다.
   const sessionExpired = meError instanceof ApiError && meError.status === 401;
 

@@ -4,8 +4,6 @@ import {
   IN_PROGRESS_RENDER_STATUSES,
   MODEL_IDS,
   MODEL_PROVIDER,
-  PANEL_SHAPE_PRESETS,
-  PANEL_SHAPE_TYPES,
   RENDER_STATUSES,
   TERMINAL_RENDER_STATUSES,
   isInProgressRender,
@@ -40,13 +38,6 @@ describe('파생 상수', () => {
     }
     expect(isInProgressRender(null)).toBe(false);
     expect(isInProgressRender(undefined)).toBe(false);
-  });
-
-  it('패널 프리셋은 전체 모양의 부분집합이고 polygon 은 빠져 있다', () => {
-    for (const p of PANEL_SHAPE_PRESETS) {
-      expect(PANEL_SHAPE_TYPES).toContain(p);
-    }
-    expect(PANEL_SHAPE_PRESETS).not.toContain('polygon');
   });
 
   it('MODEL_PROVIDER 는 모든 모델을 덮는다', () => {

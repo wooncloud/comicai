@@ -28,8 +28,9 @@ export function Providers({ children }: { children: ReactNode }) {
               // 1) 이미 보여 준 데이터가 있으면 지우지 않는다. 백그라운드 갱신이
               //    한 번 실패했다고 멀쩡히 보고 있던 화면을 치우는 건 더 나쁘다.
               if (query.state.data !== undefined) return false;
-              // 2) 401 은 자기 복구 경로가 따로 있다 — Topbar 가 로그인으로 보낸다.
-              //    여기서 던지면 만료된 세션이 오류 화면으로 보인다.
+              // 2) 401 은 자기 복구 경로가 따로 있다 — `lib/api.ts` 가 로그인으로 보낸다.
+              //    여기서 던지면 만료된 세션이 오류 화면으로 보인다. (예전에는 Topbar 가
+              //    했는데, 에디터는 AppShell 을 쓰지 않아 그 전제가 거기서만 거짓이었다.)
               if (error instanceof ApiError && error.status === 401) return false;
               return true;
             },
