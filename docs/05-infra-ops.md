@@ -37,25 +37,29 @@ ComicAI의 인프라/운영 자산은 세 위치에 모여 있다.
 
 - `x-db-env` (`full.yml:9`) — `DATABASE_URL` (in-cluster hostname `postgres:5432`)
 - `x-s3-env` (`full.yml:12`) — `S3_ENDPOINT=http://minio:9000`, `S3_PUBLIC_ENDPOINT` (브라우저용)
-- `x-api-env` (`full.yml:22`) — DB+S3 + `REDIS_URL=redis://redis:6379`, `MASTER_KEY` (필수)
+- `x-api-env` (`full.yml:22`) — DB+S3 + `REDIS_URL` (`:25`, `REDIS_PASSWORD` 를 `:?` 로 강제해
+  `redis://:<pw>@redis:6379` 로 조립), `MASTER_KEY` (`:26`, 필수), `ADMIN_EMAILS`·`FEATURE_API_KEYS`
+  (`:28-29`), `METRICS_TOKEN`
 
 #### 서비스 일람
 
-| 서비스                     | 이미지/빌드                                                                     | 호스트 포트     | depends_on                         |
-| -------------------------- | ------------------------------------------------------------------------------- | --------------- | ---------------------------------- |
-| `postgres` (`full.yml:39`) | `postgres:16`                                                                   | `5433`          | —                                  |
-| `redis` (`:47`)            | `redis:7-alpine`                                                                | `6379`          | —                                  |
-| `minio` (`:61`)            | `minio/minio:latest`                                                            | `9000`,`9001`   | —                                  |
-| `migrate` (`:80`)          | `infra/docker/api.Dockerfile`                                                   | —               | postgres(healthy)                  |
-| `api` (`:94`)              | `infra/docker/api.Dockerfile`                                                   | `4000` (`:122`) | postgres, redis, minio, migrate    |
-| `worker` (`:129`)          | `infra/docker/api.Dockerfile` (`command: node apps/api/dist/worker.js`, `:148`) | —               | 동일 + migrate                     |
-| `web` (`:150`)             | `infra/docker/web.Dockerfile`                                                   | `3000` (`:166`) | api(healthy)                       |
-| `cloudflared` (`:169`)     | `cloudflare/cloudflared:latest`                                                 | —               | web, api (profile `tunnel`)        |
-| `backup` (`:183`)          | `../backup`                                                                     | —               | postgres, minio (profile `backup`) |
+| 서비스                     | 이미지/빌드                                                                     | 호스트 포트                    | depends_on                         |
+| -------------------------- | ------------------------------------------------------------------------------- | ------------------------------ | ---------------------------------- |
+| `postgres` (`full.yml:41`) | `postgres:16`                                                                   | `5433` (`:52`)                 | —                                  |
+| `redis` (`:61`)            | `redis:7-alpine`                                                                | `6379` (`:74`)                 | —                                  |
+| `minio` (`:83`)            | `minio/minio:latest`                                                            | `9000` (`:92`), `9001` (`:94`) | —                                  |
+| `migrate` (`:103`)         | `infra/docker/api.Dockerfile`                                                   | —                              | postgres(healthy)                  |
+| `api` (`:117`)             | `infra/docker/api.Dockerfile`                                                   | `4000` (`:156`)                | postgres, redis, minio, migrate    |
+| `worker` (`:163`)          | `infra/docker/api.Dockerfile` (`command: node apps/api/dist/worker.js`, `:186`) | —                              | 동일 + migrate                     |
+| `web` (`:188`)             | `infra/docker/web.Dockerfile`                                                   | `3000` (`:210`)                | api(healthy)                       |
+| `cloudflared` (`:213`)     | `cloudflare/cloudflared:latest`                                                 | —                              | web, api (profile `tunnel`)        |
+| `backup` (`:227`)          | `../backup`                                                                     | —                              | postgres, minio (profile `backup`) |
 
-`migrate`는 `prisma migrate deploy` 실행 후 종료(`restart: "no"`, `:92`), `api`/`worker`는 `service_completed_successfully` 조건으로 대기(`:107`, `:143`).
+> 호스트 포트는 전부 `127.0.0.1` 바인딩이다. 이유는 §6.5.
 
-`api` 컨테이너는 `RENDER_WORKER_DISABLED=1`로 BullMQ consumer를 끄고(`full.yml:137`), `worker` 컨테이너에서만 렌더링 큐를 처리(`RENDER_WORKER_DISABLED=0`, `:184`). `RENDER_CONCURRENCY` 기본 2 (`:185`).
+`migrate`는 `prisma migrate deploy` 실행 후 종료(`command`, `:114` / `restart: 'no'`, `:115`), `api`/`worker`는 `service_completed_successfully` 조건으로 대기(`:130-131`, `:180-181`).
+
+`api` 컨테이너는 `RENDER_WORKER_DISABLED=1`로 BullMQ consumer를 끄고(`full.yml:137`), `worker` 컨테이너에서만 렌더링 큐를 처리(`RENDER_WORKER_DISABLED`, `:184`). `RENDER_CONCURRENCY` 기본 2 (`:185`).
 
 `worker` 는 `stop_grace_period: 90s` 를 쓴다 (`full.yml:172`). SIGTERM 을 받으면 `worker.close()` 가
 처리 중인 잡을 기다리는데(`apps/api/src/worker.ts:14`), 도커 기본 유예 10초는 렌더 데드라인 60초보다
@@ -195,11 +199,31 @@ DB·오브젝트·백업이 함께 죽는다. 목적지는 사람이 정해야 �
 
 ## 4. `scripts/` — 유틸리티
 
-현재 디렉터리에는 단일 스크립트가 있다.
+여섯 개가 있고, 세 갈래다 — 배포 / 에셋 빌드 / 문서 검증.
+
+| 스크립트                              | 실행 경로                     | 용도                                         |
+| ------------------------------------- | ----------------------------- | -------------------------------------------- |
+| `scripts/deploy.sh`                   | `pnpm run deploy`             | 손으로 하는 프로덕션 배포 (§8.2)             |
+| `scripts/verify-doc-refs.ts`          | `pnpm verify:docs`            | `docs/*.md` 의 `path:line` 인용 검증         |
+| `scripts/gen-landing-samples.ts`      | `pnpm samples:generate`       | 랜딩 샘플 이미지 생성                        |
+| `scripts/optimize-landing-samples.ts` | `pnpm samples:optimize`       | 위 결과 → WebP 반응형 세트 + LQIP 매니페스트 |
+| `scripts/build-fonts.py`              | (수동)                        | Pretendard 를 unicode-range 조각으로 분할    |
+| `scripts/cmux-bootstrap.sh`           | `./scripts/cmux-bootstrap.sh` | cmux 개발 워크스페이스 생성                  |
+
+`package.json:17-19`, `:24` 가 앞 네 개를 감싼다. `build-fonts.py` 와 `cmux-bootstrap.sh`
+는 npm 스크립트가 없다.
+
+### `scripts/build-fonts.py`
+
+원본 `PretendardVariable.woff2` 는 2.0MB 이고 `next/font/local` 이 그걸 **모든 라우트에서
+preload** 한다 (`scripts/build-fonts.py:7-10`). 코드포인트 순서로 N등분하면 한글은 초성별로 블록이
+흩어져 있어 "로그인" 세 글자가 서로 다른 조각에 들어간다 — 조각을 잘게 낼수록 요청만
+늘고 받는 총량은 안 준다 (`:17-19`). 그래서 **저장소가 실제로 쓰는 음절 700자 남짓**을 한
+조각으로 모으고 나머지는 범위별로 둔다 (`:21-24`).
 
 ### `scripts/cmux-bootstrap.sh`
 
-ComicAI 개발용 cmux 워크스페이스 `comicai-dev` 를 생성한다 (`cmux-bootstrap.sh:15-79`). 표준 레이아웃은 `docs/40-ops/04-cmux-workflow.md` 참조.
+ComicAI 개발용 cmux 워크스페이스 `comicai-dev` 를 생성한다 (`cmux-bootstrap.sh:15-79`). 표준 레이아웃은 `docs/develop-docs/40-ops/04-cmux-workflow.md` 참조.
 
 생성되는 탭:
 
@@ -219,38 +243,56 @@ ComicAI 개발용 cmux 워크스페이스 `comicai-dev` 를 생성한다 (`cmux-
 
 ### 카테고리별 변수
 
-| 카테고리       | 변수                                                          | 기본/예시                                                           | 비고                                                                                             |
-| -------------- | ------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| **DB**         | `POSTGRES_USER` / `_PASSWORD` / `_DB`                         | `comicai`                                                           | compose 환경에 그대로 전달                                                                       |
-|                | `DATABASE_URL`                                                | `postgresql://comicai:comicai@localhost:5433/comicai?schema=public` | 로컬 호스트는 `:5433`, 컨테이너 내부는 `postgres:5432` (full.yml의 `x-db-env`가 자동 오버라이드) |
-| **Redis**      | `REDIS_URL`                                                   | `redis://localhost:6379`                                            | 컨테이너 내부는 `redis://redis:6379`                                                             |
-| **S3 (MinIO)** | `S3_ENDPOINT`                                                 | `http://localhost:9000`                                             | 컨테이너 내부는 `http://minio:9000`                                                              |
-|                | `S3_PUBLIC_ENDPOINT`                                          | `http://localhost:9000`                                             | **브라우저용** presigned URL 서명 host (`.env.example:13`)                                       |
-|                | `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `us-east-1` / `comicai` / `minioadmin` / `minioadmin`               |                                                                                                  |
-|                | `MINIO_ROOT_USER` / `_PASSWORD`                               | `minioadmin`                                                        |                                                                                                  |
-| **보안**       | `MASTER_KEY`                                                  | (필수, 32-byte base64)                                              | AES-256-GCM KEK. `full.yml:26`에서 `:?` 로 강제                                                  |
-|                | `SESSION_SECRET`                                              | (필수)                                                              | 세션 쿠키 서명                                                                                   |
-| **앱**         | `API_PORT`                                                    | `4000`                                                              |                                                                                                  |
-|                | `WEB_PORT`                                                    | `3000`                                                              | `apps/web` `next dev -p ${WEB_PORT:-3000}`                                                       |
-|                | `NEXT_PUBLIC_API_URL`                                         | `http://localhost:4000`                                             | Next 빌드 시 인라인 (`web.Dockerfile:29`)                                                        |
-|                | `INTERNAL_API_URL`                                            | `http://api:4000`                                                   | full.yml 내부 server→server (`full.yml:163`)                                                     |
-|                | `API_PUBLIC_URL`                                              | `http://localhost:4000`                                             | OAuth callback URL용                                                                             |
-| **렌더 워커**  | `RENDER_WORKER_DISABLED`                                      | `0`                                                                 | api 컨테이너=1, worker 컨테이너=0                                                                |
-|                | `RENDER_CONCURRENCY`                                          | `2`                                                                 | BullMQ 워커 동시성                                                                               |
-| **OAuth**      | `GOOGLE_OAUTH_CLIENT_ID/SECRET`                               | —                                                                   |                                                                                                  |
-|                | `GITHUB_OAUTH_CLIENT_ID/SECRET`                               | —                                                                   |                                                                                                  |
-| **Cloudflare** | `CLOUDFLARE_TUNNEL_TOKEN`                                     | —                                                                   | `--profile tunnel`일 때 필수                                                                     |
-| **백업**       | `BACKUP_SCHEDULE`                                             | `0 3 * * *`                                                         | cron expr                                                                                        |
-|                | `BACKUP_RETENTION_DAYS`                                       | `14`                                                                |                                                                                                  |
-|                | `BACKUP_RUN_ON_START`                                         | `0`                                                                 | 컨테이너 기동 직후 1회 실행                                                                      |
-|                | `BACKUP_STALE_HOURS`                                          | `26`                                                                | healthcheck 한도. 스케줄을 성기게 바꾸면 같이 올린다 (`healthcheck.sh:13`)                       |
-|                | `BACKUP_WEBHOOK_URL`                                          | —                                                                   | 실패 시 JSON POST. 비면 로그 + healthcheck 만 (`backup.sh:65-79`)                                |
-|                | `BACKUP_HOST_PATH`                                            | (도커 볼륨)                                                         | 백업을 다른 디스크에 두려면 마운트 경로 (`full.yml:260`)                                         |
-|                | `BACKUP_REMOTE_ENDPOINT/_ACCESS_KEY/_SECRET_KEY/_BUCKET`      | —                                                                   | 채우면 매 회차 외부 S3 로 사본 (`backup.sh:166-175`)                                             |
-|                | `COOKIE_SECURE`                                               | `0`                                                                 | full.yml api 환경, 프로덕션은 `1` (`full.yml:115`)                                               |
-|                | `WEB_ORIGIN`                                                  | `http://localhost:3000`                                             | CORS allow-list (`full.yml:112`)                                                                 |
+| 카테고리        | 변수                                                          | 기본/예시                                                           | 비고                                                                                                            |
+| --------------- | ------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **DB**          | `POSTGRES_USER` / `_PASSWORD` / `_DB`                         | `comicai`                                                           | compose 환경에 그대로 전달                                                                                      |
+|                 | `DATABASE_URL`                                                | `postgresql://comicai:comicai@localhost:5433/comicai?schema=public` | 로컬 호스트는 `:5433`, 컨테이너 내부는 `postgres:5432` (full.yml의 `x-db-env`가 자동 오버라이드)                |
+| **Redis**       | `REDIS_PASSWORD`                                              | (필수)                                                              | compose 가 이 값으로 `--requirepass` 를 건다 (`full.yml:70-71`). `:?` 로 강제 (`:25`)                           |
+|                 | `REDIS_URL`                                                   | `redis://localhost:6379`                                            | compose 없이 직접 띄울 때만 쓴다. 컨테이너 안에서는 `x-api-env` 가 비밀번호를 넣어 조립 (`full.yml:25`)         |
+| **S3 (MinIO)**  | `S3_ENDPOINT`                                                 | `http://localhost:9000`                                             | 컨테이너 내부는 `http://minio:9000`                                                                             |
+|                 | `S3_PUBLIC_ENDPOINT`                                          | `http://localhost:9000`                                             | **브라우저용** presigned URL 서명 host (`.env.example:19`, `full.yml:16`)                                       |
+|                 | `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `us-east-1` / `comicai` / `minioadmin` / `minioadmin`               |                                                                                                                 |
+|                 | `MINIO_ROOT_USER` / `_PASSWORD`                               | `minioadmin`                                                        |                                                                                                                 |
+| **보안**        | `MASTER_KEY`                                                  | (필수, 32-byte base64)                                              | AES-256-GCM KEK. `full.yml:26`에서 `:?` 로 강제                                                                 |
+|                 | `SESSION_SECRET`                                              | —                                                                   | ⚠ **현재 코드가 읽지 않는다.** 아래 각주 참고                                                                   |
+|                 | `COOKIE_SECURE`                                               | (비움)                                                              | 세션 쿠키의 Secure 플래그. **비우는 것이 기본** (`.env.example:50`, `full.yml:141`). §6.5 참고                  |
+|                 | `COOKIE_DOMAIN`                                               | (비움)                                                              | web/api 가 다른 서브도메인일 때만 부모 도메인 (`.env.example:53`, `full.yml:142`)                               |
+| **앱**          | `API_PORT`                                                    | `4000`                                                              |                                                                                                                 |
+|                 | `WEB_PORT`                                                    | `3000`                                                              | `apps/web` `next dev -p ${WEB_PORT:-3000}`                                                                      |
+|                 | `NEXT_PUBLIC_API_URL`                                         | `http://localhost:4000`                                             | Next 빌드 시 인라인 (`web.Dockerfile:29`)                                                                       |
+|                 | `INTERNAL_API_URL`                                            | `http://api:4000`                                                   | full.yml 내부 server→server (`full.yml:203`)                                                                    |
+|                 | `API_PUBLIC_URL`                                              | `http://localhost:4000`                                             | OAuth callback URL용 (`full.yml:147`)                                                                           |
+|                 | `WEB_ORIGIN`                                                  | `http://localhost:3000`                                             | 한 값이 셋을 정한다 — CORS 허용 오리진, OAuth 콜백 리다이렉트, 메일 링크 (`.env.example:40-44`, `full.yml:135`) |
+| **렌더 워커**   | `RENDER_WORKER_DISABLED`                                      | `0`                                                                 | api 컨테이너=1, worker 컨테이너=0                                                                               |
+|                 | `RENDER_CONCURRENCY`                                          | `2`                                                                 | BullMQ 워커 동시성                                                                                              |
+| **OAuth**       | `GOOGLE_OAUTH_CLIENT_ID/SECRET`                               | —                                                                   |                                                                                                                 |
+|                 | `GITHUB_OAUTH_CLIENT_ID/SECRET`                               | —                                                                   |                                                                                                                 |
+| **Cloudflare**  | `CLOUDFLARE_TUNNEL_TOKEN`                                     | —                                                                   | `--profile tunnel`일 때 필수                                                                                    |
+| **백업**        | `BACKUP_SCHEDULE`                                             | `0 3 * * *`                                                         | cron expr                                                                                                       |
+|                 | `BACKUP_RETENTION_DAYS`                                       | `14`                                                                |                                                                                                                 |
+|                 | `BACKUP_RUN_ON_START`                                         | `0`                                                                 | 컨테이너 기동 직후 1회 실행                                                                                     |
+|                 | `BACKUP_STALE_HOURS`                                          | `26`                                                                | healthcheck 한도. 스케줄을 성기게 바꾸면 같이 올린다 (`healthcheck.sh:13`)                                      |
+|                 | `BACKUP_WEBHOOK_URL`                                          | —                                                                   | 실패 시 JSON POST. 비면 로그 + healthcheck 만 (`backup.sh:65-79`)                                               |
+|                 | `BACKUP_HOST_PATH`                                            | (도커 볼륨)                                                         | 백업을 다른 디스크에 두려면 마운트 경로 (`full.yml:260`)                                                        |
+|                 | `BACKUP_REMOTE_ENDPOINT/_ACCESS_KEY/_SECRET_KEY/_BUCKET`      | —                                                                   | 채우면 매 회차 외부 S3 로 사본 (`backup.sh:166-175`)                                                            |
+| **운영자**      | `ADMIN_EMAILS`                                                | (비움)                                                              | `/admin` 접근 허용 이메일, 쉼표 구분. 비면 관리자 없음 (`.env.example:100`, `full.yml:28`)                      |
+| **관측**        | `METRICS_TOKEN`                                               | (비움)                                                              | `/v1/metrics` Bearer 토큰. 비면 404 (`.env.example:107`, `full.yml:31`)                                         |
+| **기능 플래그** | `FEATURE_API_KEYS`                                            | `0`                                                                 | BYOK 화면·API. 서버와 웹 둘 다 켜야 한다 (`.env.example:122`, `full.yml:29`)                                    |
+|                 | `NEXT_PUBLIC_FEATURE_API_KEYS`                                | `0`                                                                 | 위의 웹 쪽 짝. 빌드 시 인라인 (`full.yml:195`)                                                                  |
+| **메일**        | `RESEND_API_KEY`                                              | (비움)                                                              | 비면 콘솔 로그만 — 이메일 인증·비밀번호 재설정을 끝낼 수 없다 (`.env.example:128`, `full.yml:33`)               |
+|                 | `EMAIL_FROM`                                                  | `ComicAI <onboarding@resend.dev>`                                   | 발신 주소 (`.env.example:130`, `full.yml:34`)                                                                   |
+| **플랫폼 키**   | `PLATFORM_GEMINI_KEY` / `PLATFORM_OPENAI_KEY`                 | (비움)                                                              | 사용자 키가 없을 때 쓰는 회사 키 (`full.yml:36`, `:37`)                                                         |
+|                 | `PLATFORM_DAILY_RENDER_LIMIT`                                 | `20`                                                                | 플랫폼 키 사용 시 1인 1일 상한. `0` 이면 무제한 (`full.yml:38`)                                                 |
 
 > `apps/api`, `apps/web`에 별도 `.env.*`는 존재하지 않으며 루트 `.env` 만 사용.
+
+> ⚠ **`SESSION_SECRET` 은 현재 어떤 코드도 읽지 않는다.** `.env.example:33` 이 요구하고
+> `full.yml:136` 이 api 컨테이너에 넘기지만, `apps/api` 안에서 이 이름을 읽는 곳은
+> 없다(테스트 셋업 `apps/api/test/integration/setup.ts:61` 이 값을 넣어 둘 뿐이다).
+> 세션 식별자는 서명하지 않고, `urlSafeToken()` 으로 만든 난수를 Redis 에 저장한 뒤
+> 그 키로 조회한다(`apps/api/src/auth/session.service.ts:48`). 즉 **세션 위조를 막는 것은
+> 서명이 아니라 난수의 예측 불가능성**이고, 이 변수를 바꿔도 기존 세션은 무효화되지 않는다.
+> 값을 비워도 지금은 아무 일도 일어나지 않는다.
 
 ---
 
@@ -295,11 +337,11 @@ pnpm dev
 
 ## 6.5 노출 표면
 
-**의존 서비스 포트는 루프백에만 연다** — postgres(`full.yml:43`), redis(`:60`),
-minio(`:78,80`), api(`:142`). docker 의 publish 는 `0.0.0.0` 바인딩이고 iptables 를
+**의존 서비스 포트는 루프백에만 연다** — postgres(`full.yml:52`), redis(`:74`),
+minio(`:92`, `:94`), api(`:156`), web(`:210`). docker 의 publish 는 `0.0.0.0` 바인딩이고 iptables 를
 직접 건드리므로, 호스트 방화벽으로 막아도 인터넷에서 닿는다. 예전에는 이 넷이 전부
 공개돼 있었고 **redis 는 비밀번호조차 없었다** — 세션과 렌더 큐가 들어 있으므로
-읽히면 남의 세션을 그대로 쓸 수 있다. 지금은 `REDIS_PASSWORD` 가 필수다(`:58`).
+읽히면 남의 세션을 그대로 쓸 수 있다. 지금은 `REDIS_PASSWORD` 가 필수다(`:70-71`, `:25` 에서 `:?` 로 강제).
 
 > ⚠ api 를 루프백으로 옮기면서 확인할 것: 터널 라우팅은 Cloudflare 대시보드에 있어
 > 이 저장소에서 볼 수 없다. public hostname 이 `http://api:4000`(도커 네트워크
@@ -334,12 +376,12 @@ minio(`:78,80`), api(`:142`). docker 의 publish 는 `0.0.0.0` 바인딩이고 i
 
 ## 7. Cloudflare Tunnel
 
-`infra/compose/full.yml:169-180` 에 `cloudflared` 서비스가 `profile: ["tunnel"]` 로 정의돼 있다.
+`infra/compose/full.yml:213-224` 에 `cloudflared` 서비스가 `profiles: ['tunnel']` 로 정의돼 있다(`:217`).
 
 - 이미지: `cloudflare/cloudflared:latest`
-- 커맨드: `tunnel --no-autoupdate run`
-- 인증: `TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}` — Cloudflare Zero Trust 대시보드에서 발급한 토큰을 `.env`에 채워야 한다. 빈 값이면 즉시 종료 (`full.yml:177` 주석).
-- 의존: `web`, `api` (단순 `depends_on`, healthcheck 조건 없음)
+- 커맨드: `tunnel --no-autoupdate run` (`:218`)
+- 인증: `TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}` — Cloudflare Zero Trust 대시보드에서 발급한 토큰을 `.env`에 채워야 한다. 빈 값이면 즉시 종료 (`full.yml:220` 주석, `TUNNEL_TOKEN` `:221`).
+- 의존: `web`, `api` (단순 `depends_on` `:222-224`, healthcheck 조건 없음)
 
 활성화:
 
@@ -349,10 +391,12 @@ docker compose -f infra/compose/full.yml --profile tunnel up -d --build
 
 외부 도메인으로 노출할 때는 추가로 다음을 조정한다.
 
-- `S3_PUBLIC_ENDPOINT` — presigned URL의 서명 host (`.env.example:14`)
-- `WEB_ORIGIN` — CORS allow-list
+- `S3_PUBLIC_ENDPOINT` — presigned URL의 서명 host (`.env.example:19`)
+- `WEB_ORIGIN` — CORS 허용 오리진 + OAuth 콜백 리다이렉트 대상 + 인증·재설정 메일의 링크,
+  세 가지를 한 값이 정한다 (`.env.example:40-44`)
 - `API_PUBLIC_URL` — OAuth callback 정확한 외부 URL
-- `COOKIE_SECURE=1`
+- `COOKIE_SECURE` — https 라면 **건드리지 않는다**. 비어 있으면 `NODE_ENV=production` 에서
+  자동으로 켜진다 (아래 §6.5 참고)
 - `NEXT_PUBLIC_API_URL` — 외부 API URL (web 이미지 재빌드 필요)
 
 ---
@@ -361,13 +405,14 @@ docker compose -f infra/compose/full.yml --profile tunnel up -d --build
 
 ### 8.1 자동 배포 — `main` push 트리거
 
-`.github/workflows/deploy.yml:19-32` 의 `deploy` job 이 프로덕션 반영을 담당한다.
+`.github/workflows/deploy.yml:22-50` 의 `deploy` job 이 프로덕션 반영을 담당한다.
 CI 와 분리된 별도 워크플로다 — 이유는 `docs/08-dev-workflow.md` §5 참고.
 
-- 조건: `workflow_run` 으로 CI 를 받아 `conclusion == 'success'` 일 때만 (`deploy.yml:8-12`, `:22`). PR 에서는 실행되지 않고, CI(typecheck + test) 가 통과해야만 진행한다.
-- 러너: `[self-hosted, comicai]` (`deploy.yml:24`) — 프로덕션 호스트 자체가 러너다.
-- 작업 디렉터리: `secrets.PROD_REPO_PATH` (`deploy.yml:28`). **GitHub Secrets 에 `PROD_REPO_PATH` 가 등록돼 있어야 한다.**
-- 수행 (`deploy.yml:29-32`):
+- 조건: `workflow_run` 으로 CI 를 받아 `conclusion == 'success'` 일 때만 (`deploy.yml:7-11`, `:32-35`). PR 에서는 실행되지 않고, CI(typecheck + test) 가 통과해야만 진행한다.
+- 같은 `if` 가 `head_repository` 도 본다 (`deploy.yml:35`). 저장소가 공개라 이게 없으면 누구나 포크에서 브랜치를 `main` 으로 만들어 프로덕션 재기동을 트리거할 수 있다.
+- 러너: `[self-hosted, comicai]` (`deploy.yml:37`) — 프로덕션 호스트 자체가 러너다.
+- 작업 디렉터리: `secrets.PROD_REPO_PATH` (`deploy.yml:41`). **GitHub Secrets 에 `PROD_REPO_PATH` 가 등록돼 있어야 한다.**
+- 수행 (`deploy.yml:42-50`):
 
 ```sh
 git fetch --prune origin
@@ -379,18 +424,18 @@ $compose up -d --build backup cloudflared
 
 `git reset --hard` 이므로 프로덕션 호스트에 남은 로컬 변경은 유실된다. `.env` 는 git 추적 대상이 아니라 보존된다.
 
-**마이그레이션 동반 실행**: `--force-recreate` 대상은 `web`/`api`/`worker` 3개지만, `api`·`worker` 가 `migrate` 를 `service_completed_successfully` 로 의존하므로(`full.yml:107`, `:143`) `migrate` 컨테이너가 함께 뜨며 `prisma migrate deploy` 가 실행된다(`full.yml:80-92`). 즉 **마이그레이션이 포함된 커밋을 `main` 에 push 하면 프로덕션 DB 스키마도 함께 변경된다.**
+**마이그레이션 동반 실행**: `--force-recreate` 대상은 `web`/`api`/`worker` 3개지만, `api`·`worker` 가 `migrate` 를 `service_completed_successfully` 로 의존하므로(`full.yml:130-131`, `:180-181`) `migrate` 컨테이너가 함께 뜨며 `prisma migrate deploy` 가 실행된다(`full.yml:114`). 즉 **마이그레이션이 포함된 커밋을 `main` 에 push 하면 프로덕션 DB 스키마도 함께 변경된다.**
 
 `postgres`·`redis`·`minio` 는 재생성 대상이 아니므로 그대로 유지된다.
 
-**`backup`·`cloudflared` 는 두 번째 줄에서 따로 올린다**(`deploy.yml:50`). profile 을 켜는
+**`backup`·`cloudflared` 는 두 번째 줄에서 따로 올린다**(`deploy.yml:50`, 주석 `:47-49`). profile 을 켜는
 것과 컨테이너를 올리는 것은 다르다 — 예전에는 `--profile backup` 만 있고 서비스 이름이
 없어서 배포가 백업 컨테이너를 **한 번도 띄우지 않았다**. 여기에 `--force-recreate` 를 빼 둔
 것은 앱 배포마다 백업 cron 과 healthcheck 시작 유예(26h)가 리셋되지 않게 하기 위해서다.
 
 ### 8.2 수동 배포 / 운영 명령
 
-`package.json:22-30` 의 `prod:*` 스크립트가 위와 동일한 compose 호출을 감싼다.
+`package.json:25-33` 의 `prod:*` 스크립트가 위와 동일한 compose 호출을 감싼다.
 
 | 명령                              | 동작                                                        |
 | --------------------------------- | ----------------------------------------------------------- |
@@ -399,9 +444,24 @@ $compose up -d --build backup cloudflared
 | `pnpm prod:restart`               | `api` 만 재기동                                             |
 | `pnpm prod:restart:web`           | `web` 만 재빌드·재기동                                      |
 | `pnpm prod:ps` / `pnpm prod:logs` | 상태 확인 / 로그 추적                                       |
+| `pnpm prod:logs:api`              | `api` 로그만 (tail 200)                                     |
+| `pnpm prod:logs:tunnel`           | `cloudflared` 로그만                                        |
 | `pnpm prod:down`                  | 전체 종료                                                   |
 
-`docker:*` 스크립트(`package.json:18-21`)는 같은 compose 파일을 profile 없이 다루는 로컬 검증용이다.
+`docker:*` 스크립트(`package.json:20-23`)는 같은 compose 파일을 profile 없이 다루는 로컬 검증용이다.
+
+**`scripts/deploy.sh` 는 위 job 을 손으로 돌리는 용도다**(`deploy.sh:2-3`). `origin/main` 을
+받아 `web`/`api`/`worker` 를 재빌드·재기동한다.
+
+```sh
+pnpm run deploy              # fast-forward pull → 재기동
+pnpm run deploy --reset      # origin/main 으로 강제 동기화 (커밋 안 된 로컬 변경 삭제)
+pnpm run deploy --yes        # --reset 이 로컬 변경을 지울 때의 확인까지 건너뛴다
+pnpm run deploy --no-pull    # 코드는 그대로 두고 컨테이너만 재기동
+```
+
+⚠ **`pnpm deploy` 가 아니라 `pnpm run deploy` 여야 한다.** `deploy` 는 pnpm 내장 명령이라
+그냥 쓰면 가로채인다 (`deploy.sh:5`).
 
 ---
 
@@ -412,6 +472,7 @@ $compose up -d --build backup cloudflared
 - `infra/docker/api.Dockerfile` — NestJS api + worker
 - `infra/docker/web.Dockerfile` — Next.js standalone
 - `infra/backup/Dockerfile` · `backup.sh` · `entrypoint.sh` — 백업 사이드카
-- `scripts/cmux-bootstrap.sh` — cmux 개발 워크스페이스
+- `scripts/` — `deploy.sh` · `verify-doc-refs.ts` · `gen-landing-samples.ts` ·
+  `optimize-landing-samples.ts` · `build-fonts.py` · `cmux-bootstrap.sh` (§4)
 - `turbo.json` · `package.json` — pnpm/turbo 오케스트레이션
 - `.env.example` — 환경변수 템플릿
