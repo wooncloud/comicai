@@ -197,6 +197,27 @@ describe('useShapeSync — 왕복 중의 편집', () => {
   });
 
   /*
+   * 부모가 들고 있는 목록은 PATCH 뒤에 저절로 갱신되지 않는다. 예전에는 생성이 있을
+   * 때만 다시 읽어서, 옮겨 저장한 좌표가 그 목록에 영영 반영되지 않았다. 그 낡은 목록이
+   * 다른 이유로 한 번 더 바뀌면(렌더 상태가 붙는 등) 투영이 컷을 옛 자리로 되돌린다.
+   */
+  it('생성이 없는 저장 뒤에도 서버 목록을 다시 읽는다', async () => {
+    const canvas = makeCanvas();
+    apiMock.mockResolvedValue([]);
+    mount(canvas.editor);
+
+    canvas.seed('s1', 10, 'srv1');
+    canvas.move('s1', 99);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE);
+
+    expect(calls()).toEqual([
+      ['PATCH', '/items/srv1'],
+      ['GET', '/pages/page1/items'],
+    ]);
+    expect(onItemsChanged).toHaveBeenCalledWith([]);
+  });
+
+  /*
    * 재조회는 캔버스를 서버 상태로 덮어쓴다. 저장 대기 중인 도형까지 덮으면 방금 한
    * 편집이 사라지므로, 역방향 투영이 건너뛸 수 있게 알려 준다.
    */

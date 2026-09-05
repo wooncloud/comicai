@@ -264,7 +264,6 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
         if (alive()) onSavingChange(false);
         return;
       }
-      const needsRefetch = ops.some((o) => o.kind === 'create');
       inFlight = true;
       try {
         const results = await Promise.allSettled(ops.map((o) => o.send()));
@@ -273,9 +272,21 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
         if (failed.length === 0) {
           failures = 0;
           if (!alive()) return;
-          if (needsRefetch) {
+          /*
+           * **저장할 때마다** 서버 목록을 다시 읽어 부모에게 넘긴다. 예전에는 생성이
+           * 있을 때만 읽었는데, 그러면 PATCH 로 저장한 좌표가 부모 목록에 영영 반영되지
+           * 않는다. 그 낡은 목록이 다른 이유로 한 번 더 바뀌면(렌더 상태가 붙는 등)
+           * 투영이 돌면서 **컷을 옛 자리로 되돌린다** — 사용자에게는 방금 옮긴 컷이 튀어
+           * 돌아가는 것으로 보이고, 다음 저장이 그 옛 좌표를 서버에 굳힌다.
+           *
+           * 매번 읽어도 안전한 이유는 `hasUnsaved` 다. 이 왕복 사이에 한 편집이 있으면
+           * 투영이 그 도형을 건너뛴다. 그 보호가 없으면 이 재조회가 곧 편집 유실이다.
+           */
+          try {
             const list = await api<TDto[]>(spec.listPath(pageId));
             if (alive()) onItemsChanged(list);
+          } catch {
+            // 재조회 실패는 저장 실패가 아니다. 목록이 잠깐 낡을 뿐이고 다음 저장이 따라잡는다.
           }
           // 생성이 끝나 서버 id 가 붙은 뒤에야 보낼 수 있던 편집이 남아 있을 수 있다.
           settle();
