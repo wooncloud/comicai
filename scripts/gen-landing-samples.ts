@@ -7,8 +7,9 @@ import type { RenderIR } from '@comicai/types';
 const ROOT = resolve(__dirname, '..');
 const OUT = ROOT + '/apps/web/public/samples/_raw';
 mkdirSync(OUT, { recursive: true });
-const KEY = (readFileSync(ROOT + '/.env', 'utf8').match(/^GEMINI_API_KEY=(.+)$/m) ?? [])[1]?.trim();
-if (!KEY) throw new Error('GEMINI_API_KEY 없음');
+const matched = readFileSync(ROOT + '/.env', 'utf8').match(/^GEMINI_API_KEY=(.+)$/m);
+if (!matched) throw new Error('GEMINI_API_KEY 없음');
+const KEY = matched[1].trim();
 
 const ent = (name: string, description: string) => ({
   entityId: 'e_' + name,
