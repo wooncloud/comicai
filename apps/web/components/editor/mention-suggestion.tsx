@@ -135,6 +135,17 @@ export function createMentionSuggestion(
 
       /** 마운트 전에 도착한 마지막 상태. 버리면 첫 타이핑 결과가 화면에 안 나온다. */
       let pending: { props: ListProps; rect: DOMRect | null } | null = null;
+      /*
+       * 읽으면서 비운다. 함수를 거치는 것이 핵심이다 — 직접 `pending ?? …` 로 쓰면 TS 는
+       * 바로 위 `pending = null` 만 보고 "항상 null" 로 좁힌다(onUpdate 의 대입은 다른
+       * 클로저라 흐름 분석에 안 잡힌다). 그 경고를 따라 `??` 를 지우면 마운트 전에 온
+       * onUpdate 를 버리는 원래 버그로 돌아간다.
+       */
+      const takePending = () => {
+        const p = pending;
+        pending = null;
+        return p;
+      };
 
       const snapshot = (props: SuggestionProps<MentionItem>) => ({
         props: { items: props.items, command: (item: MentionItem) => props.command(item) },
@@ -145,7 +156,7 @@ export function createMentionSuggestion(
         onStart: (props) => {
           const token = {};
           session = token;
-          pending = null;
+          takePending();
           void (async () => {
             const { createRoot } = await import('react-dom/client');
             const { default: React } = await import('react');
@@ -173,10 +184,9 @@ export function createMentionSuggestion(
             };
             mounted = m;
             // 기다리는 동안 온 타이핑·이동을 여기서 따라잡는다. 없었으면 onStart 의 값.
-            const initial = pending ?? snapshot(props);
+            const initial = takePending() ?? snapshot(props);
             m.update(initial.props);
             m.place(initial.rect);
-            pending = null;
           })();
         },
         onUpdate: (props) => {

@@ -72,7 +72,7 @@ export function MobileNav({ me }: { me: SessionUser }) {
 
         <nav className="flex-1 overflow-y-auto p-2">
           {PRIMARY_NAV.map((item) => {
-            const active = item.match(path ?? '');
+            const active = item.match(path);
             return (
               <div key={item.href}>
                 <Link

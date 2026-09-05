@@ -6,7 +6,6 @@ import { api, API_BASE, ApiError } from '@/lib/api';
 import { useDebounced } from '@/lib/use-debounced';
 import {
   ApiPaths,
-  emptyDoc,
   type ConsistencyEntityDTO,
   type PanelDTO,
   type PanelShape,
@@ -61,7 +60,7 @@ export function PanelInspector({
   onPanelDeleted,
   onCollapse,
 }: Props) {
-  const [doc, setDoc] = useState<TipTapDoc>(panel.text ?? emptyDoc());
+  const [doc, setDoc] = useState<TipTapDoc>(panel.text);
   // null이면 프로젝트 대표 모델(없으면 Gemini)을 사용.
   const [userModel, setUserModel] = useState<ModelId | null>(null);
   const [contiDialogOpen, setContiDialogOpen] = useState(false);
@@ -478,8 +477,11 @@ function PanelStrokeEditor({
   /** 바뀐 필드만 넘긴다 — 좌표는 캔버스 소관이다. */
   onChange: (next: { strokeColor?: string; strokeWidth?: number }) => void | Promise<void>;
 }) {
-  const color = shape.strokeColor ?? '#000000';
-  const width = shape.strokeWidth ?? 2;
+  // 저장된 shape 은 읽을 때 파싱하지 않는다. 이 두 필드는 Zod 기본값이라 **쓰기
+  // 시점에만** 채워지므로, 필드가 생기기 전에 저장된 컷에는 아예 없다.
+  const { strokeColor, strokeWidth } = shape as Partial<PanelShape>;
+  const color = strokeColor ?? '#000000';
+  const width = strokeWidth ?? 2;
 
   function commitColor(next: string) {
     if (next === shape.strokeColor) return;

@@ -103,6 +103,11 @@ export default function PageEditor() {
   useEffect(() => {
     if (!pageId) return;
     let cancelled = false;
+    // 함수를 거쳐 읽는다. 직접 `if (cancelled)` 로 쓰면 TS 는 위 `= false` 만 보고
+    // 상수로 좁혀 "항상 거짓" 이라고 한다 — 정리 함수의 대입은 다른 클로저라
+    // 흐름 분석에 안 잡힌다. 그 경고를 따라 가드를 지우면 늦게 온 응답이 다른
+    // 페이지의 컷을 덮어쓴다.
+    const isCancelled = () => cancelled;
     setLoadError(null);
     void (async () => {
       try {
@@ -113,14 +118,14 @@ export default function PageEditor() {
           api<PageTextDTO[]>(ApiPaths.pagePageTexts(pageId)),
           api<PageLineDTO[]>(ApiPaths.pagePageLines(pageId)),
         ]);
-        if (cancelled) return;
+        if (isCancelled()) return;
         setPage(p);
         setPanels(list);
         setBubbles(bubs);
         setTexts(txs);
         setLines(lns);
       } catch (err) {
-        if (!cancelled) setLoadError(err);
+        if (!isCancelled()) setLoadError(err);
       }
     })();
     return () => {

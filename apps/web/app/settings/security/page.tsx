@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api, API_BASE } from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '@/lib/query-keys';
@@ -158,7 +158,9 @@ function OAuthSection({ me }: { me: SessionUser | undefined }) {
    */
   const enabled = useOAuthProviders();
   const linked = new Set(me?.oauthProviders ?? []);
-  const rows = PROVIDERS.filter((p) => enabled?.includes(p.id) || linked.has(p.id));
+  // `||` 를 `??` 로 바꾸면 안 된다 — `enabled` 가 로드돼 false 를 주면 `??` 는 거기서
+  // 멈춰 이미 연결된 provider 를 목록에서 지운다. undefined 만 false 로 접는다.
+  const rows = PROVIDERS.filter((p) => (enabled?.includes(p.id) ?? false) || linked.has(p.id));
 
   if (!me || rows.length === 0) return null;
   return (

@@ -47,7 +47,7 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}): Pr
   const headers: Record<string, string> = {
     // FormData는 브라우저가 boundary 포함 multipart/form-data를 자동 설정해야 함.
     ...(isFormData ? {} : { 'content-type': 'application/json' }),
-    ...((init.headers as Record<string, string>) ?? {}),
+    ...((init.headers as Record<string, string> | undefined) ?? {}),
   };
   if (!SAFE_METHODS.has(method)) {
     const csrf = readCsrfToken();
@@ -95,6 +95,8 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}): Pr
     throw new ApiError(res.status, code, message, details);
   }
   if (res.status === 204) return undefined as T;
-  const body = (await res.json()) as { data?: T };
+  // 본문이 리터럴 `null` 이면 `res.json()` 은 null 을 준다. 캐스트로 그걸 지우면
+  // 아래 `body &&` 가 불필요해 보이고, 지우면 `'data' in null` 에서 TypeError 다.
+  const body = (await res.json()) as { data?: T } | null;
   return (body && typeof body === 'object' && 'data' in body ? body.data : (body as T)) as T;
 }

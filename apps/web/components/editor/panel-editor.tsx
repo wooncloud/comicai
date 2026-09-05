@@ -4,7 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useRef } from 'react';
 import { ComicMention } from './mention-extension';
 import { createMentionSuggestion } from './mention-suggestion';
-import { emptyDoc, type TipTapDoc } from '@comicai/types';
+import type { TipTapDoc } from '@comicai/types';
 
 interface Props {
   projectId: string;
@@ -28,7 +28,7 @@ export function PanelTextEditor({ projectId, initial, onChange, onSubmit }: Prop
         suggestion: createMentionSuggestion(projectId),
       }),
     ],
-    content: (initial ?? emptyDoc()) as unknown as object,
+    content: initial as unknown as object,
     editorProps: {
       handleKeyDown(_view, event) {
         if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {

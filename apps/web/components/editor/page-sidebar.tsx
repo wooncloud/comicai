@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Pencil, Check, X, GripVertical } from 'lucide-react';
 import { DndContext, closestCenter } from '@dnd-kit/core';
@@ -57,18 +57,23 @@ export function PageSidebar({
   });
   const { sensors, onDragEnd } = usePageReorder(projectId, pages);
 
-  function setPages(next: PageDTO[] | ((prev: PageDTO[]) => PageDTO[])) {
-    queryClient.setQueryData<PageDTO[]>(qk.projectPages(projectId), (prev) =>
-      typeof next === 'function' ? next(prev ?? []) : next,
-    );
-  }
+  // 아래 이펙트의 의존성에 들어가므로 렌더마다 새로 만들면 안 된다 — 이 함수가
+  // 캐시를 쓰고, 그게 다시 렌더를 부른다.
+  const setPages = useCallback(
+    (next: PageDTO[] | ((prev: PageDTO[]) => PageDTO[])) => {
+      queryClient.setQueryData<PageDTO[]>(qk.projectPages(projectId), (prev) =>
+        typeof next === 'function' ? next(prev ?? []) : next,
+      );
+    },
+    [queryClient, projectId],
+  );
 
   // 현재 페이지 행이 바뀌는 유일한 경로. 부모가 들고 있는 레코드(size/name)를
   // 목록에 비춘다 — 아래 renamePage 도 목록이 아니라 부모에 쓰고 여기로 돌아온다.
   useEffect(() => {
     if (!currentPage) return;
     setPages((prev) => prev.map((p) => (p.id === currentPage.id ? currentPage : p)));
-  }, [currentPage]);
+  }, [currentPage, setPages]);
 
   async function addPage() {
     setAdding(true);
@@ -77,7 +82,7 @@ export function PageSidebar({
         method: 'POST',
         body: JSON.stringify({ size: { w: 800, h: 1200 } }),
       });
-      setPages((prev) => [...(prev ?? []), created]);
+      setPages((prev) => [...prev, created]);
       toast.push('success', '페이지가 추가되었습니다.');
     } catch (err) {
       toast.push('error', errorMessage(err, '페이지를 추가'));

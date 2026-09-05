@@ -20,6 +20,17 @@ export const MODEL_LABEL: Record<ModelId, string> = {
   mock: '테스트',
 };
 
+/**
+ * 표기용 이름. 목록에 없으면 id 를 그대로 보여 준다.
+ *
+ * `MODEL_LABEL` 은 `Record<ModelId, string>` 이라 타입상 늘 맞지만, 인자는 서버가 DB
+ * 문자열을 `as ModelId` 로 캐스트해 보낸 값이다 — 모델을 유니온에서 빼도 그 모델로
+ * 만든 옛 기록은 남는다. 폴백이 없으면 히스토리에 undefined 가 찍힌다.
+ */
+export function modelLabel(id: ModelId): string {
+  return (MODEL_LABEL as Partial<Record<ModelId, string>>)[id] ?? id;
+}
+
 /** 사용자가 고를 수 있는 서비스. `mock` 은 개발 전용이라 제외한다. */
 export const MODEL_OPTIONS: { id: ModelId; label: string }[] = [
   { id: 'gemini-3.1-flash-image-preview', label: MODEL_LABEL['gemini-3.1-flash-image-preview'] },
