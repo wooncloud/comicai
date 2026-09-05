@@ -57,20 +57,8 @@
     },
     {
       "doc": "docs/02-backend.md",
-      "raw": ":209",
-      "target": "apps/api/src/consistency/consistency.service.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/02-backend.md",
       "raw": ":216-229",
       "target": "apps/api/src/me/me.controller.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/02-backend.md",
-      "raw": ":249",
-      "target": "apps/api/src/render/render.worker.ts",
       "count": 1
     },
     {
@@ -161,12 +149,6 @@
       "doc": "docs/02-backend.md",
       "raw": "me.controller.ts:86-93",
       "target": "apps/api/src/me/me.controller.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/02-backend.md",
-      "raw": "model-credentials.ts:62",
-      "target": "apps/api/src/render/model-credentials.ts",
       "count": 1
     },
     {
@@ -412,12 +394,6 @@
     {
       "doc": "docs/04-shared-packages.md",
       "raw": "src/index.ts:181-190",
-      "target": "packages/types/src/index.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/04-shared-packages.md",
-      "raw": "src/index.ts:203",
       "target": "packages/types/src/index.ts",
       "count": 1
     },
@@ -689,12 +665,6 @@
       "doc": "docs/06-render-pipeline.md",
       "raw": "render.worker.ts:58",
       "target": "apps/api/src/render/render.worker.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/07-data-model.md",
-      "raw": ":110",
-      "target": "packages/db/prisma/schema.prisma",
       "count": 1
     },
     {

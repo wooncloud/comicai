@@ -14,6 +14,7 @@ import {
 import { RENDER_QUEUE_NAME, parseRedis, type RenderJobData } from './render.queue';
 import { SseHub } from './sse.hub';
 import { ModelCredentials } from './model-credentials';
+import { TokensService } from '../tokens/tokens.service';
 import { classifyModelError } from './model-error';
 import { StorageService } from '../storage/storage.service';
 import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
@@ -35,6 +36,7 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
     private readonly breaker: ApiKeyBreaker,
     private readonly metrics: MetricsService,
     private readonly credentials: ModelCredentials,
+    private readonly tokens: TokensService,
   ) {}
 
   onModuleInit() {
@@ -218,6 +220,14 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
         },
       });
       if (count === 0) return;
+      /*
+       * 결과를 못 냈으니 토큰을 돌려준다.
+       *
+       * **위 조건부 갱신이 실제로 상태를 바꿨을 때만** 온다(`count === 0` 이면 이미
+       * 취소·완료된 잡이고, 그쪽 경로가 자기 몫을 처리했다). 환급 자체도 잡 id 로
+       * 멱등해서, 취소와 실패가 겹쳐 들어와도 두 번 돌려주지 않는다.
+       */
+      await this.tokens.refundRender(renderJobId, `생성 실패 (${classified.category})`);
       this.hub.publish(renderJobId, { type: 'error', jobId: renderJobId, error: classified });
       this.hub.publish(renderJobId, { type: 'status', jobId: renderJobId, status: finalStatus });
     } finally {

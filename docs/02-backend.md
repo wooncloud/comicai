@@ -51,9 +51,9 @@
 - `LoggerModule.forRoot(...)`: pino redact 경로(`req.headers.cookie`, `authorization`, `*.apiKey`, `*.secret`, `*.token`, `*.ciphertext`, `*.password`, `*.passwordHash`), `/healthz`는 autoLogging 제외 — `app.module.ts:27-59`
 - `ThrottlerModule.forRoot([{ ttl: 60s, limit: 120 }])`, `APP_GUARD = ThrottlerGuard`로 글로벌 적용 — `app.module.ts:62, 82`
 - `APP_GUARD = SessionGuard` 도 함께 등록 — `app.module.ts:93` (아래 §2.2)
-- `configure(consumer)`에서 `CsrfMiddleware`를 모든 라우트(`'*'`)에 부착 — `app.module.ts:81-83`
+- `configure(consumer)`에서 `CsrfMiddleware`를 모든 라우트(`'*'`)에 부착 — `app.module.ts:83-85`
 - 등록 모듈: `MetricsModule, EmailModule, AuthModule, OAuthModule, MeModule, ApiKeysModule, ProjectsModule, ConsistencyModule, PagesModule, PanelsModule, SpeechBubblesModule, PageTextsModule, PageLinesModule, RenderModule, ExportModule` — `app.module.ts:61-75`
-- 직접 등록 컨트롤러: `HealthController` — `app.module.ts:77`
+- 직접 등록 컨트롤러: `HealthController` — `app.module.ts:79`
 
 ---
 
@@ -145,7 +145,7 @@
 - **기존 계정에 붙이려면 제공자가 이메일 소유를 증명해야 한다**(`oauth.service.ts:157`). 예전에는
   이메일이 같기만 하면 그 계정의 세션을 발급했다 — 어떤 제공자에서 남의 이메일을 소유 증명 없이
   등록할 수 있으면 비밀번호를 모르는 채 남의 계정을 가져갈 수 있었다. 신규 생성은 막지 않는다
-- **약관 동의는 계정 생성 지점에 기록한다.** `termsAgreedAt`(`oauth.service.ts:201`)은 신규 생성
+- **약관 동의는 계정 생성 지점에 기록한다.** `termsAgreedAt`(`oauth.service.ts:207`)은 신규 생성
   경로에만 붙고, 기존 계정 링크 경로(`:161-178`)는 건드리지 않는다. 계정을 만드는 경로는 둘
   뿐이고(`auth.service.ts:13`, `oauth.service.ts:188`) 한쪽에만 붙이면 다른 경로로 만들어진
   계정에 기록이 없어 재동의 대상을 가려낼 수 없다. 소셜 가입에는 체크박스를 놓을 자리가 없어
@@ -180,7 +180,7 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 > 세션 검사(전역 가드)가 **먼저** 돌므로 그 404 는 로그인한 사용자만 본다 — 비로그인은
 > 플래그 상태와 무관하게 401 이다.
 > 결제 + 사용량 과금으로 방향을 바꾸는 중이라 기본은 꺼짐이며, **끄면 그림 생성이 멈춘다** —
-> 렌더 워커가 사용자 키를 찾아 쓰는데(`render/render.worker.ts:141` 의 `credentials.resolve`)
+> 렌더 워커가 사용자 키를 찾아 쓰는데(`render/render.worker.ts:145` 의 `credentials.resolve`)
 > 키를 등록할 경로가 사라진다.
 
 | Method | Route                     | Handler                                 |
@@ -245,7 +245,7 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 | POST   | `/v1/consistency/:id/generate`        | `generate` (`:104-107`) — AI 모델로 참조 이미지 1장 생성 (storage 업로드만, refImages 미등록). style 엔티티는 거부                         |
 | POST   | `/v1/consistency/:id/images/attach`   | `attach` (`:110-113`) — `generate` 결과의 storageKey 를 refImages 에 등록 (key prefix 검증)                                                |
 
-`refImages` 에 이미지를 덧붙이는 세 경로(`appendImages` `:209`, `attachImage` `:327`,
+`refImages` 에 이미지를 덧붙이는 세 경로(`appendImages` `:194`, `attachImage` `:316`,
 `PanelsService.appendUpload` `panels.service.ts:176`)는 **원자적 JSONB append** 를 쓴다
 (`common/ref-images.ts`). 읽어서 `[...기존, 새것]` 으로 통째 덮어쓰면 동시 업로드가 유실된다 —
 12장을 한 번에 드래그하면 전부 같은 배열을 읽고 각자 덮어써서 마지막 1장만 남고 나머지는
@@ -255,7 +255,7 @@ S3 고아가 된다. Prisma 에 JSON 배열 append 프리미티브가 없어 raw
 
 AI 생성 로직은 `consistency.service.ts:220-298` (`generateImage`) / `:304-334` (`attachImage`). 엔티티 타입별 system prompt (`ENTITY_SYSTEM_PROMPTS`, `:68-75`) 와 출력 비율(`ENTITY_OUTPUT_SHAPE`, `:54-61`)이 적용되어 패널-룰 대신 캐릭터 시트/환경 콘셉트/세계관 무드 보드 톤을 강제한다. style 은 그림체 자체가 다른 패널 결과의 일관성 기준이라 `generate` 자체를 거부 (`CONSISTENCY_GENERATE_UNSUPPORTED`).
 
-키 조회는 **`try` 안에 있다**(`consistency.service.ts:260`). 밖에 두면 쿼터 초과·키 없음 같은
+키 조회는 **`try` 안에 있다**(`consistency.service.ts:265`). 밖에 두면 쿼터 초과·키 없음 같은
 평범한 정책 거부가 `HttpException` 이 아닌 채로 예외 필터까지 올라가 500 `INTERNAL_ERROR` 가
 되고, 서버 로그에는 정상 거부가 `unhandled exception` ERROR 로 쌓여 진짜 장애 신호를 덮는다.
 실패는 전부 `CONSISTENCY_GENERATE_FAILED` + `details.category` 로 나가되 상태 코드만 분기한다 —
@@ -438,27 +438,22 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
 그림 생성에 쓸 키를 고르는 곳. 예전에는 이 로직이 렌더 워커와 일관성 서비스에
 **두 벌로 복제**돼 있어서, 한쪽만 고치면 컷 렌더는 되는데 참조 이미지 생성만 죽었다.
 
-- 우선순위는 **사용자 키 → 플랫폼 키**(`resolve`, `model-credentials.ts:62`). 사용자가
-  자기 키를 넣어 뒀다면 비용은 본인이 내는 것이므로 상한을 걸지 않는다.
-- **플랫폼 키를 쓸 때만 하루 상한을 본다**(`PLATFORM_DAILY_RENDER_LIMIT`, 기본 20).
-  이게 없으면 가입자 누구나 무제한으로 회사 키를 태울 수 있다 — ThrottlerModule 의
-  rate limit 은 요청 빈도 제한이지 지출 상한이 아니다.
-- **계량은 키를 내주는 자리에 있다** — `consumePlatformQuota` (`model-credentials.ts:117`)
-  가 Redis 카운터 `platform:usage:{userId}:{YYYY-MM-DD}` 를 INCR 하고 상한을 넘으면
-  `UsageLimitError` 를 던진다. 예전에는 `renderJob` 행 수를 셌는데, 그 테이블에 행을
-  넣는 곳이 컷 렌더 하나뿐이라 **같은 키를 받아 가는 참조 이미지 생성은 상한을 통째로
-  우회**했다(카운터를 읽기만 하고 올리지 않았다). 호출부가 늘어도 새지 않도록 키를
-  내주는 이 지점에서 센다.
-- 세는 것은 성공이 아니라 **키를 내준 것**이다. 실패한 호출에도 대부분 비용이 청구되고,
-  실패를 공짜로 두면 무한 재시도로 우회할 수 있다. 사용자 키 경로와 `mock` 은 카운터에
-  닿지 않는다 — 예전 카운터는 출처를 구분하지 않아서, 자기 키로만 그린 사람도 그 키가
-  차단되는 순간 플랫폼 키를 쓴 적 없이 "하루치를 다 썼다"는 이유로 막혔다.
-- Redis 가 죽으면 예외가 그대로 올라간다. 지출 상한은 열어 두는 쪽이 더 위험하고, 아직
-  모델을 부르기 전이라 실패해도 돈이 나가지 않는다.
+- 우선순위는 **사용자 키 → 플랫폼 키**(`resolve`, `model-credentials.ts:44`). 사용자가
+  자기 키를 넣어 뒀다면 비용을 본인이 프로바이더에 직접 내는 것이므로 토큰을 받지 않는다.
+- **플랫폼 키를 쓸 때 토큰을 차감한다**(`model-credentials.ts:44`). 이게 없으면 가입자
+  누구나 무제한으로 회사 키를 태울 수 있다 — ThrottlerModule 의 rate limit 은 요청 빈도
+  제한이지 지출 상한이 아니다. 지출 총량은 **발행한 토큰**(가입 지급 + 구매)이 정한다.
+- **계량은 키를 내주는 자리에 있다.** 예전에는 `renderJob` 행 수를 셌는데, 그 테이블에
+  행을 넣는 곳이 컷 렌더 하나뿐이라 **같은 키를 받아 가는 참조 이미지 생성은 상한을
+  통째로 우회**했다(카운터를 읽기만 하고 올리지 않았다). 호출부가 늘어도 새지 않도록
+  키를 내주는 이 지점에서 센다.
+- 차감은 성공이 아니라 **시작** 시점이다. 그래야 잔액 1로 100장을 동시에 시작할 수 없다.
+  결과를 못 낸 호출은 끝난 뒤에 돌려준다 — §3.9 참조.
 - 던지는 예외는 자기 분류를 들고 있다(`ApiKeyMissingError` = auth,
-  `UsageLimitError` = quota). `classifyModelError` (`render/model-error.ts:14`) 가 그걸
-  존중한다 — 어댑터의 `classifyError` 에 넘기면 프로바이더 HTTP 응답만 볼 줄 알아서 전부
-  `transient` 로 떨어지고, 재시도해도 소용없는 실패를 유료로 3번 반복하게 된다.
+  `InsufficientTokensError` = quota, `tokens/tokens.service.ts:13`). `classifyModelError`
+  (`render/model-error.ts:14`) 가 그걸 존중한다 — 어댑터의 `classifyError` 에 넘기면
+  프로바이더 HTTP 응답만 볼 줄 알아서 전부 `transient` 로 떨어지고, 재시도해도 소용없는
+  실패를 유료로 3번 반복하게 된다.
   워커(`render.worker.ts:163`)와 참조 이미지 생성(`consistency.service.ts:277`)이 같은
   함수를 쓴다.
 
@@ -678,3 +673,44 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 - 패널 shape bounding box 는 `@comicai/types` 의 `shapeBoundingBox` 를 **직접** 쓴다. 예전에는 `common/bbox.ts` 가 1줄 배럴로 재수출했는데, 소비자 일부는 배럴을, 일부(`export/panel-mask.ts`)는 원본을 import 해서 같은 함수가 두 경로로 들어왔다 — 배럴을 없앴다.
 - `storage/image-validator.ts` — 업로드 이미지 MIME/사이즈/픽셀 검증 + sharp 정규화 (`MAX_UPLOAD_BYTES` export)
 - `metrics/metrics.interceptor.ts` — HTTP 메트릭 인터셉터(이미 `applyAppPipeline`을 통해 등록됨)
+
+### 3.9 토큰 — `tokens/tokens.service.ts`
+
+그림 생성의 대가를 받는 곳. 잔액(`token_accounts`)과 원장(`token_ledger`) 두 테이블을 쓴다.
+
+**왜 원장을 따로 두는가.** 잔액 하나만 들고 있으면 "왜 12 인가" 에 답할 수 없다. 사용자가
+"안 썼는데 줄었다" 고 물었을 때 되짚을 근거가 없고, 버그로 잔액이 틀어져도 고칠 방법이
+없다. 움직임은 전부 원장에 남기고 잔액은 그 합의 캐시로 둔다
+(`tokens.service.ts:62` 클래스 주석).
+
+**왜 캐시를 따로 두는가.** 읽기 성능도 있지만, 더 중요한 이유는 그 행이 **동시성 통제
+지점**이라는 것이다. 차감은 `UPDATE … WHERE balance >= ?` 한 문장이고
+(`tokens.service.ts:244`), 그 `WHERE` 가 곧 "잔액보다 많이 쓸 수 없다" 는 보장이다.
+애플리케이션에서 읽고-검사하고-쓰면 동시에 들어온 두 요청이 같은 잔액을 읽어 **둘 다
+통과한다** — 렌더는 버튼 연타나 여러 컷 일괄 생성으로 실제로 동시에 들어온다.
+
+**같은 사건을 두 번 청구하지 않는다.** 원장의 `idempotency_key` 가 unique 다
+(`tokens.service.ts:167`). BullMQ 는 transient 실패를 3회까지 재시도하고 배포 중 stalled
+재큐로 잡이 되살아나므로, 이게 없으면 그림 한 장에 토큰이 3~4개 나간다. 예전 Redis
+SETNX(26시간 TTL)와 달리 영구적이고, 환급에도 같은 키를 쓴다.
+
+**실패하면 돌려준다.** 차감이 곧 예약이다 — 시작하는 순간 잔액이 줄어 잔액 1로 100장을
+동시에 시작할 수 없고, 실패·시간초과·취소로 끝나면 `refund` 항목을 더해 되돌린다
+(`refundRender`, `tokens.service.ts:127`). **돌려줄 금액은 원장에서 읽는다** — 워커가
+기억했다가 넘기면 재배포나 stalled 재큐로 다른 프로세스가 마무리할 때 그 값이 없다.
+차감 기록이 없으면(BYOK·mock) 아무것도 하지 않는다. 이 검사가 없으면 쓴 적 없는 토큰이
+생기는 무한 증식 경로가 된다.
+
+부르는 곳은 셋이다 — 워커의 실패 경로(`render.worker.ts`), 취소
+(`render.service.ts`), 참조 이미지 생성 실패(`consistency.service.ts`). 셋 다 조건부
+갱신이 실제로 상태를 바꿨을 때만 부르고, 환급 자체도 잡 id 로 멱등해서 겹쳐 들어와도 한
+번만 나간다.
+
+**단가와 지급량**은 `@comicai/types` 에 있다 — `MODEL_TOKEN_COST`(모델별, Record 라
+모델이 늘면 컴파일 에러), `SIGNUP_GRANT_TOKENS`(가입 1회). 원가가 모델마다 몇 배씩
+차이 나서 균일가로 두면 비싼 모델을 고르는 사용자마다 손해가 나는데, 사용량은 똑같이
+1로 세어져 그게 보이지 않는다.
+
+검증은 `test/integration/tokens.integration.spec.ts` 7개다. 동시 10건 차감이 잔액 3을
+넘지 않는지, 같은 잡을 4번 처리해도 1번만 청구하는지, 환급이 두 번 나가지 않는지 —
+진짜 Postgres 가 필요한 것들이라 통합 테스트로만 증명된다.

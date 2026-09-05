@@ -4,6 +4,7 @@ import { CsrfMiddleware } from './common/csrf.middleware';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
+import { TokensModule } from './tokens/tokens.module';
 import { HealthController } from './health/health.controller';
 import { MetricsModule } from './metrics/metrics.module';
 import { AuthModule } from './auth/auth.module';
@@ -60,6 +61,7 @@ import { ExportModule } from './export/export.module';
       },
     }),
     ThrottlerModule.forRoot([{ name: 'default', ttl: seconds(60), limit: 120 }]),
+    TokensModule,
     MetricsModule,
     EmailModule,
     AuthModule,

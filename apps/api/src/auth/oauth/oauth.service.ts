@@ -12,6 +12,7 @@ import { urlSafeToken } from '../../common/tokens';
 import { ADAPTERS, type OAuthProfile } from './oauth.providers';
 import { apiError } from '../../common/api-error';
 import { redisUrl } from '../../common/env';
+import { TokensService } from '../../tokens/tokens.service';
 import { jsonColumn } from '../../common/json-column';
 
 const STATE_TTL_SECONDS = 10 * 60;
@@ -26,7 +27,10 @@ interface ProviderConfig {
 export class OAuthService implements OnModuleDestroy {
   private readonly redis: Redis;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly tokens: TokensService,
+  ) {
     this.redis = new Redis(redisUrl(config));
   }
 
@@ -204,6 +208,8 @@ export class OAuthService implements OnModuleDestroy {
       },
       select: { id: true, email: true },
     });
+    // 이메일 가입(`auth.service.ts`)과 짝이다. 둘 다 지급해야 한다.
+    await this.tokens.grantSignupBonus(created.id);
     return created;
   }
 }

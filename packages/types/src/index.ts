@@ -8,6 +8,9 @@ import {
   type PANEL_SHAPE_TYPES,
   type SPEECH_BUBBLE_VARIANTS,
   type TextAlign,
+  type TOKEN_LEDGER_KINDS,
+  type TOKEN_ORDER_STATUSES,
+  type TOKEN_PACKAGES,
 } from './schemas';
 
 export * from './envelope';
@@ -31,6 +34,37 @@ export const MODEL_PROVIDER: Record<ModelId, ModelProvider> = {
   'gpt-image-2': 'openai',
   mock: 'mock',
 };
+
+/**
+ * 그림 한 장에 드는 토큰.
+ *
+ * 모델마다 원가가 몇 배씩 차이 난다. 균일가로 두면 비싼 모델을 고르는 사용자마다
+ * 손해가 나는데, 그게 보이지 않는다 — 사용량은 똑같이 1로 세어지기 때문이다.
+ *
+ * `mock` 은 외부 호출이 없어 0 이다. 개발·테스트가 사용자 잔액을 갉아먹으면 안 된다.
+ *
+ * Record 라서 ModelId 가 늘면 여기서 컴파일 에러가 난다. 값을 정하지 않은 모델이
+ * 조용히 공짜가 되는 일은 없다.
+ */
+export const MODEL_TOKEN_COST: Record<ModelId, number> = {
+  'gemini-3.1-flash-image-preview': 1,
+  'gpt-image-2': 4,
+  mock: 0,
+};
+
+/**
+ * 가입 시 한 번 지급하는 토큰.
+ *
+ * 결제 없이 제품을 끝까지 한 번 써 보게 하는 양이다. 원장에 `signup_grant` 로 남으므로
+ * 재지급·악용은 기록으로 추적된다.
+ *
+ * 토큰제로 넘어오기 전 가입자에게도 마이그레이션이 같은 양을 넣어 줬다
+ * (`20260905033443_token_system`). 그 백필은 한 번만 도는 SQL 이라 이 상수를 바꿔도
+ * 다시 돌지 않는다.
+ */
+// 타입을 `number` 로 넓혀 둔다. 리터럴 20 으로 좁히면 이 값을 0 으로 바꿔 지급을 끄는
+// 사용법이 "항상 거짓인 조건" 으로 보여, lint 가 그 가드를 지우라고 한다.
+export const SIGNUP_GRANT_TOKENS: number = 20;
 
 export const OAUTH_PROVIDERS = ['google', 'github'] as const;
 export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
@@ -512,4 +546,38 @@ export interface AdminUserRow {
   createdAt: string;
   projects: number;
   renderJobs: number;
+}
+
+// ─── 토큰 ─────────────────────────────────────
+
+export type TokenLedgerKind = (typeof TOKEN_LEDGER_KINDS)[number];
+export type TokenOrderStatus = (typeof TOKEN_ORDER_STATUSES)[number];
+export type TokenPackage = (typeof TOKEN_PACKAGES)[number];
+
+export interface TokenBalanceDTO {
+  balance: number;
+  /** 현재 잔액으로 각 모델을 몇 장 만들 수 있는지. 화면이 매번 나눗셈하지 않게 서버가 준다. */
+  affordable: Record<ModelId, number>;
+}
+
+export interface TokenLedgerEntryDTO {
+  id: string;
+  /** 양수는 적립, 음수는 차감. */
+  amount: number;
+  balanceAfter: number;
+  kind: TokenLedgerKind;
+  memo: string | null;
+  refId: string | null;
+  createdAt: string;
+}
+
+export interface TokenOrderDTO {
+  id: string;
+  packageId: string;
+  tokens: number;
+  amountKrw: number;
+  status: TokenOrderStatus;
+  provider: string;
+  createdAt: string;
+  paidAt: string | null;
 }

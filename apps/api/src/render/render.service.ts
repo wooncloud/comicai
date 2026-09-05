@@ -22,6 +22,7 @@ import { buildRenderIR } from './ir.builder';
 import { RenderQueue, idempotencyKey } from './render.queue';
 import { apiError } from '../common/api-error';
 import { jsonColumn } from '../common/json-column';
+import { TokensService } from '../tokens/tokens.service';
 
 /** id 가 이미 있는 행과 부딪혔는가. RenderJob 의 unique 는 primary key 하나뿐이다. */
 function isUniqueViolation(err: unknown): boolean {
@@ -36,6 +37,7 @@ export class RenderService {
     private readonly panels: PanelsService,
     private readonly queue: RenderQueue,
     private readonly storage: StorageService,
+    private readonly tokens: TokensService,
   ) {}
 
   async startRender(
@@ -195,9 +197,21 @@ export class RenderService {
         apiError({ code: 'CONFLICT', message: '이미 완료된 작업입니다.' }),
       );
     }
-    await prisma.renderJob.update({
-      where: { id },
+    /*
+     * 조건부다. 위 검사와 이 갱신 사이에 워커가 잡을 끝낼 수 있는데, 무조건 쓰면 성공한
+     * 잡을 '취소' 로 덮어 결과 이미지가 화면에서 사라진다. 같은 이유로 취소 두 번이
+     * 겹치면 환급도 두 번 나갔다.
+     */
+    const { count } = await prisma.renderJob.updateMany({
+      where: { id, status: { in: [...IN_PROGRESS_RENDER_STATUSES] } },
       data: { status: 'canceled', finishedAt: new Date() },
     });
+    if (count === 0) {
+      throw new BadRequestException(
+        apiError({ code: 'CONFLICT', message: '이미 완료된 작업입니다.' }),
+      );
+    }
+    // 결과를 못 받았으니 돌려준다. 잡 id 로 멱등해서 실패 경로와 겹쳐도 한 번만 나간다.
+    await this.tokens.refundRender(id, '생성 취소');
   }
 }

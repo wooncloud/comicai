@@ -25,6 +25,7 @@ import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
 import { MetricsService } from '../metrics/metrics.service';
 import { apiError } from '../common/api-error';
 import { jsonColumn } from '../common/json-column';
+import { TokensService } from '../tokens/tokens.service';
 
 const GENERATE_TIMEOUT_MS = 120_000;
 
@@ -114,6 +115,7 @@ export class ConsistencyService {
     private readonly credentials: ModelCredentials,
     private readonly breaker: ApiKeyBreaker,
     private readonly metrics: MetricsService,
+    private readonly tokens: TokensService,
   ) {}
 
   async list(
@@ -254,8 +256,14 @@ export class ConsistencyService {
     // apiKeyId 는 차단기 기록에만 쓰므로 catch 에서도 읽을 수 있도록 밖에 둔다.
     let apiKeyId: string | null = null;
     let outcome = 'unknown';
+    /*
+     * 이 호출의 토큰 차감을 원장에서 가리키는 키. 렌더와 달리 잡 id 가 없어서 여기서
+     * 만든다 — 요청 하나가 곧 호출 하나라 재시도가 없고, 실패하면 아래 catch 에서
+     * 이 키로 되돌린다.
+     */
+    const chargeKey = newId('render');
     try {
-      const resolved = await this.credentials.resolve(userId, model);
+      const resolved = await this.credentials.resolve(userId, model, chargeKey);
       apiKeyId = resolved.id;
       const req = adapter.buildRequest(ir, resolved.secret);
       const raw = await adapter.call(req, ac.signal, ctx);
@@ -273,6 +281,11 @@ export class ConsistencyService {
     } catch (err) {
       const classified = classifyModelError(err, adapter);
       outcome = classified.category;
+      /*
+       * 결과를 못 냈으면 토큰을 돌려준다. 잔액 부족으로 **차감 자체가 안 된** 경우도
+       * 여기 오는데, 그때는 원장에 기록이 없어 아무 일도 하지 않는다.
+       */
+      await this.tokens.refundRender(chargeKey, `참조 이미지 생성 실패 (${classified.category})`);
       if (classified.category === 'auth' && apiKeyId) {
         await this.breaker.recordAuthFailure(apiKeyId);
       }

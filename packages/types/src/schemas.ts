@@ -393,3 +393,57 @@ export const ConsistencyGenerateSchema = z.object({
 export const ConsistencyAttachSchema = z.object({
   storageKey: z.string().min(1).max(500),
 });
+
+// ─── 토큰 ─────────────────────────────────────
+
+/**
+ * 원장 항목의 종류. 사용자에게 보여 줄 문구가 여기서 갈리므로 문자열을 늘릴 때는
+ * 화면 쪽 매핑(`tokenKindLabel`)도 함께 늘어나야 한다 — Record 로 강제한다.
+ */
+export const TOKEN_LEDGER_KINDS = [
+  'signup_grant',
+  'purchase',
+  'render',
+  'refund',
+  'admin_grant',
+  'admin_revoke',
+] as const;
+
+export const TOKEN_ORDER_STATUSES = ['pending', 'paid', 'canceled', 'failed'] as const;
+
+/**
+ * 충전 패키지.
+ *
+ * **주문에 값을 복사해 두므로**(`TokenOrder.tokens`/`amountKrw`) 여기를 고쳐도 이미
+ * 만들어진 주문의 금액은 변하지 않는다. id 는 옛 주문이 가리키는 이름이라 **재사용하거나
+ * 의미를 바꾸면 안 된다** — 없앨 때는 목록에서 빼되 id 는 다시 쓰지 않는다.
+ */
+export const TOKEN_PACKAGES = [
+  { id: 'starter', tokens: 50, amountKrw: 5000 },
+  { id: 'basic', tokens: 120, amountKrw: 10000 },
+  { id: 'pro', tokens: 700, amountKrw: 50000 },
+] as const;
+
+export const TOKEN_PACKAGE_IDS = TOKEN_PACKAGES.map((p) => p.id) as unknown as readonly [
+  string,
+  ...string[],
+];
+
+export const TokenOrderCreateSchema = z.object({
+  packageId: z.enum(TOKEN_PACKAGE_IDS),
+});
+
+/**
+ * 운영자 지급·회수.
+ *
+ * `amount` 는 부호가 있다 — 음수면 회수다. 두 엔드포인트로 가르면 회수 쪽에만 사유를
+ * 빠뜨리기 쉬운데, 나중에 "왜 깎였나" 를 묻는 것은 늘 회수 쪽이다. 그래서 `memo` 는
+ * 양쪽 모두 필수다.
+ */
+export const AdminTokenGrantSchema = z.object({
+  amount: z
+    .number()
+    .int()
+    .refine((v) => v !== 0, { message: '0 은 기록할 것이 없습니다.' }),
+  memo: z.string().trim().min(1).max(200),
+});

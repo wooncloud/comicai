@@ -17,7 +17,9 @@ export type IdPrefix =
   | 'prt'
   | 'bubble'
   | 'ptext'
-  | 'pline';
+  | 'pline'
+  | 'tkl'
+  | 'ord';
 
 export function newId(prefix: IdPrefix): string {
   return `${prefix}_${ulid()}`;

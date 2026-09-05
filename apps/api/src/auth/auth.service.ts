@@ -2,9 +2,12 @@ import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/co
 import argon2 from 'argon2';
 import { newId, prisma } from '@comicai/db';
 import { apiError } from '../common/api-error';
+import { TokensService } from '../tokens/tokens.service';
 
 @Injectable()
 export class AuthService {
+  constructor(private readonly tokens: TokensService) {}
+
   async signup(email: string, password: string) {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) throw new ConflictException(apiError({ code: 'EMAIL_TAKEN' }));
@@ -21,6 +24,10 @@ export class AuthService {
       const user = await prisma.user.create({
         data: { id: newId('user'), email, passwordHash, termsAgreedAt: new Date() },
       });
+      // 계정을 만드는 곳이 여기와 OAuth 두 군데다. **양쪽 다** 지급해야 한다 —
+      // 한쪽만 붙이면 그 경로로 가입한 사람은 잔액 0 으로 시작해 아무것도 못 한다.
+      // 키가 `signup:{userId}` 라 두 번 불려도 한 번만 나간다.
+      await this.tokens.grantSignupBonus(user.id);
       return { id: user.id, email: user.email };
     } catch (err) {
       if ((err as { code?: string }).code === 'P2002') {

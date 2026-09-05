@@ -206,7 +206,7 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 그런데 예전에는 같은 id 의 행이 있으면 **상태를 보지 않고 그대로 돌려줬다.**
 한 번 실패한 컷은 원인을 고친 뒤에도 다시 그릴 방법이 없었다. 지금은
 지금은 **그 컷에서 실제로 돌고 있는 잡**이 있으면 그걸 돌려주고, 끝난 잡 뒤에는 새 id 를
-발급한다(`render.service.ts:50`). 행을 재사용하지 않는 이유는 패널 히스토리에서 옛 시도가
+발급한다(`render.service.ts:54`). 행을 재사용하지 않는 이유는 패널 히스토리에서 옛 시도가
 사라지고, 아직 그 id 를 들고 있는 워커와 경합하기 때문이다.
 
 실제로 돌려 보고 잡은 함정 둘:
@@ -299,7 +299,7 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 ### 5.2 워커 측 동작
 
 - **실행 중 abort는 없다.** Worker는 `process` 진입 시 종결 상태(`queued`/`running` 이 아닌 것)를
-  확인하고 그렇다면 즉시 return 한다 (`render.worker.ts:108`). 이미 `running`에 들어간 어댑터 호출은
+  확인하고 그렇다면 즉시 return 한다 (`render.worker.ts:122`). 이미 `running`에 들어간 어댑터 호출은
   완료(또는 60s deadline)까지 진행된다 — 취소가 지출을 멈추지는 못한다.
 - 다만 **결과가 취소를 덮어쓰지는 않는다.** 성공·실패 확정 갱신이 모두 `status in (queued, running)`
   조건부 `updateMany` 라(`render.worker.ts:152`, `:194`), 취소된 행은 그대로 `canceled` 로 남고
@@ -341,7 +341,7 @@ interface RenderError {
 
 ### 6.2 재시도 & 종결 매핑
 
-`render.worker.ts:230-234` `retryLimitFor`:
+`render.worker.ts:244-248` `retryLimitFor`:
 
 | category  | retry limit | 최종 status       |
 | --------- | ----------- | ----------------- |
@@ -370,8 +370,8 @@ interface RenderError {
 
 ### 6.4 컨트롤러 단의 동기 에러
 
-- `RENDER_INVALID_INPUT` (`render.service.ts:50`) — 본문/콘티/참조 비어있음. HTTP 400.
-- `RENDER_ENQUEUE_FAILED` (`render.service.ts:146`) — BullMQ enqueue 실패. HTTP 503.
+- `RENDER_INVALID_INPUT` (`render.service.ts:54`) — 본문/콘티/참조 비어있음. HTTP 400.
+- `RENDER_ENQUEUE_FAILED` (`render.service.ts:150`) — BullMQ enqueue 실패. HTTP 503.
   행은 `failed`(category `transient`)로 마감된 뒤라 좀비가 남지 않는다.
 - `RESOURCE_NOT_FOUND` (`render.service.ts:150, 175; panels.service.ts:243`).
 - `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:178`),
