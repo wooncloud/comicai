@@ -8,12 +8,16 @@ on:
       - 'apps/**'
       - 'packages/**'
       - 'scripts/verify-doc-refs.ts'
+      - 'scripts/verify-doc-refs.spec.ts'
+      - 'scripts/doc-refs-baseline.json'
   pull_request:
     paths:
       - 'docs/**/*.md'
       - 'apps/**'
       - 'packages/**'
       - 'scripts/verify-doc-refs.ts'
+      - 'scripts/verify-doc-refs.spec.ts'
+      - 'scripts/doc-refs-baseline.json'
 
 concurrency:
   group: docs-drift-${{ github.ref }}
@@ -38,6 +42,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # 검사기 자신부터 검사한다. 이게 없으면 "인용 N개 통과" 가 무엇을 보장하는지
+      # 아무도 모른다 — 실제로 그 문장을 믿는 동안 인용이 통째로 밀려 있었다.
+      - name: Verify the verifier
+        run: pnpm verify:docs:test
 
       - name: Verify docs refs
         run: pnpm verify:docs

@@ -1,0 +1,887 @@
+{
+  "note": "이미 알고 있는 인용 드리프트. 줄어들기만 해야 한다 — 고친 항목이 남아 있으면 verify:docs 가 실패한다. docs/*.md 를 손볼 때 그 파일 몫을 같이 비워 나가는 것이 목표.",
+  "entries": [
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":104-107",
+      "target": "apps/api/src/consistency/consistency.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":110-113",
+      "target": "apps/api/src/consistency/consistency.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":119-120",
+      "target": "apps/api/src/export/export.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":127-138",
+      "target": "apps/api/src/auth/auth.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":141-159",
+      "target": "apps/api/src/me/me.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":157-166",
+      "target": "apps/api/src/export/export.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":161-172",
+      "target": "apps/api/src/me/me.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":169",
+      "target": "apps/api/src/panels/panels.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":174-180",
+      "target": "apps/api/src/me/me.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":209",
+      "target": "apps/api/src/consistency/consistency.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":216-229",
+      "target": "apps/api/src/me/me.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":249",
+      "target": "apps/api/src/render/render.worker.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":59-62",
+      "target": "apps/api/src/pages/pages.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":64-67",
+      "target": "apps/api/src/speech-bubbles/speech-bubbles.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":64-68",
+      "target": "apps/api/src/pages/pages.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":67-70",
+      "target": "apps/api/src/page-lines/page-lines.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":68-71",
+      "target": "apps/api/src/page-texts/page-texts.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":69-73",
+      "target": "apps/api/src/speech-bubbles/speech-bubbles.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":72-76",
+      "target": "apps/api/src/page-lines/page-lines.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": ":73-77",
+      "target": "apps/api/src/page-texts/page-texts.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "apps/api/src/render/render.worker.ts:69",
+      "target": "apps/api/src/render/render.worker.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "auth/auth-tokens.service.ts:28-39",
+      "target": "apps/api/src/auth/auth-tokens.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "bootstrap.ts:15",
+      "target": "apps/api/src/bootstrap.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "bootstrap.ts:16",
+      "target": "apps/api/src/bootstrap.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "bootstrap.ts:17",
+      "target": "apps/api/src/bootstrap.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "export/svg.ts:31",
+      "target": "apps/api/src/export/svg.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "me.controller.ts:86-93",
+      "target": "apps/api/src/me/me.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "model-credentials.ts:62",
+      "target": "apps/api/src/render/model-credentials.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "oauth.controller.ts:27",
+      "target": "apps/api/src/auth/oauth/oauth.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "oauth.controller.ts:39",
+      "target": "apps/api/src/auth/oauth/oauth.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "oauth.service.ts:125",
+      "target": "apps/api/src/auth/oauth/oauth.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "panels.service.ts:176",
+      "target": "apps/api/src/panels/panels.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "render.worker.ts:30",
+      "target": "apps/api/src/render/render.worker.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "render.worker.ts:37",
+      "target": "apps/api/src/render/render.worker.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "render.worker.ts:73-77",
+      "target": "apps/api/src/render/render.worker.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/02-backend.md",
+      "raw": "sse.hub.ts:49",
+      "target": "apps/api/src/render/sse.hub.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":101",
+      "target": "apps/web/lib/error-message.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":147-156",
+      "target": "apps/web/components/editor/tldraw/use-panel-sync.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":197",
+      "target": "apps/web/components/editor/tldraw/use-panel-sync.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":249",
+      "target": "apps/web/components/editor/tldraw/use-panel-sync.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":276",
+      "target": "apps/web/components/editor/tldraw/use-panel-sync.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":28-33",
+      "target": "apps/web/lib/api.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":299",
+      "target": "apps/web/components/editor/tldraw/use-shape-sync.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":323",
+      "target": "apps/web/components/editor/tldraw/use-panel-sync.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":34-37",
+      "target": "apps/web/lib/api.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":356",
+      "target": "apps/web/components/editor/tldraw/use-shape-sync.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":39",
+      "target": "apps/web/lib/api.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":54",
+      "target": "apps/web/lib/nav.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":56",
+      "target": "apps/web/components/ui/dialog.tsx",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":61",
+      "target": "apps/web/app/dashboard/page.tsx",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": ":63-65",
+      "target": "apps/web/lib/api.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": "app-shell.tsx:67",
+      "target": "apps/web/components/shell/app-shell.tsx",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": "app/health/page.tsx:17",
+      "target": "apps/web/app/health/page.tsx",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": "apps/web/lib/api.ts:26",
+      "target": "apps/web/lib/api.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": "apps/web/lib/api.ts:37",
+      "target": "apps/web/lib/api.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": "comic-panel-shape.tsx:13",
+      "target": "apps/web/components/editor/tldraw/comic-panel-shape.tsx",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": "components/editor/tldraw/use-page-frame.ts:22",
+      "target": "apps/web/components/editor/tldraw/use-page-frame.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": "dialog.tsx:7",
+      "target": "apps/web/components/ui/dialog.tsx",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": "mention-extension.ts:8",
+      "target": "apps/web/components/editor/mention-extension.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": "panel-inspector.tsx:98",
+      "target": "apps/web/components/editor/panel-inspector.tsx",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": "project-row.tsx:38",
+      "target": "apps/web/components/dashboard/project-row.tsx",
+      "count": 1
+    },
+    {
+      "doc": "docs/03-frontend.md",
+      "raw": "use-shape-sync.ts:71",
+      "target": "apps/web/components/editor/tldraw/use-shape-sync.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": ":162-168",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "index.ts:246",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "render.queue.ts:36",
+      "target": "apps/api/src/render/render.queue.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/envelope.ts:48-60",
+      "target": "packages/types/src/envelope.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/envelope.ts:62-64",
+      "target": "packages/types/src/envelope.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:167-171",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:181-190",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:203",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:23",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:248-252",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:35-40",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:398-402",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:404-418",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:420-441",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:443-456",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:69-74",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:77-82",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:87-100",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/index.ts:9",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/schemas.ts:274",
+      "target": "packages/types/src/schemas.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/04-shared-packages.md",
+      "raw": "src/schemas.ts:310",
+      "target": "packages/types/src/schemas.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":103",
+      "target": "apps/api/src/render/render.worker.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":104",
+      "target": "apps/api/src/render/render.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":108-138",
+      "target": "apps/api/src/render/render.queue.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":116-123",
+      "target": "apps/api/src/render/render.worker.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":118",
+      "target": "apps/web/components/editor/panel-inspector.tsx",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":121",
+      "target": "apps/web/components/editor/panel-inspector.tsx",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":133-145",
+      "target": "packages/adapters/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":138-144",
+      "target": "apps/web/components/editor/panel-inspector.tsx",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":140-143",
+      "target": "apps/api/src/render/render.queue.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":148-150",
+      "target": "packages/adapters/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":149",
+      "target": "apps/web/components/editor/panel-inspector.tsx",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":163-168",
+      "target": "apps/api/src/render/render.worker.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":194",
+      "target": "apps/api/src/render/render.worker.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":40-44",
+      "target": "apps/api/src/render/render.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":74-75",
+      "target": "packages/adapters/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":75-79",
+      "target": "apps/api/src/render/render.queue.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":81-91",
+      "target": "apps/api/src/render/render.queue.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":95",
+      "target": "apps/api/src/render/render.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": ":98-105",
+      "target": "apps/api/src/render/render.queue.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": "apps/api/src/render/render.service.ts:147",
+      "target": "apps/api/src/render/render.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": "apps/api/src/render/render.service.ts:169",
+      "target": "apps/api/src/render/render.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": "infra/compose/full.yml:172",
+      "target": "infra/compose/full.yml",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": "packages/types/src/paths.ts:42",
+      "target": "packages/types/src/paths.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": "packages/types/src/paths.ts:48",
+      "target": "packages/types/src/paths.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": "panel-inspector.tsx:178-183",
+      "target": "apps/web/components/editor/panel-inspector.tsx",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": "panels.service.ts:304-306",
+      "target": "apps/api/src/panels/panels.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": "render.controller.ts:52",
+      "target": "apps/api/src/render/render.controller.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": "render.queue.ts:56-58",
+      "target": "apps/api/src/render/render.queue.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": "render.service.ts:178",
+      "target": "apps/api/src/render/render.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": "render.worker.ts:124-125",
+      "target": "apps/api/src/render/render.worker.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": "render.worker.ts:152",
+      "target": "apps/api/src/render/render.worker.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/06-render-pipeline.md",
+      "raw": "render.worker.ts:58",
+      "target": "apps/api/src/render/render.worker.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": ":110",
+      "target": "packages/db/prisma/schema.prisma",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": ":130",
+      "target": "apps/api/src/export/export.service.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": ":220-221",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:132",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:181",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:228",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:23",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:262",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:329",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:350",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:396",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:443",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:51",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:55",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:60",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:87",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "index.ts:9",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "schema.prisma:197",
+      "target": "packages/db/prisma/schema.prisma",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "schema.prisma:206",
+      "target": "packages/db/prisma/schema.prisma",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "schemas.ts:102",
+      "target": "packages/types/src/schemas.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "schemas.ts:109",
+      "target": "packages/types/src/schemas.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "schemas.ts:147-151",
+      "target": "packages/types/src/schemas.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "schemas.ts:160",
+      "target": "packages/types/src/schemas.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "schemas.ts:196",
+      "target": "packages/types/src/schemas.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "schemas.ts:239",
+      "target": "packages/types/src/schemas.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "schemas.ts:274",
+      "target": "packages/types/src/schemas.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/07-data-model.md",
+      "raw": "schemas.ts:310",
+      "target": "packages/types/src/schemas.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/08-dev-workflow.md",
+      "raw": "package.json:49",
+      "target": "package.json",
+      "count": 1
+    },
+    {
+      "doc": "docs/08-dev-workflow.md",
+      "raw": "turbo.json:18",
+      "target": "turbo.json",
+      "count": 1
+    },
+    {
+      "doc": "docs/08-dev-workflow.md",
+      "raw": "turbo.json:19-21",
+      "target": "turbo.json",
+      "count": 1
+    },
+    {
+      "doc": "docs/09-prompt-assembly.md",
+      "raw": "openai.ts:126-133",
+      "target": "packages/adapters/src/openai.ts",
+      "count": 1
+    },
+    {
+      "doc": "docs/09-prompt-assembly.md",
+      "raw": "packages/types/src/index.ts:402",
+      "target": "packages/types/src/index.ts",
+      "count": 1
+    }
+  ]
+}

@@ -8,6 +8,8 @@ export default [
     files: ['scripts/**/*.{ts,mts,cts}'],
     rules: {
       '@typescript-eslint/no-floating-promises': 'off',
+      // CLI 라 출력이 곧 결과다. 여기서 console 을 막으면 로거를 새로 들일 이유밖에 안 된다.
+      'no-console': 'off',
     },
   },
 ];

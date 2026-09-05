@@ -15,6 +15,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "knip": "knip",
     "verify:docs": "tsx scripts/verify-doc-refs.ts",
+    "verify:docs:test": "tsx --test scripts/verify-doc-refs.spec.ts",
     "samples:generate": "tsx scripts/gen-landing-samples.ts",
     "samples:optimize": "tsx scripts/optimize-landing-samples.ts",
     "docker:up": "docker compose -f infra/compose/full.yml --env-file .env up -d --build migrate api worker web",
@@ -33,10 +34,10 @@
     "prod:logs:tunnel": "docker compose -f infra/compose/full.yml --env-file .env --profile tunnel logs -f --tail=100 cloudflared",
     "prepare": "husky"
   },
-  "_lint-staged_note": "eslint 는 --fix 없이 검사만 한다. 스테이지된 파일만 보는 실행에서는 타입 인식 규칙(no-unnecessary-type-assertion, no-unnecessary-condition)이 프로젝트 전체 타입을 못 보고 잘못 판단하는데, --fix 가 그걸 그대로 코드에 적용했다. 실제로 두 번, 검증을 통과한 코드를 커밋 직전에 깨뜨렸다(필요한 캐스트 삭제, ||-가드 붕괴). 포매팅은 prettier 가 한다.",
+  "_lint-staged_note": "`--no-warn-ignored` 가 필요하다 — lint-staged 는 스테이지된 파일을 그대로 넘기는데, eslint 는 무시 목록에 든 파일(eslint.config.mjs, *.config.ts)에 대해 \"File ignored\" 를 **경고**로 낸다. --max-warnings=0 이면 그 경고 하나로 커밋이 막힌다. eslint 는 --fix 없이 검사만 한다. 스테이지된 파일만 보는 실행에서는 타입 인식 규칙(no-unnecessary-type-assertion, no-unnecessary-condition)이 프로젝트 전체 타입을 못 보고 잘못 판단하는데, --fix 가 그걸 그대로 코드에 적용했다. 실제로 두 번, 검증을 통과한 코드를 커밋 직전에 깨뜨렸다(필요한 캐스트 삭제, ||-가드 붕괴). 포매팅은 prettier 가 한다.",
   "lint-staged": {
     "*.{ts,tsx,js,mjs,cjs}": [
-      "eslint --max-warnings=0",
+      "eslint --max-warnings=0 --no-warn-ignored",
       "prettier --write"
     ],
     "*.{json,md,css}": [
