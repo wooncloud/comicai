@@ -42,4 +42,9 @@ jobs:
         run: |
           git fetch --prune origin
           git reset --hard origin/main
-          docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup up -d --build --force-recreate web api worker
+          compose="docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup"
+          $compose up -d --build --force-recreate web api worker
+          # backup/cloudflared 는 서비스 이름을 안 적어서 배포 때 한 번도 뜨지 않았다 —
+          # profile 을 켜는 것과 컨테이너를 올리는 것은 다르다. 여기서는 --force-recreate 를
+          # 빼서, 앱 배포마다 백업 cron 과 healthcheck 시작 유예가 리셋되지 않게 한다.
+          $compose up -d --build backup cloudflared

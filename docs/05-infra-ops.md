@@ -119,24 +119,77 @@ EXPOSE `3000`.
 
 - `postgresql16-client` (pg_dump)
 - `gzip findutils tzdata busybox-suid` (cron용)
-- `mc` (MinIO client, `:5`)
+- `curl` — 실패 웹훅 전송용 (`Dockerfile:5`)
+- `mc` (MinIO client, `:6`)
 
-`TZ=Asia/Seoul`, 기본 스케줄 `BACKUP_SCHEDULE="0 3 * * *"` (`:14`). entrypoint는 `entrypoint.sh`.
+`TZ=Asia/Seoul`, 기본 스케줄 `BACKUP_SCHEDULE="0 3 * * *"` (`:16`). entrypoint는 `entrypoint.sh`.
+
+`HEALTHCHECK` 가 `/healthcheck.sh` 를 15분마다 돌린다(`Dockerfile:24-25`). `--start-period=26h`
+는 첫 예정 회차를 기다려 주기 위한 것 — 그전에는 성공 기록 자체가 없다.
 
 ### 3.2 `backup.sh`
 
-1. `pg_dump`로 `${BACKUP_DIR}/postgres/${DB}-${ts}.sql.gz` 생성 (`backup.sh:25-29`)
-2. `mc alias set` 후 `mc mirror --overwrite --remove src/${S3_BUCKET} ${BACKUP_DIR}/minio/${BUCKET}` — MinIO 버킷을 로컬 디렉터리에 미러링 (`:32-33`)
-3. `BACKUP_RETENTION_DAYS`(기본 14)보다 오래된 dump 삭제 (`:36`)
+**설계 의도가 파일 상단 주석에 있다(`backup.sh:1-41`).** 요약하면 이 스크립트는 세 가지를
+지킨다.
 
-### 3.3 `entrypoint.sh` — cron 부트스트랩
+**① 삭제는 백업으로 전파되지 않는다.** 예전에는 `mc mirror --overwrite --remove` 였다.
+소스에서 사라진 오브젝트를 백업에서도 지운다는 뜻이고, 그러면 실수로 지운 그날 밤 백업이
+증거를 마저 없앤다 — 백업이 막아야 할 사고가 정확히 그 사고인데. 지금은 `--remove` 없이
+미러하고(`backup.sh:133`), 소스에서 사라진 파일을 `minio-trash/<ts>/` 로 **옮긴다**.
+보존 기간이 지나야 지워진다(`:182-183`).
 
-- `env | awk` 로 `POSTGRES_/S3_/MINIO_/BACKUP_` 환경변수만 추출, shell-safe escape 후 `/app/env`에 export 라인 작성(`entrypoint.sh:6-13`).
+목록이 비어 보이면 격리를 통째로 건너뛴다(`:147`). "버킷이 진짜 비었다" 와 "목록을 못
+읽었다" 를 구별할 수 없어서인데, 여기서 잘못 판단하면 이 스크립트가 막으려던 일을 스스로
+하게 된다. 그래서 `mc find` 는 파이프가 아니라 파일로 받는다(`:137`) — `| sort` 로 넘기면
+mc 가 실패해도 `sort` 가 0 을 내서 두 경우가 같아 보인다.
+
+**② 끝까지 못 쓴 덤프는 남기지 않는다.** 예전에는 `pg_dump | gzip > out.sql.gz` 였다.
+pg_dump 가 중간에 죽거나 디스크가 차면 `out.sql.gz` 는 **열리기는 하는 gzip** 으로 남는다.
+파일이 있고 크기도 0 이 아니라서, 복구하려고 풀어 보기 전까지 아무도 모른다. 지금은
+`.part` 에 쓰고 세 관문을 지나야 제자리로 간다:
+
+| 관문                                         | 잡는 것                                |
+| -------------------------------------------- | -------------------------------------- |
+| pg_dump 종료 코드 (`backup.sh:112`)          | 접속 실패, 권한 오류                   |
+| `gzip -t` (`:115`)                           | 압축 자체가 깨진 경우                  |
+| `PostgreSQL database dump complete` (`:119`) | gzip 은 멀쩡한데 내용이 반만 있는 경우 |
+
+파이프 앞쪽(pg_dump)의 실패는 파이프라인 종료 코드에 안 잡히므로 — gzip 이 0 을 내면
+끝이다 — 실패 코드를 파일로 흘려서 본다(`:103-113`). BusyBox ash 의 `set -o pipefail` 에
+기대지 않는다.
+
+**③ 실패를 알린다.** cron 은 조용히 실패하고, `restart: unless-stopped` 인 컨테이너가 살아
+있는 것과 백업이 실제로 돈 것은 `docker ps` 에서 똑같아 보인다. 검증을 전부 통과한 회차만
+`last-success` 에 epoch 를 남기고(`:187`), `healthcheck.sh` 가 그 나이를 본다
+(`healthcheck.sh:15-22`, 한도 `BACKUP_STALE_HOURS` 기본 26시간). `BACKUP_WEBHOOK_URL` 이
+있으면 실패를 JSON POST 로도 던진다(`backup.sh:65-79`). 예상치 못한 경로로 죽어도 EXIT 트랩이
+같은 알림을 낸다(`:83-90`).
+
+보존 정리는 **성공한 회차에서만** 실행된다(`:180-183`). 실패가 이어지는 동안 정리만 돌면
+마지막 성공본까지 지우기 때문이고, 실패는 그 위에서 `exit 1` 로 끊긴다.
+
+### 3.3 원격 사본 — 아직 운영자 몫
+
+`BACKUP_REMOTE_ENDPOINT` 를 채우면 매 회차 끝에 백업 디렉터리 전체를 외부 S3 로 밀어낸다
+(`backup.sh:166-175`). 채우지 않으면 **백업이 원본과 같은 디스크에 있다** — 디스크가 죽으면
+DB·오브젝트·백업이 함께 죽는다. 목적지는 사람이 정해야 해서 기본값을 둘 수 없다.
+
+한 단계 약한 대안으로 `BACKUP_HOST_PATH` 에 다른 디스크/NAS 마운트 경로를 적으면 백업이
+그쪽에 쌓인다(`full.yml:257-260`). 비우면 도커 볼륨(`backup_data`)이라 같은 디스크다.
+
+`.env` 는 일부러 백업하지 않는다. 담긴 값이 그대로 외부 저장소로 나가면 그 저장소 하나가
+뚫리는 순간 전부가 뚫린다. `MASTER_KEY`·`SESSION_SECRET` 은 사람이 비밀번호 관리자에 넣어
+둘 것. `MASTER_KEY` 를 잃으면 사용자가 저장해 둔 BYOK 키만 못 읽고
+(`apps/api/src/api-keys/crypto.ts:8-14`), 재입력하면 되며 그 외 데이터는 무관하다.
+
+### 3.4 `entrypoint.sh` — cron 부트스트랩
+
+- `env | awk` 로 `POSTGRES_/S3_/MINIO_/BACKUP_` 환경변수만 추출, shell-safe escape 후 `/app/env`에 export 라인 작성(`entrypoint.sh:6-13`). `BACKUP_WEBHOOK_URL`·`BACKUP_REMOTE_*` 도 접두사가 `BACKUP_` 이라 자동으로 포함된다.
 - crontab에 `${BACKUP_SCHEDULE} . /app/env; /app/backup.sh >> /proc/1/fd/1 2>&1` 등록 (`:15-17`).
 - `RUN_ON_START=1`이면 컨테이너 기동 즉시 1회 실행 (`:22-25`).
 - `crond -f -l 8` foreground 실행 (`:27`).
 
-볼륨은 `backup_data:/backup` (`full.yml:205`).
+볼륨은 `${BACKUP_HOST_PATH:-backup_data}:/backup` (`full.yml:260`).
 
 ---
 
@@ -190,6 +243,10 @@ ComicAI 개발용 cmux 워크스페이스 `comicai-dev` 를 생성한다 (`cmux-
 | **백업**       | `BACKUP_SCHEDULE`                                             | `0 3 * * *`                                                         | cron expr                                                                                        |
 |                | `BACKUP_RETENTION_DAYS`                                       | `14`                                                                |                                                                                                  |
 |                | `BACKUP_RUN_ON_START`                                         | `0`                                                                 | 컨테이너 기동 직후 1회 실행                                                                      |
+|                | `BACKUP_STALE_HOURS`                                          | `26`                                                                | healthcheck 한도. 스케줄을 성기게 바꾸면 같이 올린다 (`healthcheck.sh:13`)                       |
+|                | `BACKUP_WEBHOOK_URL`                                          | —                                                                   | 실패 시 JSON POST. 비면 로그 + healthcheck 만 (`backup.sh:65-79`)                                |
+|                | `BACKUP_HOST_PATH`                                            | (도커 볼륨)                                                         | 백업을 다른 디스크에 두려면 마운트 경로 (`full.yml:260`)                                         |
+|                | `BACKUP_REMOTE_ENDPOINT/_ACCESS_KEY/_SECRET_KEY/_BUCKET`      | —                                                                   | 채우면 매 회차 외부 S3 로 사본 (`backup.sh:166-175`)                                             |
 |                | `COOKIE_SECURE`                                               | `0`                                                                 | full.yml api 환경, 프로덕션은 `1` (`full.yml:115`)                                               |
 |                | `WEB_ORIGIN`                                                  | `http://localhost:3000`                                             | CORS allow-list (`full.yml:112`)                                                                 |
 
@@ -315,15 +372,21 @@ CI 와 분리된 별도 워크플로다 — 이유는 `docs/08-dev-workflow.md` 
 ```sh
 git fetch --prune origin
 git reset --hard origin/main
-docker compose -f infra/compose/full.yml --env-file .env \
-  --profile tunnel --profile backup up -d --build --force-recreate web api worker
+compose="docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup"
+$compose up -d --build --force-recreate web api worker
+$compose up -d --build backup cloudflared
 ```
 
 `git reset --hard` 이므로 프로덕션 호스트에 남은 로컬 변경은 유실된다. `.env` 는 git 추적 대상이 아니라 보존된다.
 
 **마이그레이션 동반 실행**: `--force-recreate` 대상은 `web`/`api`/`worker` 3개지만, `api`·`worker` 가 `migrate` 를 `service_completed_successfully` 로 의존하므로(`full.yml:107`, `:143`) `migrate` 컨테이너가 함께 뜨며 `prisma migrate deploy` 가 실행된다(`full.yml:80-92`). 즉 **마이그레이션이 포함된 커밋을 `main` 에 push 하면 프로덕션 DB 스키마도 함께 변경된다.**
 
-`postgres`·`redis`·`minio`·`cloudflared`·`backup` 은 재생성 대상이 아니므로 그대로 유지된다.
+`postgres`·`redis`·`minio` 는 재생성 대상이 아니므로 그대로 유지된다.
+
+**`backup`·`cloudflared` 는 두 번째 줄에서 따로 올린다**(`deploy.yml:50`). profile 을 켜는
+것과 컨테이너를 올리는 것은 다르다 — 예전에는 `--profile backup` 만 있고 서비스 이름이
+없어서 배포가 백업 컨테이너를 **한 번도 띄우지 않았다**. 여기에 `--force-recreate` 를 빼 둔
+것은 앱 배포마다 백업 cron 과 healthcheck 시작 유예(26h)가 리셋되지 않게 하기 위해서다.
 
 ### 8.2 수동 배포 / 운영 명령
 
