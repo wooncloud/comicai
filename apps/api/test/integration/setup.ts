@@ -76,6 +76,26 @@ export async function startIntegration(): Promise<IntegrationContext> {
   });
 
   const { prisma } = await import('@comicai/db');
+
+  /*
+   * **여기가 테스트컨테이너인지 확인한다.**
+   *
+   * 위 긴 주석이 설명하는 사고는 조용히 일어난다 — 어느 스펙이 `@comicai/db` 에서 값을
+   * 하나만 정적 import 해도(예: `newId`) 그 순간 클라이언트가 만들어지고, 로컬에서는
+   * Prisma 가 저장소 루트 `.env` 를 읽어 **개발 DB** 에 붙는다. 그러면 테스트는 전부
+   * 통과하고, 개발 데이터만 조용히 늘어난다. 실제로 그렇게 계정 83개가 쌓였다.
+   *
+   * 갓 마이그레이션한 컨테이너에는 사용자가 없다. 하나라도 있으면 여기는 그 컨테이너가
+   * 아니다 — 무엇 하나 건드리기 전에 멈춘다.
+   */
+  const existingUsers = await prisma.user.count();
+  if (existingUsers > 0) {
+    throw new Error(
+      `통합 테스트가 빈 DB 를 기대하는데 사용자가 ${existingUsers}명 있다. ` +
+        '어느 스펙이 `@comicai/db` 를 값으로 import 해서 개발 DB 에 붙었을 가능성이 크다 ' +
+        '(`import type` 이어야 한다).',
+    );
+  }
   const { AppModule } = await import('../../src/app.module');
   const { applyAppPipeline } = await import('../../src/bootstrap');
 

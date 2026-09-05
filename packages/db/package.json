@@ -11,7 +11,7 @@
     "migrate:deploy": "prisma migrate deploy",
     "studio": "prisma studio",
     "typecheck": "prisma generate && tsc --noEmit",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "prisma generate && eslint . --max-warnings=0"
   },
   "dependencies": {
     "@comicai/types": "workspace:*",

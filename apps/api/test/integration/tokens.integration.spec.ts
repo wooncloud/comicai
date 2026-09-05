@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { newId } from '@comicai/db';
+import { randomUUID } from 'node:crypto';
 import { startIntegration, stopIntegration, type IntegrationContext } from './setup';
 /*
  * **타입만** 가져온다. 값으로 가져오면 이 파일이 평가되는 순간 `@comicai/db` 가 함께
@@ -25,8 +25,21 @@ let tokens: TokensService;
 /** 클래스 자체를 담는다 — `instanceof` 검사에는 런타임 값이 필요하다. */
 let InsufficientTokensError: new (required: number, balance: number) => InsufficientTokens;
 
+/**
+ * 테스트용 id.
+ *
+ * `@comicai/db` 의 `newId` 를 쓰지 않는다. 그건 **값** import 라 이 파일이 평가되는
+ * 순간 `@comicai/db` 가 로드되고, 그 모듈은 로드 시점에 `new PrismaClient()` 를 만든다 —
+ * 아직 `startIntegration()` 이 `DATABASE_URL` 을 세우기 전이라 클라이언트가 저장소 루트
+ * `.env` 를 읽어 **개발 DB** 에 붙는다. 그러면 테스트는 통과하는데 개발 데이터를 건드린다.
+ * 실제로 그렇게 만들었고, 개발 DB 에 테스트 계정 83개가 쌓였다.
+ */
+function testId(prefix: string): string {
+  return `${prefix}_${randomUUID().replace(/-/g, '')}`;
+}
+
 async function makeUser(): Promise<string> {
-  const id = newId('user');
+  const id = testId('user');
   await ctx.prisma.user.create({
     data: { id, email: `${id}@example.com`, termsAgreedAt: new Date() },
   });
@@ -122,7 +135,7 @@ describe('토큰 원장 (testcontainers)', () => {
   it('같은 렌더 잡은 몇 번을 처리해도 한 번만 청구한다', async () => {
     const userId = await makeUser();
     await tokens.credit(userId, 10, { kind: 'admin_grant', idempotencyKey: `seed:${userId}` });
-    const jobId = newId('render');
+    const jobId = testId('render');
 
     for (let i = 0; i < 4; i++) {
       await tokens.charge(userId, 4, {
@@ -141,7 +154,7 @@ describe('토큰 원장 (testcontainers)', () => {
   it('실패한 렌더는 청구한 만큼 정확히 돌려주고, 두 번 돌려주지 않는다', async () => {
     const userId = await makeUser();
     await tokens.credit(userId, 10, { kind: 'admin_grant', idempotencyKey: `seed:${userId}` });
-    const jobId = newId('render');
+    const jobId = testId('render');
 
     await tokens.charge(userId, 4, {
       kind: 'render',
@@ -169,7 +182,7 @@ describe('토큰 원장 (testcontainers)', () => {
     const userId = await makeUser();
     await tokens.credit(userId, 5, { kind: 'admin_grant', idempotencyKey: `seed:${userId}` });
 
-    await tokens.refundRender(newId('render'), '생성 실패');
+    await tokens.refundRender(testId('render'), '생성 실패');
 
     expect(await tokens.balance(userId)).toBe(5);
     await assertLedgerMatchesBalance(userId);
