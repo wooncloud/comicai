@@ -25,6 +25,7 @@ import { PageTextInspector } from '@/components/editor/page-text-inspector';
 import { PageLineInspector } from '@/components/editor/page-line-inspector';
 import { PageSidebar } from '@/components/editor/page-sidebar';
 import { SaveStatus } from '@/components/editor/save-status';
+import { TokenBalance } from '@/components/editor/token-balance';
 import { ExportDialog } from '@/components/editor/export-dialog';
 import { PageInspector } from '@/components/editor/page-inspector';
 import { CollapseRail } from '@/components/editor/collapse-rail';
@@ -275,6 +276,7 @@ export default function PageEditor() {
         </div>
         <div className="flex items-center gap-3">
           <SaveStatus state={saveState} lastSavedAt={lastSavedAt} />
+          <TokenBalance />
           <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
             내보내기
           </Button>

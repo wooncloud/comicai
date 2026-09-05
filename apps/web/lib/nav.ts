@@ -45,6 +45,7 @@ export const SETTINGS_NAV: readonly { href: string; label: string }[] = [
   // 사람에게는 그대로 열려 있게 된다 — 실제 차단은 서버 가드가 하지만,
   // 화면도 존재하지 않는 편이 일관적이다.
   ...(FEATURES.apiKeys ? [{ href: '/settings/api-keys', label: 'AI 서비스 키' }] : []),
+  { href: '/settings/billing', label: '토큰' },
   { href: '/settings/security', label: '계정 및 보안' },
 ];
 

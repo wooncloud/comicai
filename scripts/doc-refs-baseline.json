@@ -201,12 +201,6 @@
     },
     {
       "doc": "docs/03-frontend.md",
-      "raw": ":101",
-      "target": "apps/web/lib/error-message.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/03-frontend.md",
       "raw": ":147-156",
       "target": "apps/web/components/editor/tldraw/use-panel-sync.ts",
       "count": 1
@@ -507,20 +501,8 @@
     },
     {
       "doc": "docs/06-render-pipeline.md",
-      "raw": ":121",
-      "target": "apps/web/components/editor/panel-inspector.tsx",
-      "count": 1
-    },
-    {
-      "doc": "docs/06-render-pipeline.md",
       "raw": ":133-145",
       "target": "packages/adapters/src/index.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/06-render-pipeline.md",
-      "raw": ":138-144",
-      "target": "apps/web/components/editor/panel-inspector.tsx",
       "count": 1
     },
     {
@@ -533,12 +515,6 @@
       "doc": "docs/06-render-pipeline.md",
       "raw": ":148-150",
       "target": "packages/adapters/src/index.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/06-render-pipeline.md",
-      "raw": ":149",
-      "target": "apps/web/components/editor/panel-inspector.tsx",
       "count": 1
     },
     {
@@ -617,12 +593,6 @@
       "doc": "docs/06-render-pipeline.md",
       "raw": "packages/types/src/paths.ts:48",
       "target": "packages/types/src/paths.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/06-render-pipeline.md",
-      "raw": "panel-inspector.tsx:178-183",
-      "target": "apps/web/components/editor/panel-inspector.tsx",
       "count": 1
     },
     {

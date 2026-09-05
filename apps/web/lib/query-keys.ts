@@ -22,6 +22,8 @@ export const qk = {
   /** 운영 현황 화면. `isAdmin` 이 참일 때만 조회한다. */
   adminOverview: () => ['admin', 'overview'] as const,
   adminUsers: () => ['admin', 'users'] as const,
+  /** 입금 확인 대기 주문. 지급하면 adminUsers 의 잔액도 같이 바뀐다. */
+  adminOrders: () => ['admin', 'orders'] as const,
 
   /** 단일 프로젝트. 라우트 파라미터가 아직 없을 수 있어 undefined 를 받는다(enabled 로 막는다). */
   project: (projectId: string | undefined) => ['project', projectId] as const,
@@ -37,6 +39,12 @@ export const qk = {
 
   /** 로그인된 기기 목록. */
   meSessions: () => ['me-sessions'] as const,
+
+  /** 토큰 잔액. 에디터 헤더와 충전 화면이 공유한다 — 렌더가 끝나면 둘 다 갱신돼야 한다. */
+  tokenBalance: () => ['token-balance'] as const,
+  tokenHistory: () => ['token-history'] as const,
+  billingPackages: () => ['billing-packages'] as const,
+  billingOrders: () => ['billing-orders'] as const,
 
   /** 프로젝트의 일관성 엔티티. 타입을 주면 그 타입만. */
   consistency: (projectId: string, type?: EntityType) =>

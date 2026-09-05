@@ -345,7 +345,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 있고, 그걸 되쓰면 그 뒤 이 도형의 모든 편집이 저장 큐에서 "id 없음" 으로 걸러진다. 색을 한 번
 바꿨을 뿐인데 영구히 저장되지 않았다.
 
-컷 테두리는 아예 다른 경로를 쓴다 — `PATCH /v1/panels/:id` 의 `stroke` 필드(`panel-inspector.tsx:262`).
+컷 테두리는 아예 다른 경로를 쓴다 — `PATCH /v1/panels/:id` 의 `stroke` 필드(`panel-inspector.tsx:287`).
 `shape` 전체를 보내면 낡은 좌표까지 같이 써서 방금 옮긴 위치가 되돌아간다.
 
 #### `use-page-frame.ts`
@@ -675,7 +675,7 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 - `BY_CODE` 는 `Record<ErrorCode | 'HTTP_ERROR', string | null>` (`lib/error-message.ts:21`) 이라
   `packages/types` 에 코드가 추가되면 **컴파일 에러**로 잡힌다. `null` 은 "코드만으로는 안내할
   내용이 없음" 이고, 그때만 호출부가 넘긴 문맥을 쓴다.
-- `renderErrorMessage`(`:101`) 는 워커가 실어 보내는 `RenderError.category` 를, `oauthErrorMessage`(`:117`)
+- `renderErrorMessage`(`:134`) 는 워커가 실어 보내는 `RenderError.category` 를, `oauthErrorMessage`(`:158`)
   는 OAuth 콜백 쿼리 파라미터를 각각 다룬다. 셋 다 같은 파일에 있다.
 - 이렇게 모으기 전에는 `저장 실패: ${err.code}` 로 영문 enum 이, `(err as Error).message` 로 NestJS
   기본 영문 메시지가 화면에 노출됐고 스윕할 때마다 몇 곳씩 놓쳤다.
