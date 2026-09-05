@@ -8,7 +8,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "eslint ."
+    "lint": "eslint . --max-warnings=0"
   },
   "dependencies": {
     "@comicai/types": "workspace:*"

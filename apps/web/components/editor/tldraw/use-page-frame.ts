@@ -26,19 +26,21 @@ export function usePageFrame({ editor, pageId, size, label }: Args) {
   useEffect(() => {
     if (!editor || w == null || h == null) return;
     const frameId = shapeId(`frame-${pageId}`);
-    let isNew = false;
+    // 프레임이 아직 없으면 새 페이지를 연 것이다 — 아래에서 zoomToFit 한다.
+    // 이 값은 콜백 밖에서 정해야 한다. 안에서 대입하면 TS 가 그걸 못 보고 "항상 거짓"
+    // 이라고 판정한다. `mergeRemoteChanges` 는 동기라 결과는 같다.
+    const existing = editor.getShape<PageFrameShape>(frameId);
+    const isNew = existing === undefined;
     editor.store.mergeRemoteChanges(() => {
-      // 캐스트가 필요하다. `getShape` 는 모든 shape 타입의 유니온을 돌려주므로
-      // props 에 w/h/label 이 있다고 보장하지 못한다.
-      const existing = editor.getShape(frameId) as PageFrameShape | undefined;
+      /*
+       * 프레임이 없으면 첫 비교의 `undefined !== w` 가 참이라 "바뀜" 으로 읽힌다.
+       * 뒤 두 개에 `?.` 가 없어도 되는 이유는 그 단락 덕이다 — 거기까지 왔다는 건
+       * 첫 비교가 거짓, 즉 `existing` 이 있다는 뜻이라 TS 도 그렇게 좁힌다.
+       */
       const dimsChanged =
-        !existing ||
-        existing.props.w !== w ||
-        existing.props.h !== h ||
-        existing.props.label !== label;
+        existing?.props.w !== w || existing.props.h !== h || existing.props.label !== label;
       if (dimsChanged) {
         if (existing) editor.deleteShape(frameId);
-        else isNew = true;
         editor.createShape<PageFrameShape>({
           id: frameId,
           type: 'page-frame',

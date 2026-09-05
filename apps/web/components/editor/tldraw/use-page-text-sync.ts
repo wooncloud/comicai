@@ -21,7 +21,7 @@ interface Args {
 }
 
 function flatten(t: PageTextDTO): PageTextShape['props'] {
-  const style = { ...defaultPageTextStyle(), ...(t.style ?? {}) };
+  const style = { ...defaultPageTextStyle(), ...t.style };
   return {
     w: Math.max(1, t.w),
     h: Math.max(1, t.h),

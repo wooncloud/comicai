@@ -84,8 +84,15 @@ export function usePanelSync({
           variant === 'polygon'
             ? (normalizePolygonPoints(panel.shape.points) ?? shape?.props.polygonPoints ?? null)
             : null;
-        const strokeColor = panel.shape.strokeColor ?? '#000000';
-        const strokeWidth = panel.shape.strokeWidth ?? 2;
+        /*
+         * 저장된 shape JSON 은 읽을 때 파싱하지 않는다. strokeColor/strokeWidth 는 Zod
+         * 기본값이라 **쓰기 시점에만** 채워지므로, 그 필드가 생기기 전에 만들어진 행에는
+         * 없다. 타입은 캐스트가 가려서 있다고 말한다 — `Partial` 로 사실대로 꺼낸다.
+         * (같은 이유로 `export.service.ts` 도 여기서 되살린다.)
+         */
+        const stored = panel.shape as Partial<PanelShape>;
+        const strokeColor = stored.strokeColor ?? '#000000';
+        const strokeWidth = stored.strokeWidth ?? 2;
         if (shape) {
           const unchanged =
             shape.x === bbox.x &&
@@ -167,12 +174,9 @@ function toApiShape(shape: ComicPanelShape): PanelShape {
     variant === 'polygon' && polygonPoints && polygonPoints.length >= 3
       ? polygonPoints.map((p) => ({ x: x + p.x * w, y: y + p.y * h }))
       : bboxCorners;
-  return {
-    type: variant,
-    points,
-    strokeColor: strokeColor ?? '#000000',
-    strokeWidth: strokeWidth ?? 2,
-  };
+  // 여기 값은 tldraw props 다. shape util 이 기본값을 보장하므로 폴백이 필요 없다 —
+  // 서버에서 읽어 온 JSON(위 `stored`)과 헷갈리지 말 것.
+  return { type: variant, points, strokeColor, strokeWidth };
 }
 
 function samePolygon(a: NormalizedPoint[] | null, b: NormalizedPoint[] | null): boolean {

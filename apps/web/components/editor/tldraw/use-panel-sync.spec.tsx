@@ -131,7 +131,7 @@ describe('usePanelSync — DTO → 캔버스', () => {
     expect(canvas.shapes.get(id)?.x).toBe(300);
 
     // 렌더 상태만 바뀐 (좌표는 아직 옛것인) 목록이 들어온다.
-    rerender({ p: [{ ...dto, currentRenderStatus: 'queued' } as PanelDTO] });
+    rerender({ p: [{ ...dto, currentRenderStatus: 'queued' as const }] });
 
     expect(canvas.shapes.get(id)?.x).toBe(300);
   });

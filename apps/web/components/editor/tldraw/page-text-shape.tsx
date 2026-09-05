@@ -92,7 +92,7 @@ function PageTextBody({ shape, util }: { shape: PageTextShape; util: PageTextSha
     if (isEditing) return;
     const el = editableRef.current;
     if (!el) return;
-    if ((el.textContent ?? '') !== text) {
+    if (el.textContent !== text) {
       el.textContent = text;
     }
   }, [text, isEditing]);
@@ -129,12 +129,12 @@ function PageTextBody({ shape, util }: { shape: PageTextShape; util: PageTextSha
         onCompositionEnd={(e) => {
           composingRef.current = false;
           if (!isEditing) return;
-          commit(e.currentTarget.textContent ?? '');
+          commit(e.currentTarget.textContent);
         }}
         onInput={(e) => {
           if (!isEditing) return;
           if (composingRef.current) return;
-          commit(e.currentTarget.textContent ?? '');
+          commit(e.currentTarget.textContent);
         }}
         onPointerDown={(e) => {
           if (isEditing) e.stopPropagation();

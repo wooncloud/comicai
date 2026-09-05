@@ -23,7 +23,7 @@ interface Args {
 }
 
 function flatten(b: SpeechBubbleDTO): SpeechBubbleShape['props'] {
-  const style = { ...defaultSpeechBubbleStyle(), ...(b.style ?? {}) };
+  const style = { ...defaultSpeechBubbleStyle(), ...b.style };
   return {
     w: Math.max(1, b.shape.w),
     h: Math.max(1, b.shape.h),

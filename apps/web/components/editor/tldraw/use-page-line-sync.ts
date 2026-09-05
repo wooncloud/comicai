@@ -46,7 +46,7 @@ function boxFromPoints(x1: number, y1: number, x2: number, y2: number): BoxFromP
 }
 
 function flatten(l: PageLineDTO): { x: number; y: number; props: PageLineShape['props'] } {
-  const style = { ...defaultPageLineStyle(), ...(l.style ?? {}) };
+  const style = { ...defaultPageLineStyle(), ...l.style };
   const box = boxFromPoints(l.x1, l.y1, l.x2, l.y2);
   return {
     x: box.x,
