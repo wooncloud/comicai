@@ -58,7 +58,6 @@ export async function startIntegration(): Promise<IntegrationContext> {
   process.env.LOG_LEVEL = 'error';
   process.env.WEB_ORIGIN = 'http://localhost:3000';
   process.env.MASTER_KEY = Buffer.alloc(32, 1).toString('base64');
-  process.env.SESSION_SECRET = 'test-secret';
   process.env.COOKIE_SECURE = '0';
   process.env.RENDER_WORKER_DISABLED = '1';
   // MinIO 컨테이너를 띄우지 않으므로 StorageService의 S3 호출은 즉시 실패시킨다.

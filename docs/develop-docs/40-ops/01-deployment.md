@@ -38,8 +38,8 @@
 
 > `NEXTAUTH_SECRET` 은 이 프로젝트에 없다(next-auth 를 쓰지 않는다). 예전 문서에 남아
 > 있던 이름이다. 세션은 자체 구현이고, 서명 대신 난수 식별자를 Redis 에 저장한다.
-> `.env.example` 의 `SESSION_SECRET` 도 **현재 코드가 읽지 않는다** — `docs/05-infra-ops.md`
-> §5 각주 참고.
+> 같은 이유로 `SESSION_SECRET` 도 지웠다 — 어떤 코드도 읽지 않았다.
+> `docs/05-infra-ops.md` §5 각주 참고.
 
 ## 배포 절차
 

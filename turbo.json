@@ -7,7 +7,12 @@
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "@comicai/api#dev": {
-      "dependsOn": ["@comicai/types#build", "@comicai/db#build", "@comicai/events#build", "@comicai/adapters#build"],
+      "dependsOn": [
+        "@comicai/types#build",
+        "@comicai/db#build",
+        "@comicai/events#build",
+        "@comicai/adapters#build"
+      ],
       "cache": false,
       "persistent": true
     },
@@ -15,7 +20,12 @@
       "cache": false,
       "persistent": true
     },
-    "lint": {},
+    // 타입 인지 규칙(no-unnecessary-condition 등)은 `@comicai/types` 의 dist 와
+    // prisma client 를 읽는다. 없으면 타입을 못 봐서 오탐이 뜨는데, `--max-warnings=0`
+    // 아래서는 그게 하드 실패다 — 갓 클론한 저장소의 `pnpm lint` 가 깨진다.
+    "lint": {
+      "dependsOn": ["^build"]
+    },
     "typecheck": {
       "dependsOn": ["^build"]
     },

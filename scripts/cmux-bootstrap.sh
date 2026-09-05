@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ComicAI cmux 워크스페이스 부트스트랩
-# - 표준 레이아웃: docs/40-ops/04-cmux-workflow.md
+# - 표준 레이아웃: docs/develop-docs/40-ops/04-cmux-workflow.md
 #
 # 사용법:
 #   ./scripts/cmux-bootstrap.sh

@@ -20,8 +20,7 @@ pnpm install
 # 2) 환경변수 파일 복사 후 시크릿 채우기
 cp .env.example .env
 #   - MASTER_KEY: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-#   - SESSION_SECRET 은 채우지 않아도 된다 — 현재 코드가 읽지 않는다
-#     (`docs/05-infra-ops.md` §5 각주). compose full.yml 을 쓸 때만 REDIS_PASSWORD 가 필수다
+#   - compose full.yml 을 쓸 때는 REDIS_PASSWORD 가 필수다 (`:?` 로 강제)
 #   - 필요 시 GOOGLE_OAUTH_*, GITHUB_OAUTH_* 채움
 
 # 3) 인프라(postgres/redis/minio) 기동
@@ -34,7 +33,7 @@ pnpm --filter @comicai/db migrate
 
 근거:
 
-- `.env.example:1-57` — 환경 변수 목록 및 주석.
+- `.env.example:1-52` — 환경 변수 목록 및 주석.
 - `infra/compose/dev.yml:1-58` — postgres(5433), redis(6379), minio(9000/9001).
 - `packages/db/package.json:9-13` — `generate` / `migrate` / `migrate:deploy` / `studio` 스크립트.
 

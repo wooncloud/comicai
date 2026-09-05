@@ -133,7 +133,6 @@ services:
       <<: *api-env
       API_PORT: 4000
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
-      SESSION_SECRET: ${SESSION_SECRET:-}
       RENDER_WORKER_DISABLED: '1'
       # 기본을 0 으로 두면 코드의 "프로덕션이면 자동 secure" 판정(session.service.ts)이
       # 항상 덮인다. 빈 값으로 넘겨 코드가 NODE_ENV 로 판단하게 두고,

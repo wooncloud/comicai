@@ -28,9 +28,10 @@
 # 사람이 정해야 해서 기본값을 둘 수 없다.
 #
 # `.env` 는 일부러 백업하지 않는다. 여기 담긴 값이 그대로 외부 저장소로 나가면 그
-# 저장소 하나가 뚫리는 순간 전부가 뚫린다. `MASTER_KEY`·`SESSION_SECRET` 은 사람이
-# 비밀번호 관리자에 넣어 둘 것. (`MASTER_KEY` 를 잃으면 사용자가 저장해 둔 BYOK 키만
-# 못 읽는다 — `apps/api/src/api-keys/crypto.ts`. 재입력하면 되고 그 외 데이터는 무관.)
+# 저장소 하나가 뚫리는 순간 전부가 뚫린다. 잃으면 곤란한 것은 `MASTER_KEY` 하나뿐이니
+# 그것만 사람이 비밀번호 관리자에 넣어 둘 것 — 그마저도 잃으면 사용자가 저장해 둔
+# BYOK 키만 못 읽고(`apps/api/src/api-keys/crypto.ts`) 재입력하면 된다. 나머지는 전부
+# 다시 만들 수 있다.
 #
 # ## 환경변수
 #   POSTGRES_HOST POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB
