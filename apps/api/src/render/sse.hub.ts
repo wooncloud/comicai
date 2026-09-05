@@ -172,7 +172,7 @@ export class SseHub implements OnModuleInit, OnModuleDestroy {
       this.counters.delete(jobId);
       this.cleanupTimers.delete(jobId);
     }, TERMINAL_RETENTION_MS);
-    t.unref?.();
+    t.unref();
     this.cleanupTimers.set(jobId, t);
   }
 }

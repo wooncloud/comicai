@@ -108,7 +108,7 @@ export function Topbar({ authed = false }: { authed?: boolean }) {
               href={item.href}
               className={cn(
                 'flex items-center whitespace-nowrap rounded px-3 py-1.5 transition-colors touch:min-h-11',
-                item.match(path ?? '')
+                item.match(path)
                   ? 'bg-muted font-medium text-foreground'
                   : 'text-muted-foreground hover:text-foreground',
               )}

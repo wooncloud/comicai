@@ -72,12 +72,7 @@ export class OAuthController {
       return;
     }
     try {
-      const result = await this.oauth.completeAuth(
-        p,
-        code,
-        state,
-        req.cookies?.[OAUTH_STATE_COOKIE],
-      );
+      const result = await this.oauth.completeAuth(p, code, state, req.cookies[OAUTH_STATE_COOKIE]);
       res.clearCookie(OAUTH_STATE_COOKIE, OAUTH_STATE_COOKIE_OPTIONS);
       const sid = await this.sessions.create(
         { userId: result.userId, email: result.email },

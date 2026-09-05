@@ -31,6 +31,7 @@ import { AuthTokensService } from '../auth/auth-tokens.service';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
 import { requireUploadedFile } from '../common/upload';
 import { apiError } from '../common/api-error';
+import { jsonColumn } from '../common/json-column';
 
 const USER_SELECT = {
   id: true,
@@ -84,7 +85,7 @@ export class MeController {
       email: u.email,
       displayName: u.displayName,
       avatarUrl,
-      oauthProviders: (u.oauthProviders as ('google' | 'github')[]) ?? [],
+      oauthProviders: jsonColumn<('google' | 'github')[]>(u.oauthProviders) ?? [],
       // 서버에서만 계산한다. 클라이언트는 이 값을 화면 숨김에만 쓰고,
       // 실제 차단은 AdminGuard 가 한다.
       isAdmin: isAdmin(u.email, u.emailVerifiedAt),

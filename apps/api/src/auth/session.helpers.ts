@@ -1,4 +1,5 @@
 import type { Request } from 'express';
+import { nonEmpty } from '../common/non-empty';
 
 /**
  * 세션 기록용 클라이언트 정보.
@@ -14,7 +15,7 @@ import type { Request } from 'express';
  */
 export function sessionMetaFromRequest(req: Request): { ip?: string; userAgent?: string } {
   return {
-    ip: req.ip || undefined,
-    userAgent: req.headers['user-agent'] || undefined,
+    ip: nonEmpty(req.ip),
+    userAgent: nonEmpty(req.headers['user-agent']),
   };
 }

@@ -119,7 +119,7 @@ export function ProjectRow({ project, onPatched, onRemoved }: Props) {
         <>
           <Input
             autoFocus
-            value={draft ?? ''}
+            value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void save();

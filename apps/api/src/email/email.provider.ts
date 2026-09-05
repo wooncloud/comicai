@@ -18,8 +18,9 @@ export interface EmailProvider {
 export class ConsoleEmailProvider implements EmailProvider {
   private readonly logger = new Logger('Email');
 
-  async send(msg: EmailMessage): Promise<void> {
+  send(msg: EmailMessage): Promise<void> {
     this.logger.log(`[email] to=${msg.to} subject="${msg.subject}"\n${msg.text}`);
+    return Promise.resolve();
   }
 }
 

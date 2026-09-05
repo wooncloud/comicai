@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { ApiPaths, type PanelDTO, type RenderJobDTO } from '@comicai/types';
 import { PanelStatusBadge } from './panel-status-badge';
 import { qk } from '@/lib/query-keys';
-import { MODEL_LABEL } from '@/lib/model-options';
+import { modelLabel } from '@/lib/model-options';
 
 interface Props {
   panelId: string;
@@ -114,10 +114,9 @@ export function HistoryTray({ panelId, currentRenderId, onRestored }: Props) {
               */}
               <div
                 className="truncate border-t border-border bg-card px-2 py-1 text-[10px] text-muted-foreground"
-                title={`${new Date(j.createdAt).toLocaleString('ko-KR')} · ${MODEL_LABEL[j.model] ?? j.model}`}
+                title={`${new Date(j.createdAt).toLocaleString('ko-KR')} · ${modelLabel(j.model)}`}
               >
-                {new Date(j.createdAt).toLocaleDateString('ko-KR')} ·{' '}
-                {MODEL_LABEL[j.model] ?? j.model}
+                {new Date(j.createdAt).toLocaleDateString('ko-KR')} · {modelLabel(j.model)}
               </div>
             </li>
           );

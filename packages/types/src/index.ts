@@ -1,8 +1,8 @@
 // ComicAI 공통 타입 (계약). 변경 시 owner: A-Backend.
 
 import {
-  ENTITY_TYPES,
-  MODEL_IDS,
+  type ENTITY_TYPES,
+  type MODEL_IDS,
   type PAGE_LINE_STROKE_STYLES,
   PAGE_TEXT_FONT_FAMILIES,
   type PANEL_SHAPE_TYPES,
@@ -304,7 +304,9 @@ export interface TipTapMentionAttrs {
 }
 
 export type TipTapNode =
-  | { type: 'doc'; content: TipTapNode[] }
+  // content 는 optional 이다. `panels.text` 의 DB 기본값이 `{}` 라, 한 번도 편집하지
+  // 않은 컷의 doc 에는 아예 없다 — 저장된 JSON 은 읽을 때 파싱하지 않는다.
+  | { type: 'doc'; content?: TipTapNode[] }
   | { type: 'paragraph'; content?: TipTapNode[] }
   | { type: 'text'; text: string; marks?: unknown[] }
   | { type: 'mention'; attrs: TipTapMentionAttrs }

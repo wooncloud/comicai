@@ -2,19 +2,6 @@
 import { useEffect } from 'react';
 import { useValue, type Editor } from 'tldraw';
 import { KBD_TO_TOOL, TOOL_GROUPS, type ToolDef } from './tldraw/tool-registry';
-import {
-  Circle,
-  Hand,
-  MessageCircle,
-  MousePointer2,
-  Pentagon,
-  Slash,
-  Square,
-  Star,
-  Type,
-  Zap,
-  type LucideIcon,
-} from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
 

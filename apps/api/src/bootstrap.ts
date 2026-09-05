@@ -28,6 +28,9 @@ export function applyAppPipeline(
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   app.setGlobalPrefix('v1', { exclude: ['healthz'] });
+  // `SessionGuard` · `CsrfMiddleware` · OAuth 콜백은 `req.cookies` 를 옵셔널 체이닝
+  // 없이 인덱싱한다. 앱을 만드는 경로가 여기 하나뿐이라 그게 성립한다 — 이 줄을
+  // 빼거나 이 함수를 거치지 않고 앱을 조립하면 첫 요청부터 전부 500 이 된다.
   app.use(cookieParser());
   app.useGlobalPipes(new ZodValidationPipe());
   app.useGlobalInterceptors(

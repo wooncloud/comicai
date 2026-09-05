@@ -30,7 +30,7 @@ export class SessionGuard implements CanActivate {
     const req = ctx
       .switchToHttp()
       .getRequest<Request & { user?: AuthedRequest['user']; sid?: string }>();
-    const sid = req.cookies?.[SESSION_COOKIE];
+    const sid = req.cookies[SESSION_COOKIE];
     if (!sid) throw new UnauthorizedException(apiError({ code: 'NO_SESSION' }));
     const payload = await this.sessions.read(sid);
     if (!payload) throw new UnauthorizedException(apiError({ code: 'SESSION_EXPIRED' }));

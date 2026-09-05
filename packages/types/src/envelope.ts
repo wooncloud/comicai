@@ -77,5 +77,7 @@ export interface ApiFailure {
 export type ApiEnvelope<T> = ApiSuccess<T> | ApiFailure;
 
 export function isApiFailure<T>(env: ApiEnvelope<T>): env is ApiFailure {
-  return (env as ApiFailure).error !== undefined;
+  // `as ApiFailure` 로 캐스트하면 `error` 가 필수가 되어 비교 자체가 무의미해진다
+  // (성공 응답이 들어와도 타입은 있다고 말한다). 판별하려는 그 필드는 optional 이어야 한다.
+  return (env as Partial<ApiFailure>).error !== undefined;
 }

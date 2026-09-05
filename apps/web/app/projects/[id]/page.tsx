@@ -1,5 +1,4 @@
 'use client';
-import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { DndContext, closestCenter } from '@dnd-kit/core';
@@ -46,9 +45,6 @@ export default function ProjectDetail() {
   });
   const { sensors, onDragEnd } = usePageReorder(projectId, pages);
 
-  function setPages(next: PageDTO[]) {
-    queryClient.setQueryData(qk.projectPages(projectId), next);
-  }
   async function loadPages() {
     await queryClient.invalidateQueries({ queryKey: qk.projectPages(projectId) });
   }

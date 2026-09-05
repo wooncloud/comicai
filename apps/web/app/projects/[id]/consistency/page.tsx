@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ImagePlus, X } from 'lucide-react';
 import { AppShell } from '@/components/shell/app-shell';

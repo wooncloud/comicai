@@ -4,6 +4,7 @@ import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@comicai/types';
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from '../auth/session.service';
 import { hexToken } from './tokens';
 import { apiError } from './api-error';
+import { nonEmpty } from './non-empty';
 
 export const CSRF_COOKIE = CSRF_COOKIE_NAME;
 const SKIP_PATHS = new Set(['/healthz', '/metrics']);
@@ -19,9 +20,9 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 export class CsrfMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     if (SKIP_PATHS.has(req.path)) return next();
-    const sessionCookie = req.cookies?.[SESSION_COOKIE];
+    const sessionCookie = req.cookies[SESSION_COOKIE];
     if (SAFE_METHODS.has(req.method)) {
-      if (sessionCookie && !req.cookies?.[CSRF_COOKIE]) {
+      if (sessionCookie && !req.cookies[CSRF_COOKIE]) {
         issueCsrfToken(res, SESSION_COOKIE_OPTIONS.secure);
       }
       return next();
@@ -29,7 +30,7 @@ export class CsrfMiddleware implements NestMiddleware {
     if (!sessionCookie) return next(); // 인증되지 않은 요청은 가드에서 처리.
 
     const headerToken = req.headers[CSRF_HEADER_NAME];
-    const cookieToken = req.cookies?.[CSRF_COOKIE];
+    const cookieToken = req.cookies[CSRF_COOKIE];
     if (
       typeof headerToken !== 'string' ||
       typeof cookieToken !== 'string' ||
@@ -54,7 +55,7 @@ export class CsrfMiddleware implements NestMiddleware {
  * 로그아웃해도 이전 사용자의 토큰이 남았다.
  */
 export function csrfCookieOptions(secure: boolean) {
-  const domain = process.env.COOKIE_DOMAIN || undefined;
+  const domain = nonEmpty(process.env.COOKIE_DOMAIN);
   return {
     // 웹 JS 가 읽어 헤더로 되돌려 보내야 하므로 httpOnly 가 아니다(이중 제출 패턴).
     httpOnly: false,

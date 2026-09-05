@@ -82,7 +82,16 @@ function defaultCode(status: number): string {
 }
 
 function fromHttpException(status: number, exception: HttpException): ErrorEnvelope {
-  const resp = exception.getResponse();
+  /*
+   * 선언은 `string | object` 지만 HttpException 은 생성자 인자를 그대로 돌려준다 —
+   * `new HttpException(null, 500)` 이면 null 이 나온다. 그냥 두면 아래 `resp &&` 가
+   * lint 에 "항상 truthy" 로 보이고, 그 말을 믿고 지우면 **예외 필터 자신이**
+   * TypeError 로 죽어서 원래 예외까지 함께 사라진다.
+   *
+   * 애너테이션이 아니라 캐스트여야 한다. TS 는 대입 시점에 초기화식의 타입으로
+   * 좁히므로, `const resp: … | null = f()` 은 좁히기에 아무 영향이 없다.
+   */
+  const resp = exception.getResponse() as string | object | null;
   if (typeof resp === 'string') {
     return { error: { code: defaultCode(status), message: resp } };
   }

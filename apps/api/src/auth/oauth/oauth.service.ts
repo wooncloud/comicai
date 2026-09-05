@@ -12,6 +12,7 @@ import { urlSafeToken } from '../../common/tokens';
 import { ADAPTERS, type OAuthProfile } from './oauth.providers';
 import { apiError } from '../../common/api-error';
 import { redisUrl } from '../../common/env';
+import { jsonColumn } from '../../common/json-column';
 
 const STATE_TTL_SECONDS = 10 * 60;
 const STATE_PREFIX = 'oauth_state:';
@@ -166,7 +167,7 @@ export class OAuthService implements OnModuleDestroy {
 
     if (existing) {
       const providers = new Set(
-        ((existing.oauthProviders as OAuthProvider[]) ?? []).filter(Boolean),
+        (jsonColumn<OAuthProvider[]>(existing.oauthProviders) ?? []).filter(Boolean),
       );
       const needsLink = !providers.has(provider);
       const needsVerify = !existing.emailVerifiedAt && profile.emailVerified;
