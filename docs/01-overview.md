@@ -178,7 +178,7 @@ Prisma + ULID 유틸.
 ### 4.7 `infra/`
 
 - `infra/compose/dev.yml` — 인프라(Postgres 16, Redis 7, MinIO)만 띄움. 앱은 호스트에서 `pnpm dev`. 포트는 PG 5433→5432, Redis 6379, MinIO 9000/9001.
-- `infra/compose/full.yml` — 위 인프라 + `api`/`worker`/`web`/`migrate`/(optional) `cloudflared`/(optional) `backup` 까지 전부 컨테이너로. `MASTER_KEY` 가 필수 환경변수. `worker` 는 `RENDER_WORKER_DISABLED=0` + `node apps/api/dist/worker.js` 로 분리 기동. 백업/터널은 compose profile(`backup`, `tunnel`)로 옵트인.
+- `infra/compose/full.yml` — 위 인프라 + `api`/`worker`/`web`/`migrate`/(optional) `cloudflared`/(optional) `backup` 까지 전부 컨테이너로. 설정값은 `env-profile.json`(커밋됨, `dev`/`prod` 그룹)에서, 비밀값은 `.env` 에서 온다 — 둘을 잇는 곳이 `scripts/compose.sh` 다. `MASTER_KEY` 가 필수 환경변수. `worker` 는 `RENDER_WORKER_DISABLED=0` + `node apps/api/dist/worker.js` 로 분리 기동. 백업/터널은 compose profile(`backup`, `tunnel`)로 옵트인.
 - `infra/docker/api.Dockerfile`, `infra/docker/web.Dockerfile` — 빌드 이미지.
 - `infra/backup/` — `backup.sh` + `entrypoint.sh` + `Dockerfile`. cron(`BACKUP_SCHEDULE`, 기본 `0 3 * * *`)으로 Postgres dump + MinIO 데이터를 보존(`BACKUP_RETENTION_DAYS`, 기본 14).
 

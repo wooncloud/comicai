@@ -6,13 +6,28 @@
 
 ## 1. 부트스트랩
 
+### 1.0 설정 로딩 (`bootstrap-env.ts`)
+
+`main.ts` 와 `worker.ts` 가 `reflect-metadata` 바로 다음, **다른 어떤 모듈보다 먼저**
+import 한다 — `main.ts:4`, `worker.ts:3`. `@comicai/config` 의 `loadEnv()` 를 불러
+`.env` → `env-profile.json` 순으로 `process.env` 의 빈 자리를 채운다 — `bootstrap-env.ts:15`.
+
+**순서가 규약이다.** 이 줄이 아래 import 보다 뒤로 가면 일부 값이 빈 채로 굳는다 —
+`ADMIN_EMAILS`(`auth/admin.guard.ts:15`) 나 `COOKIE_DOMAIN`(`auth/session.service.ts:153`) 은
+모듈 로드 시점에 한 번 읽고 마는데, `ConfigModule.forRoot()` 가 `.env` 를 읽는 것은 그보다
+나중이다. 그래서 예전에는 로컬 `pnpm dev` 에서 `.env` 의 `ADMIN_EMAILS` 가 조용히 무시됐다.
+
+우선순위와 그룹 선택 규칙은 `docs/05-infra-ops.md` §5, 패키지 구조는
+`docs/04-shared-packages.md` §5.
+
 ### 1.1 HTTP 엔트리 (`main.ts`)
 
-- `NestFactory.create(AppModule, { bufferLogs: true })` — `main.ts:10`
-- 로거를 `nestjs-pino`의 `Logger`로 교체 — `main.ts:11`
-- `applyAppPipeline(...)` 호출 시 `HttpMetricsInterceptor`를 extraInterceptor로 주입 — `main.ts:12-14`
-- CORS: `origin = process.env.WEB_ORIGIN ?? 'http://localhost:3000'`, `credentials: true` — `main.ts:15-18`
-- 포트: `process.env.API_PORT ?? 4000` — `main.ts:20-21`
+- `NestFactory.create(AppModule, { bufferLogs: true })` — `main.ts:13`
+- 로거를 `nestjs-pino`의 `Logger`로 교체 — `main.ts:14`
+- `applyAppPipeline(...)` 호출 시 `HttpMetricsInterceptor`를 extraInterceptor로 주입 — `main.ts:15-17`
+- CORS: `origin = process.env.WEB_ORIGIN ?? 'http://localhost:3000'`, `credentials: true` — `main.ts:18-21`
+- 포트: `process.env.API_PORT ?? 4000` — `main.ts:23`
+- 기동 로그에 어느 설정 그룹인지 함께 남긴다 — `main.ts:25`
 
 ### 1.2 글로벌 파이프라인 (`bootstrap.ts`)
 

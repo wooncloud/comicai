@@ -1,6 +1,6 @@
 # 04. 공유 패키지 (packages/\*)
 
-ComicAI 모노레포의 `packages/` 디렉토리에는 4개의 공유 워크스페이스 패키지가 있다. 모두 `@comicai/*` 네임스페이스, `private: true`, `main: ./dist/index.js`, `types: ./dist/index.d.ts` 형태로 빌드 산출물을 노출한다. exports 필드는 사용하지 않고 `main`/`types`만 노출하는 단순 구조다.
+ComicAI 모노레포의 `packages/` 디렉토리에는 5개의 공유 워크스페이스 패키지가 있다. 넷은 `private: true`, `main: ./dist/index.js`, `types: ./dist/index.d.ts` 형태로 **빌드 산출물**을 노출한다. exports 필드는 사용하지 않고 `main`/`types`만 노출하는 단순 구조다. 다섯 번째(`@comicai/config`)만 빌드가 없다 — 이유는 §5.
 
 | 패키지              | 역할                                       | 주 의존성                |
 | ------------------- | ------------------------------------------ | ------------------------ |
@@ -8,8 +8,9 @@ ComicAI 모노레포의 `packages/` 디렉토리에는 4개의 공유 워크스�
 | `@comicai/db`       | Prisma 클라이언트 + ID 헬퍼                | `@prisma/client`, `ulid` |
 | `@comicai/events`   | SSE wire-format, mention 직렬화            | `@comicai/types`         |
 | `@comicai/adapters` | 모델 어댑터 레지스트리(Gemini/OpenAI/Mock) | `@comicai/types`         |
+| `@comicai/config`   | `env-profile.json` 로더 + 설정 CLI         | `dotenv`                 |
 
-소비처 import 카운트 (`apps/` 트리 기준): types 78회, db 15회, events 3회, adapters 1회. types는 사실상 web/api 양쪽에서 공통 계약 역할을 하고, db/events/adapters는 API 서버 전용이다.
+소비처 import 카운트 (`apps/` 트리 기준): types 78회, db 15회, events 3회, adapters 1회. types는 사실상 web/api 양쪽에서 공통 계약 역할을 하고, db/events/adapters는 API 서버 전용이다. config 는 앱 진입점 셋에서만 불린다(§5).
 
 ---
 
@@ -376,6 +377,41 @@ availableModels(): ModelId[]
 
 ---
 
+## 5) @comicai/config
+
+`env-profile.json` (비밀이 아닌 설정의 단일 출처, `docs/05-infra-ops.md` §5) 을 읽어
+`process.env` 를 채운다.
+
+### 공개 API (`packages/config/index.d.ts`)
+
+| 심볼                   | 구현                           | 하는 일                                                      |
+| ---------------------- | ------------------------------ | ------------------------------------------------------------ |
+| `loadEnv(options?)`    | `packages/config/index.js:219` | `.env` → 프로파일 순으로 `process.env` 의 **빈 자리만** 채움 |
+| `profileValues(opts?)` | `packages/config/index.js:189` | 한 그룹의 설정값                                             |
+| `readProfile(file?)`   | `packages/config/index.js:138` | 파일을 읽고 형식 검사                                        |
+| `resolveGroup(x?)`     | `packages/config/index.js:98`  | `APP_ENV` → `NODE_ENV` 순으로 `dev`/`prod` 결정              |
+| `readEnvFile(file)`    | `packages/config/index.js:204` | `.env` 파싱 (dotenv 에 위임)                                 |
+| `toEnvFile(v, meta)`   | `packages/config/index.js:258` | compose 가 읽는 env-file 로 직렬화                           |
+
+### 왜 빌드가 없는 순수 CommonJS 인가
+
+읽는 쪽이 셋인데 로딩 방식이 서로 다르다 — NestJS 런타임(CJS, `apps/api/src/bootstrap-env.ts:1`),
+`apps/web/next.config.mjs:8` (ESM), `.env.generated` 생성 CLI (`packages/config/cli.js:1`).
+게다가 **빌드보다 먼저** 필요하다. `dist/` 를 요구하면 갓 클론한 저장소에서 `next.config.mjs`
+가 깨지고, `scripts/compose.sh:27` 이 배포 직전에 부르는 자리에서도 워크스페이스가 설치돼
+있으리라는 보장이 없다. 타입은 손으로 쓴 `index.d.ts` 가, 검사는 `checkJs`
+(`packages/config/tsconfig.json`) 가 맡는다.
+
+`dotenv` 는 `readEnvFile` 안에서만 `require` 한다 (`packages/config/index.js:206`) — 그래서
+`--write` 경로는 의존성 없이도 돈다.
+
+### CLI (`packages/config/cli.js`)
+
+`pnpm env:show` / `env:generate` / `env:check` 가 이 파일 하나를 부른다. `env:check` 는
+`dev` 와 `prod` 가 같은 키를 정의하지 않으면 종료 코드 1 이다 (`packages/config/cli.js:117`).
+
+---
+
 ## 의존성 그래프 요약
 
 ```
@@ -383,6 +419,8 @@ types  ─────── (consumed by) ──── web, api, events, adapte
 db     ─────── api (only)
 events ─────── api (only)            depends on → types
 adapters ───── api/render.worker     depends on → types
+config ─────── api(진입점), web(next.config), 루트 CLI   depends on → dotenv
 ```
 
-types는 진정한 공유 계약이고, 나머지 셋은 API 서버 전용 인프라 추상이다.
+types는 진정한 공유 계약이고, db/events/adapters는 API 서버 전용 인프라 추상이다.
+config 는 어느 쪽 코드도 아닌 **부팅 이전** 계층이라 혼자 빌드가 없다.

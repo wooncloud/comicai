@@ -1,0 +1,103 @@
+{
+  "_README": [
+    "비밀이 아닌 설정값의 단일 출처. 이 파일은 저장소에 커밋된다.",
+    "",
+    "여기 두는 것:   포트, 주소, 로그 레벨, 기능 플래그, 백업 주기 — 공개돼도 되는 값.",
+    "여기 두지 않는 것: 비밀번호·API 키·토큰, 그리고 공개 저장소에 남으면 곤란한 개인정보",
+    "                (ADMIN_EMAILS 의 이메일, BILLING_NOTICE 의 계좌). 그건 .env 에 둔다.",
+    "                컨테이너끼리의 주소(S3_ENDPOINT=minio:9000, INTERNAL_API_URL=api:4000)도 아니다 —",
+    "                그건 사람이 고르는 설정이 아니라 compose 가 아는 사실이라 compose 에 박아 둔다.",
+    "",
+    "우선순위는 위가 이긴다:  실제 환경변수  >  .env  >  이 파일.",
+    "그래서 .env 에 같은 키가 남아 있으면 그쪽이 계속 이긴다 — 옮기는 데 마감이 없다.",
+    "",
+    "그룹 고르기는 APP_ENV=dev|prod 하나뿐이다. NODE_ENV 로 겸하지 않는다 —",
+    "로컬 전체 스택(pnpm docker:up)은 NODE_ENV=production 이면서 주소는 전부 localhost 다.",
+    "",
+    "docker compose 는 JSON 을 못 읽는다. `pnpm env:generate` 가 .env.generated 로 옮겨",
+    "적어 주고, compose 는 그 파일과 .env 를 함께 읽는다(compose 를 부르는 pnpm 스크립트가",
+    "모두 알아서 먼저 생성한다).",
+    "",
+    "COOKIE_SECURE 는 prod 에서 비워 둔다 — 비어 있으면 코드가 NODE_ENV 로 판단해",
+    "자동으로 켠다. 0 을 박아 두면 세션 쿠키가 평문으로 나간다. dev 의 0 은 http 로",
+    "띄우는 로컬 전용이며, dev 그룹을 외부에 노출된 서버에서 쓰면 안 되는 이유다.",
+    "",
+    "설명은 packages/config/index.js, 값 확인은 `pnpm env:check`."
+  ],
+
+  "dev": {
+    "POSTGRES_USER": "comicai",
+    "POSTGRES_DB": "comicai",
+
+    "S3_PUBLIC_ENDPOINT": "http://localhost:9000",
+    "S3_REGION": "us-east-1",
+    "S3_BUCKET": "comicai",
+    "STORAGE_AUTO_CREATE_BUCKET": true,
+
+    "API_PORT": 4000,
+    "WEB_PORT": 3000,
+    "WEB_ORIGIN": "http://localhost:3000",
+    "API_PUBLIC_URL": "http://localhost:4000",
+    "NEXT_PUBLIC_API_URL": "http://localhost:4000",
+
+    "COOKIE_SECURE": "0",
+    "COOKIE_DOMAIN": "",
+
+    "LOG_LEVEL": "debug",
+
+    "RENDER_WORKER_DISABLED": false,
+    "RENDER_CONCURRENCY": 2,
+
+    "FEATURE_API_KEYS": false,
+    "NEXT_PUBLIC_FEATURE_API_KEYS": false,
+
+    "EMAIL_FROM": "ComicAI <onboarding@resend.dev>",
+
+    "BACKUP_SCHEDULE": "0 3 * * *",
+    "BACKUP_RETENTION_DAYS": 14,
+    "BACKUP_RUN_ON_START": false,
+    "BACKUP_STALE_HOURS": 26,
+    "BACKUP_HOST_PATH": "",
+    "BACKUP_REMOTE_ENDPOINT": "",
+    "BACKUP_REMOTE_BUCKET": "",
+    "BACKUP_REMOTE_PREFIX": "comicai"
+  },
+
+  "prod": {
+    "POSTGRES_USER": "comicai",
+    "POSTGRES_DB": "comicai",
+
+    "S3_PUBLIC_ENDPOINT": "http://localhost:9000",
+    "S3_REGION": "us-east-1",
+    "S3_BUCKET": "comicai",
+    "STORAGE_AUTO_CREATE_BUCKET": true,
+
+    "API_PORT": 4000,
+    "WEB_PORT": 3000,
+    "WEB_ORIGIN": "http://localhost:3000",
+    "API_PUBLIC_URL": "http://localhost:4000",
+    "NEXT_PUBLIC_API_URL": "http://localhost:4000",
+
+    "COOKIE_SECURE": "",
+    "COOKIE_DOMAIN": "",
+
+    "LOG_LEVEL": "info",
+
+    "RENDER_WORKER_DISABLED": false,
+    "RENDER_CONCURRENCY": 2,
+
+    "FEATURE_API_KEYS": false,
+    "NEXT_PUBLIC_FEATURE_API_KEYS": false,
+
+    "EMAIL_FROM": "ComicAI <onboarding@resend.dev>",
+
+    "BACKUP_SCHEDULE": "0 3 * * *",
+    "BACKUP_RETENTION_DAYS": 14,
+    "BACKUP_RUN_ON_START": false,
+    "BACKUP_STALE_HOURS": 26,
+    "BACKUP_HOST_PATH": "",
+    "BACKUP_REMOTE_ENDPOINT": "",
+    "BACKUP_REMOTE_BUCKET": "",
+    "BACKUP_REMOTE_PREFIX": "comicai"
+  }
+}

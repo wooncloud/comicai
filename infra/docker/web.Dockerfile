@@ -17,20 +17,28 @@ COPY packages/types/package.json packages/types/
 COPY packages/events/package.json packages/events/
 COPY packages/db/package.json packages/db/
 COPY packages/adapters/package.json packages/adapters/
+COPY packages/config/package.json packages/config/
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS builder
 WORKDIR /repo
 COPY packages packages
 COPY apps/web apps/web
+# next.config.mjs 가 읽는다. 빌드 시점에 필요하다.
+COPY env-profile.json ./
 
-# 브라우저로 노출될 API URL (build-time inline).
-# 호스트 머신의 브라우저가 접근하므로 호스트 포트 사용.
-ARG NEXT_PUBLIC_API_URL=http://localhost:4000
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# 어느 설정 그룹으로 빌드할지. 비우면 dev(=전부 localhost)로 빌드된다.
+ARG APP_ENV=dev
+ENV APP_ENV=$APP_ENV
 # NEXT_PUBLIC_ 값은 next build 가 번들에 그대로 박아 넣는다. 런타임 환경변수로는
-# 바뀌지 않으므로 반드시 build arg 로 받아야 하고, 값을 바꾸려면 다시 빌드해야 한다.
-ARG NEXT_PUBLIC_FEATURE_API_KEYS=0
+# 바뀌지 않으므로 값을 바꾸려면 다시 빌드해야 한다.
+#
+# 기본값을 두지 않는다 — 비어 있으면 next.config.mjs 가 프로파일에서 채운다.
+# 여기에 `=http://localhost:4000` 같은 기본값을 달면 프로파일을 **항상 덮어** 버려서,
+# prod 로 빌드해도 브라우저 번들에는 localhost 가 박힌다.
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_FEATURE_API_KEYS
 ENV NEXT_PUBLIC_FEATURE_API_KEYS=$NEXT_PUBLIC_FEATURE_API_KEYS
 
 # 워크스페이스 패키지 빌드 후 next build

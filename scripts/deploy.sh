@@ -13,7 +13,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-COMPOSE=(docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup)
+# 프로파일 생성 → env-file 순서 → tunnel/backup 프로파일을 한 곳에 모은 래퍼.
+COMPOSE=(env APP_ENV=prod bash scripts/compose.sh)
 BRANCH=main
 RESET=0
 ASSUME_YES=0
@@ -41,7 +42,8 @@ fail() {
 }
 
 # ── 사전 점검 ────────────────────────────────────────────
-[ -f .env ] || fail ".env 가 없습니다. compose 가 환경변수를 읽지 못합니다."
+[ -f .env ] || fail ".env 가 없습니다. compose 가 비밀값을 읽지 못합니다."
+[ -f env-profile.json ] || fail "env-profile.json 이 없습니다. 설정값을 읽지 못합니다."
 command -v docker >/dev/null || fail "docker 를 찾을 수 없습니다."
 docker info >/dev/null 2>&1 || fail "docker 데몬이 실행 중이 아닙니다."
 

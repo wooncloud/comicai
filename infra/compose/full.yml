@@ -2,37 +2,51 @@ name: comicai
 
 # 전체 스택을 컨테이너로 띄우는 compose.
 # 사용:
-#   docker compose -f infra/compose/full.yml up -d --build
+#   pnpm docker:up      (로컬 전체 스택 — dev 그룹)
+#   pnpm prod:up        (배포 — prod 그룹 + tunnel/backup 프로파일)
 #
-# 인프라만 띄우고 앱은 로컬 pnpm dev로 돌리려면 dev.yml 사용.
+# 인프라만 띄우고 앱은 로컬 pnpm dev로 돌리려면 `pnpm infra:up` (dev.yml).
+#
+# ## `${VAR}` 에 기본값이 없는 이유
+#
+# 예전에는 여기가 `${WEB_ORIGIN:-http://localhost:3000}` 처럼 기본값을 달고 있었다.
+# 같은 기본값이 .env.example 과 코드에도 있어서 **세 벌**이었고, 한 곳만 고치면
+# 나머지 둘이 조용히 옛 값을 썼다. 이제 설정의 출처는 env-profile.json 하나다 —
+# scripts/compose.sh 가 그걸 .env.generated 로 옮겨 적고, 이 파일은 받아 넘기기만 한다.
+# 비밀값(`:-` 가 남아 있는 것들)만 .env 에서 직접 온다.
 
 x-db-env: &db-env
-  DATABASE_URL: postgresql://${POSTGRES_USER:-comicai}:${POSTGRES_PASSWORD:-comicai}@postgres:5432/${POSTGRES_DB:-comicai}?schema=public
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD:-comicai}@postgres:5432/${POSTGRES_DB}?schema=public
 
 x-s3-env: &s3-env
+  # 컨테이너끼리의 주소라 프로파일에 없다 — 사람이 고르는 설정이 아니라 이 파일이 아는 사실이다.
   S3_ENDPOINT: http://minio:9000
   # presigned URL은 브라우저에서 직접 호출하므로 외부에서 접근 가능한 host로 서명.
-  # 기본은 호스트 머신에서 노출된 9000 포트. 외부 도메인 노출 시 .env로 오버라이드.
-  S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
-  S3_REGION: us-east-1
-  S3_BUCKET: ${S3_BUCKET:-comicai}
+  S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT}
+  S3_REGION: ${S3_REGION}
+  S3_BUCKET: ${S3_BUCKET}
   S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
   S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
 
 x-api-env: &api-env
   <<: [*db-env, *s3-env]
   NODE_ENV: production
+  # 어느 프로파일 그룹으로 뜬 컨테이너인지. 앱이 직접 env-profile.json 을 읽을 때도 쓴다.
+  APP_ENV: ${APP_ENV}
+  LOG_LEVEL: ${LOG_LEVEL}
+  FEATURE_API_KEYS: ${FEATURE_API_KEYS}
+  EMAIL_FROM: ${EMAIL_FROM}
+
+  # ── 여기서부터는 .env 에서만 온다 (비밀값·개인정보). 커밋되는 프로파일에 둘 수 없다. ──
   REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD 필수 — .env에 설정하세요}@redis:6379
   MASTER_KEY: ${MASTER_KEY:?MASTER_KEY 필수 — .env에 설정하세요}
-  # 관리자 허용 목록과 기능 플래그. 비어 있으면 각각 "관리자 없음", "기능 꺼짐".
+  # 관리자 허용 목록. 비어 있으면 관리자가 아무도 없다.
   ADMIN_EMAILS: ${ADMIN_EMAILS:-}
-  FEATURE_API_KEYS: ${FEATURE_API_KEYS:-0}
   # /v1/metrics 접근 토큰. 비어 있으면 그 엔드포인트는 404 다.
   METRICS_TOKEN: ${METRICS_TOKEN:-}
   # 메일 발송. 없으면 콘솔 로그로만 남는다.
   RESEND_API_KEY: ${RESEND_API_KEY:-}
-  EMAIL_FROM: ${EMAIL_FROM:-}
-  # 사용자 키가 없을 때 쓰는 플랫폼 키와 그 지출 상한.
+  # 충전 안내(계좌). 비어 있으면 충전 요청 자체를 받지 않는다.
   BILLING_NOTICE: ${BILLING_NOTICE:-}
   PLATFORM_GEMINI_KEY: ${PLATFORM_GEMINI_KEY:-}
   PLATFORM_OPENAI_KEY: ${PLATFORM_OPENAI_KEY:-}
@@ -43,9 +57,9 @@ services:
     container_name: comicai-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-comicai}
+      POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comicai}
-      POSTGRES_DB: ${POSTGRES_DB:-comicai}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       # 루프백에만 연다. docker 의 publish 는 0.0.0.0 바인딩이고 iptables 를
       # 직접 건드리므로, 호스트 방화벽으로 막아도 인터넷에서 닿는다.
@@ -53,7 +67,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-comicai}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
       interval: 5s
       timeout: 3s
       retries: 10
@@ -131,19 +145,18 @@ services:
         condition: service_completed_successfully
     environment:
       <<: *api-env
-      API_PORT: 4000
-      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      API_PORT: ${API_PORT}
+      WEB_ORIGIN: ${WEB_ORIGIN}
+      API_PUBLIC_URL: ${API_PUBLIC_URL}
       RENDER_WORKER_DISABLED: '1'
-      # 기본을 0 으로 두면 코드의 "프로덕션이면 자동 secure" 판정(session.service.ts)이
-      # 항상 덮인다. 빈 값으로 넘겨 코드가 NODE_ENV 로 판단하게 두고,
-      # 로컬에서 http 로 띄울 때만 .env 에 0 을 넣는다.
-      COOKIE_SECURE: ${COOKIE_SECURE:-}
-      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      # prod 그룹은 이 값을 비워 둔다. 그래야 코드의 "프로덕션이면 자동 secure" 판정
+      # (session.service.ts)이 살아 있다 — 0 을 박아 두면 세션 쿠키가 평문으로 나간다.
+      COOKIE_SECURE: ${COOKIE_SECURE}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN}
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
       GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
       GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
-      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:4000}
     ports:
       # 외부 접근은 cloudflared 터널을 통해서만. 직접 노출하면 터널의
       # 접근 제어를 우회할 수 있고, trust proxy 와 겹치면 헤더 위조도 가능해진다.
@@ -152,9 +165,9 @@ services:
       #   대시보드의 public hostname 이 `http://api:4000`(도커 네트워크 이름)을
       #   가리키면 이 변경은 안전하다. `host.docker.internal:4000` 으로 돼 있다면
       #   루프백 바인딩 때문에 닿지 않으므로, 서비스 이름으로 바꿔야 한다.
-      - '127.0.0.1:4000:4000'
+      - '127.0.0.1:${API_PORT}:${API_PORT}'
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:4000/healthz']
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:${API_PORT}/healthz']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -181,7 +194,7 @@ services:
     environment:
       <<: *api-env
       RENDER_WORKER_DISABLED: '0'
-      RENDER_CONCURRENCY: ${RENDER_CONCURRENCY:-2}
+      RENDER_CONCURRENCY: ${RENDER_CONCURRENCY}
     command: ['node', 'apps/api/dist/worker.js']
 
   web:
@@ -189,9 +202,11 @@ services:
       context: ../..
       dockerfile: infra/docker/web.Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
         # 빌드 시점에 번들에 박힌다. 값을 바꾸면 web 을 다시 빌드해야 한다.
-        NEXT_PUBLIC_FEATURE_API_KEYS: ${NEXT_PUBLIC_FEATURE_API_KEYS:-0}
+        # next.config.mjs 가 프로파일도 읽지만, 여기서 넘긴 값이 항상 이긴다.
+        APP_ENV: ${APP_ENV}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_FEATURE_API_KEYS: ${NEXT_PUBLIC_FEATURE_API_KEYS}
     container_name: comicai-web
     restart: unless-stopped
     depends_on:
@@ -199,14 +214,16 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      INTERNAL_API_URL: http://api:4000
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+      # 컨테이너끼리의 주소. 프로파일이 아니라 이 파일이 아는 사실이다.
+      INTERNAL_API_URL: http://api:${API_PORT}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      PORT: ${WEB_PORT}
     ports:
       # api 와 같은 이유로 루프백에만 연다. cloudflared 는 같은 도커 네트워크에서
       # http://web:3000 으로 닿으므로 호스트로 publish 할 이유가 없다.
       # 열어 두면 공인 IP 로 터널의 WAF·Access 규칙을 건너뛰고 평문 HTTP 로 붙을 수 있고,
       # origin IP 가 스캐너에 그대로 노출된다.
-      - '127.0.0.1:3000:3000'
+      - '127.0.0.1:${WEB_PORT}:${WEB_PORT}'
 
   # Cloudflare Zero Trust Tunnel — profile=tunnel로 활성화.
   cloudflared:
@@ -237,22 +254,21 @@ services:
     environment:
       <<: *s3-env
       POSTGRES_HOST: postgres
-      POSTGRES_USER: ${POSTGRES_USER:-comicai}
+      POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comicai}
-      POSTGRES_DB: ${POSTGRES_DB:-comicai}
+      POSTGRES_DB: ${POSTGRES_DB}
       BACKUP_DIR: /backup
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
-      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 3 * * *}
-      BACKUP_STALE_HOURS: ${BACKUP_STALE_HOURS:-26}
-      RUN_ON_START: ${BACKUP_RUN_ON_START:-0}
-      # 실패 알림 (선택). 비면 로그와 healthcheck 만 남는다.
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS}
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE}
+      BACKUP_STALE_HOURS: ${BACKUP_STALE_HOURS}
+      RUN_ON_START: ${BACKUP_RUN_ON_START}
+      BACKUP_REMOTE_ENDPOINT: ${BACKUP_REMOTE_ENDPOINT}
+      BACKUP_REMOTE_BUCKET: ${BACKUP_REMOTE_BUCKET}
+      BACKUP_REMOTE_PREFIX: ${BACKUP_REMOTE_PREFIX}
+      # 실패 알림과 원격 자격 증명은 비밀값이라 .env 에서만 온다.
       BACKUP_WEBHOOK_URL: ${BACKUP_WEBHOOK_URL:-}
-      # 원격 사본 (선택). 채우지 않으면 백업이 원본과 같은 디스크에만 있다.
-      BACKUP_REMOTE_ENDPOINT: ${BACKUP_REMOTE_ENDPOINT:-}
       BACKUP_REMOTE_ACCESS_KEY: ${BACKUP_REMOTE_ACCESS_KEY:-}
       BACKUP_REMOTE_SECRET_KEY: ${BACKUP_REMOTE_SECRET_KEY:-}
-      BACKUP_REMOTE_BUCKET: ${BACKUP_REMOTE_BUCKET:-}
-      BACKUP_REMOTE_PREFIX: ${BACKUP_REMOTE_PREFIX:-comicai}
     # 컨테이너가 살아 있는 것과 백업이 도는 것은 다르다 — last-success 가 낡으면 unhealthy.
     # `start_period` 는 첫 예정 회차(일 1회)를 기다려 주기 위한 것이라 같은 값이어야 한다.
     # 이미지에 박아 두면 .env 를 올려도 유예만 옛 값으로 남으므로 여기서 함께 정한다.
@@ -261,10 +277,11 @@ services:
       interval: 15m
       timeout: 10s
       retries: 2
-      start_period: ${BACKUP_STALE_HOURS:-26}h
+      start_period: ${BACKUP_STALE_HOURS}h
     volumes:
-      # 기본값은 도커 볼륨이라 원본과 같은 디스크에 앉는다. .env 에서 BACKUP_HOST_PATH 를
-      # 다른 디스크/NAS 마운트로 지정하면 그쪽에 쌓인다.
+      # 비우면 도커 볼륨이라 원본과 같은 디스크에 앉는다. env-profile.json 의
+      # BACKUP_HOST_PATH 를 다른 디스크/NAS 마운트로 지정하면 그쪽에 쌓인다.
+      # 여기만 `:-` 가 남는다 — 빈 문자열은 볼륨 소스로 쓸 수 없다.
       - ${BACKUP_HOST_PATH:-backup_data}:/backup
 
 volumes:

@@ -18,6 +18,19 @@
 
 Playwright(`e2e/`)와 typecheck(`tsc --noEmit`)는 dev tooling.
 
+### 1.1 빌드 설정 (`next.config.mjs`)
+
+- `output: 'standalone'` + `outputFileTracingRoot` — 모노레포 루트 기준으로 추적 (`next.config.mjs:39-41`)
+- **설정 로딩**: `@comicai/config` 의 `loadEnv()` 를 config 평가 시점에 부른다 (`next.config.mjs:13`).
+  `.env` → `env-profile.json` 순으로 `process.env` 의 빈 자리를 채우되 **이미 있는 값은
+  건드리지 않으므로**, 도커 빌드의 `--build-arg NEXT_PUBLIC_API_URL=...` 이 항상 이긴다.
+- **번들 인라인 값**: `env.NEXT_PUBLIC_API_URL` / `env.NEXT_PUBLIC_FEATURE_API_KEYS` 를
+  명시적으로 적는다 (`next.config.mjs:42-45`). 비어 있으면 `required` (`next.config.mjs:26`)
+  가 빌드를 멈춘다 — 값이 빈 채로 번들에 박히면 런타임에 고칠 방법이 없기 때문이다.
+  standalone 산출물은 이 파일을 다시 읽지 않으므로, 값을 바꾸려면 **web 을 다시 빌드**해야 한다.
+
+설정이 어디서 오는지는 `docs/05-infra-ops.md` §5.
+
 ## 2. 라우트 맵 (app/)
 
 App Router 구조. 모든 `page.tsx` 파일.

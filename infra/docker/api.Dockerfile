@@ -19,6 +19,7 @@ COPY packages/types/package.json packages/types/
 COPY packages/events/package.json packages/events/
 COPY packages/db/package.json packages/db/
 COPY packages/adapters/package.json packages/adapters/
+COPY packages/config/package.json packages/config/
 RUN pnpm install --frozen-lockfile
 
 # ---- builder: 워크스페이스 패키지 + api 빌드 ----
@@ -51,6 +52,9 @@ COPY --from=builder /repo/apps/api/dist ./apps/api/dist
 COPY --from=builder /repo/apps/api/package.json ./apps/api/
 COPY --from=builder /repo/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /repo/packages ./packages
+# 비밀이 아닌 설정의 출처. compose 가 같은 값을 environment 로도 넘기지만, 이미지가
+# 스스로 뜰 수 있어야 한다 — 컨테이너를 compose 없이 직접 돌리는 경우가 있다.
+COPY env-profile.json ./
 
 USER comicai
 EXPOSE 4000

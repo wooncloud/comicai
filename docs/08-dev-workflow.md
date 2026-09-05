@@ -17,14 +17,15 @@
 # 1) 저장소 루트에서 의존성 설치 (husky prepare 훅도 같이 실행됨)
 pnpm install
 
-# 2) 환경변수 파일 복사 후 시크릿 채우기
+# 2) 비밀값 파일 복사 후 채우기 (설정값은 커밋된 env-profile.json 에 있다)
 cp .env.example .env
 #   - MASTER_KEY: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 #   - compose full.yml 을 쓸 때는 REDIS_PASSWORD 가 필수다 (`:?` 로 강제)
 #   - 필요 시 GOOGLE_OAUTH_*, GITHUB_OAUTH_* 채움
+pnpm env:check   # .env 와 프로파일이 어떻게 겹치는지 확인
 
 # 3) 인프라(postgres/redis/minio) 기동
-docker compose -f infra/compose/dev.yml up -d
+pnpm infra:up
 
 # 4) Prisma 클라이언트 생성 + 마이그레이션 적용
 pnpm --filter @comicai/db generate
@@ -33,11 +34,15 @@ pnpm --filter @comicai/db migrate
 
 근거:
 
-- `.env.example:1-52` — 환경 변수 목록 및 주석.
-- `infra/compose/dev.yml:1-58` — postgres(5433), redis(6379), minio(9000/9001).
+- `.env.example:1` — **비밀값만** 있다. 포트·주소·플래그 같은 설정은 `env-profile.json` 에 있고 그 파일은 커밋된다 (`docs/05-infra-ops.md` §5).
+- `infra/compose/dev.yml:1` — postgres(5433), redis(6379), minio(9000/9001).
 - `packages/db/package.json:9-13` — `generate` / `migrate` / `migrate:deploy` / `studio` 스크립트.
 
 > `infra/compose/full.yml`은 web/api/worker 컨테이너 풀스택용. 로컬 개발에선 `dev.yml`(의존 서비스만)이 기본.
+>
+> **compose 를 직접 부르지 않는다.** `pnpm infra:up` / `docker:up` / `prod:up` 이 전부
+> `scripts/compose.sh` 를 거친다 — `.env.generated` 생성과 env-file 순서가 매번 함께
+> 가야 하기 때문이다 (`scripts/compose.sh:27`).
 
 ## 3. 일상 명령
 
@@ -133,7 +138,7 @@ pnpm --filter @comicai/db migrate
 - 트레이스/스크린샷/비디오 모두 `retain-on-failure`
 - webServer: 기본은 `pnpm dev`를 Playwright가 띄움. `E2E_NO_SERVER=1`이면 외부에서 미리 띄운 서버 사용
 - 실행 전제(설정 코멘트 9-15행):
-  1. `docker compose -f infra/compose/dev.yml up -d`
+  1. `pnpm infra:up`
   2. `pnpm --filter @comicai/api dev`
   3. (최초 1회) `pnpm --filter @comicai/web e2e:install`
   4. `pnpm --filter @comicai/web e2e`
@@ -166,7 +171,7 @@ pnpm --filter @comicai/db migrate
 
 ## 6. Git 훅
 
-- 도구: **Husky v9** (`package.json:49`). `prepare` 스크립트가 `husky`를 호출 (`package.json:35`).
+- 도구: **Husky v9** (`package.json:49`). `prepare` 스크립트가 `husky`를 호출 (`package.json:40`).
 - `pre-commit` 훅: `.husky/pre-commit:1`
   ```sh
   pnpm exec lint-staged
@@ -228,7 +233,7 @@ pnpm test
 pnpm --filter @comicai/api test:integration
 
 # 3) (UX 변경 시) E2E
-docker compose -f infra/compose/dev.yml up -d
+pnpm infra:up
 pnpm --filter @comicai/api dev      # 다른 터미널
 pnpm --filter @comicai/web e2e
 ```
@@ -241,6 +246,6 @@ pnpm --filter @comicai/web e2e
 - Husky: `.husky/pre-commit`
 - API Vitest: `apps/api/vitest.config.ts`, `vitest.integration.config.ts`
 - Web Playwright: `apps/web/playwright.config.ts`
-- Compose: `infra/compose/dev.yml`, `full.yml`
-- 환경 변수: `.env.example`
+- Compose: `infra/compose/dev.yml`, `full.yml` (호출은 `scripts/compose.sh` 를 통해서만)
+- 설정값: `env-profile.json` (커밋됨) / 비밀값: `.env.example`
 - 커밋/PR 규칙(계획): `docs/develop-docs/40-ops/06-git-workflow.md`

@@ -3,11 +3,26 @@
 작성 2026-09-05. 저장소·`.env`·도커 실제 상태를 확인해서 만든 목록이다(추측 아님).
 끝난 항목은 체크만 하지 말고 지워라 — 다음에 볼 때 남은 것만 보이게.
 
-> **먼저 알아야 할 것 하나.**
-> 프로덕션이 읽는 `.env` 는 이 저장소가 아니라 **`/Users/wooncloud/project/comicai-deploy/.env`** 다.
-> 배포 워크플로가 그 폴더에서 `git reset --hard` 후 compose 를 띄운다. 여기(`~/project/comicai/.env`)를
-> 고치면 로컬만 바뀐다. **아래 환경변수 작업은 두 곳 다** 하거나, 최소한 실서비스는 deploy 쪽에 해라.
-> 참고로 `apps/api/.env` 는 루트 `.env` 의 심볼릭 링크라 따로 고칠 필요 없다.
+> **먼저 알아야 할 것 둘.**
+>
+> **(1) 설정과 비밀이 파일 두 개로 갈렸다** (2026-09-06 변경).
+>
+> | 무엇                                    | 어디                              | 커밋 |
+> | --------------------------------------- | --------------------------------- | ---- |
+> | 주소·포트·로그 레벨·플래그·백업 주기    | `env-profile.json` (`dev`/`prod`) | O    |
+> | 비밀번호·API 키·토큰·계좌·관리자 이메일 | `.env`                            | X    |
+>
+> 그래서 **아래 작업은 둘 중 어디를 고치는지 항목마다 적어 뒀다.** 헷갈리면
+> `pnpm env:show` (지금 설정값) 와 `pnpm env:check` (`.env` 와 겹치는 값) 로 확인할 수 있다.
+> 우선순위는 `.env` 가 `env-profile.json` 을 이긴다 — 급하면 `.env` 에 적어 덮어도 된다.
+>
+> **(2) 프로덕션이 읽는 파일은 이 저장소가 아니다.**
+> **`/Users/wooncloud/project/comicai-deploy/`** 다. 배포 워크플로가 그 폴더에서
+> `git reset --hard` 후 compose 를 띄운다. 여기(`~/project/comicai/`)를 고치면 로컬만 바뀐다.
+>
+> 단, `env-profile.json` 은 **커밋되므로 여기서 고치고 푸시하면 배포 때 자동으로 따라간다.**
+> 손으로 두 곳을 맞춰야 하는 건 `.env` 뿐이다.
+> 참고로 `apps/api/.env` 와 `packages/db/.env` 는 루트 `.env` 의 심볼릭 링크라 따로 고칠 필요 없다.
 
 ---
 
@@ -88,14 +103,17 @@ PLATFORM_GEMINI_KEY=AIza...
 들어올 유일한 통로가 이 터널이다. 서버에서 `curl localhost` 는 되는데 폰에서는 사이트가
 안 열리는 상태다.
 
-**방법.** Cloudflare Zero Trust 에서 터널을 만들고 토큰을 `.env` 에 넣는다.
+**방법.** Cloudflare Zero Trust 에서 터널을 만들고 토큰을 **`.env`** 에 넣는다(비밀값).
 대시보드의 public hostname 은 **도커 네트워크 이름**(`http://web:3000`, `http://api:4000`)을
 가리켜야 한다 — `host.docker.internal` 이면 루프백 바인딩 때문에 안 닿는다.
 
 ### 4-b. 도메인이 붙으면 같이 바꿀 값 네 개
 
-`comicai-deploy/.env` 의 아래 넷이 전부 `localhost` 다. 도메인으로 열면 네 가지가 **동시에**
-깨지는데 서버 로그는 깨끗하고 `healthz` 도 정상이라 원인을 못 찾는다.
+**`env-profile.json` 의 `prod` 그룹**에 있다(비밀이 아니라 커밋되는 쪽). 지금 넷 다
+`localhost` 다. 도메인으로 열면 네 가지가 **동시에** 깨지는데 서버 로그는 깨끗하고
+`healthz` 도 정상이라 원인을 못 찾는다.
+
+고친 뒤 커밋·푸시하면 배포가 알아서 가져간다. 바뀐 값 확인은 `APP_ENV=prod pnpm env:show`.
 
 | 값                    | 안 바꾸면                                                                             |
 | --------------------- | ------------------------------------------------------------------------------------- |
@@ -111,6 +129,8 @@ PLATFORM_GEMINI_KEY=AIza...
 **왜.** 비어 있으면 서버가 충전 주문을 **거부**한다. 일부러 그렇게 만들었다 — 어디로 얼마를
 보낼지 말해 줄 수 없으면 주문을 받아 봐야 사용자가 다음에 할 일이 없고, 그건 버튼이 없는
 것보다 나쁘다(성공한 것처럼 보인다).
+
+**`.env`** 에 넣는다 — 계좌는 공개 저장소에 둘 수 없으므로 `env-profile.json` 이 아니다.
 
 ```
 BILLING_NOTICE=국민 123456-78-901234 (예금주 홍길동) 로 입금 후 주문번호를 회신해 주시면 확인 뒤 지급합니다.
@@ -188,10 +208,11 @@ node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
 돌고는 있는데(컨테이너 확인함) **원본과 같은 디스크에 쌓인다.** 디스크가 죽으면 DB·오브젝트·
 백업이 함께 죽는다.
 
-- **`BACKUP_REMOTE_ENDPOINT` / `_ACCESS_KEY` / `_SECRET_KEY` / `_BUCKET`** 을 채우면 매 회차
-  끝에 외부 S3 로 밀어낸다. 목적지는 사람이 정해야 해서 기본값을 둘 수 없다.
-  (더 약한 대안: `BACKUP_HOST_PATH` 에 다른 디스크/NAS 마운트 경로)
-- **`BACKUP_WEBHOOK_URL`** 을 채우면 실패를 Slack/Discord 로 던진다. 안 채우면 알아채는
+- **`BACKUP_REMOTE_ENDPOINT` / `_BUCKET`** (→ `env-profile.json` 의 `prod`) 과
+  **`_ACCESS_KEY` / `_SECRET_KEY`** (→ `.env`) 를 채우면 매 회차 끝에 외부 S3 로 밀어낸다.
+  목적지는 사람이 정해야 해서 기본값을 둘 수 없다.
+  (더 약한 대안: `env-profile.json` 의 `BACKUP_HOST_PATH` 에 다른 디스크/NAS 마운트 경로)
+- **`BACKUP_WEBHOOK_URL`** (→ `.env`) 을 채우면 실패를 Slack/Discord 로 던진다. 안 채우면 알아채는
   경로가 `docker ps` 의 `unhealthy` 표시뿐인데, 그걸 누가 언제 볼지 정해 둬야 한다.
 - **복구 리허설을 한 번 해라.** 만드는 코드는 3중 검증까지 돼 있는데 **되돌리는 절차가
   코드에도 문서에도 없다**(저장소에 `pg_restore` 0건). 한 번도 풀어 본 적 없는 덤프는
@@ -203,9 +224,12 @@ node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
 ## 9. 급하지 않은 것
 
 - `METRICS_TOKEN` 이 `.env` 에 없어 `/v1/metrics` 가 404다. 지표를 볼 생각이면 채운다.
-- 죽은 환경변수 정리: `SESSION_SECRET`(아무 코드도 안 읽음), `PLATFORM_DAILY_RENDER_LIMIT`
-  (토큰제로 바뀌며 제거됨), 중복된 `COOKIE_DOMAIN` 한 줄.
-- `COOKIE_SECURE` 는 **비운 채로 두는 게 맞다** — 비어 있으면 프로덕션에서 자동으로 켜진다.
+- ~~죽은 환경변수 정리~~ — 끝냈다. `SESSION_SECRET`·`PLATFORM_DAILY_RENDER_LIMIT`·중복
+  `COOKIE_DOMAIN` 은 설정 분리(2026-09-06) 때 로컬 `.env` 와 `.env.example` 에서 지웠다.
+  **`comicai-deploy/.env` 에는 아직 남아 있을 수 있다** — `pnpm env:check` 로 보고 정리하면 된다
+  (남아 있어도 동작에는 지장이 없다. `.env` 가 프로파일을 덮을 뿐이다).
+- `COOKIE_SECURE` 는 **`prod` 그룹에서 비운 채로 두는 게 맞다** — 비어 있으면 프로덕션에서
+  자동으로 켜진다. `comicai-deploy/.env` 에 이 키가 남아 있으면 그쪽이 이기므로 지우는 게 안전하다.
 - Google/GitHub 소셜 로그인 값 4개는 비워 둬도 안전하다(버튼이 자동으로 숨는다).
 
 ---

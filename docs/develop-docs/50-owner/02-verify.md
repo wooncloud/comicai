@@ -111,7 +111,7 @@
 
 ### C-2. 안내를 채운 뒤 **[설정 필요 → 01-todo 5번]**
 
-`BILLING_NOTICE` 를 넣고 API 재기동 → `/settings/billing` 새로고침
+`BILLING_NOTICE` 를 **`.env`** 에 넣고 API 재기동(`pnpm prod:restart`) → `/settings/billing` 새로고침
 
 기대:
 

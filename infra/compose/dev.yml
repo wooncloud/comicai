@@ -1,14 +1,20 @@
 name: comicai
 
+# 인프라(Postgres/Redis/MinIO)만 띄우는 compose. 앱은 호스트에서 `pnpm dev`.
+# 사용: `pnpm infra:up` / `pnpm infra:down`
+#
+# `${VAR}` 에 기본값이 없는 이유는 full.yml 머리말과 같다 — 설정의 출처는
+# env-profile.json 하나이고, scripts/compose.sh 가 .env.generated 로 옮겨 적는다.
+
 services:
   postgres:
     image: postgres:16
     container_name: comicai-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-comicai}
+      POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comicai}
-      POSTGRES_DB: ${POSTGRES_DB:-comicai}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       # 루프백에만. docker publish 는 iptables 를 직접 건드리므로 호스트
       # 방화벽으로 막아도 인터넷에서 닿는다 — VPS 에서 띄우는 순간 그대로 열린다.
@@ -16,7 +22,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-comicai}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
       interval: 5s
       timeout: 3s
       retries: 10

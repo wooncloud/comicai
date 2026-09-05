@@ -42,7 +42,10 @@ jobs:
         run: |
           git fetch --prune origin
           git reset --hard origin/main
-          compose="docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup"
+          # 프로파일 생성 → env-file 순서 → tunnel/backup 프로파일이 한 곳에 모여 있다.
+          # 여기에 compose 명령을 다시 적으면 env-profile.json 이 반영되지 않은 채
+          # 컨테이너가 뜬다(그리고 그건 로그로 티가 나지 않는다).
+          compose="env APP_ENV=prod bash scripts/compose.sh"
           $compose up -d --build --force-recreate web api worker
           # backup/cloudflared 는 서비스 이름을 안 적어서 배포 때 한 번도 뜨지 않았다 —
           # profile 을 켜는 것과 컨테이너를 올리는 것은 다르다. 여기서는 --force-recreate 를

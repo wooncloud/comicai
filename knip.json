@@ -12,6 +12,9 @@
       "entry": ["src/main.ts", "src/worker.ts", "test/**/*.{ts,tsx}"],
       "project": ["src/**/*.ts"]
     },
+    "packages/config": {
+      "project": ["*.js"]
+    },
     "packages/*": {
       "project": ["src/**/*.ts"]
     }

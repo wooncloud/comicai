@@ -17,6 +17,7 @@
     "@aws-sdk/client-s3": "^3.665.0",
     "@aws-sdk/s3-request-presigner": "^3.1048.0",
     "@comicai/adapters": "workspace:*",
+    "@comicai/config": "workspace:*",
     "@comicai/db": "workspace:*",
     "@comicai/events": "workspace:*",
     "@comicai/types": "workspace:*",

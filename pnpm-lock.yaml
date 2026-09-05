@@ -68,6 +68,9 @@ importers:
       '@comicai/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
+      '@comicai/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@comicai/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -189,6 +192,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@comicai/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@comicai/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -344,6 +350,19 @@ importers:
       vitest:
         specifier: ^2.1.2
         version: 2.1.9(@types/node@22.19.19)(happy-dom@20.9.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.9.3))(terser@5.47.1)
+
+  packages/config:
+    dependencies:
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.4.5
+    devDependencies:
+      '@types/node':
+        specifier: ^22.7.4
+        version: 22.19.19
+      typescript:
+        specifier: ^5.6.2
+        version: 5.9.3
 
   packages/db:
     dependencies:
