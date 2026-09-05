@@ -19,13 +19,25 @@ import { errorMessage } from '@/lib/error-message';
 interface Props {
   projectId: string;
   currentPageId: string;
-  /** 부모(에디터)가 현재 페이지를 변경했을 때 사이드바도 즉시 반영하기 위함. */
-  currentPage?: PageDTO | null;
+  /**
+   * 현재 페이지의 레코드는 **부모(에디터)가** 들고 있다. 브레드크럼과 캔버스 프레임
+   * 라벨이 읽는 것이 그 값이라, 이 목록은 그걸 비추기만 한다(아래 useEffect).
+   *
+   * 그래서 둘은 한 쌍이다 — 비추기만 하려면 바꿀 곳도 알아야 한다.
+   */
+  currentPage: PageDTO | null;
+  onCurrentPageUpdated: (page: PageDTO) => void;
   /** 호출 시 사이드바를 접는다. 부재 시 토글 버튼 미노출. */
   onCollapse?: () => void;
 }
 
-export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse }: Props) {
+export function PageSidebar({
+  projectId,
+  currentPageId,
+  currentPage,
+  onCurrentPageUpdated,
+  onCollapse,
+}: Props) {
   const [adding, setAdding] = useState(false);
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -51,7 +63,8 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
     );
   }
 
-  // 에디터에서 현재 페이지가 PATCH되면(size/name 변경) 리스트에도 반영.
+  // 현재 페이지 행이 바뀌는 유일한 경로. 부모가 들고 있는 레코드(size/name)를
+  // 목록에 비춘다 — 아래 renamePage 도 목록이 아니라 부모에 쓰고 여기로 돌아온다.
   useEffect(() => {
     if (!currentPage) return;
     setPages((prev) => prev.map((p) => (p.id === currentPage.id ? currentPage : p)));
@@ -79,7 +92,18 @@ export function PageSidebar({ projectId, currentPageId, currentPage, onCollapse 
         method: 'PATCH',
         body: JSON.stringify({ name }),
       });
-      setPages((prev) => prev?.map((p) => (p.id === id ? updated : p)) ?? prev);
+      /*
+       * 현재 페이지면 목록이 아니라 **부모에** 쓴다.
+       *
+       * 예전에는 여기서 목록만 고쳤다. 그래서 사이드바의 이름만 바뀌고 브레드크럼과
+       * 캔버스 프레임 라벨은 새로고침할 때까지 옛 이름 그대로였다 — 그 둘이 읽는 것은
+       * 부모가 들고 있는 레코드이기 때문이다.
+       *
+       * 목록까지 여기서 같이 세팅하면 같은 이름의 사본이 두 개가 되어 다음에 또
+       * 갈라진다. 목록 반영은 위 이펙트 하나에 맡긴다.
+       */
+      if (id === currentPageId) onCurrentPageUpdated(updated);
+      else setPages((prev) => prev.map((p) => (p.id === id ? updated : p)));
       toast.push('success', '페이지 이름을 변경했습니다.');
     } catch (err) {
       toast.push('error', errorMessage(err, '이름을 변경'));

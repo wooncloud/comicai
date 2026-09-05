@@ -292,6 +292,7 @@ export default function PageEditor() {
               projectId={projectId}
               currentPageId={pageId}
               currentPage={page}
+              onCurrentPageUpdated={setPage}
               onCollapse={() => setLeftCollapsed(true)}
             />
             <ToolRail editor={editor} />
