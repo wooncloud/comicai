@@ -69,6 +69,7 @@ export const ApiPaths = {
   billingPackages: '/billing/packages',
   billingOrders: '/billing/orders',
   billingOrder: (id: string) => `/billing/orders/${id}`,
+  adminOrders: '/admin/orders',
   adminUserTokens: (id: string) => `/admin/users/${id}/tokens`,
   adminOrderMarkPaid: (id: string) => `/admin/orders/${id}/mark-paid`,
 } as const;

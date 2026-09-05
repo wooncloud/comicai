@@ -546,6 +546,8 @@ export interface AdminUserRow {
   createdAt: string;
   projects: number;
   renderJobs: number;
+  /** 지금 잔액. 없으면 운영자가 지급·회수를 감으로 넣는다. */
+  tokenBalance: number;
 }
 
 // ─── 토큰 ─────────────────────────────────────
@@ -591,6 +593,17 @@ export interface TokenLedgerEntryDTO {
 export interface TokenPackagesDTO {
   packages: TokenPackage[];
   notice: string | null;
+}
+
+/**
+ * 운영자가 보는 주문 한 줄.
+ *
+ * 사용자용 `TokenOrderDTO` 에 **누가 주문했는지**를 더한다. 그게 없으면 목록을 봐도
+ * 입금자와 짝지을 수 없어서, 결국 DB 를 직접 열게 된다.
+ */
+export interface AdminOrderRow extends TokenOrderDTO {
+  userId: string;
+  email: string;
 }
 
 export interface TokenOrderDTO {

@@ -2,9 +2,12 @@ import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nest
 import { prisma } from '@comicai/db';
 import {
   AdminTokenGrantSchema,
+  TOKEN_ORDER_STATUSES,
+  type AdminOrderRow,
   type AdminOverview,
   type AdminUserRow,
   type TokenOrderDTO,
+  type TokenOrderStatus,
 } from '@comicai/types';
 import { AdminGuard } from '../auth/admin.guard';
 import { AuthedRequest } from '../auth/session.guard';
@@ -96,6 +99,45 @@ export class AdminController {
     return { balance };
   }
 
+  /**
+   * 처리할 주문 목록.
+   *
+   * `mark-paid` 만 있고 이게 없으면 흐름이 한 칸 앞에서 끊긴다 — 운영자가 입금을
+   * 확인해도 **주문 id 를 알 방법이 없어** DB 를 직접 열어야 한다. 기본값이
+   * `pending` 인 이유도 그거다: 운영자가 여기 오는 이유는 처리할 것을 찾기 위해서다.
+   *
+   * 이메일을 함께 준다. 그게 없으면 목록을 봐도 입금자와 짝지을 수 없다.
+   */
+  @Get('orders')
+  async orders(
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+  ): Promise<AdminOrderRow[]> {
+    const take = Math.min(Math.max(Number(limit) || 50, 1), 200);
+    // 아무 문자열이나 받으면 조용히 빈 목록이 나와 "주문이 없다" 로 오해한다.
+    const known = (TOKEN_ORDER_STATUSES as readonly string[]).includes(status ?? '')
+      ? (status as TokenOrderStatus)
+      : 'pending';
+    const rows = await prisma.tokenOrder.findMany({
+      where: { status: known },
+      orderBy: { createdAt: 'asc' }, // 오래 기다린 것부터.
+      take,
+      include: { user: { select: { email: true } } },
+    });
+    return rows.map((o) => ({
+      id: o.id,
+      userId: o.userId,
+      email: o.user.email,
+      packageId: o.packageId,
+      tokens: o.tokens,
+      amountKrw: o.amountKrw,
+      status: o.status as TokenOrderStatus,
+      provider: o.provider,
+      createdAt: o.createdAt.toISOString(),
+      paidAt: o.paidAt?.toISOString() ?? null,
+    }));
+  }
+
   /** 입금을 확인했을 때. 결제 수단이 붙으면 웹훅이 같은 경로를 쓴다. */
   @Post('orders/:id/mark-paid')
   async markOrderPaid(@Param('id') orderId: string): Promise<TokenOrderDTO> {
@@ -115,6 +157,7 @@ export class AdminController {
         emailVerifiedAt: true,
         createdAt: true,
         _count: { select: { projects: true, renderJobs: true } },
+        tokenAccount: { select: { balance: true } },
       },
     });
     return rows.map((u) => ({
@@ -125,6 +168,8 @@ export class AdminController {
       createdAt: u.createdAt.toISOString(),
       projects: u._count.projects,
       renderJobs: u._count.renderJobs,
+      // 계정 행은 첫 적립 때 생긴다. 없으면 0 이다.
+      tokenBalance: u.tokenAccount?.balance ?? 0,
     }));
   }
 }

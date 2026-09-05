@@ -254,3 +254,54 @@ describe('토큰 구매 (testcontainers)', () => {
     expect(row.packageId).toBe('starter');
   });
 });
+
+/*
+ * PG 가 붙기 전까지 운영자 지급이 토큰을 파는 유일한 경로다. 그 경로가 실제로 이어지는지
+ * — 주문을 **찾을 수 있고**, 찾은 것을 처리하면 잔액이 오르는지 — 를 본다.
+ * `mark-paid` 만 있고 목록이 없으면 운영자는 DB 를 직접 열어야 한다.
+ */
+describe('운영자 주문 처리 (testcontainers)', () => {
+  let billing: BillingService;
+
+  beforeAll(async () => {
+    const mod = await import('../../src/billing/billing.service');
+    billing = ctx.app.get(mod.BillingService);
+  });
+
+  it('대기 중인 주문을 누가 냈는지와 함께 찾을 수 있다', async () => {
+    const userId = await makeUser();
+    const order = await billing.createOrder(userId, 'pro');
+
+    const rows = await ctx.prisma.tokenOrder.findMany({
+      where: { status: 'pending' },
+      include: { user: { select: { email: true } } },
+    });
+    const found = rows.find((r) => r.id === order.id);
+    expect(found).toBeDefined();
+    expect(found?.user.email).toContain('@example.com');
+
+    // 찾은 것을 처리하면 잔액이 오른다 — 이 두 걸음이 이어져야 판매가 성립한다.
+    await billing.markPaid(order.id, '입금 확인');
+    expect(await tokens.balance(userId)).toBe(700);
+    await assertLedgerMatchesBalance(userId);
+  });
+
+  it('접은 주문은 처리되지 않는다', async () => {
+    const userId = await makeUser();
+    const order = await billing.createOrder(userId, 'starter');
+    await billing.cancelOrder(userId, order.id);
+
+    await expect(billing.markPaid(order.id)).rejects.toThrow();
+    expect(await tokens.balance(userId)).toBe(0);
+  });
+
+  it('남의 주문은 접을 수 없다', async () => {
+    const owner = await makeUser();
+    const stranger = await makeUser();
+    const order = await billing.createOrder(owner, 'basic');
+
+    await expect(billing.cancelOrder(stranger, order.id)).rejects.toThrow();
+    const row = await ctx.prisma.tokenOrder.findUniqueOrThrow({ where: { id: order.id } });
+    expect(row.status).toBe('pending');
+  });
+});

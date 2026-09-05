@@ -477,7 +477,7 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
 | Method | Path                 | Handler                               |
 | ------ | -------------------- | ------------------------------------- |
 | GET    | `/v1/admin/overview` | `overview` (`admin.controller.ts:41`) |
-| GET    | `/v1/admin/users`    | `users` (`:105`)                      |
+| GET    | `/v1/admin/users`    | `users` (`:147`)                      |
 
 - 가드는 `SessionGuard` → `AdminGuard` 순서다(`admin.controller.ts:34`). `req.user` 를
   채우는 것이 `SessionGuard` 이므로 순서가 뒤바뀌면 안 된다.
