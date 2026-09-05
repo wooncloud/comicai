@@ -212,7 +212,7 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 `thumbnail` 이 없으면 첫 페이지의 `background` 를 폴백 썸네일로 쓴다. 예전에는 그 조회가
 프로젝트마다 한 번씩 나가는 N+1 이었다 — `thumbnail` 은 명시적 업로드로만 채워지므로
 **기본 상태에서는 전부 폴백**이고, 프로젝트 20개면 21쿼리였다. `list` 는 썸네일 없는 id 를
-모아 `firstBackgroundByProject` (`projects.service.ts:159`) 로 한 번에 읽는다
+모아 `firstBackgroundByProject` (`projects.service.ts:175`) 로 한 번에 읽는다
 (`distinct: ['projectId']` + `orderBy [projectId, order]` — 정렬 뒤 프로젝트마다 첫 행).
 단건 경로(create/detail/patch)는 모아 올 것이 없으므로 그대로 그 자리에서 한 번 읽는다.
 
@@ -390,13 +390,13 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
 
 각 패널의 `currentRender` 결과를 패널 shape 마스크(SVG)로 잘라 `composite` — `export/export.service.ts:113-153`. 그 위로 말풍선(`:157-166`) → 자유 텍스트(`:169-181`) → 자유 직선(`:184-195`) 레이어가 순서대로 쌓인다. `sharp`로 캔버스(페이지 size, alpha)를 만들어 전체를 합성하며 dpi는 `withMetadata({ density: dpi })`(기본 150)로 박힌다 — `:197-208`. 결과는 S3에 `exports/{userId}/{pageId}/{ulid}.{ext}` 키로 업로드 후 presign URL 반환 — `:210-218`.
 
-**캔버스 크기는 방어적으로 묶는다** — `clampDimension` (`export.service.ts:230`) 이 페이지 크기를
+**캔버스 크기는 방어적으로 묶는다** — `clampDimension` (`export.service.ts:234`) 이 페이지 크기를
 `MAX_PAGE_DIMENSION`(4096) 이하로, 패널 bounding box 도 캔버스 크기로 자른다 (`:119-120`).
 `PageSizeSchema` 가 이제 상한을 걸지만 **이미 저장된 행은 그 검증을 거치지 않는다**. 묶지 않으면
 `size:{w:50000,h:50000}` 한 행으로 sharp 가 10GB 할당을 시도하다 프로세스가 죽고, 같은 컨테이너의
 다른 사용자 요청까지 함께 끊긴다.
 
-**패널 합성은 4개씩 끊어 돈다** — `mapLimit` (`export.service.ts:240`) +
+**패널 합성은 4개씩 끊어 돈다** — `mapLimit` (`export.service.ts:244`) +
 `PANEL_COMPOSITE_CONCURRENCY` (`:33`). 예전에는 `Promise.all` 로 전부 한꺼번에 돌려서
 **N개의 원본 바이트와 N개의 마스킹된 PNG 버퍼가 동시에 살아 있었다** — 1536×1024 RGBA 기준
 패널당 약 6MB 라 12컷 페이지면 마스킹본만 ~75MB 에 원본이 더 붙는다. 원본은
@@ -444,7 +444,7 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
 - **플랫폼 키를 쓸 때만 하루 상한을 본다**(`PLATFORM_DAILY_RENDER_LIMIT`, 기본 20).
   이게 없으면 가입자 누구나 무제한으로 회사 키를 태울 수 있다 — ThrottlerModule 의
   rate limit 은 요청 빈도 제한이지 지출 상한이 아니다.
-- **계량은 키를 내주는 자리에 있다** — `consumePlatformQuota` (`model-credentials.ts:110`)
+- **계량은 키를 내주는 자리에 있다** — `consumePlatformQuota` (`model-credentials.ts:117`)
   가 Redis 카운터 `platform:usage:{userId}:{YYYY-MM-DD}` 를 INCR 하고 상한을 넘으면
   `UsageLimitError` 를 던진다. 예전에는 `renderJob` 행 수를 셌는데, 그 테이블에 행을
   넣는 곳이 컷 렌더 하나뿐이라 **같은 키를 받아 가는 참조 이미지 생성은 상한을 통째로

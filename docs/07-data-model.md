@@ -267,16 +267,16 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 - API Key 생성: `ApiKeyCreateSchema` (`schemas.ts:78-82`).
 - 프로젝트: `ProjectCreateSchema`, `ProjectPatchSchema` (`schemas.ts:85-96`).
 - 페이지: `PageCreateSchema`, `PagePatchSchema`(`order` 없음 — 순서는 재정렬 전용), `PageSizeSchema`(한 변 4096 상한), `PageReorderSchema` (`schemas.ts:99-157`).
-- 패널: `PanelShapeSchema`(points 3–64, 좌표 ±8192), `PanelCreateSchema`, `PanelPatchSchema` (`schemas.ts:175-229`).
+- 패널: `PanelShapeSchema`(points 3–64, 좌표 ±8192), `PanelCreateSchema`, `PanelPatchSchema` (`schemas.ts:215-248`).
   `PanelPatchSchema` 는 `shape`(전체 교체)와 `stroke`(테두리만) 두 갈래를 받는다. 인스펙터는
   **반드시 `stroke` 를 쓴다** — `shape` 전체를 보내면 선택 시점의 낡은 좌표까지 함께 써서,
   컷을 옮긴 직후 색을 바꾸면 이동이 취소된다. 좌표는 캔버스만 쓴다.
-- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`schemas.ts:215-279`).
-- 페이지 텍스트: `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`schemas.ts:283-327`).
-- 페이지 직선: `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`schemas.ts:310-361`).
-- 렌더: `RenderModelSchema`, `RenderStartSchema` (`schemas.ts:160-165`).
-- 내보내기: `ExportFormatSchema`, `ExportRequestSchema` (`schemas.ts:168-173`).
-- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`, `ConsistencyAttachSchema` (`schemas.ts:343-383`).
+- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`schemas.ts:250-292`).
+- 페이지 텍스트: `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`schemas.ts:309-340`).
+- 페이지 직선: `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`schemas.ts:344-374`).
+- 렌더: `RenderModelSchema`, `RenderStartSchema` (`schemas.ts:176-182`).
+- 내보내기: `ExportFormatSchema`, `ExportRequestSchema` (`schemas.ts:184-190`).
+- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`, `ConsistencyAttachSchema` (`schemas.ts:377-396`).
 
 ### 미디어 공통
 
