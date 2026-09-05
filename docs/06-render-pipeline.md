@@ -169,13 +169,14 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 
 - `new EventSource(`${API_BASE}${ApiPaths.renderJobEvents(jobId)}`, { withCredentials: true })`.
 - `'status'` 리스너 (`:118`):
-  - React Query 캐시 `['render-job', jobId]`에 status 즉시 반영 (`:121`).
+  - React Query 캐시 `['render-job', jobId]`에 status 즉시 반영 (`:194`).
   - `succeeded` → `GET /render-jobs/:id`로 최종 DTO(presigned URL 포함) 재요청 →
     `patchRender({ currentRenderStatus:'succeeded', currentRenderImageUrl })` →
-    `panel-history` invalidate → EventSource close (`:124-137`).
-  - `failed`/`canceled` → 토스트 + invalidate + close (`:138-144`).
-  - 그 외(`queued`/`running`/`timeout`) → status만 반영 (`:144-146`).
-- `'error'` 리스너 (`:149`): payload의 `error.message`를 인스펙터 상단 배너에 표시.
+    `panel-history` invalidate → EventSource close (`:197-214`).
+  - `failed`/`canceled`/`timeout` → 토스트 + invalidate + close (`:215-232`). 이 경로는 **환급이
+    끝난 뒤**라 토큰 잔액도 다시 읽는다 (`:221`).
+  - 그 외(`queued`/`running`) → `patchRender` 로 status만 반영 (`:233-235`).
+- `'error'` 리스너 (`:238`): payload의 `error.message`를 인스펙터 상단 배너에 표시.
 
 ---
 

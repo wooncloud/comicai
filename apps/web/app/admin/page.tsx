@@ -1,10 +1,15 @@
 'use client';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '@/components/shell/app-shell';
 import { PageContainer } from '@/components/shell/page-container';
 import { api, ApiError } from '@/lib/api';
 import { ApiPaths, type AdminOverview, type AdminUserRow, type SessionUser } from '@comicai/types';
 import { qk } from '@/lib/query-keys';
+import { PendingOrders } from '@/components/admin/pending-orders';
+import { TokenGrantDialog } from '@/components/admin/token-grant-dialog';
+import { Button } from '@/components/ui/button';
+import { formatTokens } from '@/lib/tokens';
 
 /**
  * 운영자 현황.
@@ -33,6 +38,7 @@ export default function AdminPage() {
     queryFn: () => api<AdminOverview>(ApiPaths.adminOverview),
     enabled: allowed,
   });
+  const [granting, setGranting] = useState<AdminUserRow | null>(null);
   const { data: users } = useQuery<AdminUserRow[]>({
     queryKey: qk.adminUsers(),
     queryFn: () => api<AdminUserRow[]>(ApiPaths.adminUsers),
@@ -74,6 +80,9 @@ export default function AdminPage() {
           읽기 전용입니다. 여기서는 아무것도 바꿀 수 없습니다.
         </p>
 
+        {/* 처리할 일이 먼저다. 집계는 그 아래에서 봐도 늦지 않다. */}
+        <PendingOrders enabled={allowed} />
+
         <section className="mt-8">
           <h2 className="text-title-md font-medium">전체</h2>
           <dl className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3">
@@ -110,7 +119,9 @@ export default function AdminPage() {
                     <th className="px-3 py-2 text-left font-medium">사용자</th>
                     <th className="px-3 py-2 text-right font-medium">프로젝트</th>
                     <th className="px-3 py-2 text-right font-medium">생성 요청</th>
+                    <th className="px-3 py-2 text-right font-medium">토큰</th>
                     <th className="whitespace-nowrap px-3 py-2 text-right font-medium">가입일</th>
+                    <th className="px-3 py-2" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -125,8 +136,16 @@ export default function AdminPage() {
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">{u.projects}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{u.renderJobs}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {formatTokens(u.tokenBalance)}
+                      </td>
                       <td className="whitespace-nowrap px-3 py-2 text-right text-caption text-muted-foreground">
                         {new Date(u.createdAt).toLocaleDateString('ko-KR')}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right">
+                        <Button size="sm" variant="ghost" onClick={() => setGranting(u)}>
+                          토큰 조정
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -135,6 +154,8 @@ export default function AdminPage() {
             </div>
           )}
         </section>
+
+        <TokenGrantDialog user={granting} onOpenChange={(o) => (o ? null : setGranting(null))} />
       </PageContainer>
     </AppShell>
   );

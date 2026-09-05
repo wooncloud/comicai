@@ -39,10 +39,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { errorMessage } from '@/lib/error-message';
+import { errorMessage, renderErrorMessage } from '@/lib/error-message';
 import { qk } from '@/lib/query-keys';
 import { MODEL_OPTIONS } from '@/lib/model-options';
+import { affordability, formatTokens, useRefreshTokens, useTokenBalance } from '@/lib/tokens';
 import { useConfirm } from '@/components/ui/confirm';
+import Link from 'next/link';
 
 interface Props {
   projectId: string;
@@ -105,6 +107,9 @@ export function PanelInspector({
   });
   const effectiveStyleId = panel.styleId ?? project?.defaultStyleId ?? null;
   const model: ModelId = userModel ?? project?.defaultModel ?? 'gemini-3.1-flash-image-preview';
+  const { data: tokens } = useTokenBalance();
+  const refreshTokens = useRefreshTokens();
+  const { cost, short } = affordability(tokens, model);
   const status: RenderStatus | null = job?.status ?? null;
 
   function patchRender(patch: Partial<PanelDTO>) {
@@ -150,7 +155,11 @@ export function PanelInspector({
       subscribeJob(jobId);
     },
     onError: (err) => {
-      if (err instanceof ApiError) setError(errorMessage(err, '이미지 생성을 시작'));
+      if (!(err instanceof ApiError)) return;
+      // 토큰 부족이면 서버가 진짜 잔액을 알려 준 셈이다. 캐시가 그보다 낙관적이었으니
+      // 다시 읽어 헤더와 이 아래 안내가 같은 수를 말하게 한다.
+      if (err.code === 'INSUFFICIENT_TOKENS') refreshTokens();
+      setError(renderErrorMessage(err, '이미지 생성을 시작'));
     },
   });
 
@@ -165,6 +174,7 @@ export function PanelInspector({
       queryClient.setQueryData<RenderJobDTO>(qk.renderJob(activeJobId), (prev) =>
         prev ? { ...prev, status: 'canceled' } : prev,
       );
+      refreshTokens();
       toast.push('success', '이미지 생성을 취소했습니다.');
     },
     onError: (err) => {
@@ -199,12 +209,16 @@ export function PanelInspector({
             .catch(() => {});
           toast.push('success', '이미지 생성 완료');
           void queryClient.invalidateQueries({ queryKey: qk.panelHistory(panel.id) });
+          refreshTokens();
           es.close();
           esRef.current = null;
         } else if (next === 'failed' || next === 'canceled' || next === 'timeout') {
           // 예전에는 'timeout' 이 이 분기에서 빠져 있어, 시간 초과로 끝난 잡은
           // 토스트도 없고 EventSource 도 닫히지 않은 채 조용히 지나갔다.
           patchRender({ currentRenderStatus: next });
+          // 실패·취소·시간초과는 **환급까지 끝난 뒤**다. 여기서 다시 읽지 않으면
+          // 헤더의 잔액이 차감된 채로 남아 사용자는 돌려받지 못한 줄 안다.
+          refreshTokens();
           toast.push(
             'error',
             next === 'canceled'
@@ -436,13 +450,38 @@ export function PanelInspector({
             </Button>
           </div>
         ) : (
-          <Button
-            onClick={() => startRender.mutate()}
-            disabled={startRender.isPending}
-            className="w-full"
-          >
-            생성하기
-          </Button>
+          <div className="space-y-1.5">
+            <Button
+              onClick={() => startRender.mutate()}
+              disabled={startRender.isPending}
+              className="w-full"
+            >
+              생성하기
+              {cost > 0 ? (
+                <span className="ml-1.5 tabular-nums opacity-70">· {formatTokens(cost)}토큰</span>
+              ) : null}
+            </Button>
+            {/*
+              모자라면 **누르기 전에** 말한다. 예전에는 워커까지 가서야 실패했고 문구는
+              "잠시 후 다시 시도" 였다 — 기다려도 잔액은 늘지 않으므로 영원히 틀린 안내다.
+
+              그래도 버튼을 잠그지는 않는다. 이 잔액은 캐시라 방금 받은 지급이 아직 안
+              보일 수 있고, 잠긴 버튼은 사용자가 할 수 있는 일을 없앤다. 진짜 판정은
+              서버가 하고, 실패해도 이제 몇 개가 모자란지 그대로 말해 준다.
+            */}
+            {short ? (
+              <p className="text-caption text-muted-foreground">
+                토큰이 모자랍니다 (필요 {formatTokens(cost)}, 잔액{' '}
+                {formatTokens(tokens?.balance ?? 0)}).{' '}
+                <Link
+                  href="/settings/billing"
+                  className="text-foreground underline underline-offset-2"
+                >
+                  충전하기
+                </Link>
+              </p>
+            ) : null}
+          </div>
         )}
       </div>
 

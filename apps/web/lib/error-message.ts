@@ -110,15 +110,33 @@ const BY_RENDER_CATEGORY: Record<string, string> = {
   // 플랫폼 키로 도는 구성에서는 사용자가 할 수 있는 일이 없다. 예전 문구는
   // 기능 플래그로 닫아 둔 화면으로 안내해서, 따라갈 수 없는 지시였다.
   auth: '지금은 그림을 만들 수 없습니다. 잠시 후 다시 시도해 주세요',
-  quota: '오늘 만들 수 있는 그림 수를 다 썼습니다',
+  // 하루 상한이 있던 시절의 문구가 남아 있었다. 지금 quota 는 **토큰 부족**이고,
+  // "오늘 다 썼다" 는 기다리면 풀린다는 뜻이라 사용자를 영원히 기다리게 한다.
+  quota: '토큰이 부족합니다',
   safety: 'AI가 안전 정책상 생성을 거부했습니다. 설명을 바꿔 다시 시도해 주세요',
   invalid: '요청이 거부되었습니다. 설명이나 API 키를 확인해 주세요',
   transient: '일시적인 오류입니다. 잠시 후 다시 시도해 주세요',
 };
 
+/**
+ * 토큰 부족은 **수를 그대로 말한다.**
+ *
+ * "토큰이 부족합니다" 만으로는 얼마를 채워야 하는지 알 수 없어, 사용자는 충전 화면에서
+ * 다시 계산해야 한다. 서버가 `details` 에 두 수를 실어 보내는 이유가 이것이다.
+ */
+function insufficientTokensMessage(details: unknown): string | undefined {
+  const d = details as { required?: unknown; balance?: unknown } | null | undefined;
+  if (typeof d?.required !== 'number' || typeof d.balance !== 'number') return undefined;
+  return `토큰이 ${d.required}개 필요한데 잔액이 ${d.balance}개입니다. 충전 후 다시 시도해 주세요.`;
+}
+
 /** 이미지 생성 실패. category 가 실려 오면 그 사유를, 아니면 코드/문맥 기반 문구를 쓴다. */
 export function renderErrorMessage(err: unknown, action: string): string {
   if (err instanceof ApiError) {
+    if (err.code === 'INSUFFICIENT_TOKENS') {
+      const exact = insufficientTokensMessage(err.details);
+      if (exact) return exact;
+    }
     const category = (err.details as { category?: string } | undefined)?.category;
     const hint = category ? BY_RENDER_CATEGORY[category] : undefined;
     if (hint) return `${action} 실패 — ${hint}`;
