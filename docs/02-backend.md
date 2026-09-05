@@ -477,9 +477,9 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
 | Method | Path                 | Handler                               |
 | ------ | -------------------- | ------------------------------------- |
 | GET    | `/v1/admin/overview` | `overview` (`admin.controller.ts:41`) |
-| GET    | `/v1/admin/users`    | `users` (`:147`)                      |
+| GET    | `/v1/admin/users`    | `users` (`:140`)                      |
 
-- 가드는 `SessionGuard` → `AdminGuard` 순서다(`admin.controller.ts:34`). `req.user` 를
+- 가드는 `SessionGuard` → `AdminGuard` 순서다(`admin.controller.ts:39`). `req.user` 를
   채우는 것이 `SessionGuard` 이므로 순서가 뒤바뀌면 안 된다.
 - 허용 목록은 환경변수 `ADMIN_EMAILS`(쉼표 구분)에서만 온다 — **이 저장소는 공개라**
   코드에 이메일을 적으면 그대로 공개된다. 모듈 로드 시 한 번 파싱한다
@@ -553,7 +553,7 @@ SETNX(26시간 TTL)와 달리 영구적이고, 환급에도 같은 키를 쓴다
 | POST   | `/v1/billing/orders`             | 주문 생성(pending) (`:30`)                          |
 | DELETE | `/v1/billing/orders/:id`         | 대기 중 주문 접기 (`:36`)                           |
 | GET    | `/v1/admin/orders`               | 처리할 주문 (`admin.controller.ts:111`)             |
-| POST   | `/v1/admin/orders/:id/mark-paid` | 입금 확인 (`:143`)                                  |
+| POST   | `/v1/admin/orders/:id/mark-paid` | 입금 확인 (`:135`)                                  |
 | POST   | `/v1/admin/users/:id/tokens`     | 지급·회수 (`:88`)                                   |
 
 `me/tokens` 는 **읽기 전용이다.** 잔액을 바꾸는 길은 렌더·구매·운영자 지급뿐이고,
@@ -687,7 +687,7 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
   전부 "DB 행을 이미 지운 뒤" 라, 여기서 던지면 사용자는 삭제에 성공했는데 500 을 받고 다시
   눌러도 지울 대상이 없어 계속 실패한다. 실패는 로그로 남기고 넘어간다 — 남은 오브젝트는
   예전과 같은 미아일 뿐이다. `deleteKeys` 는 파생 썸네일(`{key}.thumb.webp`)도 같이 지운다.
-- 삭제 prefix 는 `StoragePrefix` (`:249`) 에 모여 있고 **`buildKey` 와 같은 파일에 있다.**
+- 삭제 prefix 는 `StoragePrefix` (`storage.service.ts:251`) 에 모여 있고 **`buildKey` 와 같은 파일에 있다.**
   키 규칙과 삭제 규칙이 떨어져 있으면 키만 바꿨을 때 삭제가 조용히 0건이 된다 —
   실패가 아니라 성공으로 보인다. 그 불변식은 `storage-keys.spec.ts` 가 고정한다.
 - 삭제가 걸린 지점: 프로젝트(`projects.service.ts:94`, prefix + 페이지별 export),

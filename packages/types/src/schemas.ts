@@ -424,13 +424,20 @@ export const TOKEN_PACKAGES = [
   { id: 'pro', tokens: 700, amountKrw: 50000 },
 ] as const;
 
-export const TOKEN_PACKAGE_IDS = TOKEN_PACKAGES.map((p) => p.id) as unknown as readonly [
-  string,
-  ...string[],
+/**
+ * 패키지 id 유니온을 그대로 유지한 채 `z.enum` 에 넘긴다.
+ *
+ * 예전에는 `as unknown as readonly [string, ...string[]]` 이었는데, 그 이중 캐스트는
+ * "비어 있지 않은 튜플" 만 사고 **`'starter'|'basic'|'pro'` 유니온을 지웠다** — 파싱
+ * 결과가 그냥 `string` 이 되어, 검증기가 무엇을 통과시키는지 타입이 말해 주지 못했다.
+ */
+const PACKAGE_IDS = TOKEN_PACKAGES.map((p) => p.id) as [
+  (typeof TOKEN_PACKAGES)[number]['id'],
+  ...(typeof TOKEN_PACKAGES)[number]['id'][],
 ];
 
 export const TokenOrderCreateSchema = z.object({
-  packageId: z.enum(TOKEN_PACKAGE_IDS),
+  packageId: z.enum(PACKAGE_IDS),
   /**
    * 통장에 찍힐 이름. 스키마에서는 선택이지만 **폼에서는 받아야 한다** — 없으면 운영자가
    * 이메일로 추측하게 되고, 그건 입금자명이 이메일과 다른 순간(대부분) 실패한다.

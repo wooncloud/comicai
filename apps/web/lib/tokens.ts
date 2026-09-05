@@ -91,8 +91,6 @@ export interface Affordability {
   cost: number;
   /** 잔액이 모자라 지금은 시작할 수 없다. */
   short: boolean;
-  /** 잔액을 아직 못 읽었다 — 모르는 것과 부족한 것은 다르다. */
-  unknown: boolean;
 }
 
 /**
@@ -103,6 +101,8 @@ export interface Affordability {
  */
 export function affordability(balance: TokenBalanceDTO | undefined, model: ModelId): Affordability {
   const cost = MODEL_TOKEN_COST[model];
-  if (!balance) return { cost, short: false, unknown: true };
-  return { cost, short: balance.balance < cost, unknown: false };
+  // 잔액을 못 읽었으면 `short: false` 다 — 모르는 것과 부족한 것을 같이 다루면 조회가
+  // 실패한 사용자의 생성 버튼이 잠긴다. 그건 서버가 막을 일이지 화면이 추측할 일이 아니다.
+  if (!balance) return { cost, short: false };
+  return { cost, short: balance.balance < cost };
 }

@@ -75,7 +75,7 @@ export class BillingService {
         provider: 'manual',
       },
     });
-    return toDto(row);
+    return toOrderDto(row);
   }
 
   /**
@@ -100,7 +100,7 @@ export class BillingService {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
-    return rows.map(toDto);
+    return rows.map(toOrderDto);
   }
 
   /**
@@ -117,7 +117,7 @@ export class BillingService {
   async markPaid(orderId: string, providerRef?: string): Promise<TokenOrderDTO> {
     const order = await prisma.tokenOrder.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException(apiError({ code: 'RESOURCE_NOT_FOUND' }));
-    if (order.status === 'paid') return toDto(order);
+    if (order.status === 'paid') return toOrderDto(order);
     if (order.status !== 'pending') {
       throw new BadRequestException(
         apiError({ code: 'CONFLICT', message: '이미 종료된 주문입니다.' }),
@@ -131,20 +131,23 @@ export class BillingService {
       memo: `${order.packageId} 충전`,
     });
 
+    const paidAt = new Date();
     const { count } = await prisma.tokenOrder.updateMany({
       where: { id: orderId, status: 'pending' },
-      data: { status: 'paid', paidAt: new Date(), providerRef: providerRef ?? null },
+      data: { status: 'paid', paidAt, providerRef: providerRef ?? null },
     });
     if (count === 0) {
       // 지급은 멱등하므로 이 경합에서 토큰이 두 번 들어가지는 않는다. 기록만 알린다.
       this.logger.warn(`주문 상태가 이미 바뀌어 있었다: ${orderId}`);
+      return toOrderDto(await prisma.tokenOrder.findUniqueOrThrow({ where: { id: orderId } }));
     }
-    const fresh = await prisma.tokenOrder.findUniqueOrThrow({ where: { id: orderId } });
-    return toDto(fresh);
+    // 방금 쓴 값을 알고 있으니 다시 읽지 않는다.
+    return toOrderDto({ ...order, status: 'paid', paidAt });
   }
 }
 
-function toDto(row: {
+/** 주문 행 → DTO. 운영자 목록(`admin.controller.ts`)도 이걸 쓴다. */
+export function toOrderDto(row: {
   id: string;
   packageId: string;
   depositorName: string | null;

@@ -19,9 +19,8 @@ ENV BACKUP_SCHEDULE="0 3 * * *"
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# 컨테이너가 살아 있는 것과 백업이 도는 것은 다르다. last-success 가 낡으면 unhealthy.
-# start-period 는 첫 예정 회차(일 1회)를 기다려 주기 위한 것 — 그전까지는 기록이 없다.
-HEALTHCHECK --interval=15m --timeout=10s --start-period=26h --retries=2 \
-  CMD /healthcheck.sh
+# HEALTHCHECK 는 compose 에 있다(`full.yml`). 여기 두면 `start_period` 의 26h 가 이미지에
+# 박혀서, `.env` 의 `BACKUP_STALE_HOURS` 를 올려도 유예만 옛 값으로 남는다 — 한 변수가
+# 정하는 일을 두 곳이 나눠 갖게 된다.
 
 ENTRYPOINT ["/entrypoint.sh"]

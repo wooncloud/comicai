@@ -20,6 +20,7 @@ import {
 } from '@comicai/types';
 import { cn } from '@/lib/cn';
 import { errorMessage, renderErrorMessage } from '@/lib/error-message';
+import { useRefreshTokens } from '@/lib/tokens';
 import { MODEL_OPTIONS } from '@/lib/model-options';
 
 interface Props {
@@ -58,6 +59,7 @@ export function EntityImageDialog({ open, onOpenChange, entityId, entityType, on
     setUploadFiles([]);
   }, [open, aiAllowed]);
 
+  const refreshTokens = useRefreshTokens();
   const busy = generating || uploading || attaching;
 
   function tryClose(next: boolean) {
@@ -79,6 +81,13 @@ export function EntityImageDialog({ open, onOpenChange, entityId, entityType, on
       setError(renderErrorMessage(err, '이미지 생성'));
     } finally {
       setGenerating(false);
+      /*
+       * 참조 이미지 생성도 컷 렌더와 **같은 토큰**을 쓴다(둘 다 `ModelCredentials.resolve`
+       * 를 지난다). 여기서 다시 읽지 않으면 에디터 헤더 잔액이 낡은 채로 남는다.
+       *
+       * 성공·실패 양쪽에서 부른다 — 실패는 환급까지 끝난 시점이라 그때도 숫자가 바뀐다.
+       */
+      refreshTokens();
     }
   }
 

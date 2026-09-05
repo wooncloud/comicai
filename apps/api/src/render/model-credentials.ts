@@ -3,7 +3,7 @@ import { prisma } from '@comicai/db';
 import { MODEL_PROVIDER, type ModelId, type ModelProvider } from '@comicai/types';
 import { open } from '../api-keys/crypto';
 import { nonEmpty } from '../common/non-empty';
-import { TokensService } from '../tokens/tokens.service';
+import { TokensService, renderChargeKey } from '../tokens/tokens.service';
 
 /** 그림 생성에 쓸 자격 증명. `id` 는 사용자 키일 때만 있다(차단기 기록용). */
 export interface ModelCredential {
@@ -35,6 +35,23 @@ function platformKeyFor(provider: ModelProvider): string | undefined {
 @Injectable()
 export class ModelCredentials {
   constructor(private readonly tokens: TokensService) {}
+
+  /**
+   * 이 사용자가 이 모델을 부르면 토큰이 얼마나 나가는가. 0 이면 나가지 않는다.
+   *
+   * "누가 내는가" 규칙은 `resolve` 하나가 안다(사용자 키 → 무료, 플랫폼 키 → 유료).
+   * 화면에 미리 알려 주려는 쪽이 그 규칙을 다시 적으면 두 벌이 되고, 실제로 그렇게
+   * 해서 **자기 키를 넣은 사용자가 잔액 0 이면 문 앞에서 막혔다** — 그 렌더는 토큰을
+   * 한 개도 쓰지 않는데도.
+   */
+  async previewCost(userId: string, model: ModelId): Promise<number> {
+    if (model === 'mock') return 0;
+    const hasOwnKey = await prisma.apiKey.findFirst({
+      where: { userId, provider: MODEL_PROVIDER[model], isActive: true },
+      select: { id: true },
+    });
+    return hasOwnKey ? 0 : this.tokens.costOf(model);
+  }
 
   /**
    * @param chargeKey 이 호출을 원장에서 가리키는 키. 렌더는 잡 id 를 쓴다 —
@@ -77,7 +94,7 @@ export class ModelCredentials {
     if (cost > 0) {
       await this.tokens.charge(userId, cost, {
         kind: 'render',
-        idempotencyKey: `render:${chargeKey}`,
+        idempotencyKey: renderChargeKey(chargeKey),
         refId: chargeKey,
         memo: `그림 생성 (${model})`,
       });

@@ -11,6 +11,8 @@ import {
 } from '@comicai/types';
 import { AdminGuard } from '../auth/admin.guard';
 import { AuthedRequest } from '../auth/session.guard';
+import { clampTake } from '../common/clamp-take';
+import { toOrderDto } from '../billing/billing.service';
 import { TokensService } from '../tokens/tokens.service';
 import { BillingService } from '../billing/billing.service';
 
@@ -113,7 +115,7 @@ export class AdminController {
     @Query('status') status?: string,
     @Query('limit') limit?: string,
   ): Promise<AdminOrderRow[]> {
-    const take = Math.min(Math.max(Number(limit) || 50, 1), 200);
+    const take = clampTake(limit);
     // 아무 문자열이나 받으면 조용히 빈 목록이 나와 "주문이 없다" 로 오해한다.
     const known = (TOKEN_ORDER_STATUSES as readonly string[]).includes(status ?? '')
       ? (status as TokenOrderStatus)
@@ -124,19 +126,9 @@ export class AdminController {
       take,
       include: { user: { select: { email: true } } },
     });
-    return rows.map((o) => ({
-      id: o.id,
-      userId: o.userId,
-      email: o.user.email,
-      packageId: o.packageId,
-      depositorName: o.depositorName,
-      tokens: o.tokens,
-      amountKrw: o.amountKrw,
-      status: o.status as TokenOrderStatus,
-      provider: o.provider,
-      createdAt: o.createdAt.toISOString(),
-      paidAt: o.paidAt?.toISOString() ?? null,
-    }));
+    // 사용자용 목록과 **같은 매퍼**를 쓴다. 손으로 다시 적으면 `TokenOrderDTO` 에 필드를
+    // 더할 때 이쪽만 조용히 낡는데, 하필 운영자가 돈을 판단하는 화면이 그쪽이다.
+    return rows.map((o) => ({ ...toOrderDto(o), userId: o.userId, email: o.user.email }));
   }
 
   /** 입금을 확인했을 때. 결제 수단이 붙으면 웹훅이 같은 경로를 쓴다. */
@@ -147,7 +139,7 @@ export class AdminController {
 
   @Get('users')
   async users(@Query('limit') limit?: string): Promise<AdminUserRow[]> {
-    const take = Math.min(Math.max(Number(limit) || 50, 1), 200);
+    const take = clampTake(limit);
     const rows = await prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
       take,

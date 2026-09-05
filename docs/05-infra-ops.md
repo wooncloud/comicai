@@ -180,7 +180,7 @@ pg_dump 가 중간에 죽거나 디스크가 차면 `out.sql.gz` 는 **열리기
 DB·오브젝트·백업이 함께 죽는다. 목적지는 사람이 정해야 해서 기본값을 둘 수 없다.
 
 한 단계 약한 대안으로 `BACKUP_HOST_PATH` 에 다른 디스크/NAS 마운트 경로를 적으면 백업이
-그쪽에 쌓인다(`full.yml:257-259`). 비우면 도커 볼륨(`backup_data`)이라 같은 디스크다.
+그쪽에 쌓인다(`full.yml:266-268`). 비우면 도커 볼륨(`backup_data`)이라 같은 디스크다.
 
 `.env` 는 일부러 백업하지 않는다. 담긴 값이 그대로 외부 저장소로 나가면 그 저장소 하나가
 뚫리는 순간 전부가 뚫린다. 잃으면 곤란한 것은 `MASTER_KEY` 하나뿐이니 그것만 사람이
@@ -194,7 +194,7 @@ DB·오브젝트·백업이 함께 죽는다. 목적지는 사람이 정해야 �
 - `RUN_ON_START=1`이면 컨테이너 기동 즉시 1회 실행 (`:22-25`).
 - `crond -f -l 8` foreground 실행 (`:27`).
 
-볼륨은 `${BACKUP_HOST_PATH:-backup_data}:/backup` (`full.yml:259`).
+볼륨은 `${BACKUP_HOST_PATH:-backup_data}:/backup` (`full.yml:268`).
 
 ---
 
@@ -273,7 +273,7 @@ ComicAI 개발용 cmux 워크스페이스 `comicai-dev` 를 생성한다 (`cmux-
 |                 | `BACKUP_RUN_ON_START`                                         | `0`                                                                 | 컨테이너 기동 직후 1회 실행                                                                                     |
 |                 | `BACKUP_STALE_HOURS`                                          | `26`                                                                | healthcheck 한도. 스케줄을 성기게 바꾸면 같이 올린다 (`healthcheck.sh:13`)                                      |
 |                 | `BACKUP_WEBHOOK_URL`                                          | —                                                                   | 실패 시 JSON POST. 비면 로그 + healthcheck 만 (`backup.sh:65-79`)                                               |
-|                 | `BACKUP_HOST_PATH`                                            | (도커 볼륨)                                                         | 백업을 다른 디스크에 두려면 마운트 경로 (`full.yml:259`)                                                        |
+|                 | `BACKUP_HOST_PATH`                                            | (도커 볼륨)                                                         | 백업을 다른 디스크에 두려면 마운트 경로 (`full.yml:268`)                                                        |
 |                 | `BACKUP_REMOTE_ENDPOINT/_ACCESS_KEY/_SECRET_KEY/_BUCKET`      | —                                                                   | 채우면 매 회차 외부 S3 로 사본 (`backup.sh:166-175`)                                                            |
 | **운영자**      | `ADMIN_EMAILS`                                                | (비움)                                                              | `/admin` 접근 허용 이메일, 쉼표 구분. 비면 관리자 없음 (`.env.example:95`, `full.yml:28`)                       |
 | **관측**        | `METRICS_TOKEN`                                               | (비움)                                                              | `/v1/metrics` Bearer 토큰. 비면 404 (`.env.example:102`, `full.yml:31`)                                         |

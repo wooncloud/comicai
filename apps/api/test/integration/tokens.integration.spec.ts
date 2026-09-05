@@ -23,6 +23,10 @@ import type { BillingService } from '../../src/billing/billing.service';
 let ctx: IntegrationContext;
 let tokens: TokensService;
 /** 클래스 자체를 담는다 — `instanceof` 검사에는 런타임 값이 필요하다. */
+let billing: BillingService;
+/** 차감·환급이 같은 규칙으로 키를 만드는지까지 스펙이 따라간다. */
+let renderChargeKey: (jobId: string) => string;
+/** 클래스 자체를 담는다 — `instanceof` 검사에는 런타임 값이 필요하다. */
 let InsufficientTokensError: new (required: number, balance: number) => InsufficientTokens;
 
 /**
@@ -61,6 +65,9 @@ beforeAll(async () => {
   const mod = await import('../../src/tokens/tokens.service');
   InsufficientTokensError = mod.InsufficientTokensError;
   tokens = ctx.app.get(mod.TokensService);
+  const billingMod = await import('../../src/billing/billing.service');
+  billing = ctx.app.get(billingMod.BillingService);
+  ({ renderChargeKey } = mod);
 }, 180_000);
 
 afterAll(async () => {
@@ -140,7 +147,7 @@ describe('토큰 원장 (testcontainers)', () => {
     for (let i = 0; i < 4; i++) {
       await tokens.charge(userId, 4, {
         kind: 'render',
-        idempotencyKey: `render:${jobId}`,
+        idempotencyKey: renderChargeKey(jobId),
         refId: jobId,
       });
     }
@@ -158,7 +165,7 @@ describe('토큰 원장 (testcontainers)', () => {
 
     await tokens.charge(userId, 4, {
       kind: 'render',
-      idempotencyKey: `render:${jobId}`,
+      idempotencyKey: renderChargeKey(jobId),
       refId: jobId,
     });
     expect(await tokens.balance(userId)).toBe(6);
@@ -205,13 +212,6 @@ describe('토큰 원장 (testcontainers)', () => {
  * 부르지만, 결제 수단이 붙어도 웹훅이 부르는 것은 **같은 함수**다. 웹훅 재전송은 흔하다.
  */
 describe('토큰 구매 (testcontainers)', () => {
-  let billing: BillingService;
-
-  beforeAll(async () => {
-    const mod = await import('../../src/billing/billing.service');
-    billing = ctx.app.get(mod.BillingService);
-  });
-
   it('주문만으로는 토큰이 들어가지 않는다', async () => {
     const userId = await makeUser();
     const order = await billing.createOrder(userId, 'basic');
@@ -274,13 +274,6 @@ describe('토큰 구매 (testcontainers)', () => {
  * `mark-paid` 만 있고 목록이 없으면 운영자는 DB 를 직접 열어야 한다.
  */
 describe('운영자 주문 처리 (testcontainers)', () => {
-  let billing: BillingService;
-
-  beforeAll(async () => {
-    const mod = await import('../../src/billing/billing.service');
-    billing = ctx.app.get(mod.BillingService);
-  });
-
   it('대기 중인 주문을 누가 냈는지와 함께 찾을 수 있다', async () => {
     const userId = await makeUser();
     const order = await billing.createOrder(userId, 'pro');

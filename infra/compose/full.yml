@@ -253,6 +253,15 @@ services:
       BACKUP_REMOTE_SECRET_KEY: ${BACKUP_REMOTE_SECRET_KEY:-}
       BACKUP_REMOTE_BUCKET: ${BACKUP_REMOTE_BUCKET:-}
       BACKUP_REMOTE_PREFIX: ${BACKUP_REMOTE_PREFIX:-comicai}
+    # 컨테이너가 살아 있는 것과 백업이 도는 것은 다르다 — last-success 가 낡으면 unhealthy.
+    # `start_period` 는 첫 예정 회차(일 1회)를 기다려 주기 위한 것이라 같은 값이어야 한다.
+    # 이미지에 박아 두면 .env 를 올려도 유예만 옛 값으로 남으므로 여기서 함께 정한다.
+    healthcheck:
+      test: ['CMD', '/healthcheck.sh']
+      interval: 15m
+      timeout: 10s
+      retries: 2
+      start_period: ${BACKUP_STALE_HOURS:-26}h
     volumes:
       # 기본값은 도커 볼륨이라 원본과 같은 디스크에 앉는다. .env 에서 BACKUP_HOST_PATH 를
       # 다른 디스크/NAS 마운트로 지정하면 그쪽에 쌓인다.

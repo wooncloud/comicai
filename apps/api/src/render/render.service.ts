@@ -23,6 +23,8 @@ import { RenderQueue, idempotencyKey } from './render.queue';
 import { apiError } from '../common/api-error';
 import { jsonColumn } from '../common/json-column';
 import { TokensService } from '../tokens/tokens.service';
+import { ModelCredentials } from './model-credentials';
+import { finalizeRenderJob } from './finalize';
 
 /** id 가 이미 있는 행과 부딪혔는가. RenderJob 의 unique 는 primary key 하나뿐이다. */
 function isUniqueViolation(err: unknown): boolean {
@@ -38,7 +40,35 @@ export class RenderService {
     private readonly queue: RenderQueue,
     private readonly storage: StorageService,
     private readonly tokens: TokensService,
+    private readonly credentials: ModelCredentials,
   ) {}
+
+  /**
+   * 잔액을 **큐에 넣기 전에** 본다.
+   *
+   * 진짜 차감은 워커가 키를 받아 갈 때 원자적으로 일어나므로 이 검사는 권위가 아니다.
+   * 그래도 여기 두는 이유는 그게 없으면 사용자가 왕복을 한 번 다 돌고 나서야 "토큰이
+   * 없다" 를 알게 되기 때문이다 — 잡이 큐에 들어가 running 까지 갔다가 quota 로 죽고,
+   * 화면에는 재시도해도 소용없는 실패가 "잠시 후 다시" 로 뜬다.
+   *
+   * **비용은 `ModelCredentials` 에게 묻는다.** 여기서 `costOf(model)` 만 보면 "누가
+   * 내는가" 규칙이 두 벌이 된다 — 자기 키를 넣은 사용자는 차감되지 않는데도 잔액 0 이면
+   * 문 앞에서 막혔다.
+   */
+  private async assertAffordable(userId: string, cost: number): Promise<void> {
+    if (cost <= 0) return;
+    const balance = await this.tokens.balance(userId);
+    if (balance >= cost) return;
+    throw new BadRequestException(
+      apiError({
+        code: 'INSUFFICIENT_TOKENS',
+        message: `토큰이 부족합니다 (필요 ${cost}, 잔액 ${balance}).`,
+        // 여분 필드는 예외 필터가 `details` 로 옮겨 담는다 — 여기서 직접 감싸면 이중이 된다.
+        required: cost,
+        balance,
+      }),
+    );
+  }
 
   async startRender(
     userId: string,
@@ -46,7 +76,17 @@ export class RenderService {
     model: ModelId,
     seed?: number,
   ): Promise<{ jobId: string }> {
-    const panel = await this.panels.assertOwned(userId, panelId);
+    /*
+     * 소유권 확인과 잔액 조회는 서로를 기다릴 이유가 없다. 그리고 잔액 검사는 **IR 을
+     * 만들기 전에** 해야 한다 — IR 빌드가 이 핸들러에서 가장 비싼 일인데, 토큰이 없는
+     * 사용자가 그 비용을 다 치르고 나서야 거절당할 이유가 없다.
+     */
+    const [panel, chargeable] = await Promise.all([
+      this.panels.assertOwned(userId, panelId),
+      this.credentials.previewCost(userId, model),
+    ]);
+    await this.assertAffordable(userId, chargeable);
+
     const ir = await buildRenderIR(panel.id, seed);
     if (!ir.userPrompt.trim() && !ir.contiSketch && ir.userImages.length === 0) {
       throw new BadRequestException(
@@ -55,33 +95,6 @@ export class RenderService {
           message: '본문/콘티/참조 이미지 중 하나는 필요합니다.',
         }),
       );
-    }
-
-    /*
-     * 잔액을 **큐에 넣기 전에** 본다.
-     *
-     * 진짜 차감은 워커가 키를 받아 갈 때 원자적으로 일어나므로 이 검사는 권위가 아니다.
-     * 그래도 여기 두는 이유는 그게 없으면 사용자가 왕복을 한 번 다 돌고 나서야 "토큰이
-     * 없다" 를 알게 되기 때문이다 — 잡이 큐에 들어가 running 까지 갔다가 quota 로 죽고,
-     * 화면에는 재시도해도 소용없는 실패가 "잠시 후 다시" 로 뜬다.
-     *
-     * 필요량과 잔액을 details 에 실어 보낸다. "부족합니다" 만으로는 얼마를 채워야 하는지
-     * 알 수 없다.
-     */
-    const cost = this.tokens.costOf(model);
-    if (cost > 0) {
-      const balance = await this.tokens.balance(userId);
-      if (balance < cost) {
-        throw new BadRequestException(
-          apiError({
-            code: 'INSUFFICIENT_TOKENS',
-            message: `토큰이 부족합니다 (필요 ${cost}, 잔액 ${balance}).`,
-            // 여분 필드는 예외 필터가 `details` 로 옮겨 담는다 — 여기서 직접 감싸면 이중이 된다.
-            required: cost,
-            balance,
-          }),
-        );
-      }
     }
 
     /*
@@ -226,19 +239,14 @@ export class RenderService {
     }
     /*
      * 조건부다. 위 검사와 이 갱신 사이에 워커가 잡을 끝낼 수 있는데, 무조건 쓰면 성공한
-     * 잡을 '취소' 로 덮어 결과 이미지가 화면에서 사라진다. 같은 이유로 취소 두 번이
-     * 겹치면 환급도 두 번 나갔다.
+     * 잡을 '취소' 로 덮어 결과 이미지가 화면에서 사라진다. 환급도 그 조건에 묶여 있어야
+     * 두 번 나가지 않는다 — 그래서 둘을 한 몸으로 들고 있는 `finalizeRenderJob` 을 쓴다.
      */
-    const { count } = await prisma.renderJob.updateMany({
-      where: { id, status: { in: [...IN_PROGRESS_RENDER_STATUSES] } },
-      data: { status: 'canceled', finishedAt: new Date() },
-    });
-    if (count === 0) {
+    const won = await finalizeRenderJob(this.tokens, id, 'canceled', { reason: '생성 취소' });
+    if (!won) {
       throw new BadRequestException(
         apiError({ code: 'CONFLICT', message: '이미 완료된 작업입니다.' }),
       );
     }
-    // 결과를 못 받았으니 돌려준다. 잡 id 로 멱등해서 실패 경로와 겹쳐도 한 번만 나간다.
-    await this.tokens.refundRender(id, '생성 취소');
   }
 }

@@ -4,7 +4,6 @@ import { Worker } from 'bullmq';
 import { prisma, Prisma } from '@comicai/db';
 import { getAdapter, type AdapterContext } from '@comicai/adapters';
 import {
-  IN_PROGRESS_RENDER_STATUSES,
   isFlagOn,
   type ImageRef,
   type RenderError,
@@ -15,6 +14,7 @@ import { RENDER_QUEUE_NAME, parseRedis, type RenderJobData } from './render.queu
 import { SseHub } from './sse.hub';
 import { ModelCredentials } from './model-credentials';
 import { TokensService } from '../tokens/tokens.service';
+import { finalizeRenderJob } from './finalize';
 import { classifyModelError } from './model-error';
 import { StorageService } from '../storage/storage.service';
 import { ApiKeyBreaker } from '../api-keys/api-keys.breaker';
@@ -76,17 +76,15 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
         category: 'transient',
         message: err instanceof Error ? err.message : String(err),
       };
-      const { count } = await prisma.renderJob.updateMany({
-        // status 조건이 핵심이다. 이 핸들러는 정상 실패 경로 뒤에도 불리므로,
-        // 조건 없이 쓰면 방금 기록한 분류된 에러를 'unknown' 으로 덮어쓴다.
-        where: { id: renderJobId, status: { in: [...IN_PROGRESS_RENDER_STATUSES] } },
-        data: {
-          status: 'failed',
-          error: error as unknown as Prisma.InputJsonValue,
-          finishedAt: new Date(),
-        },
+      // 이 핸들러는 정상 실패 경로 뒤에도 불리므로 조건부여야 한다 — 조건 없이 쓰면
+      // 방금 기록한 분류된 에러를 'unknown' 으로 덮어쓴다. `finalizeRenderJob` 이 그
+      // 조건과 환급을 함께 들고 있다. **예전에는 이 경로만 환급을 빠뜨려, 여기로 마감된
+      // 잡은 토큰이 그대로 타 버렸다.**
+      const won = await finalizeRenderJob(this.tokens, renderJobId, 'failed', {
+        reason: '생성 실패 (마감되지 않은 예외)',
+        data: { error: error as unknown as Prisma.InputJsonValue },
       });
-      if (count === 0) return;
+      if (!won) return;
       this.hub.publish(renderJobId, { type: 'error', jobId: renderJobId, error });
       this.hub.publish(renderJobId, { type: 'status', jobId: renderJobId, status: 'failed' });
     } catch (finalizeErr) {
@@ -159,18 +157,14 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
       // 그 사이 취소해서 render.service.cancel 이 'canceled' 로 바꿔 둔 행을 워커가
       // 'succeeded' 로 덮어쓴다. 새로고침하면 취소했다고 믿은 컷에 그림이 들어와 있다.
       // finalizeOrphan 이 이미 같은 방어를 하고 있다(:78) — 정상 경로도 같아야 한다.
-      const { count } = await prisma.renderJob.updateMany({
-        where: { id: renderJobId, status: { in: [...IN_PROGRESS_RENDER_STATUSES] } },
-        data: {
-          status: 'succeeded',
-          resultImage: stored as unknown as Prisma.InputJsonValue,
-          finishedAt: new Date(),
-        },
+      const won = await finalizeRenderJob(this.tokens, renderJobId, 'succeeded', {
+        reason: '성공',
+        data: { resultImage: stored as unknown as Prisma.InputJsonValue },
       });
       // 모델이 응답했다면 키는 멀쩡하다. 아래에서 결과를 버리더라도 차단기
       // streak 은 리셋하는 것이 맞다.
       if (apiKeyId) await this.breaker.recordSuccess(apiKeyId);
-      if (count === 0) {
+      if (!won) {
         // 취소된(또는 이미 종결된) 잡이다. 그림은 나왔고 비용도 나갔지만 사용자가
         // 취소한 컷에 결과를 밀어 넣지는 않는다. 낭비된 호출은 지표로 남긴다.
         outcome = 'discarded';
@@ -210,24 +204,13 @@ export class RenderWorker implements OnModuleInit, OnModuleDestroy {
         'render 실패',
       );
       const finalStatus: RenderStatus = classified.category === 'timeout' ? 'timeout' : 'failed';
-      // 성공 경로와 같은 이유로 조건부다 — 취소한 잡을 실패로 되살리지 않는다.
-      const { count } = await prisma.renderJob.updateMany({
-        where: { id: renderJobId, status: { in: [...IN_PROGRESS_RENDER_STATUSES] } },
-        data: {
-          status: finalStatus,
-          error: classified as unknown as Prisma.InputJsonValue,
-          finishedAt: new Date(),
-        },
+      // 마감과 환급은 `finalizeRenderJob` 이 한 몸으로 처리한다 — 취소한 잡을 실패로
+      // 되살리지 않고, 상태가 실제로 바뀌었을 때만 돌려준다.
+      const won = await finalizeRenderJob(this.tokens, renderJobId, finalStatus, {
+        reason: `생성 실패 (${classified.category})`,
+        data: { error: classified as unknown as Prisma.InputJsonValue },
       });
-      if (count === 0) return;
-      /*
-       * 결과를 못 냈으니 토큰을 돌려준다.
-       *
-       * **위 조건부 갱신이 실제로 상태를 바꿨을 때만** 온다(`count === 0` 이면 이미
-       * 취소·완료된 잡이고, 그쪽 경로가 자기 몫을 처리했다). 환급 자체도 잡 id 로
-       * 멱등해서, 취소와 실패가 겹쳐 들어와도 두 번 돌려주지 않는다.
-       */
-      await this.tokens.refundRender(renderJobId, `생성 실패 (${classified.category})`);
+      if (!won) return;
       this.hub.publish(renderJobId, { type: 'error', jobId: renderJobId, error: classified });
       this.hub.publish(renderJobId, { type: 'status', jobId: renderJobId, status: finalStatus });
     } finally {

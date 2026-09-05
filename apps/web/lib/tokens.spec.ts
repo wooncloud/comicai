@@ -9,25 +9,17 @@ const balance = (n: number): TokenBalanceDTO => ({
 
 describe('affordability', () => {
   it('모자라면 short 다', () => {
-    expect(affordability(balance(1), 'gpt-image-2')).toEqual({
-      cost: 4,
-      short: true,
-      unknown: false,
-    });
+    expect(affordability(balance(1), 'gpt-image-2')).toEqual({ cost: 4, short: true });
   });
 
   it('충분하면 short 가 아니다', () => {
     expect(affordability(balance(4), 'gpt-image-2').short).toBe(false);
   });
 
-  it('잔액을 못 읽었으면 short 가 아니라 unknown 이다', () => {
+  it('잔액을 못 읽었으면 short 가 아니다', () => {
     // 여기서 short 로 접으면 **조회가 실패한 사용자의 생성 버튼이 잠긴다.**
     // 막는 것은 서버가 할 일이지 화면이 추측으로 할 일이 아니다.
-    expect(affordability(undefined, 'gpt-image-2')).toEqual({
-      cost: 4,
-      short: false,
-      unknown: true,
-    });
+    expect(affordability(undefined, 'gpt-image-2')).toEqual({ cost: 4, short: false });
   });
 
   it('비용이 0 인 모델은 잔액 0 이어도 막지 않는다', () => {

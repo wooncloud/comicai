@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ZodError } from 'zod';
+import { InsufficientTokensError } from '../tokens/tokens.service';
 
 interface ErrorEnvelope {
   error: {
@@ -60,6 +61,30 @@ export class AllExceptionsFilter implements ExceptionFilter {
             code: 'VALIDATION_ERROR',
             message: '입력 검증 실패',
             details: { issues: exception.issues },
+          },
+        },
+      };
+    }
+
+    /*
+     * 토큰 부족은 정책 거부이지 서버 오류가 아니다.
+     *
+     * 예전에는 렌더 사전 검사 한 곳만 이걸 손으로 `INSUFFICIENT_TOKENS` 봉투로 옮겼고,
+     * 같은 예외를 던지는 다른 경로들은 그 대접을 못 받았다 — 참조 이미지 생성은
+     * 숫자 없는 일반 문구로 뭉개졌고, **운영자가 잔액보다 많이 회수하면 500
+     * INTERNAL_ERROR 로 나가면서 로그에 'unhandled exception' 으로 쌓였다.**
+     *
+     * 예외 자신이 `required`/`balance` 를 들고 있으니 여기서 한 번만 옮긴다. 웹의
+     * `insufficientTokensMessage` 가 그 두 수로 정확한 문구를 만든다.
+     */
+    if (exception instanceof InsufficientTokensError) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        body: {
+          error: {
+            code: 'INSUFFICIENT_TOKENS',
+            message: exception.message,
+            details: { required: exception.required, balance: exception.balance },
           },
         },
       };

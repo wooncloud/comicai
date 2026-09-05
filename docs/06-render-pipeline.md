@@ -64,7 +64,7 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
 - 인증: `SessionGuard` 클래스 레벨 적용 (`render.controller.ts:17`).
 - DTO 검증: `RenderStartSchema` (zod, `render.controller.ts:11`).
 
-`RenderService.startRender` (`apps/api/src/render/render.service.ts:31`):
+`RenderService.startRender` (`apps/api/src/render/render.service.ts:35`):
 
 1. `panels.assertOwned` — 소유권 확인 (`:37`).
 2. `buildRenderIR(panel.id, seed)` — 텍스트/콘티/참조이미지를 IR로 직렬화. 그림체는
@@ -207,7 +207,7 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 그런데 예전에는 같은 id 의 행이 있으면 **상태를 보지 않고 그대로 돌려줬다.**
 한 번 실패한 컷은 원인을 고친 뒤에도 다시 그릴 방법이 없었다. 지금은
 지금은 **그 컷에서 실제로 돌고 있는 잡**이 있으면 그걸 돌려주고, 끝난 잡 뒤에는 새 id 를
-발급한다(`render.service.ts:54`). 행을 재사용하지 않는 이유는 패널 히스토리에서 옛 시도가
+발급한다(`render.service.ts:94`). 행을 재사용하지 않는 이유는 패널 히스토리에서 옛 시도가
 사라지고, 아직 그 id 를 들고 있는 워커와 경합하기 때문이다.
 
 실제로 돌려 보고 잡은 함정 둘:
@@ -342,7 +342,7 @@ interface RenderError {
 
 ### 6.2 재시도 & 종결 매핑
 
-`render.worker.ts:244-248` `retryLimitFor`:
+`render.worker.ts:193-197` `retryLimitFor`:
 
 | category  | retry limit | 최종 status       |
 | --------- | ----------- | ----------------- |
@@ -371,8 +371,8 @@ interface RenderError {
 
 ### 6.4 컨트롤러 단의 동기 에러
 
-- `RENDER_INVALID_INPUT` (`render.service.ts:54`) — 본문/콘티/참조 비어있음. HTTP 400.
-- `RENDER_ENQUEUE_FAILED` (`render.service.ts:177`) — BullMQ enqueue 실패. HTTP 503.
+- `RENDER_INVALID_INPUT` (`render.service.ts:94`) — 본문/콘티/참조 비어있음. HTTP 400.
+- `RENDER_ENQUEUE_FAILED` (`render.service.ts:190`) — BullMQ enqueue 실패. HTTP 503.
   행은 `failed`(category `transient`)로 마감된 뒤라 좀비가 남지 않는다.
 - `RESOURCE_NOT_FOUND` (`render.service.ts:150, 175; panels.service.ts:243`).
 - `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:178`),
@@ -399,7 +399,7 @@ API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생�
 | EventSource subscribe                            | `apps/web/components/editor/panel-inspector.tsx:140`      |
 | API 경로 헬퍼                                    | `packages/types/src/paths.ts:48,56-60`                    |
 | 컨트롤러 (POST render/get/cancel/restore/events) | `apps/api/src/render/render.controller.ts:25,31,36,42,47` |
-| `RenderService.startRender`                      | `apps/api/src/render/render.service.ts:31`                |
+| `RenderService.startRender`                      | `apps/api/src/render/render.service.ts:35`                |
 | `RenderService.getJob`                           | `apps/api/src/render/render.service.ts:147`               |
 | `RenderService.cancel`                           | `apps/api/src/render/render.service.ts:169`               |
 | BullMQ enqueue & idempotency                     | `apps/api/src/render/render.queue.ts:34,56`               |
