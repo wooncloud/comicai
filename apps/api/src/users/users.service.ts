@@ -10,7 +10,14 @@ export interface CreateUserInput {
   avatarStorageKey?: string | null;
   oauthProviders?: string[];
   emailVerifiedAt?: Date | null;
-  termsAgreedAt?: Date | null;
+  /**
+   * 약관 동의 시각. **기본값이 없다 — 호출하는 쪽이 반드시 정한다.**
+   *
+   * `?? new Date()` 로 채우면, 동의 절차 없이 만들어지는 계정(관리자 생성, 초대 등)에도
+   * 동의 기록이 생긴다. 그건 "기록 누락" 보다 나쁘다 — 받은 적 없는 동의를 받았다고 적는 것이다.
+   * 동의를 받지 않은 경로는 `null` 을 넘기고, 재동의 대상으로 걸러진다.
+   */
+  termsAgreedAt: Date | null;
 }
 
 /**
@@ -26,7 +33,7 @@ export interface CreateUserInput {
  *
  * 약관 동의 시각(`termsAgreedAt`)은 계정 생성 지점에 기록된다. 나중에 채우면
  * "동의는 받았으나 기록이 없는" 계정이 생겨 재동의 대상을 가려낼 수 없다.
- * 별도 값이 주어지지 않으면 현재 시각(`new Date()`)으로 기록된다.
+ * 값은 호출하는 쪽이 정한다(`CreateUserInput.termsAgreedAt` 참고).
  */
 @Injectable()
 export class UsersService {
@@ -43,7 +50,7 @@ export class UsersService {
         avatarStorageKey: input.avatarStorageKey ?? null,
         oauthProviders: input.oauthProviders ?? [],
         emailVerifiedAt: input.emailVerifiedAt ?? null,
-        termsAgreedAt: input.termsAgreedAt ?? new Date(),
+        termsAgreedAt: input.termsAgreedAt,
       },
     });
 

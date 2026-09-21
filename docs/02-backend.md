@@ -169,9 +169,9 @@ import 한다 — `main.ts:4`, `worker.ts:3`. `@comicai/config` 의 `loadEnv()` 
 
 ### 2.6 UsersService (`users/users.service.ts`)
 
-계정 생성과 가입 축하 토큰 지급을 한 몸으로 묶는 "사용자 생성의 유일한 길"(`users/users.service.ts:35-53`).
+계정 생성과 가입 축하 토큰 지급을 한 몸으로 묶는 "사용자 생성의 유일한 길"(`users/users.service.ts:39-61`).
 이메일 가입(`auth/auth.service.ts:22`)과 OAuth 가입(`auth/oauth/oauth.service.ts:200`) 모두 `UsersService.createUser`를
-호출하며, 계정 생성 시 약관 동의 시각(`termsAgreedAt`) 기록과 가입 축하 보너스 지급(`tokens.grantSignupBonus`, `users/users.service.ts:50`)이
+호출하며, 계정 생성 시 약관 동의 시각(`termsAgreedAt`) 기록과 가입 축하 보너스 지급(`tokens.grantSignupBonus`, `users/users.service.ts:57`)이
 반드시 1회 함께 수행된다.
 
 ---

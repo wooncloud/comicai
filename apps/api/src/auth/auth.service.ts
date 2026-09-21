@@ -22,6 +22,8 @@ export class AuthService {
       const user = await this.users.createUser({
         email,
         passwordHash,
+        // 가입 폼이 약관 동의를 받아야 제출된다(SignupSchema). 그 시각을 여기서 남긴다.
+        termsAgreedAt: new Date(),
       });
       return { id: user.id, email: user.email };
     } catch (err) {

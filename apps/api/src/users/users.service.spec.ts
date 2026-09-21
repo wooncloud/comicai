@@ -33,9 +33,11 @@ describe('UsersService', () => {
     };
     createMock.mockResolvedValue(fakeUser);
 
+    const agreedAt = new Date('2026-09-21T00:00:00Z');
     const result = await service.createUser({
       email: '  TEST@Example.com  ',
       passwordHash: 'hash',
+      termsAgreedAt: agreedAt,
     });
 
     expect(createMock).toHaveBeenCalledTimes(1);
@@ -44,7 +46,7 @@ describe('UsersService', () => {
         id: 'user_test_id',
         email: 'test@example.com',
         passwordHash: 'hash',
-        termsAgreedAt: expect.any(Date),
+        termsAgreedAt: agreedAt,
       }),
     });
     expect(grantSignupBonus).toHaveBeenCalledTimes(1);
@@ -56,8 +58,18 @@ describe('UsersService', () => {
     createMock.mockResolvedValue({ id: 'user_test_id', email: 'test@example.com' });
     grantSignupBonus.mockRejectedValue(new Error('원장 저장 실패'));
 
-    await expect(service.createUser({ email: 'test@example.com' })).rejects.toThrow(
-      '원장 저장 실패',
-    );
+    await expect(
+      service.createUser({ email: 'test@example.com', termsAgreedAt: null }),
+    ).rejects.toThrow('원장 저장 실패');
+  });
+
+  it('동의 없이 만드는 계정에는 동의 시각을 지어내지 않는다', async () => {
+    createMock.mockResolvedValue({ id: 'user_invited', email: 'invited@example.com' });
+
+    await service.createUser({ email: 'invited@example.com', termsAgreedAt: null });
+
+    expect(createMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ termsAgreedAt: null }),
+    });
   });
 });
