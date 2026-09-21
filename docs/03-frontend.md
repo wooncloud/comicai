@@ -38,7 +38,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 | 경로                                               | 파일                                           | 렌더                                                                                                                                                  |
 | -------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/`                                                | `app/page.tsx:10`                              | 랜딩. `useEffect`로 `GET /me` 시도해 성공 시 `/dashboard`로 replace, 실패 시 히어로 + STEP 3개 + BYOK 안내. `Topbar`만 사용                           |
-| `/dashboard`                                       | `app/dashboard/page.tsx:12`                    | 내 프로젝트 목록. `useQuery(['projects'])`로 로딩, `ProjectRow` 리스트(`:61`) + `ProjectCreateDialog`                                                 |
+| `/dashboard`                                       | `app/dashboard/page.tsx:12`                    | 내 프로젝트 목록. `useQuery(['projects'])`로 로딩, `ProjectRow` 리스트(`:75-79`) + `ProjectCreateDialog`                                              |
 | `/projects`                                        | `app/projects/page.tsx:1`                      | 서버 컴포넌트. `redirect('/dashboard')`                                                                                                               |
 | `/projects/[id]`                                   | `app/projects/[id]/page.tsx:10`                | 프로젝트 상세 — 페이지 목록과 페이지 추가. `useState`/`useEffect`로 로딩 (React Query 미사용)                                                         |
 | `/projects/[id]/pages/[pageid]`                    | `app/projects/[id]/pages/[pageid]/page.tsx:45` | **에디터 본체**. `dynamic(..., { ssr: false })`로 `ComicEditor` 로드. 좌 사이드바·캔버스·우 인스펙터 3분할                                            |
@@ -50,7 +50,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 | `/settings/(profile\|billing\|api-keys\|security)` | `app/settings/...`                             | 계정 설정. `settings/layout.tsx:13`이 탭 네비 + `AppShell` 공통 적용. `BillingSettingsPage`(`app/settings/billing/page.tsx:25`)는 잔액·충전·주문·내역 |
 | `/admin`                                           | `app/admin/page.tsx:21`                        | **운영 현황**. `isAdmin` 판정 후 입금 확인 대기(`PendingOrders`)·지표 통계·최근 가입 목록 및 토큰 조정 다이얼로그 제공                                |
 | `/projects/[id]/settings`                          | `app/projects/[id]/settings/page.tsx:42`       | 프로젝트 설정. 이름·기본 AI 서비스·삭제 + 캐릭터·설정 관리로 가는 링크                                                                                |
-| `/health`                                          | `app/health/page.tsx:17`                       | **서버 컴포넌트**. `INTERNAL_API_URL`/`NEXT_PUBLIC_API_URL`로 `/healthz` 호출 후 JSON 덤프                                                            |
+| `/health`                                          | `app/health/page.tsx:6-14`                     | **서버 컴포넌트**. `INTERNAL_API_URL`/`NEXT_PUBLIC_API_URL`로 `/healthz` 호출 후 JSON 덤프                                                            |
 
 루트 레이아웃 `app/layout.tsx:8-12`은 Inter를 주입하고 `<Providers><ToastProvider>` 순으로 감싼다 (`app/layout.tsx:44-46`).
 
@@ -101,7 +101,7 @@ Pretendard 는 `next/font/local` 이 아니라 `app/pretendard.css` 의 `@font-f
 | 위치                            | 왜 빼는가                                                                                       |
 | ------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `oauth-buttons.tsx:65`          | 제공자 목록. 못 물어봤다고 이메일 로그인까지 막을 이유가 없다                                   |
-| `app-shell.tsx:67`              | `Topbar` 의 세션 조회. 랜딩도 이걸 쓰므로 던지면 비로그인 방문자가 히어로 대신 오류 화면을 본다 |
+| `app-shell.tsx:50-68`           | `Topbar` 의 세션 조회. 랜딩도 이걸 쓰므로 던지면 비로그인 방문자가 히어로 대신 오류 화면을 본다 |
 | `history-tray.tsx:26`           | 렌더 기록. 캔버스를 통째로 치울 일이 아니다                                                     |
 | `panel-inspector.tsx:84,98,104` | 렌더 잡·프로젝트·엔티티. 인스펙터가 사라지면 디바운스 중이던 편집도 함께 사라진다               |
 
@@ -109,7 +109,7 @@ Pretendard 는 `next/font/local` 이 아니라 `app/pretendard.css` 의 `@font-f
 
 ### 401 은 `lib/api.ts` 가 처리한다
 
-`apps/web/lib/api.ts:37` — 응답이 401 이고 코드가 `NO_SESSION`·`SESSION_EXPIRED` 면
+`apps/web/lib/api.ts:92-94` — 응답이 401 이고 코드가 `NO_SESSION`·`SESSION_EXPIRED` 면
 `/login` 으로 보낸다. 로그인 화면 자신과 그 주변(`signup`·`forgot-password`·
 `reset-password`·`verify-email`·랜딩)은 제외한다 — 무한 루프가 된다. `INVALID_CREDENTIALS`
 도 401 이지만 제외한다: 이미 로그인 화면에 있는 사람에게 문구로 알려 줄 일이지
@@ -175,7 +175,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 ### components/editor (TipTap 측 + 인스펙터 + 공용 입력)
 
 - `panel-editor.tsx` — TipTap `useEditor`로 `StarterKit`(heading/codeBlock/blockquote off) + `ComicMention`. `onUpdate`에서 `editor.getJSON()`을 `TipTapDoc`으로 콜백. `immediatelyRender: false` (SSR 호환)
-- `mention-extension.ts:8` — `@tiptap/extension-mention` 확장, attrs `{ id, label, version, deleted }`를 직렬화. 렌더는 `<span data-mention-id=…>@label</span>`
+- `mention-extension.ts:1-16` — `@tiptap/extension-mention` 확장, attrs `{ id, label, version, deleted }`를 직렬화. 렌더는 `<span data-mention-id=…>@label</span>`
 - `mention-suggestion.tsx` — `@` 트리거 후 일관성 엔티티 검색·삽입 팝업
 - 인스펙터:
   - `panel-inspector.tsx` — 패널 선택 시 우측 인스펙터. 콘티/모델/렌더 액션. 후술
@@ -199,7 +199,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 - `comic-editor.tsx` — `<Tldraw>` 마운트. `shapeUtils=[ComicPanelShapeUtil, PageFrameShapeUtil, SpeechBubbleShapeUtil, PageTextShapeUtil, PageLineShapeUtil]`, `tools=[ComicPanelTool, PolygonPanelTool, PageTextTool, PageLineTool, ...ALL_BUBBLE_TOOLS]`. `uiOverrides`로 `comic-panel`(`p`), `polygon-panel`(`g`), `page-text`(`t`), `page-line`(`l`) 툴바 등록. `components`로 모든 UI 슬롯(Toolbar/MenuPanel/StylePanel/…)을 null 처리해 자체 사이드바/툴레일로 대체하면서도 `useKeyboardShortcuts`(=Backspace 삭제/Cmd+Z 등)는 유지한다 — `hideUi` prop을 쓰면 `TldrawUiContent`가 통째로 안 마운트되어 단축키도 비활성되므로 사용 금지
 - `comic-editor.tsx:onMount` — store listener에서 모든 `speech-bubble` + `page-text` + `page-line` shape를 항상 `bringToFront`로 패널 위에 유지. 호출 순서 = z-order 끝(말풍선 → 텍스트 → 직선 — 직선이 가장 위)
-- `comic-panel-shape.tsx:13` — `BaseBoxShapeUtil` 기반 `comic-panel` shape (props: w, h, panelId, status, resultImageUrl, variant, polygonPoints). 클립패스로 polygon/oval 등 외형 적용
+- `comic-panel-shape.tsx:13-35` — `BaseBoxShapeUtil` 기반 `comic-panel` shape (props: w, h, panelId, status, resultImageUrl, variant, polygonPoints). 클립패스로 polygon/oval 등 외형 적용
 - `comic-panel-tool.tsx:4` — `BaseBoxShapeTool` 상속 rect 드래그 도구
 - `polygon-panel-tool.tsx` — `StateNode` 기반 자유 polygon 도구. 첫 vertex 근처 클릭/더블클릭/Enter로 닫음, Escape 취소. 말풍선 polygon 도구와 공유 베이스는 `polygon-tool-base.ts`
 - `polygon-preview.tsx`, `polygon-state.ts` — 드로잉 중 미리보기 (jotai-style atom 패턴)
@@ -222,7 +222,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 대부분 shadcn 스타일. 모두 `'use client'`.
 
 - `button.tsx:7` — `cva` 기반. variant `default/destructive/outline/secondary/ghost/link`, size `default/sm/lg/icon`. `asChild`는 `@radix-ui/react-slot`
-- `dialog.tsx:7` — `@radix-ui/react-dialog` 래퍼 (Overlay/Content/Header/Footer/Title/Description/Close)
+- `dialog.tsx:3-9` — `@radix-ui/react-dialog` 래퍼 (Overlay/Content/Header/Footer/Title/Description/Close)
 - `dropdown-menu.tsx`, `select.tsx`, `avatar.tsx`, `radio-group.tsx`, `tooltip.tsx` — 동명 Radix 패키지 래퍼
 - `input.tsx`, `breadcrumb.tsx` — 순수 컴포넌트 (Radix 미사용)
 - `toast.tsx` — 후술 (sonner 래퍼)
@@ -410,7 +410,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 #### `use-page-frame.ts`
 
-`components/editor/tldraw/use-page-frame.ts:22` — `page-frame` shape를 0,0에 자동 생성, 잠금(`isLocked: true`), `index: 'a0'`로 항상 최하단. 사이즈·라벨 변경 시 삭제 후 재생성으로 BaseBoxShape geometry 강제 갱신. `sendToBack` 폴백은 mergeRemoteChanges 밖에서 호출 (`:50-52`). 신규 frame 생성 시 `zoomToFit`.
+`components/editor/tldraw/use-page-frame.ts:21-52` — `page-frame` shape를 0,0에 자동 생성, 잠금(`isLocked: true`), `index: 'a0'`로 항상 최하단. 사이즈·라벨 변경 시 삭제 후 재생성으로 BaseBoxShape geometry 강제 갱신. `sendToBack` 폴백은 mergeRemoteChanges 밖에서 호출 (`:55-58`). 신규 frame 생성 시 `zoomToFit`.
 
 #### 속성 창 껍데기는 `inspector-shell.tsx` 하나다
 
@@ -460,14 +460,14 @@ if (!(await confirm({ title: '…', destructive: true }))) return;
 
 ## 6. API 클라이언트 (lib/api.ts)
 
-`apps/web/lib/api.ts:26` — `api<T>(path, init)`. 핵심 동작:
+`apps/web/lib/api.ts:44` — `api<T>(path, init)`. 핵심 동작:
 
 - **베이스 URL**: `API_BASE = (NEXT_PUBLIC_API_URL ?? 'http://localhost:4000') + API_PREFIX` (`:4-5`)
-- **자격 증명**: 모든 요청에 `credentials: 'include'` (`:39`) → HttpOnly 세션 쿠키 동작
-- **콘텐트 타입**: `FormData`이면 브라우저가 boundary 포함해 자동 설정하도록 헤더 미지정, 그 외는 `application/json` 고정 (`:28-33`)
-- **CSRF**: `SAFE_METHODS`(GET/HEAD/OPTIONS) 이외에서 `CSRF_COOKIE_NAME` 쿠키를 읽어 `CSRF_HEADER_NAME` 헤더로 첨부 (`:34-37`, `readCsrfToken` `:20-24`)
-- **에러**: `!res.ok`이면 응답 JSON의 `error.{code,message,details}` 또는 평탄 `{code,message}`를 읽어 `ApiError`(status, code, message, details)로 throw (`:43-62`). `ApiError`는 `lib/api.ts:9`에 정의
-- **Envelope 언래핑**: 성공 시 본문 `{ data: T }`에서 `data`만 반환. 204는 `undefined`. envelope이 없으면 본문 그대로 (`:63-65`)
+- **자격 증명**: 모든 요청에 `credentials: 'include'` (`:57`) → HttpOnly 세션 쿠키 동작
+- **콘텐트 타입**: `FormData`이면 브라우저가 boundary 포함해 자동 설정하도록 헤더 미지정, 그 외는 `application/json` 고정 (`:46-51`)
+- **CSRF**: `SAFE_METHODS`(GET/HEAD/OPTIONS) 이외에서 `CSRF_COOKIE_NAME` 쿠키를 읽어 `CSRF_HEADER_NAME` 헤더로 첨부 (`:52-55`, `readCsrfToken` `:20-24`)
+- **에러**: `!res.ok`이면 응답 JSON의 `error.{code,message,details}` 또는 평탄 `{code,message}`를 읽어 `ApiError`(status, code, message, details)로 throw (`:61-96`). `ApiError`는 `lib/api.ts:9`에 정의
+- **Envelope 언래핑**: 성공 시 본문 `{ data: T }`에서 `data`만 반환. 204는 `undefined`. envelope이 없으면 본문 그대로 (`:97-101`)
 
 상수 `API_PREFIX`, `CSRF_COOKIE_NAME`, `CSRF_HEADER_NAME`, `ErrorCode` 타입은 모두 `@comicai/types` 공유 패키지에서 옴.
 
@@ -475,7 +475,7 @@ if (!(await confirm({ title: '…', destructive: true }))) return;
 
 ### lib/use-debounced.ts
 
-`useDebounced<T>(value, delay, cb)` (`lib/use-debounced.ts:5`) — 첫 마운트는 무시(`first` ref), 이후 `value` 변경 + `delay`ms 무변화 시 `cb(value)` 호출. 콜백은 ref로 캡쳐해 최신 클로저 유지. `panel-inspector.tsx:98`에서 TipTap doc → `PATCH /panels/:id`를 800ms 디바운스로 저장하는 데 사용.
+`useDebounced<T>(value, delay, cb)` (`lib/use-debounced.ts:5`) — 첫 마운트는 무시(`first` ref), 이후 `value` 변경 + `delay`ms 무변화 시 `cb(value)` 호출. 콜백은 ref로 캡쳐해 최신 클로저 유지. `panel-inspector.tsx:121-135`에서 TipTap doc → `PATCH /panels/:id`를 800ms 디바운스로 저장하는 데 사용.
 
 ### lib/use-project.ts
 
@@ -662,7 +662,7 @@ AppShell 화면의 h1 은 `text-title-lg sm:text-display-md` 로 통일한다. �
 - 다만 썸네일을 버리지는 않았다. 서버가 프로젝트 썸네일이 없으면 첫 페이지 배경을 폴백으로
   presign 해 주므로(`apps/api/src/projects/projects.service.ts` 의 `withThumbnailUrl`),
   한 번이라도 렌더한 프로젝트에는 실제 그림이 있다. 행 왼쪽 작은 슬롯으로 남겼다
-  (`project-row.tsx:38`, `app/projects/[id]/page.tsx:154`). 나중에 카드 뷰를 옵션으로
+  (`project-row.tsx:32-35`, `app/projects/[id]/page.tsx:154`). 나중에 카드 뷰를 옵션으로
   되살릴 때도 같은 데이터를 그대로 쓴다.
 - 이름 변경·표지·삭제는 **항상 보이는 `⋯` 메뉴**다. 예전에는 `reveal-on-hover` 라
   hover 가 없는 기기에서 영영 보이지 않았고, 그래서 터치 사용자는 프로젝트 이름 변경도
@@ -684,7 +684,7 @@ AppShell 화면의 h1 은 `text-title-lg sm:text-display-md` 로 통일한다. �
   켜져야 하는데, 단순 `startsWith(href)` 로는 표현되지 않는다.
 - `SETTINGS_NAV`(`:42`) — 계정 설정 하위. `app/settings/layout.tsx` 의 탭과 드로어가 공유.
   활성 판정은 **정확 일치**다. `startsWith` 를 쓰면 하위 경로가 생기는 순간 두 탭이 동시에 켜진다.
-- `useLogout()`(`:54`) — 드롭다운과 드로어가 같은 함수를 쓴다. 두 벌로 두면
+- `useLogout()`(`:61`) — 드롭다운과 드로어가 같은 함수를 쓴다. 두 벌로 두면
   `setQueryData(qk.me(), null)` 같은 뒷정리를 한쪽에서만 빠뜨리기 쉽다.
 - 좁은 화면에서는 드로어 하나만 남긴다(`app-shell.tsx:83`, `:106`). 상단바 nav 와 아바타
   드롭다운은 `md` 미만에서 숨는다 — 같은 항목이 화면 양쪽에 두 벌 있으면 안 된다.
@@ -732,7 +732,7 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 - **다이얼로그** (`dialog.tsx:43`) — `max-h-[calc(100dvh-2rem)]` + `overflow-y-auto`. 예전에는
   높이 상한이 아예 없어서 내용이 길면 위아래로 잘렸고, 잘린 자리에 확인/취소가 있으면 아무것도
   할 수 없었다. `100vh` 가 아니라 `100dvh` 인 이유는 iOS 주소창이 접혔다 펴져도 실제 보이는
-  높이를 따라가야 하기 때문이다(같은 이유로 앱 셸·에디터 셸도 `dvh` 를 쓴다). 닫기 버튼(`:56`)은
+  높이를 따라가야 하기 때문이다(같은 이유로 앱 셸·에디터 셸도 dvh 를 쓴다). 닫기 버튼(`DialogPrimitive.Close`, `:56-59`)은
   아이콘 16px 을 유지한 채 탭 영역만 44×44 다 — 여기만 `touch:` 게이트가 없는데, 16px 은
   마우스로도 너무 작았기 때문이다.
 - **`color-scheme`** (`app/globals.css:18`) 은 `light` 다. `light dark` 로 두면 OS 가 다크 모드일 때
