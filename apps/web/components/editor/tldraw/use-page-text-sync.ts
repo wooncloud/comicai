@@ -1,7 +1,5 @@
 'use client';
-import { useEffect } from 'react';
 import type { Editor } from 'tldraw';
-import { shapeId } from './shape-id';
 import {
   ApiPaths,
   defaultPageTextStyle,
@@ -54,19 +52,22 @@ function toApi(shape: PageTextShape): {
   };
 }
 
-function samePropsAsDto(shape: PageTextShape, dto: PageTextDTO): boolean {
-  const next = flatten(dto);
+function samePropsAsDto(
+  shape: PageTextShape,
+  next: { x: number; y: number; props: PageTextShape['props'] },
+): boolean {
   const cur = shape.props;
+  const n = next.props;
   return (
-    shape.x === dto.x &&
-    shape.y === dto.y &&
-    cur.w === next.w &&
-    cur.h === next.h &&
-    cur.text === next.text &&
-    cur.fontSize === next.fontSize &&
-    cur.fontFamily === next.fontFamily &&
-    cur.color === next.color &&
-    cur.textAlign === next.textAlign
+    shape.x === next.x &&
+    shape.y === next.y &&
+    cur.w === n.w &&
+    cur.h === n.h &&
+    cur.text === n.text &&
+    cur.fontSize === n.fontSize &&
+    cur.fontFamily === n.fontFamily &&
+    cur.color === n.color &&
+    cur.textAlign === n.textAlign
   );
 }
 
@@ -78,71 +79,28 @@ export function usePageTextSync({
   onSavingChange,
   onSaveError,
 }: Args) {
-  // 역방향 투영보다 **먼저** 불러야 한다 — 아래 이펙트가 이 훅의 `hasUnsaved` 를 읽는다.
-  const sync = useShapeSync<PageTextShape, PageTextDTO>(SPEC, {
+  useShapeSync<PageTextShape, PageTextDTO>(SPEC, {
     editor,
     pageId,
+    items: texts,
     onItemsChanged: onTextsChanged,
     onSavingChange,
     onSaveError,
   });
-
-  // DTO → canvas
-  useEffect(() => {
-    if (!editor) return;
-    const existing = new Map<string, PageTextShape>();
-    for (const s of editor.getCurrentPageShapes()) {
-      if (s.type === 'page-text') {
-        const t = s as PageTextShape;
-        if (t.props.textId) existing.set(t.props.textId, t);
-      }
-    }
-    editor.store.mergeRemoteChanges(() => {
-      for (const dto of texts) {
-        const shape = existing.get(dto.id);
-        /*
-         * 저장 대기 중인 도형은 건너뛴다 — 그쪽은 서버가 아니라 캔버스가 최신이다.
-         * 없으면 왕복이 도는 사이의 편집이 재조회에 덮여 사라진다. 이유 전체는
-         * `useShapeSync` 의 §"왕복 중의 편집" 에 있다.
-         */
-        if (sync.hasUnsaved(dto.id)) {
-          existing.delete(dto.id);
-          continue;
-        }
-        const props = flatten(dto);
-        if (shape) {
-          if (!samePropsAsDto(shape, dto)) {
-            editor.updateShape<PageTextShape>({
-              id: shape.id,
-              type: 'page-text',
-              x: dto.x,
-              y: dto.y,
-              props,
-            });
-          }
-          existing.delete(dto.id);
-        } else {
-          editor.createShape<PageTextShape>({
-            id: shapeId(`ptext-${dto.id}`),
-            type: 'page-text',
-            x: dto.x,
-            y: dto.y,
-            props,
-          });
-        }
-      }
-      for (const orphan of existing.values()) {
-        editor.deleteShape(orphan.id);
-      }
-    });
-  }, [editor, texts, sync]);
 }
 
 /** 모듈 상수여야 한다 — useShapeSync 의 의존성 배열에 들어간다. */
-const SPEC: ShapeSyncSpec<PageTextShape> = {
+const SPEC: ShapeSyncSpec<PageTextShape, PageTextDTO> = {
   type: 'page-text',
   idProp: 'textId',
+  shapeIdPrefix: 'ptext',
   listPath: ApiPaths.pagePageTexts,
   itemPath: ApiPaths.pageText,
   toBody: toApi,
+  toShape: (dto) => ({
+    x: dto.x,
+    y: dto.y,
+    props: flatten(dto),
+  }),
+  isEqual: samePropsAsDto,
 };

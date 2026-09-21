@@ -201,56 +201,14 @@
     },
     {
       "doc": "docs/03-frontend.md",
-      "raw": ":147-156",
-      "target": "apps/web/components/editor/tldraw/use-panel-sync.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/03-frontend.md",
-      "raw": ":197",
-      "target": "apps/web/components/editor/tldraw/use-panel-sync.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/03-frontend.md",
-      "raw": ":249",
-      "target": "apps/web/components/editor/tldraw/use-panel-sync.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/03-frontend.md",
-      "raw": ":276",
-      "target": "apps/web/components/editor/tldraw/use-panel-sync.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/03-frontend.md",
       "raw": ":28-33",
       "target": "apps/web/lib/api.ts",
       "count": 1
     },
     {
       "doc": "docs/03-frontend.md",
-      "raw": ":299",
-      "target": "apps/web/components/editor/tldraw/use-shape-sync.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/03-frontend.md",
-      "raw": ":323",
-      "target": "apps/web/components/editor/tldraw/use-panel-sync.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/03-frontend.md",
       "raw": ":34-37",
       "target": "apps/web/lib/api.ts",
-      "count": 1
-    },
-    {
-      "doc": "docs/03-frontend.md",
-      "raw": ":356",
-      "target": "apps/web/components/editor/tldraw/use-shape-sync.ts",
       "count": 1
     },
     {
@@ -341,12 +299,6 @@
       "doc": "docs/03-frontend.md",
       "raw": "project-row.tsx:38",
       "target": "apps/web/components/dashboard/project-row.tsx",
-      "count": 1
-    },
-    {
-      "doc": "docs/03-frontend.md",
-      "raw": "use-shape-sync.ts:71",
-      "target": "apps/web/components/editor/tldraw/use-shape-sync.ts",
       "count": 1
     },
     {
