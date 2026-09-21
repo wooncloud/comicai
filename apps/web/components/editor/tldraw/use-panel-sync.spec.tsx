@@ -135,4 +135,74 @@ describe('usePanelSync — DTO → 캔버스', () => {
 
     expect(canvas.shapes.get(id)?.x).toBe(300);
   });
+
+  it('R-6: 레거시 DB 행에 strokeColor/strokeWidth 가 없어도 기본값으로 안전하게 채운다', () => {
+    const canvas = makeCanvas();
+    const legacyDto: PanelDTO = {
+      id: 'legacy-p1',
+      pageId: 'page1',
+      order: 0,
+      shape: {
+        type: 'rect',
+        points: [
+          { x: 10, y: 10 },
+          { x: 110, y: 10 },
+          { x: 110, y: 110 },
+          { x: 10, y: 110 },
+        ],
+      } as unknown as PanelDTO['shape'],
+    } as unknown as PanelDTO;
+
+    mount(canvas.editor, [legacyDto]);
+    const shape = [...canvas.shapes.values()][0];
+    expect(shape?.props.panelId).toBe('legacy-p1');
+    expect(shape?.props.strokeColor).toBe('#000000');
+    expect(shape?.props.strokeWidth).toBe(2);
+  });
+
+  it('R-7: 비정상 정점 입력(눌린 폴리곤) 시 직전 polygonPoints 형상을 유지한다', () => {
+    const canvas = makeCanvas();
+    const validPolygonDto: PanelDTO = {
+      id: 'poly-1',
+      pageId: 'page1',
+      order: 0,
+      shape: {
+        type: 'polygon',
+        points: [
+          { x: 0, y: 0 },
+          { x: 100, y: 0 },
+          { x: 100, y: 100 },
+          { x: 0, y: 100 },
+        ],
+        strokeColor: '#000000',
+        strokeWidth: 2,
+      },
+    } as unknown as PanelDTO;
+
+    const { rerender } = mount(canvas.editor, [validPolygonDto]);
+    const shape = [...canvas.shapes.values()][0];
+    expect(shape?.props.variant).toBe('polygon');
+    expect(shape?.props.polygonPoints).not.toBeNull();
+    const initialPoints = shape?.props.polygonPoints;
+
+    // 일직선으로 눌린 비정상 정점(normalizePolygonPoints 가 null 반환)이 도착
+    const collapsedPolygonDto: PanelDTO = {
+      ...validPolygonDto,
+      shape: {
+        type: 'polygon',
+        points: [
+          { x: 0, y: 0 },
+          { x: 0, y: 0 },
+          { x: 0, y: 0 },
+        ],
+        strokeColor: '#000000',
+        strokeWidth: 2,
+      },
+    } as unknown as PanelDTO;
+
+    rerender({ p: [collapsedPolygonDto] });
+    const updated = [...canvas.shapes.values()][0];
+    // 직전 모양이 유지되어야 함
+    expect(updated?.props.polygonPoints).toEqual(initialPoints);
+  });
 });
