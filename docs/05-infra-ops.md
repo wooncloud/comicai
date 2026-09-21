@@ -542,7 +542,8 @@ $compose up -d backup cloudflared
 5. **`backup`·`cloudflared` 기동** (`deploy.yml:61`, `scripts/deploy.sh:134`):
    profile 을 켜는 것과 컨테이너를 올리는 것은 다르므로 따로 올린다. 여기에 `--force-recreate` 를 빼 둔 것은 앱 배포마다 백업 cron 과 healthcheck 시작 유예(26h)가 리셋되지 않게 하기 위해서다 (`deploy.yml:58-60`).
 
-`postgres`·`redis`·`minio` 는 재생성 대상이 아니므로 그대로 유지된다.
+`postgres`·`redis`·`minio` 는 재생성 대상이 아니므로 그대로 유지된다. 4단계에서 compose 는 `api`·`worker` 의 `depends_on: migrate` 때문에 마이그레이션을 **한 번 더** 돌린다 —
+`prisma migrate deploy` 는 멱등이라 두 번째는 `No pending migrations` 로 끝난다(2026-09-21 프로덕션 배포 로그로 확인).
 
 **검증 (2026-09-21, 로컬 docker)**: ① 정상 배포 24초, 다섯 단계 순서대로 통과. ② 사고 재현 — `.env` 의
 `POSTGRES_PASSWORD` 만 바꾸고 배포하자 3단계에서 오늘과 같은 `P1000` 으로 종료 코드 1, **모든 컨테이너 ID 가
