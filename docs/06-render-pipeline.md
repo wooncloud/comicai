@@ -51,7 +51,7 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
   - body: `{ model }` — Gemini/OpenAI ModelId.
   - `onSuccess({ jobId })`: jobId를 상태로 두고 `subscribeJob`을 호출
     (`panel-inspector.tsx:122-132`).
-- 라우트 정의: `packages/types/src/paths.ts:48` (`panelRender`).
+- 라우트 정의: `packages/types/src/paths.ts:52` (`panelRender`).
 
 ### 2.2 API 컨트롤러 — 큐 등록
 
@@ -80,8 +80,8 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
    통과한다. 여기서 단가표만 보면 **토큰을 한 개도 안 쓰는 렌더가 문 앞에서 막힌다.**
    진짜 차감은 워커가 키를 받아 갈 때 원자적으로 일어나므로 이 검사는 권위가 아니라 안내다.
 4. **Idempotency key** = `sha256({ ir, userId, model }).slice(0,32)` →
-   `'job_' + …` (`render.queue.ts:56-58`). 아직 **돌고 있는** 잡만 합친다 (`:64-67`) —
-   끝난 잡은 성공이든 실패든 난수 접미사로 새로 만든다 (`:75-79`).
+   `'job_' + …` (`render.queue.ts:67-69`). 아직 **돌고 있는** 잡만 합친다 (`render.service.ts:122-128`) —
+   끝난 잡은 성공이든 실패든 난수 접미사로 새로 만든다 (`:133-137`).
 5. `prisma.renderJob.create({ status: 'queued', ir })` (`render.service.ts:140-155`). unique 위반(P2002)은
    더블클릭 두 요청이 같은 `baseId` 로 동시에 들어온 경우다 — 이긴 쪽이 만든 잡의 id 를
    돌려준다 (`isUniqueViolation`, `render.service.ts:157-164`). 예전에는 이게 500 `INTERNAL_ERROR` 로 나갔다:
@@ -107,10 +107,10 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
   3. `SseHub.publish({ type:'status', status:'running' })` (`:56-61`).
   4. `getAdapter(model)` — `packages/adapters/src/index.ts:30` 디스패치
      (`gemini-*` → GeminiAdapter, `gpt-image-*` → OpenAIAdapter, `mock` → MockAdapter).
-  5. `resolveApiKey(userId, model)` — DB의 활성 API 키를 가져와 `crypto.open`으로 복호화
-     (`:133-145`). 키 없음 → `RenderApiKeyMissing`(category=`auth`, `:148-150`).
-  6. `AbortController` + `setTimeout(MODEL_CALL_TIMEOUT_MS = 60_000)` — 어댑터 호출 데드라인 (`:67-68, 15`).
-  7. `adapter.buildRequest(ir, apiKey)` → `adapter.call(req, signal, ctx)` (`:74-75`).
+  5. `credentials.resolve(userId, model, renderJobId)` (`apps/api/src/render/model-credentials.ts:62-77`) — DB의 활성 사용자 키를 가져와 `crypto.open`으로 복호화하거나 플랫폼 키 사용 및 토큰 차감.
+     키 없음 → `ApiKeyMissingError`(category=`auth`, `:17-19, 81`).
+  6. `AbortController` + `setTimeout(MODEL_CALL_TIMEOUT_MS = 60_000)` — 어댑터 호출 데드라인 (`apps/api/src/render/render.worker.ts:130-131,25`).
+  7. `adapter.buildRequest(ir, resolved.secret)` → `adapter.call(req, ac.signal, ctx)` (`:145-146`).
   8. 성공:
      - `storage.putImage({kind:'render', renderJobId}, bytes, mime, w, h)` →
        MinIO/S3 PUT, ImageRef 반환 (`apps/api/src/storage/storage.service.ts:75-96`).
@@ -122,7 +122,7 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
        역할을 다한 콘티가 다음 렌더에 잔존하지 않도록 자동 null화. R2 오브젝트는 그대로 두고 포인터만 끊음
        (추후 GC 대상, `render.worker.ts:91-96`).
      - `SseHub.publish({ type:'status', status:'succeeded', resultImage })` (`:97-102`).
-     - `breaker.recordSuccess(apiKeyId)` — 회로차단기 카운터 리셋 (`:103`).
+     - `breaker.recordSuccess(apiKeyId)` — 회로차단기 카운터 리셋 (`:166`).
   9. 예외:
      - `adapter.classifyError(err)` → `RenderError` (category: `transient|auth|quota|safety|invalid|timeout`)
        (`render.worker.ts:106`, 타입 `packages/types/src/index.ts:396-402`).
@@ -152,7 +152,7 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
     `succeeded` 는 아무도 받지 못하고 사라진다. 브라우저 EventSource 는 재연결하지만 새
     프로세스의 버퍼는 비어 있어 재생할 것이 없다 — 그림은 정상 생성됐는데 화면만 영원히
     '생성 중…' 이었다(프런트에 폴링도 없다). 컨트롤러는 권한 확인을 위해 이미 DB 에서 잡을
-    읽으면서 **그 값을 버리고 있었다** (`render.controller.ts:52`, `snapshotEvents` `:72`).
+    읽으면서 **그 값을 버리고 있었다** (`render.controller.ts:50-59`, `snapshotEvents` `:72-83`).
   - 재생할 것이 있으면 스냅샷을 보내지 않는다. 이 프로세스가 그 잡을 지켜본 적이 있다는
     뜻이고, 그때는 버퍼가 DB 보다 최신일 수 있다 — 둘을 섞으면 `succeeded` 뒤에 `running`
     이 도착하는 순서 뒤집힘이 생긴다.
@@ -161,9 +161,9 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
   - 실패한 잡은 `error` 를 먼저, 그다음 `status` 를 보낸다 — 워커의 발행 순서와 같다.
     `status` 만 보내면 "실패" 토스트는 뜨는데 사유 배너가 빈다.
   - 규칙은 `sse.hub.spec.ts` 가 고정한다.
-- `publish(jobId, evt)` (`:95`): 즉시 in-memory `deliver` + (publisher 있으면) Redis pub.
-- `ping(jobId)` (`:104`): local-only heartbeat. 컨트롤러가 30초마다 발사 (`render.controller.ts:58`).
-- 종결 상태(`succeeded|failed|timeout|canceled`)는 5분 후 버퍼 자동 정리 (`:18-19, 120-135`).
+- `publish(jobId, evt)` (`apps/api/src/render/sse.hub.ts:125`): 즉시 in-memory `deliver` + (publisher 있으면) Redis pub.
+- `ping(jobId)` (`:146`): local-only heartbeat. 컨트롤러가 30초마다 발사 (`render.controller.ts:60`).
+- 종결 상태(`succeeded|failed|timeout|canceled`)는 5분 후 버퍼 자동 정리 (`apps/api/src/render/sse.hub.ts:18-19, 167-177`).
 
 SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 `event: status` / `id: <seq>` / `data: <json>` / 빈 줄 2개.
@@ -173,10 +173,10 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 
 ### 2.5 브라우저 수신
 
-`apps/web/components/editor/panel-inspector.tsx:138-184`
+`apps/web/components/editor/panel-inspector.tsx:185-244`
 
 - `new EventSource(`${API_BASE}${ApiPaths.renderJobEvents(jobId)}`, { withCredentials: true })`.
-- `'status'` 리스너 (`:118`):
+- `'status'` 리스너 (`:191`):
   - React Query 캐시 `['render-job', jobId]`에 status 즉시 반영 (`:194`).
   - `succeeded` → `GET /render-jobs/:id`로 최종 DTO(presigned URL 포함) 재요청 →
     `patchRender({ currentRenderStatus:'succeeded', currentRenderImageUrl })` →
@@ -199,12 +199,12 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
    키가 없으면 예외가 `process()` 밖으로 튀어나가 상태 갱신과 SSE 발행이 통째로
    건너뛰어졌다. 행은 `status='running', error=null` 로 영원히 남았다.
    `apiKeyId` 만 `catch` 에서도 읽을 수 있게 밖에 둔다(breaker 기록용).
-2. **워커 레벨 안전망** — `worker.on('failed')`(`render.worker.ts:58`)가
+2. **워커 레벨 안전망** — `worker.on('failed')`(`render.worker.ts:64-67`)가
    `queued`/`running` 인 행을 실패로 마감한다. `try` 로도 못 잡는 경우(워커 OOM,
    `getAdapter` 실패)를 덮는다. `status` 조건이 핵심이다 — 조건 없이 쓰면 정상 실패
    경로가 방금 기록한 분류된 에러를 덮어쓴다.
 3. **취소 버튼** — 생성 중에는 UI 에 취소가 나온다
-   (`apps/web/components/editor/panel-inspector.tsx:402`). 취소 API 는 원래 있었지만
+   (`apps/web/components/editor/panel-inspector.tsx:443-450`). 취소 API 는 원래 있었지만
    웹에서 부르는 곳이 한 군데도 없었다.
 
 ### 재시도가 실제로 다시 돌게
@@ -308,22 +308,19 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 ### 5.2 워커 측 동작
 
 - **실행 중 abort는 없다.** Worker는 `process` 진입 시 종결 상태(`queued`/`running` 이 아닌 것)를
-  확인하고 그렇다면 즉시 return 한다 (`render.worker.ts:122`). 이미 `running`에 들어간 어댑터 호출은
+  확인하고 그렇다면 즉시 return 한다 (`render.worker.ts:114`). 이미 `running`에 들어간 어댑터 호출은
   완료(또는 60s deadline)까지 진행된다 — 취소가 지출을 멈추지는 못한다.
-- 다만 **결과가 취소를 덮어쓰지는 않는다.** 성공·실패 확정 갱신이 모두 `status in (queued, running)`
-  조건부 `updateMany` 라(`render.worker.ts:152`, `:194`), 취소된 행은 그대로 `canceled` 로 남고
-  SSE 발행도 건너뛴다. 예전에는 조건 없는 `update` 라, 취소한 컷에 새로고침하면 그림이 들어와 있었다.
+- 다만 **결과가 취소를 덮어쓰지는 않는다.** 성공·실패 확정 갱신이 모두 `finalizeRenderJob` (`apps/api/src/render/finalize.ts:29-32`)의 `status in IN_PROGRESS_RENDER_STATUSES` 조건부 `updateMany`를 거치며, 워커(`apps/api/src/render/render.worker.ts:160-172`, `:209-213`)는 경합에서 지면(`!won`) 결과를 버리고 SSE 발행도 건너뛴다. 예전에는 조건 없는 `update` 라, 취소한 컷에 새로고침하면 그림이 들어와 있었다.
 - `process` 진입 검사가 `canceled` 만이 아니라 **모든 종결 상태**를 막는 이유: 워커가 `succeeded` 를
   DB 에 쓴 직후 BullMQ 의 `moveToCompleted` 전에 죽으면(배포마다 일어난다) 잡이 stalled 로 재큐되고,
   `succeeded` 행을 통과시키면 모델을 한 번 더 호출·과금한 뒤 결과를 덮어쓴다. 그 창을 좁히기 위해
-  worker 컨테이너에 `stop_grace_period: 90s` 를 준다 (`infra/compose/full.yml:172`).
-- 외부 AbortController는 `MODEL_CALL_TIMEOUT_MS`(60s) 만료에만 트리거된다 (`render.worker.ts:124-125`).
+  worker 컨테이너에 `stop_grace_period: 90s` 를 준다 (`infra/compose/full.yml:184`).
+- 외부 AbortController는 `MODEL_CALL_TIMEOUT_MS`(60s) 만료에만 트리거된다 (`render.worker.ts:130-131, 25`).
 - SSE 측은 컨트롤러가 취소 시점에 `canceled` 이벤트를 발행하지는 않는다. 다만 **재연결하면
   스냅샷으로 현재 상태가 온다**(위 §2.4) — 취소된 잡도 그때 `canceled` 로 관찰된다.
 
-UI에서 취소 버튼은 현재 panel-inspector에 노출되어 있지 않다 (mutation 없음).
-경로 헬퍼 `ApiPaths.renderJobCancel`는 정의되어 있으나(`packages/types/src/paths.ts:42`)
-프론트엔드 호출 지점은 없다.
+UI에서 취소 버튼은 생성 중(`queued`/`running`)일 때 panel-inspector에 노출된다 (`apps/web/components/editor/panel-inspector.tsx:433-451`).
+`cancelRender` mutation (`:166-183`)이 경로 헬퍼 `ApiPaths.renderJobCancel` (`packages/types/src/paths.ts:61`)을 호출하여 잡을 취소한다.
 
 ---
 
@@ -366,9 +363,9 @@ interface RenderError {
 
 ### 6.3 전파 경로
 
-1. **워커 → SSE**: `{ type:'error', error: RenderError }`(`render.worker.ts:124`) +
-   `{ type:'status', status:'failed'|'timeout' }` (`:125`).
-2. **DB**: `RenderJob.error` JSON 컬럼에 `RenderError` 저장 (`:116-123`).
+1. **워커 → SSE**: `{ type:'error', error: RenderError }`(`render.worker.ts:214`) +
+   `{ type:'status', status:'failed'|'timeout' }` (`:215`).
+2. **DB**: `RenderJob.error` JSON 컬럼에 에러(`error`) 저장 (`:209-212`, `finalizeOrphan` `:83-86`).
 3. **GET /render-jobs/:id 응답**: `RenderJobDTO.error`로 노출 (`render.service.ts:205`).
 4. **UI**:
    - `panel-inspector.tsx:178-183` `'error'` 이벤트 리스너가 `setError(payload.error.message)`로
@@ -383,9 +380,9 @@ interface RenderError {
 - `RENDER_ENQUEUE_FAILED` (`render.service.ts:190`) — BullMQ enqueue 실패. HTTP 503.
   행은 `failed`(category `transient`)로 마감된 뒤라 좀비가 남지 않는다.
 - `RESOURCE_NOT_FOUND` (`render.service.ts:150, 175; panels.service.ts:243`).
-- `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:178`),
+- `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:237-241`),
   성공 아닌 잡 restore 시도(`panels.service.ts:245-249`).
-- `PANEL_NOT_FOUND` — `panels.service.ts:304-306`. 소유권 실패도 같은 404 다(존재 여부가 새지 않도록).
+- `PANEL_NOT_FOUND` — `panels.service.ts:308-310`. 소유권 실패도 같은 404 다(존재 여부가 새지 않도록).
 
 API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생하며 `category:'auth'`로 분류되어
 위 경로를 거쳐 SSE로 전달된다.
@@ -408,8 +405,8 @@ API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생�
 | API 경로 헬퍼                                    | `packages/types/src/paths.ts:48,56-60`                    |
 | 컨트롤러 (POST render/get/cancel/restore/events) | `apps/api/src/render/render.controller.ts:25,31,36,42,47` |
 | `RenderService.startRender`                      | `apps/api/src/render/render.service.ts:73`                |
-| `RenderService.getJob`                           | `apps/api/src/render/render.service.ts:147`               |
-| `RenderService.cancel`                           | `apps/api/src/render/render.service.ts:169`               |
+| `RenderService.getJob`                           | `apps/api/src/render/render.service.ts:205`               |
+| `RenderService.cancel`                           | `apps/api/src/render/render.service.ts:227`               |
 | BullMQ enqueue & idempotency                     | `apps/api/src/render/render.queue.ts:34,56`               |
 | Worker process loop                              | `apps/api/src/render/render.worker.ts:96`                 |
 | Adapter 디스패치                                 | `packages/adapters/src/index.ts:30`                       |
