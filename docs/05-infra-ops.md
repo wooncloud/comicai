@@ -204,6 +204,64 @@ DB·오브젝트·백업이 함께 죽는다. 목적지는 사람이 정해야 �
 
 볼륨은 `${BACKUP_HOST_PATH:-backup_data}:/backup` (`full.yml:283`).
 
+### 3.5 복구 런북 — 2026-09-22 맥미니에서 리허설함
+
+한 번도 풀어 본 적 없는 덤프는 백업이 아니라 백업처럼 생긴 파일이다. 아래는 **실제로 돌려 본** 절차다.
+리허설은 운영 DB 를 건드리지 않고 같은 호스트의 **격리된 임시 컨테이너**에 복원해 비교했다(데이터는 맥미니 밖으로 나가지 않았다).
+
+**백업이 어디 있나** — 컨테이너 `comicai-backup` 의 `/backup` (호스트 쪽은 도커 볼륨 또는 `BACKUP_HOST_PATH`).
+
+- DB: `/backup/postgres/comicai-<UTC 시각>.sql.gz` (`backup.sh:97`). 끝까지 쓰인 덤프만 남는다(§3.2 ②).
+- 오브젝트: `/backup/minio/comicai/` 아래 원본과 같은 키 구조 (`backup.sh:57`). 원본에서 지워진 것은 `/backup/minio-trash/<시각>/` (`:58`).
+- 마지막 성공 시각: `/backup/last-success` (유닉스 초).
+
+**① DB 를 임시 컨테이너에 복원해 확인** (리허설, 운영 무영향 — 소요 1초, 2026-09-22 기준 데이터 수 KB)
+
+```sh
+export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH
+LATEST=$(docker exec comicai-backup sh -c 'ls -1t /backup/postgres/*.sql.gz | head -1')
+docker run -d --name comicai-restore-test --network none \
+  -e POSTGRES_USER=comicai -e POSTGRES_PASSWORD=restoretest -e POSTGRES_DB=comicai postgres:16
+until docker exec comicai-restore-test pg_isready -U comicai; do sleep 1; done
+docker exec comicai-backup cat "$LATEST" | gunzip \
+  | docker exec -i comicai-restore-test psql -q -U comicai -d comicai -v ON_ERROR_STOP=1
+# 확인: 행 수를 운영과 비교, 토큰 잔액 합 = 원장 합
+docker exec comicai-restore-test psql -U comicai -d comicai -tAc \
+  "select (select sum(balance) from token_accounts) = (select sum(amount) from token_ledger)"
+docker rm -f comicai-restore-test
+```
+
+리허설 결과: users·projects·pages·panels·render_jobs·token_ledger·token_orders·\_prisma_migrations 8개 테이블 행 수가
+운영과 모두 같았고, 잔액 합 = 원장 합이었다.
+
+**② 실제 복구 — 운영 DB 를 덤프로 되돌릴 때** (되돌릴 수 없다. 먼저 ①로 덤프가 멀쩡한지 본다)
+
+```sh
+APP_ENV=prod bash scripts/compose.sh stop api worker web          # 쓰기를 멈춘다
+docker exec comicai-postgres pg_dump -U comicai -d comicai | gzip > ~/before-restore-$(date +%Y%m%d%H%M).sql.gz  # 지금 상태도 떠 둔다
+docker exec comicai-postgres psql -U comicai -d postgres -c "drop database comicai with (force)" -c "create database comicai"
+docker exec comicai-backup cat "$LATEST" | gunzip \
+  | docker exec -i comicai-postgres psql -q -U comicai -d comicai -v ON_ERROR_STOP=1
+APP_ENV=prod bash scripts/compose.sh up -d api worker web
+```
+
+덤프는 `--no-owner --no-acl` 이라(`backup.sh:105-107`) 역할·권한 없이 들어간다 — 운영 DB 사용자가 소유자가 된다.
+마이그레이션 표(`_prisma_migrations`)도 덤프에 들어 있어, 복원 뒤 `migrate` 는 `No pending migrations` 로 끝난다.
+
+**③ 오브젝트(MinIO) 복구** — 백업 컨테이너의 `mc` 로 백업 디렉터리를 버킷에 다시 미러한다.
+명령 형태는 임시 MinIO 에 시험 파일로 리허설해 확인했다(2026-09-22 운영 버킷은 아직 비어 있다).
+
+```sh
+docker exec comicai-backup sh -c '
+  mc alias set dst "$S3_ENDPOINT" "$S3_ACCESS_KEY" "$S3_SECRET_KEY" &&
+  mc mirror --overwrite /backup/minio/comicai dst/comicai'
+```
+
+실수로 지운 것만 되살리려면 `/backup/minio-trash/<시각>/` 에서 해당 키만 같은 경로로 `mc cp` 한다.
+
+> **지금 한계**: 백업이 원본과 **같은 디스크**에 있다(원격 사본 없음 — §3.3, 백로그 O-03). 디스크가 통째로 죽으면
+> 이 런북으로 되살릴 것이 없다.
+
 ---
 
 ## 4. `scripts/` — 유틸리티
