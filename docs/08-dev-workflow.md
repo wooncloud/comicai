@@ -52,8 +52,8 @@ pnpm --filter @comicai/db migrate
 | ---------------- | ---------------------------------------------- | ------------------------------------- |
 | `pnpm dev`       | 모든 워크스페이스 `dev` 병렬 실행 (persistent) | `package.json:10`, `turbo.json:14-17` |
 | `pnpm build`     | 모든 패키지/앱 빌드, `^build` 의존             | `package.json:11`, `turbo.json:5-8`   |
-| `pnpm typecheck` | 전체 타입체크. `^build` 먼저                   | `package.json:13`, `turbo.json:19-21` |
-| `pnpm lint`      | 전체 lint                                      | `package.json:12`, `turbo.json:18`    |
+| `pnpm typecheck` | 전체 타입체크. `^build` 먼저                   | `package.json:13`, `turbo.json:29-31` |
+| `pnpm lint`      | 전체 lint                                      | `package.json:12`, `turbo.json:26-28` |
 | `pnpm test`      | 전체 unit 테스트. `^build` 먼저                | `package.json:14`, `turbo.json:22-24` |
 | `pnpm format`    | Prettier write                                 | `package.json:15`                     |
 
@@ -171,7 +171,7 @@ pnpm --filter @comicai/db migrate
 
 ## 6. Git 훅
 
-- 도구: **Husky v9** (`package.json:49`). `prepare` 스크립트가 `husky`를 호출 (`package.json:40`).
+- 도구: **`husky` v9** (`package.json:60`). `prepare` 스크립트가 `husky`를 호출 (`package.json:40`).
 - `pre-commit` 훅: `.husky/pre-commit:1`
   ```sh
   pnpm exec lint-staged
