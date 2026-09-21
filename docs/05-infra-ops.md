@@ -258,8 +258,17 @@ localhost 인 것을 한동안 아무도 몰랐다.
 | 비밀 — 비밀번호·API 키·토큰·계좌·관리자 이메일 | `.env` (`.env.example` 이 견본)                  | X    |
 | 컨테이너끼리의 주소 — `minio:9000`, `api:4000` | `infra/compose/full.yml` (`full.yml:23`, `:218`) | O    |
 
-세 번째 줄이 따로인 이유: 그건 사람이 고르는 설정이 아니라 compose 가 아는 사실이다.
-프로파일에 두면 "prod 인데 왜 localhost 냐" 같은 질문을 만든다.
+### 어디에 둘지 판단하는 법
+
+- **`.env` 에 두는 것** — 비밀·개인정보
+  - **① 비밀**: `MASTER_KEY` (`full.yml:42`), `POSTGRES_PASSWORD` (`:61`). 유출되면 암호화된 사용자 키나 DB가 통째로 탈취되므로 저장소에 커밋할 수 없다.
+  - **② 비밀과 짝인 값**: `GOOGLE_OAUTH_CLIENT_ID` (`full.yml:156`) / `GITHUB_OAUTH_CLIENT_ID` (`:158`). ID 자체는 비밀이 아니지만 `CLIENT_SECRET` (`:157`, `:159`) 과 짝이다. 둘을 다른 파일에 두면 반영 경로가 갈려서(프로파일=커밋·배포, .env=서버에서 수정) OAuth 앱을 바꿀 때 한쪽만 바뀌는 사고가 난다.
+  - **③ 비밀이 들어갈 수 있는 URL**: `REDIS_URL` (`full.yml:41`, `x-api-env`), `DATABASE_URL` (`:19`, `x-db-env`). `redis://:비번@host` 처럼 비밀번호가 들어갈 수 있어, prod 값을 프로파일에 커밋하면 비밀번호가 공개 저장소로 나간다.
+  - **④ 개인정보**: `ADMIN_EMAILS` (`full.yml:44`, 이메일), `BILLING_NOTICE` (`:50`, 계좌). 공개 저장소에 남으면 곤란한 개인정보이므로 서버의 `.env` 에서만 관리한다.
+- **compose 가 정하는 것** — 컨테이너끼리의 주소
+  - `S3_ENDPOINT` (`full.yml:23`, `x-s3-env`), `INTERNAL_API_URL` (`:218`). 사람이 고르는 설정이 아니라 compose 가 아는 사실이다(컨테이너 안에서는 `minio:9000` 으로 덮인다). 프로파일에 두면 "prod 인데 왜 localhost 냐" 같은 질문을 만든다. 호스트에서 `pnpm dev` 로 띄울 때의 값은 `.env` 에 두되, 그건 "그 머신의 사실" 이지 프로파일 설정이 아니다.
+- **나머지(공개돼도 되는 설정) = `env-profile.json`**
+  - 포트(`API_PORT`), 주소(`WEB_ORIGIN`), 로그 레벨(`LOG_LEVEL`), 기능 플래그(`FEATURE_API_KEYS`), 백업 주기(`BACKUP_SCHEDULE`) 등. 저장소에 커밋되어 환경별 설정의 단일 출처가 된다.
 
 ### 5.1 우선순위 — 위가 이긴다
 
