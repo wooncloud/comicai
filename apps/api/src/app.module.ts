@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { SessionGuard } from './auth/session.guard';
 import { OAuthModule } from './auth/oauth/oauth.module';
 import { EmailModule } from './email/email.module';
+import { UsersModule } from './users/users.module';
 import { MeModule } from './me/me.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { AdminModule } from './admin/admin.module';
@@ -66,6 +67,7 @@ import { ExportModule } from './export/export.module';
     BillingModule,
     MetricsModule,
     EmailModule,
+    UsersModule,
     AuthModule,
     OAuthModule,
     MeModule,

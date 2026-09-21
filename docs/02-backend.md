@@ -62,13 +62,13 @@ import 한다 — `main.ts:4`, `worker.ts:3`. `@comicai/config` 의 `loadEnv()` 
 
 ### 1.4 AppModule (`app.module.ts`)
 
-- `ConfigModule.forRoot({ isGlobal: true })` — `app.module.ts:30`
-- `LoggerModule.forRoot(...)`: pino redact 경로(`req.headers.cookie`, `authorization`, `*.apiKey`, `*.secret`, `*.token`, `*.ciphertext`, `*.password`, `*.passwordHash`), `/healthz`는 autoLogging 제외 — `app.module.ts:27-59`
-- `ThrottlerModule.forRoot([{ ttl: 60s, limit: 120 }])`, `APP_GUARD = ThrottlerGuard`로 글로벌 적용 — `app.module.ts:62, 82`
-- `APP_GUARD = SessionGuard` 도 함께 등록 — `app.module.ts:97` (아래 §2.2)
-- `configure(consumer)`에서 `CsrfMiddleware`를 모든 라우트(`'*'`)에 부착 — `app.module.ts:101-103`
-- 등록 모듈: `MetricsModule, EmailModule, AuthModule, OAuthModule, MeModule, ApiKeysModule, ProjectsModule, ConsistencyModule, PagesModule, PanelsModule, SpeechBubblesModule, PageTextsModule, PageLinesModule, RenderModule, ExportModule` — `app.module.ts:61-75`
-- 직접 등록 컨트롤러: `HealthController` — `app.module.ts:84`
+- `ConfigModule.forRoot({ isGlobal: true })` — `app.module.ts:31`
+- `LoggerModule.forRoot(...)`: pino redact 경로(`req.headers.cookie`, `authorization`, `*.apiKey`, `*.secret`, `*.token`, `*.ciphertext`, `*.password`, `*.passwordHash`), `/healthz`는 autoLogging 제외 — `app.module.ts:28-63`
+- `ThrottlerModule.forRoot([{ ttl: 60s, limit: 120 }])`, `APP_GUARD = ThrottlerGuard`로 글로벌 적용 — `app.module.ts:65, 88`
+- `APP_GUARD = SessionGuard` 도 함께 등록 — `app.module.ts:99` (아래 §2.2)
+- `configure(consumer)`에서 `CsrfMiddleware`를 모든 라우트(`'*'`)에 부착 — `app.module.ts:103-105`
+- 등록 모듈: `MetricsModule, EmailModule, UsersModule, AuthModule, OAuthModule, MeModule, ApiKeysModule, ProjectsModule, ConsistencyModule, PagesModule, PanelsModule, SpeechBubblesModule, PageTextsModule, PageLinesModule, RenderModule, ExportModule` — `app.module.ts:66-85`
+- 직접 등록 컨트롤러: `HealthController` — `app.module.ts:86`
 
 ---
 
@@ -137,13 +137,13 @@ import 한다 — `main.ts:4`, `worker.ts:3`. `@comicai/config` 의 `loadEnv()` 
 ### 2.5 OAuth (`auth/oauth/*`)
 
 - 지원 provider: `google`, `github` — `auth/oauth/oauth.providers.ts:138-141`
-- 활성화 조건: `${PROVIDER}_OAUTH_CLIENT_ID` + `_CLIENT_SECRET` env 둘 다 존재 — `auth/oauth/oauth.service.ts:116-123`
-- state는 Redis에 `oauth_state:{state}`로 10분 TTL — `auth/oauth/oauth.service.ts:14-15, 51-56`.
+- 활성화 조건: `${PROVIDER}_OAUTH_CLIENT_ID` + `_CLIENT_SECRET` env 둘 다 존재 — `auth/oauth/oauth.service.ts:114-124`
+- state는 Redis에 `oauth_state:{state}`로 10분 TTL — `auth/oauth/oauth.service.ts:18-19, 60-65`.
   **여기에 더해 같은 값을 `comicai_oauth_state` 쿠키로도 심고**(`oauth.controller.ts:40`), 콜백에서
-  쿠키와 쿼리 state 가 일치할 때만 진행한다(`oauth.service.ts:76-78`). Redis 만 보면 "발급된 적
+  쿠키와 쿼리 state 가 일치할 때만 진행한다(`oauth.service.ts:84-86`). Redis 만 보면 "발급된 적
   있는 값인가" 만 확인하게 되는데, 그건 **누가** 시작했는지를 묻지 않는다 — 공격자가 자기 계정으로
   동의까지 마친 콜백 URL 을 피해자에게 열게 하면 피해자 브라우저에 공격자 세션이 심긴다(로그인 CSRF)
-- 콜백 URI: `${API_PUBLIC_URL ?? 'http://localhost:${API_PORT}'}/v1/auth/oauth/${provider}/callback` — `auth/oauth/oauth.service.ts:124-129`
+- 콜백 URI: `${API_PUBLIC_URL ?? 'http://localhost:${API_PORT}'}/v1/auth/oauth/${provider}/callback` — `auth/oauth/oauth.service.ts:135-140`
 - 라우트:
   - GET `/v1/auth/oauth/providers` → 켜져 있는 provider 목록 — `oauth.controller.ts:28`.
     웹은 **이 목록에 있는 버튼만 그린다**. 예전에는 환경변수와 무관하게 항상 보여서, 설정하지
@@ -154,18 +154,25 @@ import 한다 — `main.ts:4`, `worker.ts:3`. `@comicai/config` 의 `loadEnv()` 
     throttler 카운터를 쓴다
   - GET `/v1/auth/oauth/:provider` → 302 authorize URL — `oauth.controller.ts:32-42`
   - GET `/v1/auth/oauth/:provider/callback` → 세션 발급 + CSRF 발급 후 `${WEB_ORIGIN}${returnTo || '/projects'}`로 302 — `oauth.controller.ts:43-79`
-- 사용자 매칭: 이메일 기준 link-or-create. `oauthProviders` JSON 배열에 provider 추가, `emailVerified`면 `emailVerifiedAt` 채움 — `auth/oauth/oauth.service.ts:131-201`.
-  제공자 이메일도 소문자로 정규화한다(`oauth.service.ts:137`) — GitHub 은 대소문자를 섞어 주므로
+- 사용자 매칭: 이메일 기준 link-or-create. `oauthProviders` JSON 배열에 provider 추가, `emailVerified`면 `emailVerifiedAt` 채움 — `auth/oauth/oauth.service.ts:142-209`.
+  제공자 이메일도 소문자로 정규화한다(`oauth.service.ts:151`) — GitHub 은 대소문자를 섞어 주므로
   그대로 쓰면 같은 사람에게 계정이 두 벌 생긴다
-- **기존 계정에 붙이려면 제공자가 이메일 소유를 증명해야 한다**(`oauth.service.ts:157`). 예전에는
+- **기존 계정에 붙이려면 제공자가 이메일 소유를 증명해야 한다**(`oauth.service.ts:168`). 예전에는
   이메일이 같기만 하면 그 계정의 세션을 발급했다 — 어떤 제공자에서 남의 이메일을 소유 증명 없이
   등록할 수 있으면 비밀번호를 모르는 채 남의 계정을 가져갈 수 있었다. 신규 생성은 막지 않는다
-- **약관 동의는 계정 생성 지점에 기록한다.** `termsAgreedAt`(`oauth.service.ts:207`)은 신규 생성
-  경로에만 붙고, 기존 계정 링크 경로(`:161-178`)는 건드리지 않는다. 계정을 만드는 경로는 둘
-  뿐이고(`auth.service.ts:13`, `oauth.service.ts:188`) 한쪽에만 붙이면 다른 경로로 만들어진
+- **약관 동의는 계정 생성 지점에 기록한다.** `termsAgreedAt`(`oauth.service.ts:206`)은 신규 생성
+  경로에만 붙고, 기존 계정 링크 경로(`:172-188`)는 건드리지 않는다. 계정을 만드는 경로는 둘
+  뿐이고(`auth.service.ts:22`, `oauth.service.ts:200`) 한쪽에만 붙이면 다른 경로로 만들어진
   계정에 기록이 없어 재동의 대상을 가려낼 수 없다. 소셜 가입에는 체크박스를 놓을 자리가 없어
   (버튼을 누르는 순간 계정이 생긴다) 웹의 `OAuthButtons` 가 버튼 아래 띄우는 "계속하면 …동의하는
   것으로 봅니다" 문구가 이 기록의 근거다
+
+### 2.6 UsersService (`users/users.service.ts`)
+
+계정 생성과 가입 축하 토큰 지급을 한 몸으로 묶는 "사용자 생성의 유일한 길"(`users/users.service.ts:35-53`).
+이메일 가입(`auth/auth.service.ts:22`)과 OAuth 가입(`auth/oauth/oauth.service.ts:200`) 모두 `UsersService.createUser`를
+호출하며, 계정 생성 시 약관 동의 시각(`termsAgreedAt`) 기록과 가입 축하 보너스 지급(`tokens.grantSignupBonus`, `users/users.service.ts:50`)이
+반드시 1회 함께 수행된다.
 
 ---
 
@@ -763,8 +770,8 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 | `RENDER_WORKER_DISABLED`                                                                             | `render.worker.ts:30`, `sse.hub.ts:49`                         | `'1'`이면 API 프로세스에서 워커 분리 |
 | `RENDER_CONCURRENCY`                                                                                 | `render.worker.ts:37`                                          | 기본 2                               |
 | `SSE_HUB_DISABLED`                                                                                   | `sse.hub.ts:54`                                                | 테스트용                             |
-| `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET`, `GITHUB_OAUTH_CLIENT_ID`/`_SECRET`                               | `oauth.service.ts:96-99`                                       | 둘 다 있어야 provider 활성           |
-| `LOG_LEVEL`, `NODE_ENV`                                                                              | `app.module.ts:26-33`                                          | pino 레벨/포맷                       |
+| `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET`, `GITHUB_OAUTH_CLIENT_ID`/`_SECRET`                               | `oauth.service.ts:129-130`                                     | 둘 다 있어야 provider 활성           |
+| `LOG_LEVEL`, `NODE_ENV`                                                                              | `app.module.ts:34-36`                                          | pino 레벨/포맷                       |
 
 ---
 

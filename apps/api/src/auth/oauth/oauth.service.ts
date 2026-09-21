@@ -6,13 +6,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
-import { newId, prisma } from '@comicai/db';
+import { prisma } from '@comicai/db';
 import type { OAuthProvider } from '@comicai/types';
 import { urlSafeToken } from '../../common/tokens';
 import { ADAPTERS, type OAuthProfile } from './oauth.providers';
 import { apiError } from '../../common/api-error';
 import { redisUrl } from '../../common/env';
-import { TokensService } from '../../tokens/tokens.service';
+import { UsersService } from '../../users/users.service';
 import { jsonColumn } from '../../common/json-column';
 
 const STATE_TTL_SECONDS = 10 * 60;
@@ -29,7 +29,7 @@ export class OAuthService implements OnModuleDestroy {
 
   constructor(
     private readonly config: ConfigService,
-    private readonly tokens: TokensService,
+    private readonly users: UsersService,
   ) {
     this.redis = new Redis(redisUrl(config));
   }
@@ -189,6 +189,7 @@ export class OAuthService implements OnModuleDestroy {
     }
     /*
      * 계정을 만드는 두 경로 중 하나다(다른 하나는 AuthService.signup).
+     * 사용자 생성과 가입 축하 토큰 지급은 UsersService.createUser 하나로 일원화돼 있다.
      * 동의 시각은 "가입 폼"이 아니라 **계정 생성** 에 붙어야 한다 — 한쪽에만
      * 붙이면 다른 경로로 만들어진 계정에 기록이 없고, 재동의 대상을 가려낼 수 없다.
      *
@@ -196,20 +197,14 @@ export class OAuthService implements OnModuleDestroy {
      * "계속하면 이용약관·개인정보 처리방침에 동의하는 것으로 봅니다" 를 띄우고,
      * 그 문구가 여기 기록의 근거다. 문구를 지우면 이 줄도 근거를 잃는다.
      */
-    const created = await prisma.user.create({
-      data: {
-        id: newId('user'),
-        email,
-        displayName: profile.displayName,
-        avatarUrl: profile.avatarUrl,
-        oauthProviders: [provider],
-        emailVerifiedAt: profile.emailVerified ? new Date() : null,
-        termsAgreedAt: new Date(),
-      },
-      select: { id: true, email: true },
+    const created = await this.users.createUser({
+      email,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
+      oauthProviders: [provider],
+      emailVerifiedAt: profile.emailVerified ? new Date() : null,
+      termsAgreedAt: new Date(),
     });
-    // 이메일 가입(`auth.service.ts`)과 짝이다. 둘 다 지급해야 한다.
-    await this.tokens.grantSignupBonus(created.id);
-    return created;
+    return { id: created.id, email: created.email };
   }
 }
