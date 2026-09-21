@@ -208,20 +208,32 @@ export default function PageEditor() {
 
   const onReorderAction = useCallback(
     (action: LayerOrderAction): boolean => {
-      if (!selection) return false;
-      if (selection.kind === 'bubble') {
+      if (!editor) return false;
+      const selectedShapes = editor.getSelectedShapes();
+      if (selectedShapes.length === 0) return false;
+
+      /*
+       * 컷(comic-panel)은 항상 최하위 층('a1~a2')을 유지해야 하며, 서버에 reorder API 가 없다.
+       * 선택 항목에 컷이 섞여 있을 때 tldraw 기본 reorder 가 실행되면 컷이 상위 레이어로 올라가므로,
+       * 가로채서(true 반환) 아무런 API 호출도 하지 않고 no-op 처리한다.
+       */
+      if (selectedShapes.some((s) => s.type === 'comic-panel')) {
+        return true;
+      }
+
+      if (selection?.kind === 'bubble') {
         const id = selection.shape.props.bubbleId;
         if (!id) return false;
         void bubbleReorder.reorder(id, action);
         return true;
       }
-      if (selection.kind === 'text') {
+      if (selection?.kind === 'text') {
         const id = selection.shape.props.textId;
         if (!id) return false;
         void textReorder.reorder(id, action);
         return true;
       }
-      if (selection.kind === 'line') {
+      if (selection?.kind === 'line') {
         const id = selection.shape.props.lineId;
         if (!id) return false;
         void lineReorder.reorder(id, action);
@@ -229,7 +241,7 @@ export default function PageEditor() {
       }
       return false;
     },
-    [selection, bubbleReorder, textReorder, lineReorder],
+    [editor, selection, bubbleReorder, textReorder, lineReorder],
   );
 
   useEffect(() => {

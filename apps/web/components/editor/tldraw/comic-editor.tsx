@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useMemo, useRef } from 'react';
-import { Tldraw, type Editor, type TLComponents, type TLShapeId, type TLUiOverrides } from 'tldraw';
+import { Tldraw, sortByIndex, type Editor, type TLComponents, type TLUiOverrides } from 'tldraw';
 import 'tldraw/tldraw.css';
 import type { LayerOrderAction } from '@/lib/use-layer-reorder';
 import { ComicPanelShapeUtil } from './comic-panel-shape';
@@ -88,7 +88,7 @@ export function ComicEditor({ onMount, onReorderAction }: Props) {
         );
         return { ...baseTools, ...ours };
       },
-      actions(_editor, baseActions) {
+      actions(editor, baseActions) {
         const next = { ...baseActions };
         const override = (id: string, actionKey: LayerOrderAction) => {
           const base = next[id];
@@ -96,6 +96,13 @@ export function ComicEditor({ onMount, onReorderAction }: Props) {
             next[id] = {
               ...base,
               onSelect(source) {
+                // 컷(comic-panel)은 항상 최하위 층을 유지해야 하며 별도의 순서 저장 API 가 없다.
+                // 컷이 선택된 상태에서 tldraw 기본 Reorder 액션(base.onSelect)이 실행되면
+                // 컷이 말풍선·텍스트 위로 올라가 층 계층이 깨지므로 아무 동작도 하지 않는다.
+                const selected = editor.getSelectedShapes();
+                if (selected.some((s) => s.type === 'comic-panel')) {
+                  return;
+                }
                 if (onReorderRef.current?.(actionKey)) return;
                 void base.onSelect(source);
               },
@@ -111,60 +118,14 @@ export function ComicEditor({ onMount, onReorderAction }: Props) {
     }),
     [],
   );
+
   const mount = useCallback(
     (editor: Editor) => {
       // 기본 도구를 'select'로
       editor.setCurrentTool('select');
       // 그리드 보기를 기본 ON. 페이지 프레임 안에 패널을 정렬할 때 유용.
       editor.updateInstanceState({ isGridMode: true });
-      // 말풍선/자유 텍스트/자유 직선은 항상 패널 위에. user-sourced shape 변경 때 모두 맨 위로.
-      // 호출 순서 = z-order 끝: 말풍선 → 텍스트 → 직선 (직선이 가장 위).
-      const bubbleIds = new Set<TLShapeId>();
-      const textIds = new Set<TLShapeId>();
-      const lineIds = new Set<TLShapeId>();
-      for (const s of editor.getCurrentPageShapes()) {
-        if (s.type === 'speech-bubble') bubbleIds.add(s.id);
-        else if (s.type === 'page-text') textIds.add(s.id);
-        else if (s.type === 'page-line') lineIds.add(s.id);
-      }
-      let scheduled = false;
-      const unsubscribe = editor.store.listen(
-        (entry) => {
-          let touched = false;
-          for (const r of Object.values(entry.changes.added)) {
-            if (r.typeName !== 'shape') continue;
-            touched = true;
-            if (r.type === 'speech-bubble') bubbleIds.add(r.id);
-            else if (r.type === 'page-text') textIds.add(r.id);
-            else if (r.type === 'page-line') lineIds.add(r.id);
-          }
-          for (const [, after] of Object.values(entry.changes.updated)) {
-            if (after.typeName === 'shape') touched = true;
-          }
-          for (const r of Object.values(entry.changes.removed)) {
-            if (r.typeName !== 'shape') continue;
-            if (r.type === 'speech-bubble') bubbleIds.delete(r.id);
-            else if (r.type === 'page-text') textIds.delete(r.id);
-            else if (r.type === 'page-line') lineIds.delete(r.id);
-          }
-          if (
-            !touched ||
-            (bubbleIds.size === 0 && textIds.size === 0 && lineIds.size === 0) ||
-            scheduled
-          )
-            return;
-          scheduled = true;
-          queueMicrotask(() => {
-            scheduled = false;
-            editor.store.mergeRemoteChanges(() => {
-              if (bubbleIds.size > 0) editor.bringToFront([...bubbleIds]);
-              if (textIds.size > 0) editor.bringToFront([...textIds]);
-              if (lineIds.size > 0) editor.bringToFront([...lineIds]);
-            });
-          });
-        },
-        { source: 'user', scope: 'document' },
-      );
+      const unsubscribe = setupLayerEnforcement(editor);
       onMount(editor);
       return unsubscribe;
     },
@@ -179,5 +140,67 @@ export function ComicEditor({ onMount, onReorderAction }: Props) {
       components={components}
       onMount={mount}
     />
+  );
+}
+
+/**
+ * 말풍선·자유 텍스트·자유 직선은 항상 패널 위에 오도록 계층을 강제한다.
+ * 계층 순서: 컷(comic-panel) < 말풍선(speech-bubble) < 텍스트(page-text) < 직선(page-line).
+ *
+ * 사용자가 도형을 추가했거나 도형의 index 가 변경된 경우에만 queueMicrotask 로
+ * 말풍선 → 텍스트 → 직선 순으로 bringToFront 를 호출하여 계층을 복원한다.
+ * 드래그(x, y 이동) 등 index 가 바뀌지 않는 일반 편집에서는 bringToFront 를 부르지 않는다.
+ */
+export function setupLayerEnforcement(
+  editor: Pick<Editor, 'store' | 'getCurrentPageShapes' | 'bringToFront'>,
+): () => void {
+  let scheduled = false;
+  return editor.store.listen(
+    (entry) => {
+      let shouldEnforce = false;
+
+      // 1. 도형이 새로 추가되었는지 확인
+      for (const r of Object.values(entry.changes.added)) {
+        if (r.typeName === 'shape') {
+          shouldEnforce = true;
+          break;
+        }
+      }
+
+      // 2. 어떤 도형의 index 가 변경되었는지 확인
+      if (!shouldEnforce) {
+        for (const [before, after] of Object.values(entry.changes.updated)) {
+          if (
+            before.typeName === 'shape' &&
+            after.typeName === 'shape' &&
+            before.index !== after.index
+          ) {
+            shouldEnforce = true;
+            break;
+          }
+        }
+      }
+
+      if (!shouldEnforce || scheduled) return;
+
+      scheduled = true;
+      queueMicrotask(() => {
+        scheduled = false;
+        // 페이지의 모든 도형을 조회하여 서버에서 역방향 투영된 도형도 모두 포함한다.
+        const shapes = editor.getCurrentPageShapes();
+        const bubbles = shapes.filter((s) => s.type === 'speech-bubble').sort(sortByIndex);
+        const texts = shapes.filter((s) => s.type === 'page-text').sort(sortByIndex);
+        const lines = shapes.filter((s) => s.type === 'page-line').sort(sortByIndex);
+
+        if (bubbles.length === 0 && texts.length === 0 && lines.length === 0) return;
+
+        editor.store.mergeRemoteChanges(() => {
+          if (bubbles.length > 0) editor.bringToFront(bubbles.map((s) => s.id));
+          if (texts.length > 0) editor.bringToFront(texts.map((s) => s.id));
+          if (lines.length > 0) editor.bringToFront(lines.map((s) => s.id));
+        });
+      });
+    },
+    { source: 'user', scope: 'document' },
   );
 }
