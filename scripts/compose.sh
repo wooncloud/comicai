@@ -30,68 +30,46 @@ STACK="${COMPOSE_STACK:-full}"
 #   3. nvm: ${NVM_DIR:-$HOME/.nvm}/versions/node/*/bin/node
 #      (.nvmrc 와 주 버전 일치 우선, 없으면 가장 높은 버전)
 #   4. /opt/homebrew/bin/node, /usr/local/bin/node
-NODE_CMD=""
-
-if command -v node >/dev/null 2>&1; then
-  NODE_CMD="$(command -v node)"
-elif [ -n "${NODE_BIN:-}" ] && [ -x "$NODE_BIN" ]; then
-  NODE_CMD="$NODE_BIN"
-else
-  TARGET_MAJOR=""
-  if [ -f "$ROOT/.nvmrc" ]; then
-    NVMRC_CONTENT="$(grep -v '^[[:space:]]*#' "$ROOT/.nvmrc" | tr -d '[:space:]' || true)"
-    TARGET_MAJOR="${NVMRC_CONTENT#v}"
-    TARGET_MAJOR="${TARGET_MAJOR%%.*}"
+find_node() {
+  if command -v node >/dev/null 2>&1; then
+    command -v node
+    return 0
   fi
+  [ -n "${NODE_BIN:-}" ] && [ -x "$NODE_BIN" ] && { echo "$NODE_BIN"; return 0; }
 
-  NVM_NODE_DIR="${NVM_DIR:-${HOME:-}/.nvm}/versions/node"
-  if [ -d "$NVM_NODE_DIR" ]; then
-    matched_major_list=""
-    all_versions_list=""
-    for cand in "$NVM_NODE_DIR"/*/bin/node; do
-      [ -x "$cand" ] || continue
-      vdir="$(dirname "$(dirname "$cand")")"
-      vname="$(basename "$vdir")"
-      ver="${vname#v}"
-      major="${ver%%.*}"
-      if [ -z "$all_versions_list" ]; then
-        all_versions_list="${ver} ${cand}"
-      else
-        all_versions_list="${all_versions_list}
-${ver} ${cand}"
-      fi
-      if [ -n "$TARGET_MAJOR" ] && [ "$major" = "$TARGET_MAJOR" ]; then
-        if [ -z "$matched_major_list" ]; then
-          matched_major_list="${ver} ${cand}"
-        else
-          matched_major_list="${matched_major_list}
-${ver} ${cand}"
-        fi
-      fi
-    done
+  local cands="" cand vdir ver
+  for cand in "${NVM_DIR:-${HOME:-}/.nvm}/versions/node"/*/bin/node; do
+    [ -x "$cand" ] || continue
+    vdir="${cand%/*/*}"
+    ver="${vdir##*/}"
+    cands="${cands:+$cands
+}${ver#v} ${cand}"
+  done
 
-    if [ -n "$matched_major_list" ]; then
-      best_line="$(printf "%s\n" "$matched_major_list" | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)"
-      NODE_CMD="${best_line#* }"
-    elif [ -n "$all_versions_list" ]; then
-      best_line="$(printf "%s\n" "$all_versions_list" | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)"
-      NODE_CMD="${best_line#* }"
+  if [ -n "$cands" ]; then
+    local target_major="" matched="" pick=""
+    if [ -f "$ROOT/.nvmrc" ]; then
+      target_major="$(grep -v '^[[:space:]]*#' "$ROOT/.nvmrc" | tr -d '[:space:]' || true)"
+      target_major="${target_major#v}"
+      target_major="${target_major%%.*}"
     fi
+    [ -n "$target_major" ] && matched="$(printf "%s\n" "$cands" | grep "^${target_major}[. ]" || true)"
+    pick="$(printf "%s\n" "${matched:-$cands}" | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)"
+    echo "${pick#* }"
+    return 0
   fi
 
-  if [ -z "$NODE_CMD" ]; then
-    if [ -x "/opt/homebrew/bin/node" ]; then
-      NODE_CMD="/opt/homebrew/bin/node"
-    elif [ -x "/usr/local/bin/node" ]; then
-      NODE_CMD="/usr/local/bin/node"
-    fi
-  fi
-fi
+  for cand in /opt/homebrew/bin/node /usr/local/bin/node; do
+    [ -x "$cand" ] && { echo "$cand"; return 0; }
+  done
 
-if [ -z "$NODE_CMD" ]; then
+  return 1
+}
+
+NODE_CMD="$(find_node)" || {
   echo "✗ node 를 찾을 수 없습니다. 설정 파일을 만들 수 없습니다 (PATH, NODE_BIN, nvm, Homebrew 확인)." >&2
   exit 1
-fi
+}
 
 if [ "${COMPOSE_PRINT_NODE:-0}" = "1" ]; then
   echo "$NODE_CMD"
