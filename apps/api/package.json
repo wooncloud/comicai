@@ -45,7 +45,6 @@
   "devDependencies": {
     "@comicai/eslint-config": "workspace:^",
     "@nestjs/cli": "^10.4.5",
-    "@nestjs/testing": "^10.4.4",
     "@swc/core": "^1.16.1",
     "@testcontainers/postgresql": "^11.14.0",
     "@testcontainers/redis": "^11.14.0",

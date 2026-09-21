@@ -15,9 +15,20 @@
     },
     "apps/api": {
       "entry": ["src/main.ts", "src/worker.ts", "test/**/*.{ts,tsx}"],
-      "project": ["src/**/*.ts"]
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": [
+        "multer",
+        "@types/multer",
+        "pino-pretty",
+        "testcontainers",
+        "@nestjs/schematics",
+        "@vitest/coverage-v8"
+      ]
     },
     "packages/config": {
+      "project": ["*.js"]
+    },
+    "packages/eslint-config": {
       "project": ["*.js"]
     },
     "packages/*": {
