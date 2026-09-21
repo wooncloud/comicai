@@ -1,7 +1,5 @@
 'use client';
-import { useEffect } from 'react';
 import type { Editor } from 'tldraw';
-import { shapeId } from './shape-id';
 import {
   ApiPaths,
   defaultSpeechBubbleStyle,
@@ -63,24 +61,27 @@ function toApi(shape: SpeechBubbleShape): {
   };
 }
 
-function samePropsAsDto(shape: SpeechBubbleShape, dto: SpeechBubbleDTO): boolean {
-  const next = flatten(dto);
+function samePropsAsDto(
+  shape: SpeechBubbleShape,
+  next: { x: number; y: number; props: SpeechBubbleShape['props'] },
+): boolean {
   const cur = shape.props;
+  const n = next.props;
   if (
-    shape.x !== dto.shape.x ||
-    shape.y !== dto.shape.y ||
-    cur.w !== next.w ||
-    cur.h !== next.h ||
-    cur.variant !== next.variant ||
-    cur.tailX !== next.tailX ||
-    cur.tailY !== next.tailY ||
-    cur.strokeWidth !== next.strokeWidth ||
-    cur.strokeColor !== next.strokeColor ||
-    cur.fillColor !== next.fillColor
+    shape.x !== next.x ||
+    shape.y !== next.y ||
+    cur.w !== n.w ||
+    cur.h !== n.h ||
+    cur.variant !== n.variant ||
+    cur.tailX !== n.tailX ||
+    cur.tailY !== n.tailY ||
+    cur.strokeWidth !== n.strokeWidth ||
+    cur.strokeColor !== n.strokeColor ||
+    cur.fillColor !== n.fillColor
   ) {
     return false;
   }
-  return samePolygon(cur.polygonPoints, next.polygonPoints);
+  return samePolygon(cur.polygonPoints, n.polygonPoints);
 }
 
 function samePolygon(a: NormalizedPoint[] | null, b: NormalizedPoint[] | null): boolean {
@@ -98,71 +99,28 @@ export function useSpeechBubbleSync({
   onSavingChange,
   onSaveError,
 }: Args) {
-  // 역방향 투영보다 **먼저** 불러야 한다 — 아래 이펙트가 이 훅의 `hasUnsaved` 를 읽는다.
-  const sync = useShapeSync<SpeechBubbleShape, SpeechBubbleDTO>(SPEC, {
+  useShapeSync<SpeechBubbleShape, SpeechBubbleDTO>(SPEC, {
     editor,
     pageId,
+    items: bubbles,
     onItemsChanged: onBubblesChanged,
     onSavingChange,
     onSaveError,
   });
-
-  // DTO → canvas
-  useEffect(() => {
-    if (!editor) return;
-    const existing = new Map<string, SpeechBubbleShape>();
-    for (const s of editor.getCurrentPageShapes()) {
-      if (s.type === 'speech-bubble') {
-        const b = s as SpeechBubbleShape;
-        if (b.props.bubbleId) existing.set(b.props.bubbleId, b);
-      }
-    }
-    editor.store.mergeRemoteChanges(() => {
-      for (const dto of bubbles) {
-        const shape = existing.get(dto.id);
-        /*
-         * 저장 대기 중인 도형은 건너뛴다 — 그쪽은 서버가 아니라 캔버스가 최신이다.
-         * 없으면 왕복이 도는 사이의 편집이 재조회에 덮여 사라진다. 이유 전체는
-         * `useShapeSync` 의 §"왕복 중의 편집" 에 있다.
-         */
-        if (sync.hasUnsaved(dto.id)) {
-          existing.delete(dto.id);
-          continue;
-        }
-        const props = flatten(dto);
-        if (shape) {
-          if (!samePropsAsDto(shape, dto)) {
-            editor.updateShape<SpeechBubbleShape>({
-              id: shape.id,
-              type: 'speech-bubble',
-              x: dto.shape.x,
-              y: dto.shape.y,
-              props,
-            });
-          }
-          existing.delete(dto.id);
-        } else {
-          editor.createShape<SpeechBubbleShape>({
-            id: shapeId(`bubble-${dto.id}`),
-            type: 'speech-bubble',
-            x: dto.shape.x,
-            y: dto.shape.y,
-            props,
-          });
-        }
-      }
-      for (const orphan of existing.values()) {
-        editor.deleteShape(orphan.id);
-      }
-    });
-  }, [editor, bubbles, sync]);
 }
 
 /** 모듈 상수여야 한다 — useShapeSync 의 의존성 배열에 들어간다. */
-const SPEC: ShapeSyncSpec<SpeechBubbleShape> = {
+const SPEC: ShapeSyncSpec<SpeechBubbleShape, SpeechBubbleDTO> = {
   type: 'speech-bubble',
   idProp: 'bubbleId',
+  shapeIdPrefix: 'bubble',
   listPath: ApiPaths.pageSpeechBubbles,
   itemPath: ApiPaths.speechBubble,
   toBody: toApi,
+  toShape: (dto) => ({
+    x: dto.shape.x,
+    y: dto.shape.y,
+    props: flatten(dto),
+  }),
+  isEqual: samePropsAsDto,
 };
