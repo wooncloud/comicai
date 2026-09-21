@@ -20,7 +20,8 @@ interface TestShape {
   typeName: 'shape';
   type: 'test-shape';
   x: number;
-  props: { srvId: string | null };
+  y: number;
+  props: { srvId: string | null; [key: string]: unknown };
 }
 interface Dto {
   id: string;
@@ -38,14 +39,58 @@ type Listener = (entry: {
 function makeCanvas() {
   const shapes = new Map<string, TestShape>();
   let listener: Listener | null = null;
+  let inMergeRemote = false;
+
+  const mergeRemoteChanges = vi.fn((fn: () => void) => {
+    inMergeRemote = true;
+    try {
+      fn();
+    } finally {
+      inMergeRemote = false;
+    }
+  });
+
+  const createShape = vi.fn(
+    (s: { id: string; x?: number; y?: number; props?: Record<string, unknown> }) => {
+      shapes.set(s.id, {
+        id: s.id,
+        typeName: 'shape',
+        type: 'test-shape',
+        x: s.x ?? 0,
+        y: s.y ?? 0,
+        props: { srvId: null, ...s.props },
+      });
+    },
+  );
+
+  const updateShape = vi.fn(
+    (partial: { id: string; x?: number; y?: number; props?: Record<string, unknown> }) => {
+      const cur = shapes.get(partial.id);
+      if (cur) {
+        shapes.set(partial.id, {
+          ...cur,
+          ...partial,
+          props: { ...cur.props, ...partial.props },
+        });
+      }
+    },
+  );
+
+  const deleteShape = vi.fn((id: string) => {
+    shapes.delete(id);
+  });
+
+  const deleteShapes = vi.fn((ids: string[]) => {
+    ids.forEach((id) => shapes.delete(id));
+  });
 
   const editor = {
+    getCurrentPageShapes: () => [...shapes.values()],
     getShape: (id: string) => shapes.get(id),
-    updateShape: (partial: { id: string; props?: Record<string, unknown> }) => {
-      const cur = shapes.get(partial.id);
-      if (cur) shapes.set(partial.id, { ...cur, props: { ...cur.props, ...partial.props } });
-    },
-    deleteShapes: (ids: string[]) => ids.forEach((id) => shapes.delete(id)),
+    createShape,
+    updateShape,
+    deleteShape,
+    deleteShapes,
     store: {
       listen: (cb: Listener) => {
         listener = cb;
@@ -53,7 +98,7 @@ function makeCanvas() {
           listener = null;
         };
       },
-      mergeRemoteChanges: (fn: () => void) => fn(),
+      mergeRemoteChanges,
     },
   } as unknown as Editor;
 
@@ -61,13 +106,33 @@ function makeCanvas() {
   return {
     editor,
     shapes,
+    createShape,
+    updateShape,
+    deleteShape,
+    deleteShapes,
+    mergeRemoteChanges,
+    isInMergeRemote: () => inMergeRemote,
     /** 서버에서 투영돼 온 도형. 리스너를 거치지 않으므로 저장 큐에 들어가지 않는다. */
-    seed(id: string, x: number, srvId: string) {
-      shapes.set(id, { id, typeName: 'shape', type: 'test-shape', x, props: { srvId } });
+    seed(id: string, x: number, srvId: string, extraProps?: Record<string, unknown>) {
+      shapes.set(id, {
+        id,
+        typeName: 'shape',
+        type: 'test-shape',
+        x,
+        y: 0,
+        props: { srvId, ...extraProps },
+      });
     },
     /** 사용자가 도형을 만들었다. */
     add(id: string, x: number, srvId: string | null = null) {
-      const shape: TestShape = { id, typeName: 'shape', type: 'test-shape', x, props: { srvId } };
+      const shape: TestShape = {
+        id,
+        typeName: 'shape',
+        type: 'test-shape',
+        x,
+        y: 0,
+        props: { srvId },
+      };
       shapes.set(id, shape);
       listener?.({ changes: { ...empty, added: { [id]: shape } } });
     },
@@ -90,25 +155,34 @@ function makeCanvas() {
 const SPEC = {
   type: 'test-shape',
   idProp: 'srvId',
+  shapeIdPrefix: 'test',
   listPath: (pageId: string) => `/pages/${pageId}/items`,
   itemPath: (id: string) => `/items/${id}`,
   toBody: (shape: TestShape) => ({ x: shape.x }),
-} as unknown as ShapeSyncSpec<TLShape>;
+  toShape: (dto: Dto) => ({
+    x: dto.x,
+    y: 0,
+    props: { srvId: dto.id },
+  }),
+} as unknown as ShapeSyncSpec<TLShape, Dto>;
 
 // 이펙트 의존성에 들어가므로 렌더마다 같은 참조여야 한다.
 const onItemsChanged = vi.fn();
 const onSavingChange = vi.fn();
 const onSaveError = vi.fn();
 
-function mount(editor: Editor) {
-  return renderHook(() =>
-    useShapeSync<TLShape, Dto>(SPEC, {
-      editor,
-      pageId: 'page1',
-      onItemsChanged,
-      onSavingChange,
-      onSaveError,
-    }),
+function mount(editor: Editor, items?: Dto[]) {
+  return renderHook(
+    ({ currentItems }: { currentItems?: Dto[] } = {}) =>
+      useShapeSync<TLShape, Dto>(SPEC, {
+        editor,
+        pageId: 'page1',
+        items: currentItems,
+        onItemsChanged,
+        onSavingChange,
+        onSaveError,
+      }),
+    { initialProps: { currentItems: items } },
   );
 }
 
@@ -136,6 +210,7 @@ const DEBOUNCE = 1500;
 beforeEach(() => {
   vi.useFakeTimers();
   apiMock.mockReset();
+  apiMock.mockResolvedValue([]);
   onItemsChanged.mockReset();
   onSavingChange.mockReset();
   onSaveError.mockReset();
@@ -303,5 +378,123 @@ describe('useShapeSync — 왕복 중의 편집', () => {
 
     expect(canvas.shapes.has('s1')).toBe(false);
     expect(onSaveError).toHaveBeenCalled();
+  });
+});
+
+describe('useShapeSync — DTO → 캔버스 역방향 투영', () => {
+  it('서버 DTO 목록을 캔버스 도형으로 생성한다', () => {
+    const canvas = makeCanvas();
+    mount(canvas.editor, [
+      { id: 'srv1', x: 10 },
+      { id: 'srv2', x: 20 },
+    ]);
+
+    expect(canvas.shapes.size).toBe(2);
+    const s1 = canvas.shapes.get('shape:test-srv1');
+    const s2 = canvas.shapes.get('shape:test-srv2');
+    expect(s1?.x).toBe(10);
+    expect(s1?.props.srvId).toBe('srv1');
+    expect(s2?.x).toBe(20);
+    expect(s2?.props.srvId).toBe('srv2');
+  });
+
+  it('DTO 변경 시 기존 도형을 in-place 갱신하고, 동일하면 갱신하지 않는다', () => {
+    const canvas = makeCanvas();
+    const { rerender } = mount(canvas.editor, [{ id: 'srv1', x: 10 }]);
+
+    expect(canvas.updateShape).not.toHaveBeenCalled();
+
+    // DTO 좌표 변경
+    rerender({ currentItems: [{ id: 'srv1', x: 50 }] });
+    expect(canvas.updateShape).toHaveBeenCalledTimes(1);
+    expect(canvas.shapes.get('shape:test-srv1')?.x).toBe(50);
+
+    // 동일한 DTO 로 리렌더 시 불필요한 updateShape 가 호출되지 않는다
+    canvas.updateShape.mockClear();
+    rerender({ currentItems: [{ id: 'srv1', x: 50 }] });
+    expect(canvas.updateShape).not.toHaveBeenCalled();
+  });
+
+  it('DTO 목록에서 빠진 고아 도형은 캔버스에서 삭제한다', () => {
+    const canvas = makeCanvas();
+    const { rerender } = mount(canvas.editor, [
+      { id: 'srv1', x: 10 },
+      { id: 'srv2', x: 20 },
+    ]);
+    expect(canvas.shapes.size).toBe(2);
+
+    // srv2 가 목록에서 제외됨
+    rerender({ currentItems: [{ id: 'srv1', x: 10 }] });
+    expect(canvas.shapes.has('shape:test-srv1')).toBe(true);
+    expect(canvas.shapes.has('shape:test-srv2')).toBe(false);
+    expect(canvas.deleteShape).toHaveBeenCalledWith('shape:test-srv2');
+  });
+
+  it('R-2: 역방향 투영의 모든 캔버스 조작은 mergeRemoteChanges 안에서 일어난다', () => {
+    const canvas = makeCanvas();
+    let wasInMergeRemoteOnCreate = false;
+    canvas.createShape.mockImplementation(
+      (s: { id: string; x?: number; y?: number; props?: Record<string, unknown> }) => {
+        wasInMergeRemoteOnCreate = canvas.isInMergeRemote();
+        canvas.shapes.set(s.id, {
+          id: s.id,
+          typeName: 'shape',
+          type: 'test-shape',
+          x: s.x ?? 0,
+          y: s.y ?? 0,
+          props: { srvId: null, ...s.props },
+        });
+      },
+    );
+
+    mount(canvas.editor, [{ id: 'srv1', x: 10 }]);
+    expect(canvas.mergeRemoteChanges).toHaveBeenCalled();
+    expect(wasInMergeRemoteOnCreate).toBe(true);
+  });
+
+  it('R-3: 서버 id가 아직 없는 로컬 신규 도형은 DTO 투영 시 고아로 지워지지 않는다', () => {
+    const canvas = makeCanvas();
+    // 사용자가 방금 만든 도형 (서버 ID 없음)
+    canvas.add('local-pending', 5, null);
+
+    const { rerender } = mount(canvas.editor, [{ id: 'srv1', x: 10 }]);
+    expect(canvas.shapes.has('local-pending')).toBe(true);
+    expect(canvas.shapes.has('shape:test-srv1')).toBe(true);
+
+    // DTO 목록이 갱신되어도 로컬 신규 도형은 유지된다
+    rerender({ currentItems: [{ id: 'srv1', x: 20 }] });
+    expect(canvas.shapes.has('local-pending')).toBe(true);
+  });
+
+  it('R-4: hasUnsaved 로 건너뛴 로컬 수정 도형은 DTO 목록에 없어도 고아로 삭제되지 않는다', () => {
+    const canvas = makeCanvas();
+    canvas.seed('s1', 10, 'srv1');
+
+    const { rerender } = mount(canvas.editor, [{ id: 'srv1', x: 10 }]);
+    canvas.move('s1', 99); // 저장 대기 중 (hasUnsaved = true)
+
+    // srv1 이 누락된 새 서버 목록이 들어온다 (예: 다른 페이지 쿼리 결과 등)
+    rerender({ currentItems: [{ id: 'srv2', x: 20 }] });
+
+    // srv1 은 hasUnsaved 상태이므로 고아 삭제 대상에서 제외되고 캔버스에 살아있어야 한다
+    expect(canvas.shapes.has('s1')).toBe(true);
+    expect(canvas.shapes.get('s1')?.x).toBe(99);
+    expect(canvas.shapes.has('shape:test-srv2')).toBe(true);
+  });
+
+  it('R-8: updateShape 시 DTO 에 없는 기존 shape.props(클라이언트 속성)가 보존된다', () => {
+    const canvas = makeCanvas();
+    // s1 에 클라이언트 전용 추가 속성이 들어있음
+    canvas.seed('shape:test-srv1', 10, 'srv1', { clientOnlyFlag: true, customNote: 'local' });
+
+    const { rerender } = mount(canvas.editor, [{ id: 'srv1', x: 10 }]);
+    // DTO 좌표가 바뀌어 updateShape 발생
+    rerender({ currentItems: [{ id: 'srv1', x: 30 }] });
+
+    const updated = canvas.shapes.get('shape:test-srv1')!;
+    expect(updated.x).toBe(30);
+    expect(updated.props.srvId).toBe('srv1');
+    expect(updated.props.clientOnlyFlag).toBe(true);
+    expect(updated.props.customNote).toBe('local');
   });
 });

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Editor, TLShape, TLShapeId, TLShapePartial } from 'tldraw';
 import { api } from '@/lib/api';
+import { shapeId } from './shape-id';
 
 const SAVE_DEBOUNCE_MS = 1500;
 /** 저장 실패 시 재시도 간격. 3회까지 늘려 가며 시도한다. */
@@ -54,7 +55,16 @@ const RETRY_DELAYS_MS = [2000, 4000, 8000];
  * 다른 사용자가 바꿔도 목록 prop 이 갱신되고, 그때마다 같은 덮어쓰기가 일어난다.
  * 재조회를 없애는 것으로는 안 되고, 투영이 더러운 도형을 알아야 한다.
  */
-export interface ShapeSyncSpec<TShape extends TLShape> {
+export interface ShapeData<TShape extends TLShape> {
+  x: number;
+  y: number;
+  props: TShape['props'];
+}
+
+export interface ShapeSyncSpec<
+  TShape extends TLShape,
+  TDto extends { id: string } = { id: string },
+> {
   /** tldraw shape type. store 리스너가 이걸로 자기 것만 고른다. */
   type: TShape['type'];
   /** `shape.props` 안에서 서버 id 를 담는 키. 없으면 아직 저장된 적 없는 도형이다. */
@@ -65,6 +75,14 @@ export interface ShapeSyncSpec<TShape extends TLShape> {
   itemPath: (id: string) => string;
   /** shape → 요청 본문. 생성과 갱신이 같은 모양이다. */
   toBody: (shape: TShape) => unknown;
+
+  // ─── 역방향 (서버 DTO → 캔버스 도형) ───
+  /** shapeIdPrefix: 캔버스 shape ID 접두사 (예: 'panel', 'bubble', 'ptext', 'pline') */
+  shapeIdPrefix?: string;
+  /** DTO → shape 좌표 및 props 변환. 직전 도형(existing)이 있으면 두 번째 인자로 전달된다. */
+  toShape?: (dto: TDto, existing?: TShape) => ShapeData<TShape>;
+  /** 변경 여부 동등성 검사 (생략 시 x, y 및 props 얕은 비교) */
+  isEqual?: (existing: TShape, next: ShapeData<TShape>) => boolean;
 }
 
 /** 역방향 투영이 이 훅에게 묻는 것. 반환값의 정체성은 렌더 간에 고정된다. */
@@ -81,6 +99,7 @@ export interface ShapeSyncState {
 interface Args<TDto> {
   editor: Editor | null;
   pageId: string;
+  items?: TDto[];
   onItemsChanged: (items: TDto[]) => void;
   onSavingChange: (saving: boolean) => void;
   onSaveError?: (err: unknown) => void;
@@ -100,8 +119,8 @@ function serverIdOf(shape: TLShape, idProp: string): string | null {
 }
 
 export function useShapeSync<TShape extends TLShape, TDto extends { id: string }>(
-  spec: ShapeSyncSpec<TShape>,
-  { editor, pageId, onItemsChanged, onSavingChange, onSaveError }: Args<TDto>,
+  spec: ShapeSyncSpec<TShape, TDto>,
+  { editor, pageId, items, onItemsChanged, onSavingChange, onSaveError }: Args<TDto>,
 ): ShapeSyncState {
   // 큐는 이펙트 클로저 안에 산다(pageId 가 바뀌면 새 큐여야 한다). 밖에서 읽어야 하는
   // 것은 질문 하나뿐이라 함수만 ref 로 내보낸다.
@@ -350,7 +369,7 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
      */
     function flushNow() {
       if (!hasWork()) return;
-      for (const op of drain(true)) void op.send().catch(() => {});
+      for (const op of drain(true)) void Promise.resolve(op.send()).catch(() => {});
     }
 
     function onBeforeUnload(e: BeforeUnloadEvent) {
@@ -417,5 +436,81 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
     };
   }, [editor, pageId, spec, onItemsChanged, onSavingChange, onSaveError]);
 
+  // ─── DTO → 캔버스 역방향 투영 ───
+  useEffect(() => {
+    if (!editor || !items || !spec.toShape || !spec.shapeIdPrefix) return;
+
+    const existing = new Map<string, TShape>();
+    for (const s of editor.getCurrentPageShapes()) {
+      if (s.type === spec.type) {
+        const sid = serverIdOf(s, spec.idProp);
+        if (sid) existing.set(sid, s as TShape);
+      }
+    }
+
+    editor.store.mergeRemoteChanges(() => {
+      for (const dto of items) {
+        /*
+         * 저장 대기 중인 도형은 건너뛴다 — 그쪽은 서버가 아니라 캔버스가 최신이다.
+         * 없으면 왕복이 도는 사이의 편집이 재조회에 덮여 사라진다.
+         */
+        if (state.hasUnsaved(dto.id)) {
+          existing.delete(dto.id);
+          continue;
+        }
+
+        const shape = existing.get(dto.id);
+        const next = spec.toShape!(dto, shape);
+
+        if (shape) {
+          const unchanged = spec.isEqual
+            ? spec.isEqual(shape, next)
+            : shape.x === next.x &&
+              shape.y === next.y &&
+              isShallowEqual(
+                shape.props as Record<string, unknown>,
+                next.props as Record<string, unknown>,
+              );
+
+          if (!unchanged) {
+            editor.updateShape({
+              id: shape.id,
+              type: spec.type,
+              x: next.x,
+              y: next.y,
+              props: { ...shape.props, ...next.props },
+            } as TLShapePartial<TShape>);
+          }
+          existing.delete(dto.id);
+        } else {
+          editor.createShape<TShape>({
+            id: shapeId(`${spec.shapeIdPrefix}-${dto.id}`),
+            type: spec.type,
+            x: next.x,
+            y: next.y,
+            props: next.props,
+          } as unknown as TLShapePartial<TShape>);
+        }
+      }
+
+      for (const orphan of existing.values()) {
+        const sid = serverIdOf(orphan, spec.idProp);
+        if (sid && state.hasUnsaved(sid)) continue;
+        editor.deleteShape(orphan.id);
+      }
+    });
+  }, [editor, items, spec, state]);
+
   return state;
+}
+
+function isShallowEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+  if (a === b) return true;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const k of keysA) {
+    if (a[k] !== b[k]) return false;
+  }
+  return true;
 }
