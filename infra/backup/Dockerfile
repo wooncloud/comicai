@@ -2,9 +2,11 @@
 FROM alpine:3.20
 
 # curl 은 BACKUP_WEBHOOK_URL 알림용.
-RUN apk add --no-cache postgresql16-client gzip findutils tzdata busybox-suid curl \
- && wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc \
- && chmod +x /usr/local/bin/mc
+# MinIO 바이너리를 받던 공식 주소는 HTTP 410 으로 닫혔고 arm64 호스트에 amd64 바이너리를
+# 받던 아키텍처 불일치도 있었다. Alpine 패키지(minio-client)는 빌드 아키텍처를 따라간다.
+# 패키지 실행 파일 이름이 /usr/bin/mcli 라 backup.sh 호환을 위해 /usr/local/bin/mc 로 연결한다.
+RUN apk add --no-cache postgresql16-client gzip findutils tzdata busybox-suid curl minio-client \
+ && ln -s /usr/bin/mcli /usr/local/bin/mc
 
 ENV TZ=Asia/Seoul
 WORKDIR /app

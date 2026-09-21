@@ -129,15 +129,15 @@ EXPOSE `3000`.
 
 - `postgresql16-client` (pg_dump)
 - `gzip findutils tzdata busybox-suid` (cron용)
-- `curl` — 실패 웹훅 전송용 (`Dockerfile:5`)
-- `mc` (MinIO client, `:6`)
+- `curl` — 실패 웹훅 전송용 (`Dockerfile:8`)
+- `minio-client` (MinIO client, `:8`) — Alpine 패키지로 설치 후 `/usr/bin/mcli` 를 `mc` 로 심볼릭 링크(`:9`). 공식 배포 주소의 HTTP 410 Gone 과 arm64 호스트에 amd64 바이너리를 받던 아키텍처 불일치를 해결한다.
 
-`TZ=Asia/Seoul`, 기본 스케줄 `BACKUP_SCHEDULE="0 3 * * *"` (`:16`). entrypoint는 `entrypoint.sh`.
+`TZ=Asia/Seoul`, 기본 스케줄 `BACKUP_SCHEDULE="0 3 * * *"` (`:18`). entrypoint는 `entrypoint.sh`.
 
 `HEALTHCHECK` 는 **compose 에 있다**(`full.yml:273`) — 이미지가 아니라. `start_period`
 가 `BACKUP_STALE_HOURS` 와 같은 값이어야 하는데, Dockerfile 에 두면 `26h` 가 이미지에 박혀
 `.env` 를 올려도 유예만 옛 값으로 남는다. 한 변수가 정하는 일을 두 곳이 나눠 갖지 않게
-한 것이다(`Dockerfile:22-24` 에 그 이유가 남아 있다).
+한 것이다(`Dockerfile:24-26` 에 그 이유가 남아 있다).
 
 ### 3.2 `backup.sh`
 
