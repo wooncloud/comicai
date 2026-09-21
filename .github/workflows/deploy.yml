@@ -46,8 +46,13 @@ jobs:
           # 여기에 compose 명령을 다시 적으면 env-profile.json 이 반영되지 않은 채
           # 컨테이너가 뜬다(그리고 그건 로그로 티가 나지 않는다).
           compose="env APP_ENV=prod bash scripts/compose.sh"
-          $compose up -d --build --force-recreate web api worker
-          # backup/cloudflared 는 서비스 이름을 안 적어서 배포 때 한 번도 뜨지 않았다 —
+          # ① 이미지 빌드만 먼저 — 실패 시 아무것도 건드리지 않고 중단
+          $compose build
+          # ② 마이그레이션을 지금 떠 있는 DB에 대해 먼저 실행 — 실패 시 앱 컨테이너를 건드리지 않고 중단
+          $compose run --rm --no-deps migrate
+          # ③ 마이그레이션 성공 후에만 앱 컨테이너 재생성
+          $compose up -d --force-recreate web api worker
+          # ④ backup/cloudflared 는 서비스 이름을 안 적어서 배포 때 한 번도 뜨지 않았다 —
           # profile 을 켜는 것과 컨테이너를 올리는 것은 다르다. 여기서는 --force-recreate 를
           # 빼서, 앱 배포마다 백업 cron 과 healthcheck 시작 유예가 리셋되지 않게 한다.
-          $compose up -d --build backup cloudflared
+          $compose up -d backup cloudflared

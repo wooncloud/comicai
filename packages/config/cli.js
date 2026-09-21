@@ -103,7 +103,31 @@ function write(out, group) {
 }
 
 /**
- * 세 가지를 본다. 하나라도 틀리면 종료 코드가 1 이다.
+ * DATABASE_URL 에서 비밀번호를 추출한다.
+ * 파싱할 수 없으면 null 을 돌려준다.
+ *
+ * @param {string} urlStr
+ * @returns {string | null}
+ */
+function extractDbPassword(urlStr) {
+  try {
+    const parsed = new URL(urlStr);
+    return decodeURIComponent(parsed.password);
+  } catch {
+    const match = urlStr.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^:]+:([^@]+)@/);
+    if (match?.[1] !== undefined) {
+      try {
+        return decodeURIComponent(match[1]);
+      } catch {
+        return match[1];
+      }
+    }
+    return null;
+  }
+}
+
+/**
+ * 네 가지를 본다. 하나라도 틀리면 종료 코드가 1 이다.
  *
  * 1. **그룹 대칭성** — dev 와 prod 는 같은 키를 정의해야 한다. 한쪽에만 있는 키는
  *    "다른 환경에서는 어떻게 되는지" 를 아무도 안 정한 것이고, 그 상태는 배포 뒤에야
@@ -111,6 +135,8 @@ function write(out, group) {
  * 2. **.env 와의 중복** — 프로파일이 정하는 키가 .env 에도 있으면 .env 가 이긴다.
  *    값이 같으면 지워도 되고, 다르면 그 머신의 진짜 오버라이드다.
  * 3. **dev/prod 차이** — 환경에 따라 달라지는 값이 무엇인지 한 번에 보이게 한다.
+ * 4. **DB 비밀번호 점검** — .env 가 있을 때 POSTGRES_PASSWORD 에 URL 인코딩 필요
+ *    문자가 있으면 실패(1), DATABASE_URL 과 다르면 경고. 값은 절대 출력하지 않는다.
  *
  * @returns {number}
  */
@@ -169,6 +195,32 @@ function check() {
       console.log(
         `  ${pad(key, width)}  ${dev}=${display(devValues[key])}   ${prod}=${display(prodValues[key])}`,
       );
+    }
+  }
+
+  if (fs.existsSync(envFile)) {
+    console.log('');
+    console.log(`▸ DB 비밀번호 점검 (${path.relative(process.cwd(), envFile) || '.env'})`);
+    if (dotenv.POSTGRES_PASSWORD !== undefined) {
+      if (encodeURIComponent(dotenv.POSTGRES_PASSWORD) !== dotenv.POSTGRES_PASSWORD) {
+        failed = 1;
+        console.log(
+          '  ✗ POSTGRES_PASSWORD — URL 에서 인코딩이 필요한 문자가 있습니다 (compose 가 그대로 조립하므로 금지).',
+        );
+      } else {
+        console.log('  ok — POSTGRES_PASSWORD 에 URL 인코딩이 필요한 문자가 없습니다.');
+      }
+    }
+
+    if (dotenv.DATABASE_URL !== undefined && dotenv.POSTGRES_PASSWORD !== undefined) {
+      const dbPassword = extractDbPassword(dotenv.DATABASE_URL);
+      if (dbPassword !== null) {
+        if (dbPassword !== dotenv.POSTGRES_PASSWORD) {
+          console.log('  ! DATABASE_URL 의 비밀번호와 POSTGRES_PASSWORD 가 다릅니다.');
+        } else {
+          console.log('  ok — DATABASE_URL 의 비밀번호와 POSTGRES_PASSWORD 가 일치합니다.');
+        }
+      }
     }
   }
   return failed;

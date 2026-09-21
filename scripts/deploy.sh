@@ -82,8 +82,8 @@ fi
 # 딱 한 경우만 남겼다: --reset 은 `git reset --hard` 라 커밋 안 된 변경을 지운다.
 # 그건 배포가 아니라 데이터 손실이고 되돌릴 방법이 없어서, 그때만 한 번 묻는다.
 # 그것마저 건너뛰려면 --yes 를 붙인다.
-echo "web / api / worker 를 재빌드·재기동합니다."
-echo "api·worker 가 migrate 에 의존하므로 prisma migrate deploy 도 함께 실행됩니다."
+echo "배포를 시작합니다 (1. 빌드 → 2. DB 마이그레이션 → 3. 앱 컨테이너 재기동 → 4. 백업·터널)."
+echo "마이그레이션이 실패하면 앱 컨테이너는 건드리지 않고 중단됩니다."
 
 if [ "$RESET" = 1 ] && [ -n "$DIRTY" ] && [ "$ASSUME_YES" != 1 ]; then
   echo ""
@@ -112,9 +112,20 @@ if [ "$PULL" = 1 ]; then
   echo "  현재: $(git rev-parse --short HEAD) $(git log -1 --format=%s)"
 fi
 
-# ── 기동 ────────────────────────────────────────────────
-echo "▸ 컨테이너 재빌드·재기동"
-"${COMPOSE[@]}" up -d --build --force-recreate web api worker
+# ── 빌드·마이그레이션·기동 ──────────────────────────────
+echo "▸ 1/4 이미지 빌드"
+"${COMPOSE[@]}" build
+
+echo "▸ 2/4 DB 마이그레이션 (실행 중인 DB 대상)"
+"${COMPOSE[@]}" run --rm --no-deps migrate
+
+echo "▸ 3/4 앱 컨테이너 재기동 (web, api, worker)"
+"${COMPOSE[@]}" up -d --force-recreate web api worker
+
+echo "▸ 4/4 백업 및 터널 컨테이너 기동"
+# backup/cloudflared 는 --force-recreate 를 빼서,
+# 앱 배포마다 백업 cron 과 healthcheck 시작 유예가 리셋되지 않게 한다.
+"${COMPOSE[@]}" up -d backup cloudflared
 
 echo "▸ 상태"
 "${COMPOSE[@]}" ps

@@ -307,7 +307,7 @@ NestJS `ConfigModule` 이 `.env` 를 읽을 때는 이미 지나간 뒤다.
 
 ```sh
 pnpm env:show      # 현재 그룹의 설정값 표
-pnpm env:check     # 그룹 대칭성 / .env 와 겹치는 키 / dev·prod 차이
+pnpm env:check     # 그룹 대칭성 / .env 와 겹치는 키 / dev·prod 차이 / DB 비밀번호
 pnpm env:generate  # .env.generated 수동 생성 (보통 compose.sh 가 알아서 한다)
 ```
 
@@ -492,33 +492,60 @@ docker compose -f infra/compose/full.yml --profile tunnel up -d --build
 
 ### 8.1 자동 배포 — `main` push 트리거
 
-`.github/workflows/deploy.yml:22-50` 의 `deploy` job 이 프로덕션 반영을 담당한다.
+`.github/workflows/deploy.yml:23-58` 의 `deploy` job 이 프로덕션 반영을 담당한다.
 CI 와 분리된 별도 워크플로다 — 이유는 `docs/08-dev-workflow.md` §5 참고.
 
 - 조건: `workflow_run` 으로 CI 를 받아 `conclusion == 'success'` 일 때만 (`deploy.yml:7-11`, `:32-35`). PR 에서는 실행되지 않고, CI(typecheck + test) 가 통과해야만 진행한다.
 - 같은 `if` 가 `head_repository` 도 본다 (`deploy.yml:35`). 저장소가 공개라 이게 없으면 누구나 포크에서 브랜치를 `main` 으로 만들어 프로덕션 재기동을 트리거할 수 있다.
 - 러너: `[self-hosted, comicai]` (`deploy.yml:37`) — 프로덕션 호스트 자체가 러너다.
 - 작업 디렉터리: `secrets.PROD_REPO_PATH` (`deploy.yml:41`). **GitHub Secrets 에 `PROD_REPO_PATH` 가 등록돼 있어야 한다.**
-- 수행 (`deploy.yml:42-50`):
+- 수행 (`deploy.yml:42-58`):
 
 ```sh
 git fetch --prune origin
 git reset --hard origin/main
-compose="docker compose -f infra/compose/full.yml --env-file .env --profile tunnel --profile backup"
-$compose up -d --build --force-recreate web api worker
-$compose up -d --build backup cloudflared
+compose="env APP_ENV=prod bash scripts/compose.sh"
+# ① 이미지 빌드만 먼저 — 실패 시 아무것도 건드리지 않고 중단
+$compose build
+# ② 마이그레이션을 지금 떠 있는 DB에 대해 먼저 실행 — 실패 시 앱 컨테이너를 건드리지 않고 중단
+$compose run --rm --no-deps migrate
+# ③ 마이그레이션 성공 후에만 앱 컨테이너 재생성
+$compose up -d --force-recreate web api worker
+# ④ 백업 및 터널 컨테이너 기동 (--force-recreate 없이)
+$compose up -d backup cloudflared
 ```
 
 `git reset --hard` 이므로 프로덕션 호스트에 남은 로컬 변경은 유실된다. `.env` 는 git 추적 대상이 아니라 보존된다.
 
-**마이그레이션 동반 실행**: `--force-recreate` 대상은 `web`/`api`/`worker` 3개지만, `api`·`worker` 가 `migrate` 를 `service_completed_successfully` 로 의존하므로(`full.yml:145`, `:117`) `migrate` 컨테이너가 함께 뜨며 `prisma migrate deploy` 가 실행된다(`full.yml:128`). 즉 **마이그레이션이 포함된 커밋을 `main` 에 push 하면 프로덕션 DB 스키마도 함께 변경된다.**
+#### 배포 순서와 다운타임 방지 (2026-09-21 개선)
+
+예전에는 `up -d --build --force-recreate web api worker` 한 줄로 배포했다.
+하지만 이 방식은 compose 가 **먼저 api·worker·web 컨테이너를 재생성해 기존 컨테이너를 지워 버린 뒤**,
+새 앱 컨테이너 기동 과정에서 의존 서비스인 `migrate` 를 실행한다.
+만약 이때 DB 인증 실패(P1000) 등으로 마이그레이션이 실패하면, 새 앱 컨테이너는 시작되지 못하고
+옛 컨테이너는 이미 삭제되어 사이트가 다운된다(2026-09-21 프로덕션 약 2분 다운 사고 원인).
+
+이를 방지하기 위해 배포 순서를 4단계로 분리했다 (`deploy.yml:49-58`, `scripts/deploy.sh:116-128` 동일):
+
+1. **이미지 빌드만 먼저** (`$compose build`, `deploy.yml:50` / `scripts/deploy.sh:117`):
+   빌드가 실패하면 실행 중인 어떤 컨테이너도 건드리지 않고 즉시 중단된다.
+2. **지금 떠 있는 DB 에 마이그레이션 먼저 실행** (`$compose run --rm --no-deps migrate`, `deploy.yml:52` / `scripts/deploy.sh:120`):
+   `--no-deps` 옵션으로 `postgres` 컨테이너를 재시작하거나 다시 만들지 않고, 현재 살아 있는 DB 에 대해 일회성 migrate 컨테이너를 띄워 `prisma migrate deploy` (`full.yml:128`) 를 수행한다. 실패하면 이유를 콘솔에 출력하고 앱 컨테이너를 일절 건드리지 않은 채 중단된다. 기존 앱 컨테이너들이 살아 있으므로 "배포 실패" 가 "사이트 다운" 으로 번지지 않는다.
+3. **그 다음에야 앱 컨테이너 재생성** (`$compose up -d --force-recreate web api worker`, `deploy.yml:54` / `scripts/deploy.sh:123`):
+   마이그레이션이 성공했을 때만 `web`, `api`, `worker` 를 새 이미지로 교체한다.
+4. **`backup`·`cloudflared` 기동** (`deploy.yml:58`, `scripts/deploy.sh:128`):
+   profile 을 켜는 것과 컨테이너를 올리는 것은 다르므로 따로 올린다. 여기에 `--force-recreate` 를 빼 둔 것은 앱 배포마다 백업 cron 과 healthcheck 시작 유예(26h)가 리셋되지 않게 하기 위해서다 (`deploy.yml:55-57`).
 
 `postgres`·`redis`·`minio` 는 재생성 대상이 아니므로 그대로 유지된다.
 
-**`backup`·`cloudflared` 는 두 번째 줄에서 따로 올린다**(`deploy.yml:50`, 주석 `:45`). profile 을 켜는
-것과 컨테이너를 올리는 것은 다르다 — 예전에는 `--profile backup` 만 있고 서비스 이름이
-없어서 배포가 백업 컨테이너를 **한 번도 띄우지 않았다**. 여기에 `--force-recreate` 를 빼 둔
-것은 앱 배포마다 백업 cron 과 healthcheck 시작 유예(26h)가 리셋되지 않게 하기 위해서다.
+#### DB 비밀번호 변경 시 주의사항
+
+**DB 비밀번호를 바꾸려면 `.env` 만 고치면 안 된다 — DB 안에서 `ALTER USER` 를 먼저, 비밀번호는 URL 안전 문자(base64url 등)로 지정해야 한다.**
+
+- `POSTGRES_PASSWORD` (`infra/compose/full.yml:61`) 는 Postgres 컨테이너가 볼륨을 처음 만들 때만 쓰인다. 따라서 서버 `.env` 의 비밀번호만 바꾸면 DB 내부 비밀번호는 옛 값 그대로 남아, 다음 배포 시 `migrate` 가 DB 인증 실패(P1000)를 내며 멈춘다.
+- 비밀번호를 바꾸려면 반드시 **DB 안에서 `ALTER USER ... WITH PASSWORD '...';` 를 먼저 실행**한 뒤, `.env` 의 `POSTGRES_PASSWORD` 와 `DATABASE_URL` 을 함께 바꿔야 한다.
+- 또한 compose 가 `infra/compose/full.yml:18` 의 `x-db-env` (`DATABASE_URL`: `postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD:-comicai}@postgres:5432/...`, `:19`) 에서 비밀번호를 URL 인코딩 없이 그대로 문자열 치환하여 `DATABASE_URL` 에 박으므로, 비밀번호에 `@`, `/`, `:`, `?`, `#` 등의 URL 특수문자가 들어가면 URL 자체가 깨져 DB 접속이 불가능해진다. 비밀번호는 반드시 **URL 안전 문자(base64url 등)** 로 생성해야 한다.
+- `pnpm env:check` (`packages/config/cli.js:201`) 가 `.env` 가 있을 때 `POSTGRES_PASSWORD` 에 URL 인코딩 필요 문자가 있는지 점검해 실패(종료 코드 1)로 차단하고, `.env` 의 `DATABASE_URL` 안 비밀번호와 `POSTGRES_PASSWORD` 가 다르면 경고를 출력한다.
 
 ### 8.2 수동 배포 / 운영 명령
 

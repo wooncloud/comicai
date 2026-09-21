@@ -206,6 +206,9 @@ node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
 
 로 두 개 만들어 넣고, `DATABASE_URL` 안의 비밀번호도 같이 고친다.
 
+> ⚠ **주의 — DB 비밀번호를 바꿀 때는 `.env` 만 고치면 안 된다 (2026-09-21 장애).**
+> `POSTGRES_PASSWORD` 는 DB 컨테이너를 처음 만들 때만 쓰이므로, `.env` 만 고치면 DB 내부 비밀번호는 옛 값 그대로 남아 다음 배포 때 `migrate` 가 DB 인증 실패(P1000)로 멈춘다. 반드시 **DB 안에서 `ALTER USER ... WITH PASSWORD '...';` 를 먼저 실행**한 뒤 `.env` 의 `POSTGRES_PASSWORD` 와 `DATABASE_URL` 을 함께 고쳐야 한다. 또한 compose 가 `DATABASE_URL` 에 비밀번호를 그대로 조립하므로 비밀번호에 `@`, `/` 등 URL 특수문자를 쓰면 URL 이 깨진다. **반드시 URL 안전 문자(위의 `base64url` 등)** 로 생성해야 한다 (`pnpm env:check` 가 이를 검사한다).
+
 그리고 **`MASTER_KEY` 는 비밀번호 관리자에 따로 보관하라.** 백업은 `.env` 를 일부러
 저장하지 않는다(외부 저장소가 뚫리면 전부 뚫리므로). 잃으면 사용자가 저장해 둔 BYOK 키만
 못 읽고 재입력하면 되지만, 그 외 값은 전부 다시 만들 수 있다.
