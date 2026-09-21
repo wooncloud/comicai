@@ -104,20 +104,20 @@ abstract class BubbleBoxToolBase extends StateNode {
   abstract readonly variant: BoxVariant;
 }
 
-export class BubbleEllipseTool extends BubbleBoxToolBase {
+class BubbleEllipseTool extends BubbleBoxToolBase {
   static override id = 'bubble-ellipse';
   readonly variant = 'ellipse' as const;
 }
-export class BubbleRectTool extends BubbleBoxToolBase {
+class BubbleRectTool extends BubbleBoxToolBase {
   static override id = 'bubble-rect';
   readonly variant = 'rect' as const;
 }
-export class BubbleSpikeTool extends BubbleBoxToolBase {
+class BubbleSpikeTool extends BubbleBoxToolBase {
   static override id = 'bubble-spike';
   readonly variant = 'spike' as const;
 }
 
-export class BubblePolygonTool extends PolygonDrawingTool {
+class BubblePolygonTool extends PolygonDrawingTool {
   static override id = 'bubble-polygon';
   static override initial = 'bubble-polygon';
 

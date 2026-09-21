@@ -1,12 +1,17 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
+    ".": {
+      "entry": ["scripts/verify-doc-refs.spec.ts"],
+      "project": ["scripts/**/*.ts"]
+    },
     "apps/web": {
       "entry": [
         "app/**/{page,layout,loading,error,not-found,template,default,route}.{ts,tsx}",
         "e2e/**/*.{ts,tsx}"
       ],
-      "project": ["**/*.{ts,tsx}"]
+      "project": ["**/*.{ts,tsx}"],
+      "ignore": ["components/ui/**"]
     },
     "apps/api": {
       "entry": ["src/main.ts", "src/worker.ts", "test/**/*.{ts,tsx}"],

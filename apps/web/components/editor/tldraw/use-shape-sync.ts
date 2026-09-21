@@ -63,7 +63,7 @@ const RETRY_DELAYS_MS = [2000, 4000, 8000];
  * 다른 사용자가 바꿔도 목록 prop 이 갱신되고, 그때마다 같은 덮어쓰기가 일어난다.
  * 재조회를 없애는 것으로는 안 되고, 투영이 더러운 도형을 알아야 한다.
  */
-export interface ShapeData<TShape extends TLShape> {
+interface ShapeData<TShape extends TLShape> {
   x: number;
   y: number;
   props: TShape['props'];

@@ -40,7 +40,7 @@ async function tokenFetch(
   return res.json();
 }
 
-export const googleAdapter: OAuthAdapter = {
+const googleAdapter: OAuthAdapter = {
   authorizationUrl({ clientId, redirectUri, state }) {
     const params = new URLSearchParams({
       client_id: clientId,
@@ -84,7 +84,7 @@ export const googleAdapter: OAuthAdapter = {
   },
 };
 
-export const githubAdapter: OAuthAdapter = {
+const githubAdapter: OAuthAdapter = {
   authorizationUrl({ clientId, redirectUri, state }) {
     const params = new URLSearchParams({
       client_id: clientId,

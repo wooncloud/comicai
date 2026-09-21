@@ -14,7 +14,7 @@ export interface ModelCredential {
   source: 'user' | 'platform' | 'mock';
 }
 
-export class ApiKeyMissingError extends Error {
+class ApiKeyMissingError extends Error {
   readonly category = 'auth' as const;
 }
 

@@ -1,6 +1,6 @@
 import { MODEL_LABEL, modelLabel, type ModelId } from '@comicai/types';
 
-export { MODEL_LABEL, modelLabel };
+export { modelLabel };
 
 /**
  * 사용자가 인스펙터 등에서 고를 수 있는 AI 서비스 목록.

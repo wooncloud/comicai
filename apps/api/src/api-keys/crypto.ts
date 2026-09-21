@@ -4,7 +4,7 @@ const ALGO = 'aes-256-gcm';
 const NONCE_BYTES = 12;
 const KEY_BYTES = 32;
 
-export function loadMasterKey(): Buffer {
+function loadMasterKey(): Buffer {
   const raw = process.env.MASTER_KEY;
   if (!raw) throw new Error('MASTER_KEY is not set');
   const buf = Buffer.from(raw, 'base64');

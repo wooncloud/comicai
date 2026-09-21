@@ -8,7 +8,7 @@ import type { ImageRef, RenderIR } from '@comicai/types';
  * `selectReferences` 도 상한을 인자로 받지 않는다. 프로바이더별로 갈라야 할 날이 오면
  * 그때 인자를 되살리는 편이, 지금 안 쓰는 인자를 들고 다니는 것보다 낫다.
  */
-export const MAX_REF_IMAGES = 16;
+const MAX_REF_IMAGES = 16;
 
 /**
  * 참조 이미지를 상한에 맞춰 우선순위대로 자른다.
