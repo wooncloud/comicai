@@ -128,7 +128,7 @@ export class BillingService {
       kind: 'purchase',
       idempotencyKey: `order:${order.id}`,
       refId: order.id,
-      memo: `${order.packageId} 충전`,
+      memo: `${order.tokens}토큰 충전`,
     });
 
     const paidAt = new Date();

@@ -17,7 +17,6 @@ import { errorMessage } from '@/lib/error-message';
 import { MODEL_OPTIONS } from '@/lib/model-options';
 import { qk } from '@/lib/query-keys';
 import {
-  LEDGER_KIND_LABEL,
   ORDER_STATUS_LABEL,
   affordableText,
   formatKrw,
@@ -265,10 +264,7 @@ function HistorySection() {
             {rows.map((e) => (
               <li key={e.id} className="flex items-center justify-between gap-3 px-4 py-2">
                 <div className="min-w-0">
-                  <p className="truncate">
-                    {LEDGER_KIND_LABEL[e.kind]}
-                    {e.memo ? <span className="ml-1.5 text-muted-foreground">{e.memo}</span> : null}
-                  </p>
+                  <p className="truncate">{e.label}</p>
                   <p className="text-caption text-muted-foreground">
                     {new Date(e.createdAt).toLocaleString('ko-KR')}
                   </p>

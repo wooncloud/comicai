@@ -584,6 +584,11 @@ export interface TokenLedgerEntryDTO {
   amount: number;
   balanceAfter: number;
   kind: TokenLedgerKind;
+  /**
+   * 사용자 화면에 노출할 정제된 라벨. 원장의 kind·amount 등 구조화된 값에서 생성된다.
+   * 운영자 내부 id나 비공개 메모는 포함되지 않는다.
+   */
+  label: string;
   memo: string | null;
   refId: string | null;
   createdAt: string;
@@ -627,4 +632,60 @@ export interface TokenOrderDTO {
   provider: string;
   createdAt: string;
   paidAt: string | null;
+}
+
+/**
+ * 원장 항목을 사용자 화면에 노출할 라벨로 변환한다.
+ *
+ * DB의 `memo` 문자열에 의존하지 않고, 원장의 구조화된 값(`kind`, `amount`)을 우선하여 라벨을 생성한다.
+ * - 충전: 상품 id 대신 지급 토큰 수(`충전 50토큰`)
+ * - 운영자 지급·회수: 운영자 id 및 사유를 감춘 `운영자 조정`
+ * - 가입 지급: `가입 지급`
+ * - 그림 생성: `그림 생성 (모델명)` 또는 `그림 생성`
+ * - 환급: `환급 (사유)` 또는 `환급`
+ *
+ * 옛 형식의 `memo`(`starter 충전`, `사유 (by user_01ABC)`)가 들어와도 항상 결정된 표시가 나온다.
+ */
+export function formatLedgerLabel(entry: {
+  kind: TokenLedgerKind;
+  amount: number;
+  memo?: string | null;
+}): string {
+  switch (entry.kind) {
+    case 'purchase': {
+      const tokens = Math.abs(entry.amount);
+      return `충전 ${tokens.toLocaleString('ko-KR')}토큰`;
+    }
+    case 'admin_grant':
+    case 'admin_revoke':
+      return '운영자 조정';
+    case 'signup_grant':
+      return '가입 지급';
+    case 'render': {
+      const memo = entry.memo?.trim();
+      if (!memo || memo === '그림 생성') {
+        return '그림 생성';
+      }
+      if (memo.startsWith('그림 생성')) {
+        return memo;
+      }
+      if (memo.startsWith('(') && memo.endsWith(')')) {
+        return `그림 생성 ${memo}`;
+      }
+      return `그림 생성 (${memo})`;
+    }
+    case 'refund': {
+      const memo = entry.memo?.trim();
+      if (!memo || memo === '환급') {
+        return '환급';
+      }
+      if (memo.startsWith('환급')) {
+        return memo;
+      }
+      if (memo.startsWith('(') && memo.endsWith(')')) {
+        return `환급 ${memo}`;
+      }
+      return `환급 (${memo})`;
+    }
+  }
 }

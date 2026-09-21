@@ -4,6 +4,7 @@ import {
   MODEL_TOKEN_COST,
   MODEL_IDS,
   SIGNUP_GRANT_TOKENS,
+  formatLedgerLabel,
   type ModelId,
   type TokenBalanceDTO,
   type TokenLedgerEntryDTO,
@@ -159,21 +160,13 @@ export class TokensService {
   }
 
   /** `take` 는 이미 접혀서 온다(`clampTake`). 여기서 또 접으면 접는 곳이 둘이 된다. */
-  async history(userId: string, take: number): Promise<TokenLedgerEntryDTO[]> {
+  async history(userId: string, take = 50): Promise<TokenLedgerEntryDTO[]> {
     const rows = await prisma.tokenLedger.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       take,
     });
-    return rows.map((r) => ({
-      id: r.id,
-      amount: r.amount,
-      balanceAfter: r.balanceAfter,
-      kind: r.kind as TokenLedgerKind,
-      memo: r.memo,
-      refId: r.refId,
-      createdAt: r.createdAt.toISOString(),
-    }));
+    return rows.map((r) => toLedgerEntryDto(r));
   }
 
   /**
@@ -292,4 +285,40 @@ function isDuplicateLedgerEntry(err: unknown): boolean {
   const fields =
     typeof target === 'string' ? [target] : Array.isArray(target) ? target.filter(isString) : [];
   return fields.some((f) => f.includes('idempotency_key') || f.includes('idempotencyKey'));
+}
+
+/**
+ * 원장 행 → 사용자 반환 DTO.
+ *
+ * 운영자 내부 id와 비공개 메모는 DB에만 감사용으로 보존하고,
+ * 사용자 DTO(화면 및 네트워크 응답)에는 노출하지 않는다.
+ * 표시 라벨은 구조화된 값(`kind`, `amount`) 기반으로 생성된다.
+ */
+export function toLedgerEntryDto(row: {
+  id: string;
+  amount: number;
+  balanceAfter: number;
+  kind: string;
+  memo: string | null;
+  refId: string | null;
+  createdAt: Date;
+}): TokenLedgerEntryDTO {
+  const kind = row.kind as TokenLedgerKind;
+  const label = formatLedgerLabel({ kind, amount: row.amount, memo: row.memo });
+  const isInternalMemo =
+    kind === 'admin_grant' ||
+    kind === 'admin_revoke' ||
+    kind === 'purchase' ||
+    kind === 'signup_grant';
+
+  return {
+    id: row.id,
+    amount: row.amount,
+    balanceAfter: row.balanceAfter,
+    kind,
+    label,
+    memo: isInternalMemo ? null : row.memo,
+    refId: row.refId,
+    createdAt: row.createdAt.toISOString(),
+  };
 }
