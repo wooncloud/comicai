@@ -6,6 +6,8 @@ import {
   MODEL_TOKEN_COST,
   type ModelId,
   type TokenBalanceDTO,
+  type TokenLedgerEntryDTO,
+  type TokenOrderDTO,
   type TokenOrderStatus,
 } from '@comicai/types';
 import { api } from './api';
@@ -28,18 +30,71 @@ export function formatTokens(n: number): string {
   return n.toLocaleString('ko-KR');
 }
 
+export interface UseTokenBalanceOptions {
+  refetchInterval?: number | false;
+}
+
 /**
  * 잔액.
  *
  * **`throwOnError` 를 켜지 않는다.** 이 훅은 에디터 헤더에서도 돌고, 잔액 조회가
  * 실패했다고 편집 화면이 오류 경계로 바뀌면 **작업 중이던 것을 잃는다.** 잔액은
  * 없어도 그림을 그릴 수 있지만 캔버스는 없으면 아무것도 못 한다.
+ *
+ * 전역 설정은 `staleTime: 30_000, refetchOnWindowFocus: false` 이다(`app/providers.tsx`).
+ * 그러나 잔액은 외부(모바일 뱅킹 송금, 운영자 /admin 입금 확인 등)에서 수시로 변경될 수 있으므로,
+ * 사용자가 외부 작업을 마치고 창으로 돌아왔을 때 즉시 동기화할 수 있도록 `refetchOnWindowFocus: 'always'`
+ * 를 켠다. 충전 요청 대기 중인 상태에서는 `refetchInterval` 을 넘겨 주기적 조회를 수행할 수 있다.
  */
-export function useTokenBalance() {
+export function useTokenBalance(options?: UseTokenBalanceOptions) {
   return useQuery<TokenBalanceDTO>({
     queryKey: qk.tokenBalance(),
     queryFn: () => api<TokenBalanceDTO>(ApiPaths.myTokens),
     throwOnError: false,
+    refetchOnWindowFocus: 'always',
+    refetchInterval: options?.refetchInterval,
+  });
+}
+
+export interface UseBillingOrdersOptions {
+  refetchInterval?: number | false;
+}
+
+/**
+ * 내 충전 요청 주문 목록.
+ *
+ * 전역 `refetchOnWindowFocus: false` 를 덮어쓰고 `'always'` 로 둔다 — 사용자가 인터넷 뱅킹
+ * 등에서 입금을 마친 뒤 탭으로 돌아왔을 때(포커스 복귀) 즉시 확인 상태를 갱신해야 한다.
+ * 입금 대기(pending) 중인 주문이 있을 때 호출부에서 `refetchInterval`(예: 60초)을 넘겨
+ * 탭을 켜 두고 기다리는 사용자에게도 변경사항이 자동 반영되도록 한다.
+ */
+export function useBillingOrders(options?: UseBillingOrdersOptions) {
+  return useQuery<TokenOrderDTO[]>({
+    queryKey: qk.billingOrders(),
+    queryFn: () => api<TokenOrderDTO[]>(ApiPaths.billingOrders),
+    throwOnError: false,
+    refetchOnWindowFocus: 'always',
+    refetchInterval: options?.refetchInterval,
+  });
+}
+
+export interface UseTokenHistoryOptions {
+  refetchInterval?: number | false;
+}
+
+/**
+ * 내 토큰 사용·적립 내역.
+ *
+ * 잔액·주문과 마찬가지로 포커스 복귀 시 즉시 동기화할 수 있도록
+ * `refetchOnWindowFocus: 'always'` 로 둔다.
+ */
+export function useTokenHistory(limit = 30, options?: UseTokenHistoryOptions) {
+  return useQuery<TokenLedgerEntryDTO[]>({
+    queryKey: qk.tokenHistory(),
+    queryFn: () => api<TokenLedgerEntryDTO[]>(`${ApiPaths.myTokenHistory}?limit=${limit}`),
+    throwOnError: false,
+    refetchOnWindowFocus: 'always',
+    refetchInterval: options?.refetchInterval,
   });
 }
 

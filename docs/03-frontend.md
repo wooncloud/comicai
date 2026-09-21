@@ -47,7 +47,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 | `/forgot-password`, `/reset-password`              | 비밀번호 재설정 요청/확정 폼                   |
 | `/verify-email/[token]`                            | `app/verify-email/[token]/page.tsx:10`         | 토큰으로 `POST /verify-email/:token`, 상태별 메시지                                                                                                   |
 | `/settings`                                        | `app/settings/page.tsx:1`                      | `redirect('/settings/profile')`                                                                                                                       |
-| `/settings/(profile\|billing\|api-keys\|security)` | `app/settings/...`                             | 계정 설정. `settings/layout.tsx:13`이 탭 네비 + `AppShell` 공통 적용. `BillingSettingsPage`(`app/settings/billing/page.tsx:29`)는 잔액·충전·주문·내역 |
+| `/settings/(profile\|billing\|api-keys\|security)` | `app/settings/...`                             | 계정 설정. `settings/layout.tsx:13`이 탭 네비 + `AppShell` 공통 적용. `BillingSettingsPage`(`app/settings/billing/page.tsx:25`)는 잔액·충전·주문·내역 |
 | `/admin`                                           | `app/admin/page.tsx:21`                        | **운영 현황**. `isAdmin` 판정 후 입금 확인 대기(`PendingOrders`)·지표 통계·최근 가입 목록 및 토큰 조정 다이얼로그 제공                                |
 | `/projects/[id]/settings`                          | `app/projects/[id]/settings/page.tsx:42`       | 프로젝트 설정. 이름·기본 AI 서비스·삭제 + 캐릭터·설정 관리로 가는 링크                                                                                |
 | `/health`                                          | `app/health/page.tsx:17`                       | **서버 컴포넌트**. `INTERNAL_API_URL`/`NEXT_PUBLIC_API_URL`로 `/healthz` 호출 후 JSON 덤프                                                            |
@@ -253,10 +253,10 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 | `['project', id]`            | `lib/use-project.ts:9`                     | 단일 프로젝트 (`qk.project(id)`). `enabled: !!projectId`                                                                                    |
 | `['panel-history', panelId]` | `components/editor/history-tray.tsx:22`    | 패널의 렌더 잡 목록 (`qk.panelHistory(panelId)`). `restore` mutation 성공 시 `invalidateQueries` (`:34`)                                    |
 | `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:81` | 단일 렌더 잡 (`qk.renderJob(jobId)`). `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치                            |
-| `['token-balance']`          | `lib/tokens.ts:40`                         | 현재 사용자 토큰 잔액 (`qk.tokenBalance()`). 에디터 헤더와 충전 화면이 공유. `throwOnError: false`                                          |
-| `['token-history']`          | `app/settings/billing/page.tsx:247`        | 토큰 사용/충전/조정 내역 (`qk.tokenHistory()`). 렌더 종료 시 `useRefreshTokens()` 로 무효화                                                 |
-| `['billing-packages']`       | `app/settings/billing/page.tsx:88`         | 충전 패키지 목록 및 입금 안내 (`qk.billingPackages()`). `notice === null` 이면 요청 버튼 미노출                                             |
-| `['billing-orders']`         | `app/settings/billing/page.tsx:168`        | 내 충전 요청 주문 목록 (`qk.billingOrders()`). 요청 접수·취소 시 무효화                                                                     |
+| `['token-balance']`          | `lib/tokens.ts:51`                         | 현재 사용자 토큰 잔액 (`qk.tokenBalance()`). 에디터 헤더와 충전 화면이 공유. `throwOnError: false`                                          |
+| `['token-history']`          | `lib/tokens.ts:93`                         | 토큰 사용/충전/조정 내역 (`qk.tokenHistory()`). 렌더 종료 시 `useRefreshTokens()` 로 무효화                                                 |
+| `['billing-packages']`       | `app/settings/billing/page.tsx:110`        | 충전 패키지 목록 및 입금 안내 (`qk.billingPackages()`). `notice === null` 이면 요청 버튼 미노출                                             |
+| `['billing-orders']`         | `lib/tokens.ts:73`                         | 내 충전 요청 주문 목록 (`qk.billingOrders()`). 요청 접수·취소 시 무효화                                                                     |
 | `['admin', 'overview']`      | `app/admin/page.tsx:37`                    | 운영 현황 집계 (`qk.adminOverview()`). `isAdmin` 참일 때만 조회                                                                             |
 | `['admin', 'users']`         | `app/admin/page.tsx:43`                    | 최근 가입자 및 사용자별 토큰 잔액 (`qk.adminUsers()`). 입금 확인·토큰 조정 시 무효화                                                        |
 | `['admin', 'orders']`        | `components/admin/pending-orders.tsx:28`   | 입금 확인 대기 주문 목록 (`qk.adminOrders()`). `markPaid` 성공 시 무효화                                                                    |
@@ -267,19 +267,23 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 - `panel-inspector.tsx:166` `cancelRender` — `POST /render-jobs/:id/cancel` 후 잡 상태 'canceled' 패치 및 SSE 연결 종료
 - `history-tray.tsx:29` `restore` — `POST /render-jobs/:id/restore` 후 부모 콜백 + `qk.panelHistory(panelId)` 무효화
 - `charge-dialog.tsx:47` `create` — `POST /billing/orders` 후 `qk.billingOrders()` 무효화
-- `app/settings/billing/page.tsx:173` `cancel` — `DELETE /billing/orders/:id` 후 `qk.billingOrders()` 무효화
+- `app/settings/billing/page.tsx:181` `cancel` — `DELETE /billing/orders/:id` 후 `qk.billingOrders()` 무효화
 - `pending-orders.tsx:33` `markPaid` — `POST /admin/orders/:id/mark-paid` 후 `qk.adminOrders()` 와 `qk.adminUsers()` 동시 무효화
 - `token-grant-dialog.tsx:42` `submit` — `POST /admin/users/:id/tokens` 후 `qk.adminUsers()` 무효화
 
 기타 대시보드 프로젝트 작업(`POST /projects`, `PATCH /projects/:id`, `DELETE /projects/:id`)은 `useMutation` 대신 직접 `api()` 를 호출하고 `queryClient.setQueryData` 로 직접 캐시를 수정한다 (`app/dashboard/page.tsx:21-35`).
 
-#### 지급 뒤 사용자 화면이 저절로 안 바뀌는 이유 (캐시 경계)
+#### 지급 뒤 사용자 화면 반영 (포커스 복귀 및 대기 주문 주기 조회)
 
 운영자가 `/admin` 에서 입금 확인(`markPaid`)을 눌러 토큰을 지급하면, 운영자 화면에서는 `qk.adminOrders()` 와 `qk.adminUsers()` 가 무효화되어 해당 사용자의 잔액이 즉시 늘어난 것으로 보인다 (`pending-orders.tsx:36-39`).
 
-그러나 **사용자의 브라우저 화면은 다른 기기·세션의 독립된 React Query 캐시**를 들고 있다.
-현재 클라이언트와 서버 사이에는 잔액 변경을 브로드캐스트하는 웹소켓이나 전역 SSE 채널이 없으며, 기본 설정상 `refetchOnWindowFocus: false` (`app/providers.tsx:28`), `staleTime: 30_000` (`:27`) 이다.
-따라서 운영자가 지급을 마쳐도 사용자가 탭을 전환하거나 가만히 기다리는 동안에는 에디터 헤더(`TokenBalance`)나 충전 화면의 잔액이 저절로 바뀌지 않는다 (`docs/develop-docs/50-owner/02-verify.md` E-1). 사용자가 **F5 로 새로고침**하거나, 그림 생성을 완료하여 `useRefreshTokens()` (`lib/tokens.ts:53`) 가 돌기 전까지는 이전 캐시된 숫자가 유지된다.
+**사용자의 브라우저 화면은 다른 기기·세션의 독립된 React Query 캐시**를 들고 있고, 편집기 데이터 보호를 위해 전역 기본값은 여전히 `staleTime: 30_000` (`app/providers.tsx:12`), `refetchOnWindowFocus: false` (`:13`) 를 유지한다.
+대신 토큰 관련 쿼리(`useTokenBalance`, `useBillingOrders`, `useTokenHistory`)에만 다음 두 가지 정책을 적용해 F5 새로고침 없이도 화면이 갱신되도록 해결했다 (`docs/develop-docs/50-owner/02-verify.md` E-1).
+
+1. **포커스 복귀 즉시 갱신 (`refetchOnWindowFocus: 'always'`)**:
+   모바일 뱅킹 송금 등 외부 작업을 마치고 ComicAI 탭으로 돌아왔을 때, 30초 staleTime 만료 여부와 무관하게 즉시 잔액(`useTokenBalance`, `lib/tokens.ts:49`), 충전 요청(`useBillingOrders`, `:71`), 사용 내역(`useTokenHistory`, `:91`)을 다시 읽는다. 에디터 헤더(`TokenBalance`, `components/editor/token-balance.tsx:17`) 역시 포커스 복귀 시 새 잔액으로 즉시 동기화된다.
+2. **입금 대기(pending) 주문 시 60초 주기 조회**:
+   `/settings/billing` (`app/settings/billing/page.tsx:25`) 에 입금 확인 대기(`pending`, `:28`) 중인 주문이 있을 때만 60초 주기로 주문 목록·잔액·내역을 자동 폴링한다 (`pollInterval`, `:30`). 사용자가 탭을 띄워 둔 채 기다려도 운영자의 승인이 반영되며, 대기 주문이 없으면 주기 조회를 멈춰 불필요한 요청을 방지한다. React Query 기본값(`refetchIntervalInBackground: false`)에 따라 백그라운드 탭에서는 주기가 일시 정지된다. 또한 대기 주문이 완료/취소 상태로 전이되면 `useEffect` (`:33-40`) 에서 잔액과 내역 캐시를 즉시 무효화해 화면에 반영한다.
 
 ### 5.2 클라이언트/UI 상태 — local hooks
 
@@ -481,10 +485,12 @@ if (!(await confirm({ title: '…', destructive: true }))) return;
 
 토큰 잔액 조회·서버 동기화·구매력(affordability) 판정을 담당한다.
 
-- `useTokenBalance()` (`lib/tokens.ts:38`) — `throwOnError: false`. 에디터 헤더와 충전 화면에서 사용하며, 잔액 조회가 실패했다고 캔버스 화면을 에러 경계로 날리지 않는다 (`:34-36`).
-- `useRefreshTokens()` (`lib/tokens.ts:53`) — 렌더 종료 또는 토큰 부족 오류 시 `qk.tokenBalance()` 와 `qk.tokenHistory()` 를 무효화. 낙관적으로 잔액을 차감하지 않고 서버 진실(truth)을 다시 읽는다(실패·취소 시 자동 환급과의 어긋남 방지, `:49-52`).
-- `affordability(balance, model)` (`lib/tokens.ts:85`) — 선택된 모델의 1장 생성 가능 여부(`{ cost, short }`) 판정. 서버가 내려준 `balance.costs[model]` 을 기준으로 삼아 BYOK 사용자의 무료 단가를 정확히 반영한다 (`:86-90`). 잔액 조회가 안 된 상태에서는 `short: false` 로 두어 화면이 추측으로 버튼을 잠그지 못하게 한다 (`:82-84`).
-- `affordableText(n)` (`lib/tokens.ts:68`) — `null` 은 '제한 없음', `undefined` 는 '—', 수량은 'N장' 으로 포맷.
+- `useTokenBalance(options?)` (`lib/tokens.ts:49`) — `throwOnError: false`. 에디터 헤더와 충전 화면에서 사용하며, `refetchOnWindowFocus: 'always'` 로 포커스 복귀 시 즉시 동기화한다 (`:44-47`). 잔액 조회가 실패했다고 캔버스 화면을 에러 경계로 날리지 않는다 (`:40-42`).
+- `useBillingOrders(options?)` (`lib/tokens.ts:71`) — 내 충전 요청 목록. `refetchOnWindowFocus: 'always'` 이며, 대기 주문 시 60초 주기 조회를 지원한다 (`:64-70`).
+- `useTokenHistory(limit, options?)` (`lib/tokens.ts:91`) — 내 토큰 사용·적립 내역. 포커스 복귀 시 즉시 갱신 (`:86-90`).
+- `useRefreshTokens()` (`lib/tokens.ts:108`) — 렌더 종료 또는 토큰 부족 오류 시 `qk.tokenBalance()` 와 `qk.tokenHistory()` 를 무효화. 낙관적으로 잔액을 차감하지 않고 서버 진실(truth)을 다시 읽는다(실패·취소 시 자동 환급과의 어긋남 방지, `:104-107`).
+- `affordability(balance, model)` (`lib/tokens.ts:140`) — 선택된 모델의 1장 생성 가능 여부(`{ cost, short }`) 판정. 서버가 내려준 `balance.costs[model]` 을 기준으로 삼아 BYOK 사용자의 무료 단가를 정확히 반영한다 (`:141-148`). 잔액 조회가 안 된 상태에서는 `short: false` 로 두어 화면이 추측으로 버튼을 잠그지 못하게 한다 (`:137-139`).
+- `affordableText(n)` (`lib/tokens.ts:123`) — `null` 은 '제한 없음', `undefined` 는 '—', 수량은 'N장' 으로 포맷.
 
 ## 8. 패널 인스펙터의 SSE 흐름
 
@@ -753,37 +759,37 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 
 ### 토큰 잔액과 충전 화면 (/settings/billing)
 
-계정 설정의 '토큰' 탭(`BillingSettingsPage`, `app/settings/billing/page.tsx:29`)은 잔액 확인·단가 비교·패키지 충전 요청·주문 내역·사용 내역 네 영역으로 구성된다.
+계정 설정의 '토큰' 탭(`BillingSettingsPage`, `app/settings/billing/page.tsx:25`)은 잔액 확인·단가 비교·패키지 충전 요청·주문 내역·사용 내역 네 영역으로 구성된다.
 
-- **잔액과 구매력(affordability)** (`BalanceSection`, `app/settings/billing/page.tsx:40`)
-  - 큰 숫자로 현재 잔액을 표시하고(`formatTokens`, `:51`), 모델별 단가와 함께 "몇 장 만들 수 있는가"를 문장으로 보여준다 (`MODEL_OPTIONS`, `:60`).
-  - 장수는 화면이 나눗셈하지 않고 **서버가 계산해 준 `affordable[m.id]` 를 그대로 쓴다** (`affordableText`, `lib/tokens.ts:68`). 단가가 바뀔 때 화면 계산식이 어긋나는 것을 방지하기 위함이다.
-  - BYOK가 활성화되어 자기 키를 등록한 모델은 서버가 내려준 단가가 0이므로 `(무료)` (`app/settings/billing/page.tsx:72`)로 표기되고, 허용 수량은 `제한 없음` (`lib/tokens.ts:70`)으로 렌더된다.
-- **충전 패키지와 `BILLING_NOTICE`** (`PackagesSection`, `app/settings/billing/page.tsx:85`)
-  - 관리자가 설정한 `notice` 가 없으면(`notice === null`), 패키지 카드는 보여주되 **'충전 요청' 버튼을 아예 내지 않는다** (`open`, `:110, 144`). 계좌나 입금 방법이 없는 상태에서 버튼을 열어 두면 사용자는 요청이 접수된 것도 모르고 돈 보낼 곳도 모른 채 방치되기 때문이다. 이때는 회색 안내 박스("지금은 충전을 받고 있지 않습니다…", `:117-120`)만 보여준다.
-  - 안내 문구(`notice`, `:127`)가 채워지면 상단에 입금 안내문이 노출되고 각 카드에 '충전 요청' 버튼이 활성화된다 (`:122-130`).
+- **잔액과 구매력(affordability)** (`BalanceSection`, `app/settings/billing/page.tsx:52`)
+  - 큰 숫자로 현재 잔액을 표시하고(`formatTokens`, `:63`), 모델별 단가와 함께 "몇 장 만들 수 있는가"를 문장으로 보여준다 (`MODEL_OPTIONS`, `:72`).
+  - 장수는 화면이 나눗셈하지 않고 **서버가 계산해 준 `affordable[m.id]` 를 그대로 쓴다** (`affordableText`, `lib/tokens.ts:123`). 단가가 바뀔 때 화면 계산식이 어긋나는 것을 방지하기 위함이다.
+  - BYOK가 활성화되어 자기 키를 등록한 모델은 서버가 내려준 단가가 0이므로 `(무료)` (`app/settings/billing/page.tsx:84`)로 표기되고, 허용 수량은 `제한 없음` (`lib/tokens.ts:125`)으로 렌더된다.
+- **충전 패키지와 `BILLING_NOTICE`** (`PackagesSection`, `app/settings/billing/page.tsx:97`)
+  - 관리자가 설정한 `notice` 가 없으면(`notice === null`), 패키지 카드는 보여주되 **'충전 요청' 버튼을 아예 내지 않는다** (`open`, `:122, 156`). 계좌나 입금 방법이 없는 상태에서 버튼을 열어 두면 사용자는 요청이 접수된 것도 모르고 돈 보낼 곳도 모른 채 방치되기 때문이다. 이때는 회색 안내 박스("지금은 충전을 받고 있지 않습니다…", `:129-132`)만 보여준다.
+  - 안내 문구(`notice`, `:139`)가 채워지면 상단에 입금 안내문이 노출되고 각 카드에 '충전 요청' 버튼(`Button`, `:157`)이 활성화된다.
 - **충전 요청 다이얼로그 (`ChargeDialog`, `components/billing/charge-dialog.tsx:36`)**
   - 패키지 카드에서 즉시 주문을 생성하지 않고 다이얼로그를 띄우는 이유는 두 가지다. 첫째, **통장에 찍힐 입금자명을 필수 입력으로 받아야 하기 때문이다** (`depositorName`, `:39`, `disabled`, `:104`). 가입 이메일과 입금자명은 완전히 다를 수 있으며(회사/가족 명의), 비워 두면 운영자가 같은 날 동일 금액의 주문들을 대조할 수 없다. 둘째, 돈이 오가는 요청이므로 **입금 방법을 확인하는 화면과 요청 버튼을 누르는 화면이 같아야 한다** (`notice`, `:76`).
-- **주문 목록과 요청 취소 (`OrdersSection`, `app/settings/billing/page.tsx:163`)**
-  - 접수된 요청이 없으면 섹션 자체를 렌더하지 않는다 (`:184`).
-  - 상태 라벨은 `ORDER_STATUS_LABEL` (`lib/tokens.ts:14`) 에 따라 `pending` 을 "결제 대기" 가 아닌 **'확인 중'** (`:16`)으로 표시한다. 시스템 결제가 아니라 운영자가 통장 입금을 확인하는 중임을 사용자 관점에서 정직하게 알린다.
-  - 접수 상태가 `pending` (`app/settings/billing/page.tsx:217`)인 주문에는 '취소' 버튼을 열어 둔다. 잘못 누른 요청이 취소 없이 "확인 중" 으로 영원히 방치되는 것을 막기 위함이며, 경고 확인(`confirm`, `:223`)을 거쳐 취소한다.
-- **사용 내역과 서버 정제 라벨 (`HistorySection`, `app/settings/billing/page.tsx:244`)**
-  - 최근 30건 중 기본 8건을 보여주고 '더 보기' 로 펼친다 (`rows`, `:252`, `setExpanded`, `:292`).
-  - 행 라벨(`e.label`, `:267`)은 **서버가 정제한 문자열**을 그대로 쓴다 (T-02). 과거 충전 내역에 내부 상품 ID가 노출되거나(`충전 starter 충전 +50`), 운영자 조정 시 운영자 계정 ID(`by user_...`)와 내부 메모가 사용자 화면에 노출되던 문제를 서버 DTO 정제로 차단했다. 화면은 양수 초록색(`+N`), 음수 일반색과 잔액(`balanceAfter`, `:283`)만 포맷해 찍는다.
+- **주문 목록과 요청 취소 (`OrdersSection`, `app/settings/billing/page.tsx:175`)**
+  - 접수된 요청이 없으면 섹션 자체를 렌더하지 않는다 (`:192`).
+  - 상태 라벨은 `ORDER_STATUS_LABEL` (`lib/tokens.ts:16`) 에 따라 `pending` 을 "결제 대기" 가 아닌 **'확인 중'** (`:18`)으로 표시한다. 시스템 결제가 아니라 운영자가 통장 입금을 확인하는 중임을 사용자 관점에서 정직하게 알린다.
+  - 접수 상태가 `pending` (`app/settings/billing/page.tsx:225`)인 주문에는 '취소' 버튼을 열어 둔다. 잘못 누른 요청이 취소 없이 "확인 중" 으로 영원히 방치되는 것을 막기 위함이며, 경고 확인(`confirm`, `:231`)을 거쳐 취소한다.
+- **사용 내역과 서버 정제 라벨 (`HistorySection`, `app/settings/billing/page.tsx:252`)**
+  - 최근 30건 중 기본 8건을 보여주고 '더 보기' 로 펼친다 (`rows`, `:256`, `setExpanded`, `:296`).
+  - 행 라벨(`e.label`, `:271`)은 **서버가 정제한 문자열**을 그대로 쓴다 (T-02). 과거 충전 내역에 내부 상품 ID가 노출되거나(`충전 starter 충전 +50`), 운영자 조정 시 운영자 계정 ID(`by user_...`)와 내부 메모가 사용자 화면에 노출되던 문제를 서버 DTO 정제로 차단했다. 화면은 양수 초록색(`+N`), 음수 일반색과 잔액(`balanceAfter`, `:287`)만 포맷해 찍는다.
 
 ### 편집기 헤더의 토큰 배지와 무중단 편집
 
 - **헤더 배치 이유 (`TokenBalance`, `components/editor/token-balance.tsx:17`)**: 인스펙터가 아니라 헤더 우측(`TokenBalance`, `app/projects/[id]/pages/[pageid]/page.tsx:339`)에 배치한다 (`:9-12`). 특정 컷을 선택하기 전에도 잔액을 확인할 수 있어야 하고, 사용자가 이미 저장 상태(`SaveStatus`)를 보기 위해 시선을 두는 자리이기 때문이다.
 - **시각 상태**: 잔액이 0 이하(`empty`, `components/editor/token-balance.tsx:21`)이면 빨간색(`text-destructive`, `:27`), 1 이상이면 보조 텍스트 색상으로 렌더된다. 클릭하면 `/settings/billing` 으로 즉시 이동한다 (`Link`, `:23`).
-- **무중단 원칙 (`components/editor/token-balance.tsx:13-16`)**: 잔액 조회가 로딩 중이거나 실패하면(`!data`) '—' 나 오류를 띄우지 않고 **컴포넌트 자체를 렌더하지 않는다 (`return null`, `:19`)**. `useTokenBalance` 가 `throwOnError: false` (`lib/tokens.ts:42`)인 이유이기도 하다. 잔액을 못 읽었다고 캔버스에 오류 배너를 띄우거나 화면을 튕겨내면 작업 중이던 만화를 잃는다. 잔액을 몰라도 캔버스 편집은 멀쩡히 계속할 수 있어야 한다.
+- **무중단 원칙 (`components/editor/token-balance.tsx:13-16`)**: 잔액 조회가 로딩 중이거나 실패하면(`!data`) '—' 나 오류를 띄우지 않고 **컴포넌트 자체를 렌더하지 않는다 (`return null`, `:19`)**. `useTokenBalance` 가 `throwOnError: false` (`lib/tokens.ts:53`)인 이유이기도 하다. 잔액을 못 읽었다고 캔버스에 오류 배너를 띄우거나 화면을 튕겨내면 작업 중이던 만화를 잃는다. 잔액을 몰라도 캔버스 편집은 멀쩡히 계속할 수 있어야 한다.
 
 ### 생성하기 버튼의 비용 표시와 부족 안내 — 버튼을 잠그지 않는 이유
 
 `panel-inspector.tsx` 의 생성 영역(`생성하기`, `components/editor/panel-inspector.tsx:459`)은 모델별 토큰 단가와 부족 상태를 표시한다.
 
 - **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:461`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
-- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:472`, `lib/tokens.ts:96`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:474`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
+- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:472`, `lib/tokens.ts:151`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:474`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
 - **버튼을 잠그지 않는 이유 (`components/editor/panel-inspector.tsx:468-471`)**:
   - 잔액이 부족해도 **생성하기 버튼을 비활성화(`disabled`)하지 않는다.**
   - 화면의 잔액은 캐시일 뿐이라 방금 운영자에게 지급받은 토큰이 아직 캐시에 도착하지 않았을 수 있다. 버튼을 잠그면 사용자는 새로고침 외에 아무것도 할 수 없게 된다.

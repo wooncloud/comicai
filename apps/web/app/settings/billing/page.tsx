@@ -1,14 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import {
-  ApiPaths,
-  type TokenLedgerEntryDTO,
-  type TokenOrderDTO,
-  type TokenPackage,
-  type TokenPackagesDTO,
-} from '@comicai/types';
+import { ApiPaths, type TokenPackage, type TokenPackagesDTO } from '@comicai/types';
 import { Button } from '@/components/ui/button';
 import { ChargeDialog } from '@/components/billing/charge-dialog';
 import { useToast } from '@/components/ui/toast';
@@ -21,24 +15,42 @@ import {
   affordableText,
   formatKrw,
   formatTokens,
+  useBillingOrders,
   useTokenBalance,
+  useTokenHistory,
 } from '@/lib/tokens';
 
 const HISTORY_LIMIT = 30;
 
 export default function BillingSettingsPage() {
+  const queryClient = useQueryClient();
+  const { data: orders } = useBillingOrders();
+  const hasPending = orders?.some((o) => o.status === 'pending') ?? false;
+
+  const pollInterval = hasPending ? 60_000 : false;
+
+  const prevPendingRef = useRef(false);
+  useEffect(() => {
+    if (prevPendingRef.current && !hasPending) {
+      // 대기 주문이 처리 완료(또는 취소)되어 사라졌을 때 잔액과 내역을 즉시 무효화하여 최신화
+      void queryClient.invalidateQueries({ queryKey: qk.tokenBalance() });
+      void queryClient.invalidateQueries({ queryKey: qk.tokenHistory() });
+    }
+    prevPendingRef.current = hasPending;
+  }, [hasPending, queryClient]);
+
   return (
     <div className="space-y-10">
-      <BalanceSection />
+      <BalanceSection pollInterval={pollInterval} />
       <PackagesSection />
-      <OrdersSection />
-      <HistorySection />
+      <OrdersSection pollInterval={pollInterval} />
+      <HistorySection pollInterval={pollInterval} />
     </div>
   );
 }
 
-function BalanceSection() {
-  const { data, isError } = useTokenBalance();
+function BalanceSection({ pollInterval }: { pollInterval?: number | false }) {
+  const { data, isError } = useTokenBalance({ refetchInterval: pollInterval });
 
   return (
     <section className="space-y-3">
@@ -160,15 +172,11 @@ function PackagesSection() {
   );
 }
 
-function OrdersSection() {
+function OrdersSection({ pollInterval }: { pollInterval?: number | false }) {
   const toast = useToast();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
-  const { data, isError } = useQuery<TokenOrderDTO[]>({
-    queryKey: qk.billingOrders(),
-    queryFn: () => api<TokenOrderDTO[]>(ApiPaths.billingOrders),
-    throwOnError: false,
-  });
+  const { data, isError } = useBillingOrders({ refetchInterval: pollInterval });
 
   const cancel = useMutation({
     mutationFn: (id: string) => api<void>(ApiPaths.billingOrder(id), { method: 'DELETE' }),
@@ -241,13 +249,9 @@ function OrdersSection() {
   );
 }
 
-function HistorySection() {
+function HistorySection({ pollInterval }: { pollInterval?: number | false }) {
   const [expanded, setExpanded] = useState(false);
-  const { data, isError } = useQuery<TokenLedgerEntryDTO[]>({
-    queryKey: qk.tokenHistory(),
-    queryFn: () => api<TokenLedgerEntryDTO[]>(`${ApiPaths.myTokenHistory}?limit=${HISTORY_LIMIT}`),
-    throwOnError: false,
-  });
+  const { data, isError } = useTokenHistory(HISTORY_LIMIT, { refetchInterval: pollInterval });
 
   const rows = expanded ? (data ?? []) : (data ?? []).slice(0, 8);
 
