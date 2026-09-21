@@ -1,5 +1,12 @@
 # 프로젝트 규칙
 
+## 에이전트 협업
+
+리더(Claude)·조수·워커(Antigravity)의 역할, 연락 규약, 작업 규칙은 `AGENTS.md` 에 있다.
+Claude 도 이 규약을 따른다. 남은 일은 `docs/develop-docs/60-backlog.md`.
+
+@AGENTS.md
+
 ## docs ↔ 코드 동기화
 
 `docs/*.md` (단, `docs/develop-docs/`는 제외) 는 코드와 `path:line` 인용으로 묶여 있다.
