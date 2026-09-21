@@ -587,9 +587,11 @@ export interface TokenLedgerEntryDTO {
   /**
    * 사용자 화면에 노출할 정제된 라벨. 원장의 kind·amount 등 구조화된 값에서 생성된다.
    * 운영자 내부 id나 비공개 메모는 포함되지 않는다.
+   *
+   * 원장의 `memo` 는 **내보내지 않는다.** 운영자 id·사유, 렌더 실패 원인 같은 감사 정보가 들어
+   * 있어서, 화면에서만 가리면 브라우저 네트워크 응답에는 그대로 남는다. DB 에는 보존된다.
    */
   label: string;
-  memo: string | null;
   refId: string | null;
   createdAt: string;
 }

@@ -207,7 +207,7 @@ describe('toLedgerEntryDto', () => {
     const dto = toLedgerEntryDto(row);
 
     expect(dto.label).toBe('운영자 조정');
-    expect(dto.memo).toBeNull();
+    expect(dto).not.toHaveProperty('memo');
     expect(dto.amount).toBe(50);
   });
 
@@ -224,7 +224,7 @@ describe('toLedgerEntryDto', () => {
     const dto = toLedgerEntryDto(row);
 
     expect(dto.label).toBe('운영자 조정');
-    expect(dto.memo).toBeNull();
+    expect(dto).not.toHaveProperty('memo');
     expect(dto.amount).toBe(-20);
   });
 
@@ -241,7 +241,7 @@ describe('toLedgerEntryDto', () => {
     const dto = toLedgerEntryDto(row);
 
     expect(dto.label).toBe('충전 50토큰');
-    expect(dto.memo).toBeNull();
+    expect(dto).not.toHaveProperty('memo');
   });
 
   it('그림 생성 시 모델명은 화면 표시 이름으로 label 에 반영되고 memo 는 null 이 된다', () => {
@@ -255,7 +255,7 @@ describe('toLedgerEntryDto', () => {
       createdAt: now,
     });
     expect(dto.label).toBe('그림 생성 (Gemini)');
-    expect(dto.memo).toBeNull();
+    expect(dto).not.toHaveProperty('memo');
   });
 
   it('환급 시 내부 실패 원인은 숨겨진 3대 사유로 label 에 반영되고 memo 는 null 이 된다', () => {
@@ -269,7 +269,7 @@ describe('toLedgerEntryDto', () => {
       createdAt: now,
     });
     expect(cancelDto.label).toBe('환급 (생성 취소)');
-    expect(cancelDto.memo).toBeNull();
+    expect(cancelDto).not.toHaveProperty('memo');
 
     const failDto = toLedgerEntryDto({
       id: 'led_6',
@@ -281,6 +281,6 @@ describe('toLedgerEntryDto', () => {
       createdAt: now,
     });
     expect(failDto.label).toBe('환급 (생성 실패)');
-    expect(failDto.memo).toBeNull();
+    expect(failDto).not.toHaveProperty('memo');
   });
 });

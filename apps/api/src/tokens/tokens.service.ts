@@ -311,7 +311,6 @@ export function toLedgerEntryDto(row: {
     balanceAfter: row.balanceAfter,
     kind,
     label,
-    memo: null,
     refId: row.refId,
     createdAt: row.createdAt.toISOString(),
   };

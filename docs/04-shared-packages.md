@@ -74,7 +74,7 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 | `TipTapDoc` / `TipTapNode` / `TipTapMentionAttrs`                        | `src/index.ts:276-330` | 패널 본문(mention 노드 포함). `emptyDoc()`, `flattenTipTapToText()`, `textToTipTapDoc()` 헬퍼 제공                                                                                           |
 | `BoundingBox`, `shapeBoundingBox()`, `pointsBoundingBox()`               | `src/index.ts:404-429` | polygon 등 좌표 헬퍼                                                                                                                                                                         |
 | `StylePayload / CharacterPayload / BackgroundPayload / WorldviewPayload` | `src/index.ts:404-418` | `RenderIR` 컴포넌트                                                                                                                                                                          |
-| `TokenLedgerEntryDTO`                                                    | `src/index.ts:581-595` | `id, amount, balanceAfter, kind, label(원장 정제 라벨), memo(민감 정보 은닉으로 항상 null), refId, createdAt`                                                                                |
+| `TokenLedgerEntryDTO`                                                    | `src/index.ts:581-595` | `id, amount, balanceAfter, kind, label(원장 정제 라벨), refId, createdAt` — 원장 `memo` 는 내보내지 않는다(감사 정보라서)``                                                                  |
 
 ### 에러 봉투 (envelope.ts)
 
