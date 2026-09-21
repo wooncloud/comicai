@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MODEL_TOKEN_COST, TOKEN_LEDGER_KINDS, type TokenBalanceDTO } from '@comicai/types';
-import { LEDGER_KIND_LABEL, affordability, affordableText, formatKrw } from './tokens';
+import { MODEL_TOKEN_COST, type TokenBalanceDTO } from '@comicai/types';
+import { affordability, affordableText, formatKrw } from './tokens';
 
 /** 플랫폼 키로 도는 보통 사용자. 단가는 전역 표와 같다. */
 const balance = (n: number): TokenBalanceDTO => ({
@@ -51,16 +51,6 @@ describe('affordableText', () => {
     expect(affordableText(null)).toBe('제한 없음');
     expect(affordableText(undefined)).toBe('—');
     expect(affordableText(0)).toBe('0장');
-  });
-});
-
-describe('원장 문구', () => {
-  it('종류가 늘면 여기서 빠진 것이 드러난다', () => {
-    // `Record<TokenLedgerKind, string>` 이 컴파일 시점에 막지만, 값이 빈 문자열이면
-    // 타입은 통과하고 화면만 비어 보인다.
-    for (const kind of TOKEN_LEDGER_KINDS) {
-      expect(LEDGER_KIND_LABEL[kind]).toBeTruthy();
-    }
   });
 });
 

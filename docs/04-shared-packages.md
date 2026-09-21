@@ -48,6 +48,7 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - `EntityType = 'style'|'character'|'background'|'worldview'` — 값은 `ENTITY_TYPES` (`src/schemas.ts:376`), 타입은 `src/index.ts:154`. `packages/db` 의 `entityIdPrefix` 도 이걸 받아서, 타입이 늘면 그 switch 가 컴파일 에러로 걸린다.
 - `OAUTH_PROVIDERS = ['google','github']` (`src/index.ts:23`).
 - `TEXT_ALIGNS = ['left','center','right']` (`src/schemas.ts:4`) — PageText/말풍선 인스펙터 공용 정렬 enum.
+- `MODEL_LABEL`, `modelLabel(id)` — 화면 및 서버 공용 AI 모델 표시 이름('Gemini', 'OpenAI', '테스트') (`src/index.ts:644-660`).
 
 ### DTO
 
@@ -73,6 +74,7 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 | `TipTapDoc` / `TipTapNode` / `TipTapMentionAttrs`                        | `src/index.ts:276-330` | 패널 본문(mention 노드 포함). `emptyDoc()`, `flattenTipTapToText()`, `textToTipTapDoc()` 헬퍼 제공                                                                                           |
 | `BoundingBox`, `shapeBoundingBox()`, `pointsBoundingBox()`               | `src/index.ts:404-429` | polygon 등 좌표 헬퍼                                                                                                                                                                         |
 | `StylePayload / CharacterPayload / BackgroundPayload / WorldviewPayload` | `src/index.ts:404-418` | `RenderIR` 컴포넌트                                                                                                                                                                          |
+| `TokenLedgerEntryDTO`                                                    | `src/index.ts:581-595` | `id, amount, balanceAfter, kind, label(원장 정제 라벨), memo(민감 정보 은닉으로 항상 null), refId, createdAt`                                                                                |
 
 ### 에러 봉투 (envelope.ts)
 

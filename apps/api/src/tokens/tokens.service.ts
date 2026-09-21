@@ -4,12 +4,12 @@ import {
   MODEL_TOKEN_COST,
   MODEL_IDS,
   SIGNUP_GRANT_TOKENS,
-  formatLedgerLabel,
   type ModelId,
   type TokenBalanceDTO,
   type TokenLedgerEntryDTO,
   type TokenLedgerKind,
 } from '@comicai/types';
+import { formatLedgerLabel } from './ledger-label';
 import { costFor, hasOwnKeyFor, providersWithOwnKey } from './model-cost';
 
 export class InsufficientTokensError extends Error {
@@ -160,7 +160,7 @@ export class TokensService {
   }
 
   /** `take` 는 이미 접혀서 온다(`clampTake`). 여기서 또 접으면 접는 곳이 둘이 된다. */
-  async history(userId: string, take = 50): Promise<TokenLedgerEntryDTO[]> {
+  async history(userId: string, take: number): Promise<TokenLedgerEntryDTO[]> {
     const rows = await prisma.tokenLedger.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -290,9 +290,8 @@ function isDuplicateLedgerEntry(err: unknown): boolean {
 /**
  * 원장 행 → 사용자 반환 DTO.
  *
- * 운영자 내부 id와 비공개 메모는 DB에만 감사용으로 보존하고,
- * 사용자 DTO(화면 및 네트워크 응답)에는 노출하지 않는다.
- * 표시 라벨은 구조화된 값(`kind`, `amount`) 기반으로 생성된다.
+ * 운영자 내부 id, 내부 모델 id, 에러 원인 등 모든 세부사항은 DB에만 감사용으로 보존하고,
+ * 사용자 DTO(화면 및 네트워크 응답)에는 정제된 `label`만 노출하고 `memo`는 항상 `null`로 처리한다.
  */
 export function toLedgerEntryDto(row: {
   id: string;
@@ -304,12 +303,7 @@ export function toLedgerEntryDto(row: {
   createdAt: Date;
 }): TokenLedgerEntryDTO {
   const kind = row.kind as TokenLedgerKind;
-  const label = formatLedgerLabel({ kind, amount: row.amount, memo: row.memo });
-  const isInternalMemo =
-    kind === 'admin_grant' ||
-    kind === 'admin_revoke' ||
-    kind === 'purchase' ||
-    kind === 'signup_grant';
+  const label = formatLedgerLabel({ kind: row.kind, amount: row.amount, memo: row.memo });
 
   return {
     id: row.id,
@@ -317,7 +311,7 @@ export function toLedgerEntryDto(row: {
     balanceAfter: row.balanceAfter,
     kind,
     label,
-    memo: isInternalMemo ? null : row.memo,
+    memo: null,
     refId: row.refId,
     createdAt: row.createdAt.toISOString(),
   };

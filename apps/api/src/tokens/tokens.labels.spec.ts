@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatLedgerLabel } from '@comicai/types';
+import { formatLedgerLabel } from './ledger-label';
 import { toLedgerEntryDto } from './tokens.service';
 
 describe('formatLedgerLabel', () => {
@@ -82,26 +82,48 @@ describe('formatLedgerLabel', () => {
   });
 
   describe('그림 생성 (render)', () => {
-    it('모델명이 포함된 기존 memo는 그대로 보존된다', () => {
+    it('모델 id 대신 화면 표시 이름(Gemini, OpenAI, 테스트)으로 변환된다', () => {
       expect(
         formatLedgerLabel({
           kind: 'render',
           amount: -1,
           memo: '그림 생성 (gemini-3.1-flash-image-preview)',
         }),
-      ).toBe('그림 생성 (gemini-3.1-flash-image-preview)');
+      ).toBe('그림 생성 (Gemini)');
+
+      expect(
+        formatLedgerLabel({
+          kind: 'render',
+          amount: -4,
+          memo: '그림 생성 (gpt-image-2)',
+        }),
+      ).toBe('그림 생성 (OpenAI)');
+
+      expect(
+        formatLedgerLabel({
+          kind: 'render',
+          amount: 0,
+          memo: '그림 생성 (mock)',
+        }),
+      ).toBe('그림 생성 (테스트)');
     });
 
-    it('모델명만 들어온 경우에도 올바른 형식으로 감싼다', () => {
+    it('모델 식별자만 들어온 경우에도 화면 이름으로 감싼다', () => {
       expect(formatLedgerLabel({ kind: 'render', amount: -4, memo: 'gpt-image-2' })).toBe(
-        '그림 생성 (gpt-image-2)',
+        '그림 생성 (OpenAI)',
       );
-      expect(formatLedgerLabel({ kind: 'render', amount: -4, memo: '(gpt-image-2)' })).toBe(
-        '그림 생성 (gpt-image-2)',
-      );
+      expect(
+        formatLedgerLabel({ kind: 'render', amount: -1, memo: '(gemini-3.1-flash-image-preview)' }),
+      ).toBe('그림 생성 (Gemini)');
     });
 
-    it('memo가 null이거나 빈 값이면 "그림 생성" 기본 라벨이 나온다', () => {
+    it('목록에 없는 새 모델 id는 원문으로 폴백한다', () => {
+      expect(
+        formatLedgerLabel({ kind: 'render', amount: -2, memo: '그림 생성 (future-model-v2)' }),
+      ).toBe('그림 생성 (future-model-v2)');
+    });
+
+    it('memo가 null이거나 모델 정보가 없으면 "그림 생성" 기본 라벨이 나온다', () => {
       expect(formatLedgerLabel({ kind: 'render', amount: -1, memo: null })).toBe('그림 생성');
       expect(formatLedgerLabel({ kind: 'render', amount: -1, memo: '그림 생성' })).toBe(
         '그림 생성',
@@ -110,25 +132,61 @@ describe('formatLedgerLabel', () => {
   });
 
   describe('환급 (refund)', () => {
-    it('취소·실패 사유가 괄호로 붙어 표시된다', () => {
+    it('취소 관련 사유는 "환급 (생성 취소)" 로 정제된다', () => {
       expect(formatLedgerLabel({ kind: 'refund', amount: 1, memo: '생성 취소' })).toBe(
         '환급 (생성 취소)',
+      );
+      expect(formatLedgerLabel({ kind: 'refund', amount: 1, memo: '취소' })).toBe(
+        '환급 (생성 취소)',
+      );
+      expect(formatLedgerLabel({ kind: 'refund', amount: 1, memo: '환급 (취소)' })).toBe(
+        '환급 (생성 취소)',
+      );
+    });
+
+    it('참조 이미지 관련 사유는 "환급 (참조 이미지 생성 실패)" 로 정제된다', () => {
+      expect(
+        formatLedgerLabel({
+          kind: 'refund',
+          amount: 1,
+          memo: '참조 이미지 생성 실패 (quota)',
+        }),
+      ).toBe('환급 (참조 이미지 생성 실패)');
+      expect(
+        formatLedgerLabel({
+          kind: 'refund',
+          amount: 1,
+          memo: '참조 이미지 생성 실패',
+        }),
+      ).toBe('환급 (참조 이미지 생성 실패)');
+    });
+
+    it('그 밖의 내부 오류 사유는 세부사항을 숨기고 "환급 (생성 실패)" 로 정제된다', () => {
+      expect(formatLedgerLabel({ kind: 'refund', amount: 1, memo: '생성 실패 (auth)' })).toBe(
+        '환급 (생성 실패)',
+      );
+      expect(
+        formatLedgerLabel({
+          kind: 'refund',
+          amount: 1,
+          memo: '생성 실패 (마감되지 않은 예외)',
+        }),
+      ).toBe('환급 (생성 실패)');
+      expect(formatLedgerLabel({ kind: 'refund', amount: 1, memo: '큐 적재 실패' })).toBe(
+        '환급 (생성 실패)',
       );
       expect(formatLedgerLabel({ kind: 'refund', amount: 1, memo: '생성 실패' })).toBe(
         '환급 (생성 실패)',
       );
-      expect(formatLedgerLabel({ kind: 'refund', amount: 1, memo: '취소' })).toBe('환급 (취소)');
+      expect(formatLedgerLabel({ kind: 'refund', amount: 1, memo: null })).toBe('환급 (생성 실패)');
     });
+  });
 
-    it('이미 "환급"으로 시작하는 memo는 중복 없이 그대로 표시된다', () => {
-      expect(formatLedgerLabel({ kind: 'refund', amount: 1, memo: '환급 (취소)' })).toBe(
-        '환급 (취소)',
+  describe('알 수 없는 종류 (fallback)', () => {
+    it('미지의 kind 가 DB 에 있어도 undefined 대신 "기타" 로 폴백한다', () => {
+      expect(formatLedgerLabel({ kind: 'unknown_future_kind', amount: 10, memo: 'test' })).toBe(
+        '기타',
       );
-      expect(formatLedgerLabel({ kind: 'refund', amount: 1, memo: '환급' })).toBe('환급');
-    });
-
-    it('memo가 null이면 "환급" 기본 라벨이 나온다', () => {
-      expect(formatLedgerLabel({ kind: 'refund', amount: 1, memo: null })).toBe('환급');
     });
   });
 });
@@ -136,7 +194,7 @@ describe('formatLedgerLabel', () => {
 describe('toLedgerEntryDto', () => {
   const now = new Date('2026-09-21T12:00:00.000Z');
 
-  it('운영자 감사 정보(운영자 id, 내부 사유)는 DTO에서 감추어 사용자에게 노출하지 않는다', () => {
+  it('운영자 감사 정보(운영자 id, 내부 사유)는 DTO memo 에서 null 처리되어 노출되지 않는다', () => {
     const row = {
       id: 'led_1',
       amount: 50,
@@ -149,12 +207,11 @@ describe('toLedgerEntryDto', () => {
     const dto = toLedgerEntryDto(row);
 
     expect(dto.label).toBe('운영자 조정');
-    // HTTP 응답 JSON을 통해서도 운영자 id와 사유가 유출되지 않아야 한다
     expect(dto.memo).toBeNull();
     expect(dto.amount).toBe(50);
   });
 
-  it('운영자 회수 시에도 내부 정보는 DTO에서 null이 된다', () => {
+  it('운영자 회수 시에도 내부 정보는 DTO 에서 null 이 된다', () => {
     const row = {
       id: 'led_2',
       amount: -20,
@@ -171,7 +228,7 @@ describe('toLedgerEntryDto', () => {
     expect(dto.amount).toBe(-20);
   });
 
-  it('충전 시 상품 id가 DTO memo나 label로 사용자에게 노출되지 않는다', () => {
+  it('충전 시 상품 id 가 DTO memo 나 label 로 노출되지 않는다', () => {
     const row = {
       id: 'led_3',
       amount: 50,
@@ -187,8 +244,8 @@ describe('toLedgerEntryDto', () => {
     expect(dto.memo).toBeNull();
   });
 
-  it('그림 생성 및 환급은 비민감 사유/모델명이 유지된다', () => {
-    const renderDto = toLedgerEntryDto({
+  it('그림 생성 시 모델명은 화면 표시 이름으로 label 에 반영되고 memo 는 null 이 된다', () => {
+    const dto = toLedgerEntryDto({
       id: 'led_4',
       amount: -1,
       balanceAfter: 99,
@@ -197,10 +254,12 @@ describe('toLedgerEntryDto', () => {
       refId: 'job_1',
       createdAt: now,
     });
-    expect(renderDto.label).toBe('그림 생성 (gemini-3.1-flash-image-preview)');
-    expect(renderDto.memo).toBe('그림 생성 (gemini-3.1-flash-image-preview)');
+    expect(dto.label).toBe('그림 생성 (Gemini)');
+    expect(dto.memo).toBeNull();
+  });
 
-    const refundDto = toLedgerEntryDto({
+  it('환급 시 내부 실패 원인은 숨겨진 3대 사유로 label 에 반영되고 memo 는 null 이 된다', () => {
+    const cancelDto = toLedgerEntryDto({
       id: 'led_5',
       amount: 1,
       balanceAfter: 100,
@@ -209,7 +268,19 @@ describe('toLedgerEntryDto', () => {
       refId: 'job_1',
       createdAt: now,
     });
-    expect(refundDto.label).toBe('환급 (생성 취소)');
-    expect(refundDto.memo).toBe('생성 취소');
+    expect(cancelDto.label).toBe('환급 (생성 취소)');
+    expect(cancelDto.memo).toBeNull();
+
+    const failDto = toLedgerEntryDto({
+      id: 'led_6',
+      amount: 1,
+      balanceAfter: 100,
+      kind: 'refund',
+      memo: '생성 실패 (auth)',
+      refId: 'job_1',
+      createdAt: now,
+    });
+    expect(failDto.label).toBe('환급 (생성 실패)');
+    expect(failDto.memo).toBeNull();
   });
 });

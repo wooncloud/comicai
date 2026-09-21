@@ -635,57 +635,26 @@ export interface TokenOrderDTO {
 }
 
 /**
- * 원장 항목을 사용자 화면에 노출할 라벨로 변환한다.
+ * 화면 및 원장 표기에 사용할 AI 모델 이름.
  *
- * DB의 `memo` 문자열에 의존하지 않고, 원장의 구조화된 값(`kind`, `amount`)을 우선하여 라벨을 생성한다.
- * - 충전: 상품 id 대신 지급 토큰 수(`충전 50토큰`)
- * - 운영자 지급·회수: 운영자 id 및 사유를 감춘 `운영자 조정`
- * - 가입 지급: `가입 지급`
- * - 그림 생성: `그림 생성 (모델명)` 또는 `그림 생성`
- * - 환급: `환급 (사유)` 또는 `환급`
- *
- * 옛 형식의 `memo`(`starter 충전`, `사유 (by user_01ABC)`)가 들어와도 항상 결정된 표시가 나온다.
+ * `ModelId` 원문('gemini-3.1-flash-image-preview')은 내부 식별자다.
+ * 화면 인스펙터 선택지뿐 아니라 사용자 토큰 내역('그림 생성 (Gemini)') 등 서버 라벨 생성에서도
+ * 공통으로 사용하므로 `@comicai/types` 에 단일 진실 공급원으로 둔다.
  */
-export function formatLedgerLabel(entry: {
-  kind: TokenLedgerKind;
-  amount: number;
-  memo?: string | null;
-}): string {
-  switch (entry.kind) {
-    case 'purchase': {
-      const tokens = Math.abs(entry.amount);
-      return `충전 ${tokens.toLocaleString('ko-KR')}토큰`;
-    }
-    case 'admin_grant':
-    case 'admin_revoke':
-      return '운영자 조정';
-    case 'signup_grant':
-      return '가입 지급';
-    case 'render': {
-      const memo = entry.memo?.trim();
-      if (!memo || memo === '그림 생성') {
-        return '그림 생성';
-      }
-      if (memo.startsWith('그림 생성')) {
-        return memo;
-      }
-      if (memo.startsWith('(') && memo.endsWith(')')) {
-        return `그림 생성 ${memo}`;
-      }
-      return `그림 생성 (${memo})`;
-    }
-    case 'refund': {
-      const memo = entry.memo?.trim();
-      if (!memo || memo === '환급') {
-        return '환급';
-      }
-      if (memo.startsWith('환급')) {
-        return memo;
-      }
-      if (memo.startsWith('(') && memo.endsWith(')')) {
-        return `환급 ${memo}`;
-      }
-      return `환급 (${memo})`;
-    }
-  }
+export const MODEL_LABEL: Record<ModelId, string> = {
+  'gemini-3.1-flash-image-preview': 'Gemini',
+  'gpt-image-2': 'OpenAI',
+  // 개발용 어댑터. 선택지에는 넣지 않지만, 지난 기록에 남아 있을 수 있어 이름은 준비해 둔다.
+  mock: '테스트',
+};
+
+/**
+ * 표기용 이름. 목록에 없으면 id 를 그대로 보여 준다.
+ *
+ * `MODEL_LABEL` 은 `Record<ModelId, string>` 이라 타입상 늘 맞지만, 인자는 DB
+ * 문자열을 `as ModelId` 로 캐스트해 보낸 값일 수 있다 — 모델을 유니온에서 빼도 그 모델로
+ * 만든 옛 기록은 남는다. 폴백이 없으면 히스토리에 undefined 가 찍힌다.
+ */
+export function modelLabel(id: string): string {
+  return (MODEL_LABEL as Partial<Record<string, string>>)[id] ?? id;
 }

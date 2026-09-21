@@ -6,27 +6,10 @@ import {
   MODEL_TOKEN_COST,
   type ModelId,
   type TokenBalanceDTO,
-  type TokenLedgerKind,
   type TokenOrderStatus,
 } from '@comicai/types';
 import { api } from './api';
 import { qk } from './query-keys';
-
-/**
- * 원장 항목의 문구.
- *
- * `Record<TokenLedgerKind, …>` 라 종류가 늘면 여기서 컴파일 에러가 난다. 빠뜨리면
- * 사용자는 "왜 줄었는지" 자리에 영문 enum 을 보게 되는데, 그 화면은 돈 이야기라
- * 모르는 단어가 하나만 있어도 문의가 된다.
- */
-export const LEDGER_KIND_LABEL: Record<TokenLedgerKind, string> = {
-  signup_grant: '가입 지급',
-  purchase: '충전',
-  render: '그림 생성',
-  refund: '환급',
-  admin_grant: '운영자 지급',
-  admin_revoke: '운영자 회수',
-};
 
 export const ORDER_STATUS_LABEL: Record<TokenOrderStatus, string> = {
   // 사용자에게 pending 은 "결제 대기" 가 아니다 — 우리가 입금을 확인하는 중이다.
