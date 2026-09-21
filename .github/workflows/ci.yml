@@ -45,6 +45,11 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # 안 쓰는 export·파일·의존성. 2026-09-21 에 한 번 비웠다(T-10) — 여기서 막지 않으면
+      # 워커 여럿이 드나드는 사이 금방 다시 쌓인다. 일부러 남긴 것은 knip.json 에 이유와 함께 제외한다.
+      - name: Dead code (knip)
+        run: pnpm knip
+
       - name: Test
         run: pnpm test
 

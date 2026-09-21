@@ -49,7 +49,7 @@
   본문 마지막 줄 `관련 docs 갱신 필요 여부: 필요|없음|TODO`.
 - 코드를 바꾸면 해당 `docs/*.md` 의 `path:line` 인용을 고친다(매핑은 `CLAUDE.md`).
 - 검사 — 바꾼 패키지만 돌려도 된다(`pnpm --filter <패키지> test`):
-  - 항상 `pnpm typecheck` · `pnpm lint` · 테스트 · `pnpm verify:docs`
+  - 항상 `pnpm typecheck` · `pnpm lint` · 테스트 · `pnpm verify:docs` · `pnpm knip`(CI 가 막는다 — 안 쓰게 된 export 는 지우거나 `export` 를 뺀다)
   - 설정·인프라(`env-profile.json`, `infra/**`, `scripts/compose.sh`)를 건드리면 `pnpm env:check` 도
 - 주석은 한국어, "무엇" 보다 "왜". 파일의 기존 문체를 따른다.
 - `.env` 와 `env-profile.json` 중 어디에 둘지는 `docs/05-infra-ops.md` §5 "어디에 둘지 판단하는 법".
