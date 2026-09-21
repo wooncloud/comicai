@@ -77,7 +77,8 @@ export default function AdminPage() {
       <PageContainer>
         <h1 className="text-title-lg font-semibold sm:text-display-md">운영 현황</h1>
         <p className="mt-2 text-body-sm text-muted-foreground">
-          읽기 전용입니다. 여기서는 아무것도 바꿀 수 없습니다.
+          서비스 지표를 확인하고 입금 확인과 토큰 조정을 처리합니다. 토큰 변경은 사용자 잔액에 즉시
+          반영되며, 되돌리려면 반대 방향으로 다시 조정해야 합니다.
         </p>
 
         {/* 처리할 일이 먼저다. 집계는 그 아래에서 봐도 늦지 않다. */}
