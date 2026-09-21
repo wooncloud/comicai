@@ -42,7 +42,7 @@ pnpm --filter @comicai/db migrate
 >
 > **compose 를 직접 부르지 않는다.** `pnpm infra:up` / `docker:up` / `prod:up` 이 전부
 > `scripts/compose.sh` 를 거친다 — `.env.generated` 생성과 env-file 순서가 매번 함께
-> 가야 하기 때문이다 (`scripts/compose.sh:27`).
+> 가야 하기 때문이다 (`scripts/compose.sh:101`).
 
 ## 3. 일상 명령
 

@@ -398,7 +398,7 @@ availableModels(): ModelId[]
 읽는 쪽이 셋인데 로딩 방식이 서로 다르다 — NestJS 런타임(CJS, `apps/api/src/bootstrap-env.ts:1`),
 `apps/web/next.config.mjs:8` (ESM), `.env.generated` 생성 CLI (`packages/config/cli.js:1`).
 게다가 **빌드보다 먼저** 필요하다. `dist/` 를 요구하면 갓 클론한 저장소에서 `next.config.mjs`
-가 깨지고, `scripts/compose.sh:27` 이 배포 직전에 부르는 자리에서도 워크스페이스가 설치돼
+가 깨지고, `scripts/compose.sh:101` 이 배포 직전에 부르는 자리에서도 워크스페이스가 설치돼
 있으리라는 보장이 없다. 타입은 손으로 쓴 `index.d.ts` 가, 검사는 `checkJs`
 (`packages/config/tsconfig.json`) 가 맡는다.
 

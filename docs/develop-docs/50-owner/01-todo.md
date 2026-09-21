@@ -256,8 +256,9 @@ node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
 3. 맥북의 러너를 제거한다(안 그러면 두 대 중 아무 데나 배포된다).
 4. 배포 워크플로를 다시 켠다.
 
-맥미니 러너의 셸에서 `node` 가 보여야 한다 — `scripts/compose.sh` 가 설정 파일을 만들 때 쓴다.
-맥미니의 node 는 nvm(`~/.nvm/versions/node/v22.18.0`) 이라 비대화형 셸 PATH 에 없다.
+맥미니의 node 는 nvm(`~/.nvm/versions/node/v22.18.0`)이라 비대화형 셸 PATH 에 없지만,
+`scripts/compose.sh` 가 PATH 에 없을 때 nvm(`${NVM_DIR:-$HOME/.nvm}/versions/node`)을
+찾아 실행하므로(`.nvmrc` 우선, 없으면 최신 버전) 별도 PATH 주입 없이 배포가 동작한다.
 
 ---
 

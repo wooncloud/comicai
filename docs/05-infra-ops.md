@@ -293,9 +293,11 @@ localhost 라, 하나로 묶으면 반드시 어긋난다.
 NestJS `ConfigModule` 이 `.env` 를 읽을 때는 이미 지나간 뒤다.
 
 **compose** — docker compose 는 JSON 을 못 읽는다. `scripts/compose.sh` 가 컨테이너를 띄우기
-직전에 `.env.generated` 로 옮겨 적고(`compose.sh:27`), env-file 을 둘 넘긴다
-(`compose.sh:30`, `:35`). 뒤에 온 `.env` 가 이긴다 — §5.1 과 같은 순서다.
+직전에 `.env.generated` 로 옮겨 적고(`compose.sh:101`), env-file 을 둘 넘긴다
+(`compose.sh:104`, `:109`). 뒤에 온 `.env` 가 이긴다 — §5.1 과 같은 순서다.
 `.env.generated` 는 커밋하지 않는다(`.gitignore`).
+이때 `node` 는 PATH → `NODE_BIN` → nvm(`${NVM_DIR:-$HOME/.nvm}`, `.nvmrc` 우선) → Homebrew(`/opt/homebrew`, `/usr/local`)
+순서로 찾아 비대화형 러너나 ssh 환경에서도 동작한다(`compose.sh:26-94`).
 
 > compose 호출은 전부 이 래퍼를 거친다(`package.json` 의 `docker:*`/`prod:*`/`infra:*`,
 > `scripts/deploy.sh:17`, `.github/workflows/deploy.yml:48`). 어딘가 `docker compose` 를

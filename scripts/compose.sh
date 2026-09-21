@@ -23,8 +23,82 @@ export APP_ENV
 # full = 전체 스택, dev = 인프라만. 둘 다 같은 .env.generated 를 읽는다.
 STACK="${COMPOSE_STACK:-full}"
 
-command -v node >/dev/null || { echo "✗ node 를 찾을 수 없습니다. 설정 파일을 만들 수 없습니다." >&2; exit 1; }
-node packages/config/cli.js --write .env.generated >/dev/null
+# node 가 PATH 에 없으면 nvm/Homebrew 에서 찾아 쓴다 (비대화형 러너·ssh 대응).
+# 탐색 순서:
+#   1. PATH 에 node 가 있으면 그대로 사용
+#   2. NODE_BIN 환경변수 (명시 지정)
+#   3. nvm: ${NVM_DIR:-$HOME/.nvm}/versions/node/*/bin/node
+#      (.nvmrc 와 주 버전 일치 우선, 없으면 가장 높은 버전)
+#   4. /opt/homebrew/bin/node, /usr/local/bin/node
+NODE_CMD=""
+
+if command -v node >/dev/null 2>&1; then
+  NODE_CMD="$(command -v node)"
+elif [ -n "${NODE_BIN:-}" ] && [ -x "$NODE_BIN" ]; then
+  NODE_CMD="$NODE_BIN"
+else
+  TARGET_MAJOR=""
+  if [ -f "$ROOT/.nvmrc" ]; then
+    NVMRC_CONTENT="$(grep -v '^[[:space:]]*#' "$ROOT/.nvmrc" | tr -d '[:space:]' || true)"
+    TARGET_MAJOR="${NVMRC_CONTENT#v}"
+    TARGET_MAJOR="${TARGET_MAJOR%%.*}"
+  fi
+
+  NVM_NODE_DIR="${NVM_DIR:-${HOME:-}/.nvm}/versions/node"
+  if [ -d "$NVM_NODE_DIR" ]; then
+    matched_major_list=""
+    all_versions_list=""
+    for cand in "$NVM_NODE_DIR"/*/bin/node; do
+      [ -x "$cand" ] || continue
+      vdir="$(dirname "$(dirname "$cand")")"
+      vname="$(basename "$vdir")"
+      ver="${vname#v}"
+      major="${ver%%.*}"
+      if [ -z "$all_versions_list" ]; then
+        all_versions_list="${ver} ${cand}"
+      else
+        all_versions_list="${all_versions_list}
+${ver} ${cand}"
+      fi
+      if [ -n "$TARGET_MAJOR" ] && [ "$major" = "$TARGET_MAJOR" ]; then
+        if [ -z "$matched_major_list" ]; then
+          matched_major_list="${ver} ${cand}"
+        else
+          matched_major_list="${matched_major_list}
+${ver} ${cand}"
+        fi
+      fi
+    done
+
+    if [ -n "$matched_major_list" ]; then
+      best_line="$(printf "%s\n" "$matched_major_list" | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)"
+      NODE_CMD="${best_line#* }"
+    elif [ -n "$all_versions_list" ]; then
+      best_line="$(printf "%s\n" "$all_versions_list" | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)"
+      NODE_CMD="${best_line#* }"
+    fi
+  fi
+
+  if [ -z "$NODE_CMD" ]; then
+    if [ -x "/opt/homebrew/bin/node" ]; then
+      NODE_CMD="/opt/homebrew/bin/node"
+    elif [ -x "/usr/local/bin/node" ]; then
+      NODE_CMD="/usr/local/bin/node"
+    fi
+  fi
+fi
+
+if [ -z "$NODE_CMD" ]; then
+  echo "✗ node 를 찾을 수 없습니다. 설정 파일을 만들 수 없습니다 (PATH, NODE_BIN, nvm, Homebrew 확인)." >&2
+  exit 1
+fi
+
+if [ "${COMPOSE_PRINT_NODE:-0}" = "1" ]; then
+  echo "$NODE_CMD"
+  exit 0
+fi
+
+"$NODE_CMD" packages/config/cli.js --write .env.generated >/dev/null
 
 # 빈 배열 전개는 macOS 기본 bash 3.2 + `set -u` 에서 unbound variable 로 죽는다.
 ARGS=(-f "infra/compose/${STACK}.yml" --env-file .env.generated)
