@@ -16,6 +16,9 @@ out/
 !.env.example
 # env-profile.json → compose 용으로 옮겨 적은 산출물. 언제든 재생성된다(pnpm env:generate).
 .env.generated
+# 서버에서 .env 를 고치기 전에 떠 둔 백업(.env.bak-날짜). 옛 비밀값이 그대로 들어 있어서,
+# 여기 없으면 `git add -A` 한 번에 공개 저장소로 올라간다.
+.env.bak*
 
 # Logs
 *.log
