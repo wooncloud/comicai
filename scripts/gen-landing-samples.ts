@@ -1,15 +1,24 @@
 /** 랜딩 샘플 세트 생성. STYLE/CHAR 고정, 배경·장면만 변주해 일관성을 보여준다. */
-import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { GeminiAdapter } from '@comicai/adapters';
 import type { RenderIR } from '@comicai/types';
+import { readEnvFile } from '../packages/config';
 
 const ROOT = resolve(__dirname, '..');
 const OUT = ROOT + '/apps/web/public/samples/_raw';
-mkdirSync(OUT, { recursive: true });
-const matched = readFileSync(ROOT + '/.env', 'utf8').match(/^GEMINI_API_KEY=(.+)$/m);
-if (!matched) throw new Error('GEMINI_API_KEY 없음');
-const KEY = matched[1].trim();
+
+export function readGeminiKey(envPath = resolve(ROOT, '.env')): string {
+  const env: Record<string, string | undefined> = readEnvFile(envPath);
+  const key = env.GEMINI_API_KEY?.trim();
+  if (!key) {
+    throw new Error(
+      `.env 파일(${envPath})에 GEMINI_API_KEY 가 설정되어 있지 않습니다. ` +
+        `저장소 루트 .env 에 GEMINI_API_KEY=<구글_AI_스튜디오_키> 를 추가해 주세요.`,
+    );
+  }
+  return key;
+}
 
 const ent = (name: string, description: string) => ({
   entityId: 'e_' + name,
@@ -148,11 +157,11 @@ function irFor(s: Scene): RenderIR {
   };
 }
 
-async function gen(s: Scene, attempt = 1): Promise<string> {
+async function gen(s: Scene, key: string, attempt = 1): Promise<string> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), 180_000);
   try {
-    const img = await GeminiAdapter.call(GeminiAdapter.buildRequest(irFor(s), KEY), ac.signal, {
+    const img = await GeminiAdapter.call(GeminiAdapter.buildRequest(irFor(s), key), ac.signal, {
       loadReference: () => Promise.reject(new Error('참조 이미지 없음')),
     });
     const ext = img.mimeType.includes('png') ? 'png' : 'jpg';
@@ -164,7 +173,7 @@ async function gen(s: Scene, attempt = 1): Promise<string> {
       await new Promise<void>((r) => {
         setTimeout(() => r(), 3000 * attempt);
       });
-      return gen(s, attempt + 1);
+      return gen(s, key, attempt + 1);
     }
     return `FAIL ${s.id}  [${c.category}] ${c.message.slice(0, 140)}`;
   } finally {
@@ -173,11 +182,13 @@ async function gen(s: Scene, attempt = 1): Promise<string> {
 }
 
 async function main() {
+  mkdirSync(OUT, { recursive: true });
+  const key = readGeminiKey();
   const results: string[] = [];
   // 동시 3개씩 — 레이트리밋 여유
   for (let i = 0; i < SCENES.length; i += 3) {
     const batch = SCENES.slice(i, i + 3);
-    const r = await Promise.all(batch.map((s) => gen(s)));
+    const r = await Promise.all(batch.map((s) => gen(s, key)));
     r.forEach((x) => {
       console.info(x);
       results.push(x);
@@ -187,4 +198,7 @@ async function main() {
     `\n완료: 성공 ${results.filter((r) => r.startsWith('OK')).length} / 실패 ${results.filter((r) => r.startsWith('FAIL')).length}`,
   );
 }
-void main();
+
+if (require.main === module) {
+  void main();
+}
