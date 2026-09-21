@@ -249,6 +249,11 @@ node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
 시크릿 `PROD_REPO_PATH=/Users/woon/project/comicai`. 맥북 러너와 `comicai-deploy` 는 지웠다.
 러너 PATH 는 설정 때 `.path` 로 굳는다 — docker(`/usr/local/bin`)와 nvm node 를 넣어 설정했다.
 
+**러너는 전용 docker 설정을 쓴다** (`~/actions-runner-comicai/.env` 의 `DOCKER_CONFIG`). 기본 설정의
+`credsStore: desktop` 은 launchd 서비스 안에서 키체인 접근을 기다리며 멈춰, 빌드가 20분 제한에 걸려
+배포가 취소됐다(2026-09-21). 공개 이미지만 받으므로 자격 증명이 필요 없다. Docker Desktop 을 재설치하거나
+`~/.docker` 를 정리할 때 이 폴더의 심볼릭 링크(`cli-plugins`·`contexts`·`buildx`)가 깨지지 않았는지 본다.
+
 ---
 
 ## 개발자 몫으로 남은 것 (참고)
