@@ -35,21 +35,22 @@ Playwright(`e2e/`)와 typecheck(`tsc --noEmit`)는 dev tooling.
 
 App Router 구조. 모든 `page.tsx` 파일.
 
-| 경로                                      | 파일                                           | 렌더                                                                                                                        |
-| ----------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `/`                                       | `app/page.tsx:10`                              | 랜딩. `useEffect`로 `GET /me` 시도해 성공 시 `/dashboard`로 replace, 실패 시 히어로 + STEP 3개 + BYOK 안내. `Topbar`만 사용 |
-| `/dashboard`                              | `app/dashboard/page.tsx:12`                    | 내 프로젝트 목록. `useQuery(['projects'])`로 로딩, `ProjectRow` 리스트(`:61`) + `ProjectCreateDialog`                       |
-| `/projects`                               | `app/projects/page.tsx:1`                      | 서버 컴포넌트. `redirect('/dashboard')`                                                                                     |
-| `/projects/[id]`                          | `app/projects/[id]/page.tsx:10`                | 프로젝트 상세 — 페이지 목록과 페이지 추가. `useState`/`useEffect`로 로딩 (React Query 미사용)                               |
-| `/projects/[id]/pages/[pageid]`           | `app/projects/[id]/pages/[pageid]/page.tsx:45` | **에디터 본체**. `dynamic(..., { ssr: false })`로 `ComicEditor` 로드. 좌 사이드바·캔버스·우 인스펙터 3분할                  |
-| `/projects/[id]/consistency`              | `app/projects/[id]/consistency/page.tsx:23`    | 일관성 엔티티(`style`/`character`/`background`/`worldview`) 탭 + CRUD + 이미지 업로드                                       |
-| `/login`, `/signup`                       | `app/login/page.tsx`, `app/signup/page.tsx`    | 폼 + `OAuthButtons`. `Suspense`로 쿼리파라미터 배너 분리                                                                    |
-| `/forgot-password`, `/reset-password`     | 비밀번호 재설정 요청/확정 폼                   |
-| `/verify-email/[token]`                   | `app/verify-email/[token]/page.tsx:10`         | 토큰으로 `POST /verify-email/:token`, 상태별 메시지                                                                         |
-| `/settings`                               | `app/settings/page.tsx:1`                      | `redirect('/settings/profile')`                                                                                             |
-| `/settings/(profile\|api-keys\|security)` | `app/settings/...`                             | 계정 설정. `settings/layout.tsx:13`이 탭 네비 + `AppShell` 공통 적용                                                        |
-| `/projects/[id]/settings`                 | `app/projects/[id]/settings/page.tsx:42`       | 프로젝트 설정. 이름·기본 AI 서비스·삭제 + 캐릭터·설정 관리로 가는 링크                                                      |
-| `/health`                                 | `app/health/page.tsx:17`                       | **서버 컴포넌트**. `INTERNAL_API_URL`/`NEXT_PUBLIC_API_URL`로 `/healthz` 호출 후 JSON 덤프                                  |
+| 경로                                               | 파일                                           | 렌더                                                                                                                                                  |
+| -------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                                | `app/page.tsx:10`                              | 랜딩. `useEffect`로 `GET /me` 시도해 성공 시 `/dashboard`로 replace, 실패 시 히어로 + STEP 3개 + BYOK 안내. `Topbar`만 사용                           |
+| `/dashboard`                                       | `app/dashboard/page.tsx:12`                    | 내 프로젝트 목록. `useQuery(['projects'])`로 로딩, `ProjectRow` 리스트(`:61`) + `ProjectCreateDialog`                                                 |
+| `/projects`                                        | `app/projects/page.tsx:1`                      | 서버 컴포넌트. `redirect('/dashboard')`                                                                                                               |
+| `/projects/[id]`                                   | `app/projects/[id]/page.tsx:10`                | 프로젝트 상세 — 페이지 목록과 페이지 추가. `useState`/`useEffect`로 로딩 (React Query 미사용)                                                         |
+| `/projects/[id]/pages/[pageid]`                    | `app/projects/[id]/pages/[pageid]/page.tsx:45` | **에디터 본체**. `dynamic(..., { ssr: false })`로 `ComicEditor` 로드. 좌 사이드바·캔버스·우 인스펙터 3분할                                            |
+| `/projects/[id]/consistency`                       | `app/projects/[id]/consistency/page.tsx:23`    | 일관성 엔티티(`style`/`character`/`background`/`worldview`) 탭 + CRUD + 이미지 업로드                                                                 |
+| `/login`, `/signup`                                | `app/login/page.tsx`, `app/signup/page.tsx`    | 폼 + `OAuthButtons`. `Suspense`로 쿼리파라미터 배너 분리                                                                                              |
+| `/forgot-password`, `/reset-password`              | 비밀번호 재설정 요청/확정 폼                   |
+| `/verify-email/[token]`                            | `app/verify-email/[token]/page.tsx:10`         | 토큰으로 `POST /verify-email/:token`, 상태별 메시지                                                                                                   |
+| `/settings`                                        | `app/settings/page.tsx:1`                      | `redirect('/settings/profile')`                                                                                                                       |
+| `/settings/(profile\|billing\|api-keys\|security)` | `app/settings/...`                             | 계정 설정. `settings/layout.tsx:13`이 탭 네비 + `AppShell` 공통 적용. `BillingSettingsPage`(`app/settings/billing/page.tsx:29`)는 잔액·충전·주문·내역 |
+| `/admin`                                           | `app/admin/page.tsx:21`                        | **운영 현황**. `isAdmin` 판정 후 입금 확인 대기(`PendingOrders`)·지표 통계·최근 가입 목록 및 토큰 조정 다이얼로그 제공                                |
+| `/projects/[id]/settings`                          | `app/projects/[id]/settings/page.tsx:42`       | 프로젝트 설정. 이름·기본 AI 서비스·삭제 + 캐릭터·설정 관리로 가는 링크                                                                                |
+| `/health`                                          | `app/health/page.tsx:17`                       | **서버 컴포넌트**. `INTERNAL_API_URL`/`NEXT_PUBLIC_API_URL`로 `/healthz` 호출 후 JSON 덤프                                                            |
 
 루트 레이아웃 `app/layout.tsx:8-12`은 Inter를 주입하고 `<Providers><ToastProvider>` 순으로 감싼다 (`app/layout.tsx:44-46`).
 
@@ -192,6 +193,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
   - `conti-dialog.tsx` — 콘티 업로드/제거 다이얼로그 (POST/DELETE `/v1/panels/:id/conti`)
 - `history-tray.tsx` — 패널별 렌더 히스토리 그리드. 후술
 - `panel-status-badge.tsx`, `save-status.tsx`, `page-sidebar.tsx`, `page-size-select.tsx`, `export-dialog.tsx` — 보조 UI
+- `token-balance.tsx` — 에디터 헤더(`pages/[pageid]/page.tsx:339`)에 잔액 표시. 잔액 0 이하면 빨강, 1 이상이면 회색, 클릭 시 `/settings/billing` 이동. 잔액 조회가 실패하면 아무것도 그리지 않아(`token-balance.tsx:19`) 캔버스 작업을 방해하지 않는다
 
 ### components/editor/tldraw (tldraw 측)
 
@@ -225,6 +227,15 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 - `input.tsx`, `breadcrumb.tsx` — 순수 컴포넌트 (Radix 미사용)
 - `toast.tsx` — 후술 (sonner 래퍼)
 
+### components/billing
+
+- `charge-dialog.tsx` — 충전 요청 다이얼로그(`charge-dialog.tsx:36`). 입금 방법 안내(`notice`, `:24`)를 다이얼로그 안에서 다시 보여주고, 입금자명(`depositorName`, `:39`) 입력을 필수로 받는다(`disabled`, `:104`). 접수 성공 시 캐시 무효화(`billingOrders`, `:54`)
+
+### components/admin
+
+- `pending-orders.tsx` — 입금 확인 대기 주문 목록(`pending-orders.tsx:22`). 통장 입금 내역과 대조하기 쉽게 입금자명(`depositorName`, `:80`)·가입 이메일·금액을 표시하고, 확인(`confirm`, `:105`) 후 입금 확인(`markPaid`, `:34`) 시 `adminOrders`와 `adminUsers` 캐시를 동시 무효화(`:36-39`)
+- `token-grant-dialog.tsx` — 운영자 토큰 조정 다이얼로그 `TokenGrantDialog`(`token-grant-dialog.tsx:33`). 지급·회수를 부호로 구분하고 사유(`memo`, `:37`) 입력을 필수로 검증한다(`valid`, `:40`). 회수 초과 시 `adminTokenErrorMessage`로 운영자 맞춤 오류 문구 표시
+
 ### components 루트
 
 - `oauth-buttons.tsx`, `api-key-form.tsx`, `api-key-list.tsx`, `auth/auth-header.tsx`
@@ -233,22 +244,42 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 ### 5.1 서버 상태 — React Query
 
-현재 코드에 등장하는 쿼리 키는 5개뿐이다.
+캐시 키는 `lib/query-keys.ts:12` 의 `qk` 객체 한 곳에서 생성한다. 호출부마다 배열 리터럴을 직접 적으면 조회하는 쪽과 무효화(`invalidateQueries`)하는 쪽의 키가 미묘하게 어긋나도 타입 에러가 나지 않아 캐시가 갱신되지 않는 버그가 생긴다.
 
-| 쿼리 키                      | 위치                                          | 용도                                                                                                                                          |
-| ---------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `['me']`                     | `components/shell/app-shell.tsx:64`           | 현재 세션 사용자. `retry: false`, `throwOnError: false`. 401 리다이렉트는 여기가 아니라 `lib/api.ts:92` 다. 로그아웃 시 `queryClient.clear()` |
-| `['projects']`               | `app/dashboard/page.tsx:14`                   | 프로젝트 목록. 생성/패치/삭제는 모두 `queryClient.setQueryData<ProjectDTO[]>(['projects'], ...)`로 옵티미스틱 갱신 (`:19-33`)                 |
-| `['project', id]`            | `lib/use-project.ts:8`                        | 단일 프로젝트. `enabled: !!projectId`                                                                                                         |
-| `['panel-history', panelId]` | `components/editor/history-tray.tsx:16`       | 패널의 렌더 잡 목록. `restore` mutation 성공 시 `invalidateQueries` (`:25`)                                                                   |
-| `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:72-76` | 단일 렌더 잡. `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치 (후술)                                               |
+| 쿼리 키                      | 위치                                       | 용도                                                                                                                                        |
+| ---------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `['me']`                     | `components/shell/app-shell.tsx:54`        | 현재 세션 사용자 (`qk.me()`). `retry: false`, `throwOnError: false`. 401 리다이렉트는 `lib/api.ts:37` 다. 로그아웃 시 `queryClient.clear()` |
+| `['projects']`               | `app/dashboard/page.tsx:16`                | 프로젝트 목록 (`qk.projects()`). 생성/패치/삭제는 모두 `queryClient.setQueryData<ProjectDTO[]>(...)`로 옵티미스틱 갱신 (`:21-35`)           |
+| `['project', id]`            | `lib/use-project.ts:9`                     | 단일 프로젝트 (`qk.project(id)`). `enabled: !!projectId`                                                                                    |
+| `['panel-history', panelId]` | `components/editor/history-tray.tsx:22`    | 패널의 렌더 잡 목록 (`qk.panelHistory(panelId)`). `restore` mutation 성공 시 `invalidateQueries` (`:34`)                                    |
+| `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:81` | 단일 렌더 잡 (`qk.renderJob(jobId)`). `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치                            |
+| `['token-balance']`          | `lib/tokens.ts:40`                         | 현재 사용자 토큰 잔액 (`qk.tokenBalance()`). 에디터 헤더와 충전 화면이 공유. `throwOnError: false`                                          |
+| `['token-history']`          | `app/settings/billing/page.tsx:247`        | 토큰 사용/충전/조정 내역 (`qk.tokenHistory()`). 렌더 종료 시 `useRefreshTokens()` 로 무효화                                                 |
+| `['billing-packages']`       | `app/settings/billing/page.tsx:88`         | 충전 패키지 목록 및 입금 안내 (`qk.billingPackages()`). `notice === null` 이면 요청 버튼 미노출                                             |
+| `['billing-orders']`         | `app/settings/billing/page.tsx:168`        | 내 충전 요청 주문 목록 (`qk.billingOrders()`). 요청 접수·취소 시 무효화                                                                     |
+| `['admin', 'overview']`      | `app/admin/page.tsx:37`                    | 운영 현황 집계 (`qk.adminOverview()`). `isAdmin` 참일 때만 조회                                                                             |
+| `['admin', 'users']`         | `app/admin/page.tsx:43`                    | 최근 가입자 및 사용자별 토큰 잔액 (`qk.adminUsers()`). 입금 확인·토큰 조정 시 무효화                                                        |
+| `['admin', 'orders']`        | `components/admin/pending-orders.tsx:28`   | 입금 확인 대기 주문 목록 (`qk.adminOrders()`). `markPaid` 성공 시 무효화                                                                    |
 
-뮤테이션은 `useMutation`을 두 곳에서 사용한다.
+뮤테이션은 화면과 상황에 맞게 `useMutation` 과 직접 `api()` 호출을 섞어 쓴다.
 
-- `panel-inspector.tsx:113-136` `startRender` — `POST /panels/:id/render` 후 `setQueryData(['render-job', jobId], ...)`로 낙관적 'queued' 상태를 캐시에 시드하고 `subscribeJob(jobId)`로 SSE 연결
-- `history-tray.tsx:29` `restore` — `POST /render-jobs/:id/restore` 후 부모 콜백 + `invalidateQueries`
+- `panel-inspector.tsx:135` `startRender` — `POST /panels/:id/render` 후 `setQueryData(qk.renderJob(jobId), ...)` 로 낙관적 'queued' 상태를 캐시에 시드하고 `subscribeJob(jobId)` 로 SSE 연결
+- `panel-inspector.tsx:166` `cancelRender` — `POST /render-jobs/:id/cancel` 후 잡 상태 'canceled' 패치 및 SSE 연결 종료
+- `history-tray.tsx:29` `restore` — `POST /render-jobs/:id/restore` 후 부모 콜백 + `qk.panelHistory(panelId)` 무효화
+- `charge-dialog.tsx:47` `create` — `POST /billing/orders` 후 `qk.billingOrders()` 무효화
+- `app/settings/billing/page.tsx:173` `cancel` — `DELETE /billing/orders/:id` 후 `qk.billingOrders()` 무효화
+- `pending-orders.tsx:33` `markPaid` — `POST /admin/orders/:id/mark-paid` 후 `qk.adminOrders()` 와 `qk.adminUsers()` 동시 무효화
+- `token-grant-dialog.tsx:42` `submit` — `POST /admin/users/:id/tokens` 후 `qk.adminUsers()` 무효화
 
-기타 뮤테이션 성격의 작업(`POST /projects`, `PATCH /projects/:id`, `DELETE /projects/:id`, `PATCH /panels/:id`, `POST /pages` 등)은 **`useMutation`을 쓰지 않고 직접 `api()`를 호출한 뒤 부모로 콜백**해 React Query 캐시는 부모가 `setQueryData`로 직접 갱신하는 패턴이다 (예: `app/dashboard/page.tsx:19-33`).
+기타 대시보드 프로젝트 작업(`POST /projects`, `PATCH /projects/:id`, `DELETE /projects/:id`)은 `useMutation` 대신 직접 `api()` 를 호출하고 `queryClient.setQueryData` 로 직접 캐시를 수정한다 (`app/dashboard/page.tsx:21-35`).
+
+#### 지급 뒤 사용자 화면이 저절로 안 바뀌는 이유 (캐시 경계)
+
+운영자가 `/admin` 에서 입금 확인(`markPaid`)을 눌러 토큰을 지급하면, 운영자 화면에서는 `qk.adminOrders()` 와 `qk.adminUsers()` 가 무효화되어 해당 사용자의 잔액이 즉시 늘어난 것으로 보인다 (`pending-orders.tsx:36-39`).
+
+그러나 **사용자의 브라우저 화면은 다른 기기·세션의 독립된 React Query 캐시**를 들고 있다.
+현재 클라이언트와 서버 사이에는 잔액 변경을 브로드캐스트하는 웹소켓이나 전역 SSE 채널이 없으며, 기본 설정상 `refetchOnWindowFocus: false` (`app/providers.tsx:28`), `staleTime: 30_000` (`:27`) 이다.
+따라서 운영자가 지급을 마쳐도 사용자가 탭을 전환하거나 가만히 기다리는 동안에는 에디터 헤더(`TokenBalance`)나 충전 화면의 잔액이 저절로 바뀌지 않는다 (`docs/develop-docs/50-owner/02-verify.md` E-1). 사용자가 **F5 로 새로고침**하거나, 그림 생성을 완료하여 `useRefreshTokens()` (`lib/tokens.ts:53`) 가 돌기 전까지는 이전 캐시된 숫자가 유지된다.
 
 ### 5.2 클라이언트/UI 상태 — local hooks
 
@@ -446,6 +477,15 @@ if (!(await confirm({ title: '…', destructive: true }))) return;
 
 `useProject(projectId)` (`lib/use-project.ts:6`) — `useQuery({ queryKey: ['project', id], queryFn: GET /projects/:id, enabled: !!id })`. 단순 wrapper지만 에디터 헤더(브레드크럼)에서 프로젝트 이름을 가져올 때 사용.
 
+### lib/tokens.ts
+
+토큰 잔액 조회·서버 동기화·구매력(affordability) 판정을 담당한다.
+
+- `useTokenBalance()` (`lib/tokens.ts:38`) — `throwOnError: false`. 에디터 헤더와 충전 화면에서 사용하며, 잔액 조회가 실패했다고 캔버스 화면을 에러 경계로 날리지 않는다 (`:34-36`).
+- `useRefreshTokens()` (`lib/tokens.ts:53`) — 렌더 종료 또는 토큰 부족 오류 시 `qk.tokenBalance()` 와 `qk.tokenHistory()` 를 무효화. 낙관적으로 잔액을 차감하지 않고 서버 진실(truth)을 다시 읽는다(실패·취소 시 자동 환급과의 어긋남 방지, `:49-52`).
+- `affordability(balance, model)` (`lib/tokens.ts:85`) — 선택된 모델의 1장 생성 가능 여부(`{ cost, short }`) 판정. 서버가 내려준 `balance.costs[model]` 을 기준으로 삼아 BYOK 사용자의 무료 단가를 정확히 반영한다 (`:86-90`). 잔액 조회가 안 된 상태에서는 `short: false` 로 두어 화면이 추측으로 버튼을 잠그지 못하게 한다 (`:82-84`).
+- `affordableText(n)` (`lib/tokens.ts:68`) — `null` 은 '제한 없음', `undefined` 는 '—', 수량은 'N장' 으로 포맷.
+
 ## 8. 패널 인스펙터의 SSE 흐름
 
 `components/editor/panel-inspector.tsx`는 React Query와 EventSource를 브리지하는 가장 복잡한 영역이다.
@@ -478,7 +518,8 @@ apps/web/
 │   │   ├── page.tsx            # 프로젝트 상세
 │   │   ├── pages/[pageid]/     # 에디터 본체
 │   │   └── consistency/        # 일관성 엔티티 CRUD
-│   ├── settings/{profile,api-keys,security}/
+│   ├── settings/{profile,billing,api-keys,security}/
+│   ├── admin/                  # 운영 현황 대시보드
 │   ├── (login|signup|forgot-password|reset-password|verify-email)/
 │   └── health/                 # 서버 컴포넌트
 ├── components/
@@ -487,8 +528,11 @@ apps/web/
 │   ├── shell/mobile-blocker.tsx
 │   ├── dashboard/              # project-row, project-create-dialog
 │   ├── consistency/entity-card.tsx
+│   ├── billing/charge-dialog.tsx # 충전 요청 다이얼로그
+│   ├── admin/                  # pending-orders, token-grant-dialog
 │   ├── editor/
 │   │   ├── panel-inspector.tsx       # SSE ↔ React Query 브리지
+│   │   ├── token-balance.tsx         # 헤더 잔액 배지
 │   │   ├── page-inspector.tsx        # 페이지 단위(크기/배경색)
 │   │   ├── page-text-inspector.tsx   # PageText shape
 │   │   ├── page-line-inspector.tsx   # PageLine shape
@@ -514,6 +558,7 @@ apps/web/
     ├── cn.ts                   # clsx + tailwind-merge
     ├── error-message.ts        # ErrorCode → 사용자 문구 (단일 출처)
     ├── query-keys.ts           # react-query 캐시 키 (단일 출처)
+    ├── tokens.ts               # 잔액 조회·단가·affordability·포맷
     ├── use-debounced.ts
     └── use-project.ts          # useQuery(['project', id])
 ```
@@ -700,12 +745,71 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 - `BY_CODE` 는 `Record<ErrorCode | 'HTTP_ERROR', string | null>` (`lib/error-message.ts:21`) 이라
   `packages/types` 에 코드가 추가되면 **컴파일 에러**로 잡힌다. `null` 은 "코드만으로는 안내할
   내용이 없음" 이고, 그때만 호출부가 넘긴 문맥을 쓴다.
-- `renderErrorMessage`(`:151`) 는 워커가 실어 보내는 `RenderError.category` 를, `oauthErrorMessage`(`:158`)
-  는 OAuth 콜백 쿼리 파라미터를 각각 다룬다. 셋 다 같은 파일에 있다.
+- `renderErrorMessage`(`:151`) 는 워커가 실어 보내는 `RenderError.category` 를, `oauthErrorMessage`(`:175`)
+  는 OAuth 콜백 쿼리 파라미터를 각각 다룬다.
+- `adminTokenErrorMessage`(`lib/error-message.ts:140`) 는 운영자의 토큰 지급·회수 실패를 다룬다. 일반 문구를 쓰면 회수 한도 초과 시 운영자에게 "충전 후 다시 시도해 주세요" 가 나가므로, 운영자 맥락에 맞게 "회수할 수 있는 것보다 많습니다 (요청 N, 잔액 M)." 로 분기한다(`required`, `:144`).
 - 이렇게 모으기 전에는 `저장 실패: ${err.code}` 로 영문 enum 이, `(err as Error).message` 로 NestJS
   기본 영문 메시지가 화면에 노출됐고 스윕할 때마다 몇 곳씩 놓쳤다.
 
-- **점진적 React Query 마이그레이션**: 현재 `['me']`/`['projects']`/`['project', id]`/`['panel-history', id]`/`['render-job', id]`만 캐시화. 페이지 목록·패널 목록·일관성 엔티티·세션 목록·API 키 목록은 아직 `useState + useEffect + api()`로 남아 있음
+### 토큰 잔액과 충전 화면 (/settings/billing)
+
+계정 설정의 '토큰' 탭(`BillingSettingsPage`, `app/settings/billing/page.tsx:29`)은 잔액 확인·단가 비교·패키지 충전 요청·주문 내역·사용 내역 네 영역으로 구성된다.
+
+- **잔액과 구매력(affordability)** (`BalanceSection`, `app/settings/billing/page.tsx:40`)
+  - 큰 숫자로 현재 잔액을 표시하고(`formatTokens`, `:51`), 모델별 단가와 함께 "몇 장 만들 수 있는가"를 문장으로 보여준다 (`MODEL_OPTIONS`, `:60`).
+  - 장수는 화면이 나눗셈하지 않고 **서버가 계산해 준 `affordable[m.id]` 를 그대로 쓴다** (`affordableText`, `lib/tokens.ts:68`). 단가가 바뀔 때 화면 계산식이 어긋나는 것을 방지하기 위함이다.
+  - BYOK가 활성화되어 자기 키를 등록한 모델은 서버가 내려준 단가가 0이므로 `(무료)` (`app/settings/billing/page.tsx:72`)로 표기되고, 허용 수량은 `제한 없음` (`lib/tokens.ts:70`)으로 렌더된다.
+- **충전 패키지와 `BILLING_NOTICE`** (`PackagesSection`, `app/settings/billing/page.tsx:85`)
+  - 관리자가 설정한 `notice` 가 없으면(`notice === null`), 패키지 카드는 보여주되 **'충전 요청' 버튼을 아예 내지 않는다** (`open`, `:110, 144`). 계좌나 입금 방법이 없는 상태에서 버튼을 열어 두면 사용자는 요청이 접수된 것도 모르고 돈 보낼 곳도 모른 채 방치되기 때문이다. 이때는 회색 안내 박스("지금은 충전을 받고 있지 않습니다…", `:117-120`)만 보여준다.
+  - 안내 문구(`notice`, `:127`)가 채워지면 상단에 입금 안내문이 노출되고 각 카드에 '충전 요청' 버튼이 활성화된다 (`:122-130`).
+- **충전 요청 다이얼로그 (`ChargeDialog`, `components/billing/charge-dialog.tsx:36`)**
+  - 패키지 카드에서 즉시 주문을 생성하지 않고 다이얼로그를 띄우는 이유는 두 가지다. 첫째, **통장에 찍힐 입금자명을 필수 입력으로 받아야 하기 때문이다** (`depositorName`, `:39`, `disabled`, `:104`). 가입 이메일과 입금자명은 완전히 다를 수 있으며(회사/가족 명의), 비워 두면 운영자가 같은 날 동일 금액의 주문들을 대조할 수 없다. 둘째, 돈이 오가는 요청이므로 **입금 방법을 확인하는 화면과 요청 버튼을 누르는 화면이 같아야 한다** (`notice`, `:76`).
+- **주문 목록과 요청 취소 (`OrdersSection`, `app/settings/billing/page.tsx:163`)**
+  - 접수된 요청이 없으면 섹션 자체를 렌더하지 않는다 (`:184`).
+  - 상태 라벨은 `ORDER_STATUS_LABEL` (`lib/tokens.ts:14`) 에 따라 `pending` 을 "결제 대기" 가 아닌 **'확인 중'** (`:16`)으로 표시한다. 시스템 결제가 아니라 운영자가 통장 입금을 확인하는 중임을 사용자 관점에서 정직하게 알린다.
+  - 접수 상태가 `pending` (`app/settings/billing/page.tsx:217`)인 주문에는 '취소' 버튼을 열어 둔다. 잘못 누른 요청이 취소 없이 "확인 중" 으로 영원히 방치되는 것을 막기 위함이며, 경고 확인(`confirm`, `:223`)을 거쳐 취소한다.
+- **사용 내역과 서버 정제 라벨 (`HistorySection`, `app/settings/billing/page.tsx:244`)**
+  - 최근 30건 중 기본 8건을 보여주고 '더 보기' 로 펼친다 (`rows`, `:252`, `setExpanded`, `:292`).
+  - 행 라벨(`e.label`, `:267`)은 **서버가 정제한 문자열**을 그대로 쓴다 (T-02). 과거 충전 내역에 내부 상품 ID가 노출되거나(`충전 starter 충전 +50`), 운영자 조정 시 운영자 계정 ID(`by user_...`)와 내부 메모가 사용자 화면에 노출되던 문제를 서버 DTO 정제로 차단했다. 화면은 양수 초록색(`+N`), 음수 일반색과 잔액(`balanceAfter`, `:283`)만 포맷해 찍는다.
+
+### 편집기 헤더의 토큰 배지와 무중단 편집
+
+- **헤더 배치 이유 (`TokenBalance`, `components/editor/token-balance.tsx:17`)**: 인스펙터가 아니라 헤더 우측(`TokenBalance`, `app/projects/[id]/pages/[pageid]/page.tsx:339`)에 배치한다 (`:9-12`). 특정 컷을 선택하기 전에도 잔액을 확인할 수 있어야 하고, 사용자가 이미 저장 상태(`SaveStatus`)를 보기 위해 시선을 두는 자리이기 때문이다.
+- **시각 상태**: 잔액이 0 이하(`empty`, `components/editor/token-balance.tsx:21`)이면 빨간색(`text-destructive`, `:27`), 1 이상이면 보조 텍스트 색상으로 렌더된다. 클릭하면 `/settings/billing` 으로 즉시 이동한다 (`Link`, `:23`).
+- **무중단 원칙 (`components/editor/token-balance.tsx:13-16`)**: 잔액 조회가 로딩 중이거나 실패하면(`!data`) '—' 나 오류를 띄우지 않고 **컴포넌트 자체를 렌더하지 않는다 (`return null`, `:19`)**. `useTokenBalance` 가 `throwOnError: false` (`lib/tokens.ts:42`)인 이유이기도 하다. 잔액을 못 읽었다고 캔버스에 오류 배너를 띄우거나 화면을 튕겨내면 작업 중이던 만화를 잃는다. 잔액을 몰라도 캔버스 편집은 멀쩡히 계속할 수 있어야 한다.
+
+### 생성하기 버튼의 비용 표시와 부족 안내 — 버튼을 잠그지 않는 이유
+
+`panel-inspector.tsx` 의 생성 영역(`생성하기`, `components/editor/panel-inspector.tsx:459`)은 모델별 토큰 단가와 부족 상태를 표시한다.
+
+- **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:461`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
+- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:472`, `lib/tokens.ts:96`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:474`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
+- **버튼을 잠그지 않는 이유 (`components/editor/panel-inspector.tsx:468-471`)**:
+  - 잔액이 부족해도 **생성하기 버튼을 비활성화(`disabled`)하지 않는다.**
+  - 화면의 잔액은 캐시일 뿐이라 방금 운영자에게 지급받은 토큰이 아직 캐시에 도착하지 않았을 수 있다. 버튼을 잠그면 사용자는 새로고침 외에 아무것도 할 수 없게 된다.
+  - 진짜 잔액 판정은 서버가 하며, 서버에서 거부되면 상세 메시지(`insufficientTokensMessage`, `lib/error-message.ts:130`)로 필요한 토큰과 현재 잔액을 정확히 알려 준다.
+  - 서버에서 토큰 부족 에러가 돌아오면 `components/editor/panel-inspector.tsx:161` 에서 즉시 `refreshTokens()` 를 호출해 캐시를 서버 잔액과 일치시킨다.
+- **빈 컷 안내 우선 (`docs/develop-docs/50-owner/02-verify.md` B-5)**: 컷 본문·콘티·참조 이미지가 모두 없는 빈 컷에서는 토큰 부족 문구 대신 컷 내용 입력 안내 오류가 우선한다. 사용자가 토큰을 충전하고 돌아와서야 컷이 비어 있다는 사실을 알게 되는 낭비를 방지한다.
+
+### 운영자 화면 (/admin)과 권한 차단
+
+`AdminPage` (`app/admin/page.tsx:21`)는 서비스 전반의 지표 확인과 입금 확인, 토큰 조정을 담당하는 운영자 대시보드다.
+
+- **화면 차단과 서버 가드 분리 (`app/admin/page.tsx:17-20`)**:
+  - 화면에서 `me?.isAdmin === true` 를 검사하는 것은 **비인가자에게 화면을 숨기는 UI 처리일 뿐**이다 (`allowed`, `:31`).
+  - 실제 보안 차단은 API 서버의 `AdminGuard` 가 전담하므로 클라이언트 검증을 우회하더라도 모든 API 요청이 403 Forbidden 으로 차단된다.
+  - 세션 만료(`sessionExpired`, `:34`)와 권한 없음을 분기하여(`:63-69`), 로그인 세션이 만료된 운영자에게 "권한이 없다" 고 잘못 안내하지 않고 "로그인이 만료되었습니다" 를 띄운다. 일반 사용자나 이메일 미인증 계정에게는 차단 화면만 노출되며 하위 컴포넌트나 통계 데이터는 일체 렌더되지 않는다.
+- **입금 확인 대기 (`PendingOrders`, `components/admin/pending-orders.tsx:22`)**:
+  - 운영자가 이 화면에 접속하는 주 목적이므로 지표 통계보다 위에 배치한다 (`:19-21`).
+  - 운영자의 주 작업은 실제 계좌 입금 내역과 화면을 대조하는 것이므로, **입금자명(`depositorName`, `:80`)을 굵게 위로 두고 가입 이메일을 아래에 함께 표시**하여 한눈에 확인할 수 있게 한다.
+  - '입금 확인' 을 누르면 되돌리는 경로가 회수뿐이므로 확인창(`confirm`, `components/admin/pending-orders.tsx:105`)으로 확인을 거친다.
+  - 지급(`markPaid`, `:34`) 완료 시 `qk.adminOrders()` 와 `qk.adminUsers()` 를 동시에 무효화하여(`:36-39`) 아래 '최근 가입' 표의 사용자 잔액도 즉시 갱신되도록 한다.
+- **토큰 조정 다이얼로그 (`TokenGrantDialog`, `components/admin/token-grant-dialog.tsx:33`)**:
+  - 사용자별 잔액 조정 시 지급과 회수를 분리하지 않고 하나의 다이얼로그에서 부호(`+`/`-`)로 처리한다 (`:29-32`).
+  - **사유(`memo`) 입력은 필수**다 (`valid`, `:40`, `disabled`, `:106`). 원장에 기록되어 나중에 회수·지급 근거를 추적할 수 있어야 하므로 사유가 비어 있으면 '적용' 버튼이 비활성화된다.
+  - 회수 요청 수량이 사용자 잔액보다 클 때, 일반 사용자용 문구("충전 후 다시 시도")가 나오지 않도록 `adminTokenErrorMessage` (`lib/error-message.ts:140-148`) 를 적용해 **`회수할 수 있는 것보다 많습니다 (요청 N, 잔액 M).`** 라는 운영자 전용 오류를 노출한다.
+
+- **점진적 React Query 마이그레이션**: 캐시 키 팩토리 `qk` (`lib/query-keys.ts:12`) 를 도입하여 세션, 프로젝트, 패널 히스토리, 렌더 잡, 토큰 잔액·내역, 충전 패키지·주문, 운영자 화면 전반을 체계적으로 캐시화함. 페이지 목록·패널 목록·일관성 엔티티·세션 목록·API 키 목록은 아직 `useState + useEffect + api()` 로 남아 있음
 - **부모-주도 캐시 갱신**: 카드/다이얼로그 같은 자식은 콜백을 호출하고, 부모 페이지가 `queryClient.setQueryData`로 직접 캐시를 수정하는 옵티미스틱 패턴이 일관적으로 쓰임 (`useMutation` 의존도 낮음)
 - **tldraw 인터랙션의 `mergeRemoteChanges` 보호**: 외부에서 store를 건드릴 땐 항상 mergeRemoteChanges로 감싸 `'user'` 스코프 리스너의 자기 호출을 방지
 - **SSR 회피**: `ComicEditor`는 `dynamic(..., { ssr: false })`, TipTap은 `immediatelyRender: false`로 SSR 해시 미스매치 회피
