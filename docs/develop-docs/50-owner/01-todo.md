@@ -20,9 +20,8 @@
 > **(2) 프로덕션은 맥미니다.** `ssh mini` → `/Users/woon/project/comicai`.
 > 맥북의 `~/project/comicai-deploy` 는 옛 배포라 꺼져 있어도 정상이다.
 >
-> ⚠️ **자동 배포는 지금 꺼져 있다.** GitHub 의 comicai 러너가 맥북에 붙어 있어서, 푸시하면
-> 맥북에 스택이 뜨고 맥미니는 그대로였다. 러너를 맥미니로 옮기기 전까지는 맥미니에서
-> `git pull` 후 `pnpm prod:up` 으로 올린다 (아래 10번).
+> 자동 배포: main 에 push → CI 통과 → **맥미니의 러너**(`woon-macmini-comicai`)가 받아 재기동한다
+> (2026-09-21 맥북에서 옮김).
 >
 > `env-profile.json` 은 커밋되므로 여기서 고치고 푸시하면 맥미니가 pull 할 때 따라간다.
 > 손으로 맞춰야 하는 건 맥미니의 `.env` 뿐이다.
@@ -244,21 +243,11 @@ node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
 
 ---
 
-## 10. 배포 러너를 맥미니로 옮기기
+## 10. 배포 러너를 맥미니로 옮기기 — ✅ 완료 (2026-09-21)
 
-지금 GitHub 의 comicai 배포 러너(`wooncloudui-MacBookAir-comicai`)는 **맥북**에 있다.
-그래서 배포 워크플로를 꺼 뒀다(`gh workflow enable deploy.yml` 로 다시 켠다 — 러너를
-옮긴 **뒤에**). 옮기는 방법:
-
-1. GitHub → Settings → Actions → Runners → New self-hosted runner (macOS/ARM64) 를 맥미니에서
-   설치. 라벨에 `comicai` 를 넣는다(`deploy.yml` 이 `[self-hosted, comicai]` 를 찾는다).
-2. 저장소 시크릿 `PROD_REPO_PATH` 를 `/Users/woon/project/comicai` 로 바꾼다.
-3. 맥북의 러너를 제거한다(안 그러면 두 대 중 아무 데나 배포된다).
-4. 배포 워크플로를 다시 켠다.
-
-맥미니의 node 는 nvm(`~/.nvm/versions/node/v22.18.0`)이라 비대화형 셸 PATH 에 없지만,
-`scripts/compose.sh` 가 PATH 에 없을 때 nvm(`${NVM_DIR:-$HOME/.nvm}/versions/node`)을
-찾아 실행하므로(`.nvmrc` 우선, 없으면 최신 버전) 별도 PATH 주입 없이 배포가 동작한다.
+러너 `woon-macmini-comicai` (라벨 `comicai`, `~/actions-runner-comicai`, launchd 서비스),
+시크릿 `PROD_REPO_PATH=/Users/woon/project/comicai`. 맥북 러너와 `comicai-deploy` 는 지웠다.
+러너 PATH 는 설정 때 `.path` 로 굳는다 — docker(`/usr/local/bin`)와 nvm node 를 넣어 설정했다.
 
 ---
 
