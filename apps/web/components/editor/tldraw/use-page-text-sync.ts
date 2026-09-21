@@ -1,5 +1,5 @@
 'use client';
-import type { Editor } from 'tldraw';
+import type { Editor, IndexKey } from 'tldraw';
 import {
   ApiPaths,
   defaultPageTextStyle,
@@ -94,6 +94,7 @@ const SPEC: ShapeSyncSpec<PageTextShape, PageTextDTO> = {
   type: 'page-text',
   idProp: 'textId',
   shapeIdPrefix: 'ptext',
+  layerRange: ['a3' as IndexKey, 'a4' as IndexKey],
   listPath: ApiPaths.pagePageTexts,
   itemPath: ApiPaths.pageText,
   toBody: toApi,

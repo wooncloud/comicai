@@ -1,7 +1,8 @@
 'use client';
-import { useCallback } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { Tldraw, type Editor, type TLComponents, type TLShapeId, type TLUiOverrides } from 'tldraw';
 import 'tldraw/tldraw.css';
+import type { LayerOrderAction } from '@/lib/use-layer-reorder';
 import { ComicPanelShapeUtil } from './comic-panel-shape';
 import { ALL_TOOLS } from './tool-registry';
 import { ComicPanelTool } from './comic-panel-tool';
@@ -23,23 +24,6 @@ const shapeUtils = [
   PageLineShapeUtil,
 ];
 const tools = [ComicPanelTool, PolygonPanelTool, PageTextTool, PageLineTool, ...ALL_BUBBLE_TOOLS];
-
-/**
- * tldraw 에게 우리 도구를 알려 준다. 목록은 `tool-registry.ts` 한 곳에서 온다 —
- * 예전에는 여기와 `tool-rail.tsx` 에 따로 적혀 있었고 이미 갈라져 있었다
- * (말풍선 4종이 툴레일에만 있었다).
- */
-const uiOverrides: TLUiOverrides = {
-  tools(_editor, baseTools) {
-    const ours = Object.fromEntries(
-      ALL_TOOLS.filter((t) => t.tldrawIcon).map((t) => [
-        t.id,
-        { id: t.id, icon: t.tldrawIcon!, label: t.label, kbd: t.kbd, onSelect: () => undefined },
-      ]),
-    );
-    return { ...baseTools, ...ours };
-  },
-};
 
 // 기본 셸 UI(툴바/메뉴/스타일패널 등)는 자체 사이드바/툴레일로 대체하므로 모두 숨긴다.
 // `hideUi` prop을 쓰면 `TldrawUiContent`가 통째로 마운트되지 않아 `useKeyboardShortcuts`도
@@ -75,9 +59,58 @@ const components: TLComponents = {
 
 interface Props {
   onMount: (editor: Editor) => void;
+  onReorderAction?: (action: LayerOrderAction) => boolean;
 }
 
-export function ComicEditor({ onMount }: Props) {
+export function ComicEditor({ onMount, onReorderAction }: Props) {
+  const onReorderRef = useRef(onReorderAction);
+  onReorderRef.current = onReorderAction;
+
+  /**
+   * tldraw 에게 우리 도구를 알려 주고 단축키 순서 변경 액션을 가로챈다.
+   * 말풍선·텍스트·직선은 단축키(], alt+], alt+[, [)로 순서를 바꿀 때도
+   * 인스펙터와 동일한 reorder API 경로를 타도록 actions 를 오버라이드한다.
+   */
+  const uiOverrides = useMemo<TLUiOverrides>(
+    () => ({
+      tools(_editor, baseTools) {
+        const ours = Object.fromEntries(
+          ALL_TOOLS.filter((t) => t.tldrawIcon).map((t) => [
+            t.id,
+            {
+              id: t.id,
+              icon: t.tldrawIcon!,
+              label: t.label,
+              kbd: t.kbd,
+              onSelect: () => undefined,
+            },
+          ]),
+        );
+        return { ...baseTools, ...ours };
+      },
+      actions(_editor, baseActions) {
+        const next = { ...baseActions };
+        const override = (id: string, actionKey: LayerOrderAction) => {
+          const base = next[id];
+          if (base) {
+            next[id] = {
+              ...base,
+              onSelect(source) {
+                if (onReorderRef.current?.(actionKey)) return;
+                void base.onSelect(source);
+              },
+            };
+          }
+        };
+        override('bring-to-front', 'toFront');
+        override('bring-forward', 'forward');
+        override('send-backward', 'backward');
+        override('send-to-back', 'toBack');
+        return next;
+      },
+    }),
+    [],
+  );
   const mount = useCallback(
     (editor: Editor) => {
       // 기본 도구를 'select'로

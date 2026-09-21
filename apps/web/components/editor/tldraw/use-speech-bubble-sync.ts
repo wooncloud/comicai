@@ -1,5 +1,5 @@
 'use client';
-import type { Editor } from 'tldraw';
+import type { Editor, IndexKey } from 'tldraw';
 import {
   ApiPaths,
   defaultSpeechBubbleStyle,
@@ -114,6 +114,7 @@ const SPEC: ShapeSyncSpec<SpeechBubbleShape, SpeechBubbleDTO> = {
   type: 'speech-bubble',
   idProp: 'bubbleId',
   shapeIdPrefix: 'bubble',
+  layerRange: ['a2' as IndexKey, 'a3' as IndexKey],
   listPath: ApiPaths.pageSpeechBubbles,
   itemPath: ApiPaths.speechBubble,
   toBody: toApi,

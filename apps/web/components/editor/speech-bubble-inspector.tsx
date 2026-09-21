@@ -6,15 +6,28 @@ import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
 import { HexColorField } from './hex-color-field';
 import { NumberField } from './number-field';
+import { LayerOrderControls } from './layer-order-controls';
+import type { LayerOrderAction } from '@/lib/use-layer-reorder';
 
 interface Props {
   editor: Editor;
   shapeId: TLShapeId;
   shape: SpeechBubbleShape;
+  canMoveForward?: boolean;
+  canMoveBackward?: boolean;
+  onReorder?: (action: LayerOrderAction) => void;
   onCollapse?: () => void;
 }
 
-export function SpeechBubbleInspector({ editor, shapeId, shape, onCollapse }: Props) {
+export function SpeechBubbleInspector({
+  editor,
+  shapeId,
+  shape,
+  canMoveForward,
+  canMoveBackward,
+  onReorder,
+  onCollapse,
+}: Props) {
   const p = shape.props;
 
   /*
@@ -63,6 +76,14 @@ export function SpeechBubbleInspector({ editor, shapeId, shape, onCollapse }: Pr
             <span className="text-caption text-muted-foreground">px</span>
           </div>
         </div>
+        {onReorder && (
+          <LayerOrderControls
+            canMoveForward={canMoveForward ?? false}
+            canMoveBackward={canMoveBackward ?? false}
+            onReorder={onReorder}
+            disabled={!p.bubbleId}
+          />
+        )}
       </div>
     </InspectorShell>
   );

@@ -14,11 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { LayerOrderControls } from './layer-order-controls';
+import type { LayerOrderAction } from '@/lib/use-layer-reorder';
 
 interface Props {
   editor: Editor;
   shapeId: TLShapeId;
   shape: PageLineShape;
+  canMoveForward?: boolean;
+  canMoveBackward?: boolean;
+  onReorder?: (action: LayerOrderAction) => void;
   onCollapse?: () => void;
 }
 
@@ -27,7 +32,15 @@ const STROKE_STYLE_LABEL: Record<PageLineStrokeStyle, string> = {
   dashed: '점선',
 };
 
-export function PageLineInspector({ editor, shapeId, shape, onCollapse }: Props) {
+export function PageLineInspector({
+  editor,
+  shapeId,
+  shape,
+  canMoveForward,
+  canMoveBackward,
+  onReorder,
+  onCollapse,
+}: Props) {
   const p = shape.props;
 
   /*
@@ -91,6 +104,15 @@ export function PageLineInspector({ editor, shapeId, shape, onCollapse }: Props)
             </SelectContent>
           </Select>
         </div>
+
+        {onReorder && (
+          <LayerOrderControls
+            canMoveForward={canMoveForward ?? false}
+            canMoveBackward={canMoveBackward ?? false}
+            onReorder={onReorder}
+            disabled={!p.lineId}
+          />
+        )}
       </div>
     </InspectorShell>
   );

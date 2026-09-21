@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import type { Editor, TLShape } from 'tldraw';
+import type { Editor, IndexKey, TLShape } from 'tldraw';
 import { useShapeSync, type ShapeSyncSpec } from './use-shape-sync';
 
 const { apiMock } = vi.hoisted(() => ({ apiMock: vi.fn() }));
@@ -18,14 +18,16 @@ vi.mock('@/lib/api', () => ({ api: apiMock }));
 interface TestShape {
   id: string;
   typeName: 'shape';
-  type: 'test-shape';
+  type: string;
   x: number;
   y: number;
+  index?: string;
   props: { srvId: string | null; [key: string]: unknown };
 }
 interface Dto {
   id: string;
   x: number;
+  order?: number;
 }
 
 type Listener = (entry: {
@@ -51,13 +53,21 @@ function makeCanvas() {
   });
 
   const createShape = vi.fn(
-    (s: { id: string; x?: number; y?: number; props?: Record<string, unknown> }) => {
+    (s: {
+      id: string;
+      type?: string;
+      x?: number;
+      y?: number;
+      index?: string;
+      props?: Record<string, unknown>;
+    }) => {
       shapes.set(s.id, {
         id: s.id,
         typeName: 'shape',
-        type: 'test-shape',
+        type: s.type ?? 'test-shape',
         x: s.x ?? 0,
         y: s.y ?? 0,
+        index: s.index,
         props: { srvId: null, ...s.props },
       });
     },
@@ -113,13 +123,20 @@ function makeCanvas() {
     mergeRemoteChanges,
     isInMergeRemote: () => inMergeRemote,
     /** 서버에서 투영돼 온 도형. 리스너를 거치지 않으므로 저장 큐에 들어가지 않는다. */
-    seed(id: string, x: number, srvId: string, extraProps?: Record<string, unknown>) {
+    seed(
+      id: string,
+      x: number,
+      srvId: string,
+      extraProps?: Record<string, unknown>,
+      index?: string,
+    ) {
       shapes.set(id, {
         id,
         typeName: 'shape',
         type: 'test-shape',
         x,
         y: 0,
+        index,
         props: { srvId, ...extraProps },
       });
     },
@@ -496,5 +513,153 @@ describe('useShapeSync — DTO → 캔버스 역방향 투영', () => {
     expect(updated.props.srvId).toBe('srv1');
     expect(updated.props.clientOnlyFlag).toBe(true);
     expect(updated.props.customNote).toBe('local');
+  });
+
+  it('T-03: DTO order 대로 캔버스 z 순서(index)가 오름차순으로 복원된다', () => {
+    const canvas = makeCanvas();
+    const customSpec: ShapeSyncSpec<TLShape, Dto> = {
+      ...SPEC,
+      layerRange: ['a2' as IndexKey, 'a3' as IndexKey],
+    };
+
+    renderHook(
+      ({ currentItems }: { currentItems: Dto[] }) =>
+        useShapeSync(customSpec, {
+          editor: canvas.editor,
+          pageId: 'page-1',
+          items: currentItems,
+          onItemsChanged: vi.fn(),
+          onSavingChange: vi.fn(),
+        }),
+      {
+        initialProps: {
+          currentItems: [
+            { id: 'b2', x: 20, order: 1 },
+            { id: 'b1', x: 10, order: 0 },
+            { id: 'b3', x: 30, order: 2 },
+          ],
+        },
+      },
+    );
+
+    const s1 = canvas.shapes.get('shape:test-b1')!;
+    const s2 = canvas.shapes.get('shape:test-b2')!;
+    const s3 = canvas.shapes.get('shape:test-b3')!;
+
+    expect(s1).toBeDefined();
+    expect(s2).toBeDefined();
+    expect(s3).toBeDefined();
+
+    // order 0 < order 1 < order 2 순서대로 index가 오름차순이어야 함
+    expect(s1.index! < s2.index!).toBe(true);
+    expect(s2.index! < s3.index!).toBe(true);
+  });
+
+  it('T-03: layerRange 대역을 준수하여 종류 간 층(말풍선 < 텍스트)이 유지된다', () => {
+    const canvas = makeCanvas();
+    const bubbleSpec: ShapeSyncSpec<TLShape, Dto> = {
+      ...SPEC,
+      type: 'test-bubble',
+      shapeIdPrefix: 'bubble',
+      layerRange: ['a2' as IndexKey, 'a3' as IndexKey],
+    };
+    const textSpec: ShapeSyncSpec<TLShape, Dto> = {
+      ...SPEC,
+      type: 'test-text',
+      shapeIdPrefix: 'text',
+      layerRange: ['a3' as IndexKey, 'a4' as IndexKey],
+    };
+
+    // 말풍선 2개 생성
+    renderHook(() =>
+      useShapeSync(bubbleSpec, {
+        editor: canvas.editor,
+        pageId: 'page-1',
+        items: [
+          { id: 'bub1', x: 0, order: 0 },
+          { id: 'bub2', x: 10, order: 1 },
+        ],
+        onItemsChanged: vi.fn(),
+        onSavingChange: vi.fn(),
+      }),
+    );
+
+    // 텍스트 2개 생성
+    renderHook(() =>
+      useShapeSync(textSpec, {
+        editor: canvas.editor,
+        pageId: 'page-1',
+        items: [
+          { id: 'txt1', x: 0, order: 0 },
+          { id: 'txt2', x: 10, order: 1 },
+        ],
+        onItemsChanged: vi.fn(),
+        onSavingChange: vi.fn(),
+      }),
+    );
+
+    const bub1 = canvas.shapes.get('shape:bubble-bub1')!;
+    const bub2 = canvas.shapes.get('shape:bubble-bub2')!;
+    const txt1 = canvas.shapes.get('shape:text-txt1')!;
+    const txt2 = canvas.shapes.get('shape:text-txt2')!;
+
+    // 말풍선 대역 검증 ('a2' < bubble < 'a3')
+    expect(bub1.index! > 'a2' && bub1.index! < 'a3').toBe(true);
+    expect(bub2.index! > 'a2' && bub2.index! < 'a3').toBe(true);
+
+    // 텍스트 대역 검증 ('a3' < text < 'a4')
+    expect(txt1.index! > 'a3' && txt1.index! < 'a4').toBe(true);
+    expect(txt2.index! > 'a3' && txt2.index! < 'a4').toBe(true);
+
+    // 모든 말풍선 < 모든 텍스트 (종류 간 층 보장)
+    expect(bub1.index! < txt1.index!).toBe(true);
+    expect(bub2.index! < txt1.index!).toBe(true);
+    expect(bub2.index! < txt2.index!).toBe(true);
+  });
+
+  it('T-03: DTO order 가 변경된 새 목록이 들어오면 updateShape 로 index 가 갱신된다', () => {
+    const canvas = makeCanvas();
+    const customSpec: ShapeSyncSpec<TLShape, Dto> = {
+      ...SPEC,
+      layerRange: ['a2' as IndexKey, 'a3' as IndexKey],
+    };
+
+    const { rerender } = renderHook(
+      ({ currentItems }: { currentItems: Dto[] }) =>
+        useShapeSync(customSpec, {
+          editor: canvas.editor,
+          pageId: 'page-1',
+          items: currentItems,
+          onItemsChanged: vi.fn(),
+          onSavingChange: vi.fn(),
+        }),
+      {
+        initialProps: {
+          currentItems: [
+            { id: 'b1', x: 10, order: 0 },
+            { id: 'b2', x: 20, order: 1 },
+          ],
+        },
+      },
+    );
+
+    const initialB1 = canvas.shapes.get('shape:test-b1')!;
+    const initialB2 = canvas.shapes.get('shape:test-b2')!;
+    expect(initialB1.index! < initialB2.index!).toBe(true);
+
+    // 순서 변경: b2 가 0, b1 이 1
+    rerender({
+      currentItems: [
+        { id: 'b2', x: 20, order: 0 },
+        { id: 'b1', x: 10, order: 1 },
+      ],
+    });
+
+    const updatedB1 = canvas.shapes.get('shape:test-b1')!;
+    const updatedB2 = canvas.shapes.get('shape:test-b2')!;
+
+    // 이제 b2 의 index 가 b1 보다 작아야 함 (b2 가 뒤, b1 이 앞)
+    expect(updatedB2.index! < updatedB1.index!).toBe(true);
+    expect(canvas.updateShape).toHaveBeenCalled();
   });
 });

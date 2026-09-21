@@ -290,17 +290,17 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 이 훅이 고정하는 것은 전부 **"디바운스 1.5초 창과 왕복이 겹치는 동안 무슨 일이 일어나는가"** 에
 대한 답이다.
 
-- **실패한 저장은 큐로 되돌린다**(`requeue`, `:318`). 예전에는 `await` 앞에서 큐를 비워서, PATCH 가 실패해도
+- **실패한 저장은 큐로 되돌린다**(`requeue`, `:332`). 예전에는 `await` 앞에서 큐를 비워서, PATCH 가 실패해도
   캔버스에는 옮긴 위치가 그대로 남았다 — 사용자는 저장됐다고 믿고 작업을 계속하다 새로고침에서
   전부 잃었다. 지금은 실패한 항목만 되돌려 2·4·8초로 재시도하고, 끝내 안 되면 서버 상태를 다시
   읽어 캔버스를 되돌린다. 저장되지 않은 상태를 화면에 남기는 것이 가장 나쁘다.
-- **떠날 때 남은 편집을 보낸다**(`:370`, `flushNow`). 예전에는 정리 함수가 `clearTimeout` 만 해서,
+- **떠날 때 남은 편집을 보낸다**(`:384`, `flushNow`). 예전에는 정리 함수가 `clearTimeout` 만 해서,
   사이드바에서 다른 페이지를 클릭하면 방금 옮긴 위치가 서버에 한 번도 가지 않았다. `keepalive` 로
-  내보내고, `beforeunload` 에서는 확인도 받는다(`:382`).
-- **대기 중인 변경은 shape 스냅샷이 아니라 id 로 들고 있다**(`:136`). 스냅샷을 들면, 생성 응답으로
+  내보내고, `beforeunload` 에서는 확인도 받는다(`:396`).
+- **대기 중인 변경은 shape 스냅샷이 아니라 id 로 들고 있다**(`:150`). 스냅샷을 들면, 생성 응답으로
   서버 id 가 주입될 때(그 갱신은 `mergeRemoteChanges` 안이라 리스너가 보지 못한다) 스냅샷이 낡은
   채로 남아 "id 가 없다" 는 이유로 통째로 버려졌다.
-- **되살리기는 생성이 아니라 복구다**(`:399`). 삭제를 Cmd+Z 로 되돌리면 tldraw 는 `added` 로
+- **되살리기는 생성이 아니라 복구다**(`:413`). 삭제를 Cmd+Z 로 되돌리면 tldraw 는 `added` 로
   알려 주는데, 예전에는 새 행 생성으로 처리해서 DELETE 와 POST 가 같은 플러시에 함께 나갔다.
   새로 만들어진 컷에는 장면 설명도 그림체도 생성 기록도 없다.
 
@@ -312,28 +312,28 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 - **재조회가 편집을 덮었다.** 저장이 끝나면 서버 목록을 다시 읽어 부모에게 넘기고, 부모는 그
   목록으로 캔버스를 다시 그린다 — 즉 재조회는 캔버스를 서버 상태로 덮어쓴다. 그래서 이 훅은
-  아직 못 보낸 편집이 있는 서버 id 를 `hasUnsaved` 로 노출하고(`use-shape-sync.ts:50`, `:158`),
-  역방향 투영이 그 id 를 건너뛴다(`:457`, `:498`). 재조회를 없애는 것으로는
+  아직 못 보낸 편집이 있는 서버 id 를 `hasUnsaved` 로 노출하고(`use-shape-sync.ts:59`, `:172`),
+  역방향 투영이 그 id 를 건너뛴다(`:509`, `:554`). 재조회를 없애는 것으로는
   안 된다 — 렌더가 끝나거나 페이지를 다시 읽어도 같은 덮어쓰기가 일어난다.
 - **저장했는데 부모 목록은 계속 낡아 있었다.** 예전에는 생성이 있을 때만 목록을 다시 읽었다.
   PATCH 로만 저장하면 부모의 `panels` 에는 옛 좌표가 남고, 그 목록이 다른 이유로 한 번 더
   바뀌면(`panel-inspector.tsx` 의 `patchRender` 가 `{ ...panel, ...patch }` 로 렌더 상태를 붙이는
   등) 투영이 **컷을 옛 자리로 되돌린다.** 컷을 옮긴 뒤 "생성" 을 누르면 컷이 튀어 돌아가고,
-  다음 저장이 그 옛 좌표를 서버에 굳혔다. 이제 저장할 때마다 읽는다(`:304`). 매번 읽어도
+  다음 저장이 그 옛 좌표를 서버에 굳혔다. 이제 저장할 때마다 읽는다(`:318`). 매번 읽어도
   안전한 이유가 바로 위 `hasUnsaved` 다 — 그 보호가 없으면 이 재조회가 곧 편집 유실이다.
 - **생성 왕복 중에 지우면 도형이 되살아났다.** 지우는 시점에는 서버 id 가 아직 없어서 DELETE 를
   큐에 넣을 수 없다. 예전에는 거기서 끝나 서버에 임자 없는 행이 남았고, 곧이어 도는 재조회가 그
   행으로 도형을 되살렸다. 지금은 생성 응답이 돌아온 자리에서 도형이 사라진 것을 보고 DELETE 를
-  건다(`:216`).
+  건다(`:230`).
 - **끝내 만들지 못한 도형이 유령으로 남았다.** 생성이 재시도를 다 쓰면 그 도형은 서버 id 가 없다.
   재조회는 서버 id 로 짝을 맞추므로 그 도형을 지우지 못하고, 이후 편집은 PATCH 할 대상이 없어
-  영영 저장되지 않는다 — 화면에는 "저장됨" 이라고 뜬 채로. 지금은 캔버스에서 지운다(`:348`).
+  영영 저장되지 않는다 — 화면에는 "저장됨" 이라고 뜬 채로. 지금은 캔버스에서 지운다(`:362`).
 - **포기할 때 시도된 적 없는 편집까지 버렸다.** 예전에는 재시도를 다 쓰면 큐를 통째로 비웠는데,
   마지막 왕복이 도는 사이에 들어온 편집은 한 번도 시도된 적이 없다. 지금은 실패한 것만 버리고,
-  남은 것이 있으면 "저장됨" 대신 다시 예약한다(`settle`, `:268`).
+  남은 것이 있으면 "저장됨" 대신 다시 예약한다(`settle`, `:282`).
 
 증상이 전부 조용하다 — 예외도 콘솔 오류도 없고 배지는 "저장됨" 이다. 그래서 회귀해도 아무도
-모른다. `use-shape-sync.spec.tsx`(13개)와 `use-panel-sync.spec.tsx`(4개) 등 각 동기화 훅의 테스트가
+모른다. `use-shape-sync.spec.tsx`(16개)와 `use-panel-sync.spec.tsx`(4개) 등 각 동기화 훅의 테스트가
 시나리오를 하나씩 고정하고 있고, **각각 수정 전 코드에서 실제로 깨지는 것을 확인한 뒤에** 넣었다. 실제 tldraw 대신
 최소 스텁을 쓴다 — 이 훅이 editor 에게 묻는 것은 `getShape`·`updateShape`·`deleteShapes`·
 `store.listen` 넷뿐이라, 그 이상을 흉내 내면 테스트가 tldraw 버전에 묶인다.
@@ -341,18 +341,30 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 #### `use-panel-sync.ts` 외 3개 훅 — 역방향 투영의 `useShapeSync` 위임
 
 `components/editor/tldraw/use-panel-sync.ts:29` — **DTO → 캔버스** 역방향 투영 역시 `useShapeSync` 안으로
-통합되었다(`use-shape-sync.ts:463`). 네 훅은 `toShape`와 `isEqual`을 포함한 `ShapeSyncSpec`만 선언하고
+통합되었다(`use-shape-sync.ts:97`). 네 훅은 `toShape`와 `isEqual`을 포함한 `ShapeSyncSpec`만 선언하고
 `useShapeSync`에 위임한다(`use-panel-sync.ts:37`).
 
 - 서버 DTO 목록이 바뀌면 기존 shape map과 diff 떠서 `mergeRemoteChanges` 안에서 create/update/delete.
   감싸지 않으면 이 갱신이 `'user'` 스코프 listener에 잡혀 곧바로 서버에 되쓰인다
-- 저장 대기 중인 도형은 건너뛴다(`use-shape-sync.ts:457`, `:498`). `hasUnsaved` 보호로 원격 재조회가 로컬 편집을 덮어쓰지 않는다
-- polygon은 bbox 기준 정규화 좌표로 저장/복원 (`normalizePolygonPoints`, `use-panel-sync.ts:68`)
-- 한 줄로 눌린 polygon 등 정규화 실패 시 직전 도형 유지(`:68`) 및 레거시 DB fallback 지원(`:77-78`)
+- 저장 대기 중인 도형은 건너뛴다(`use-shape-sync.ts:509`, `:554`). `hasUnsaved` 보호로 원격 재조회가 로컬 편집을 덮어쓰지 않는다
+- polygon은 bbox 기준 정규화 좌표로 저장/복원 (`normalizePolygonPoints`, `use-panel-sync.ts:69`)
+- 한 줄로 눌린 polygon 등 정규화 실패 시 직전 도형 유지(`:69`) 및 레거시 DB fallback 지원(`:78-79`)
+
+#### 같은 종류 안의 레이어 순서(앞뒤)와 영속화
+
+말풍선·자유 텍스트·자유 직선의 순서는 `useLayerReorder`(`apps/web/lib/use-layer-reorder.ts:25`)가
+담당한다. 선택된 도형의 인스펙터(`LayerOrderControls`, `components/editor/layer-order-controls.tsx:15`)에
+"앞으로 · 뒤로 · 맨 앞으로 · 맨 뒤로" 네 동작을 제공하며, tldraw 단축키(`]`, `alt+]`, `alt+[`, `[`) 역시
+`comic-editor.tsx:91`의 `actions` 오버라이드를 통해 동일한 단일 경로로 수렴한다.
+순서 변경은 새 순열 ID 배열을 만들어 즉시 캔버스/상태를 낙관적 갱신하고(`use-layer-reorder.ts:50`),
+`POST /pages/:id/.../reorder` 엔드포인트로 영속화한다. 실패 시 이전 순서로 롤백하고 토스트를 띄운다.
+역방향 투영(`use-shape-sync.ts:464`)에서는 `spec.layerRange` 대역 안에서 DTO의 `order` 순서에 맞게
+`IndexKey`를 계산·부여하여, 새로고침 후에도 z 순서가 정확히 복원되고 종류 사이의 층 규칙(`page-frame` 'a0' <
+`comic-panel` 'a1~a2' < `speech-bubble` 'a2~a3' < `page-text` 'a3~a4' < `page-line` 'a4~a5')이 절대로 깨지지 않는다.
 
 #### 인스펙터는 바뀐 키만 넘긴다
 
-`page-line-inspector.tsx:38`·`page-text-inspector.tsx:34`·`speech-bubble-inspector.tsx:26` 의 `patch()` 는
+`page-line-inspector.tsx:42`·`page-text-inspector.tsx:38`·`speech-bubble-inspector.tsx:40` 의 `patch()` 는
 `updateShape` 에 **변경 키만** 준다. `updateShape` 는 props 를 부분 병합하므로 스프레드가 불필요하고,
 스프레드하면 해롭다 — `shape` 는 선택 시점의 스냅샷이라 그 사이 서버가 채워 준 id 가 아직 null 일 수
 있고, 그걸 되쓰면 그 뒤 이 도형의 모든 편집이 저장 큐에서 "id 없음" 으로 걸러진다. 색을 한 번

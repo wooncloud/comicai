@@ -1,5 +1,5 @@
 'use client';
-import type { Editor } from 'tldraw';
+import type { Editor, IndexKey } from 'tldraw';
 import {
   ApiPaths,
   defaultPageLineStyle,
@@ -122,6 +122,7 @@ const SPEC: ShapeSyncSpec<PageLineShape, PageLineDTO> = {
   type: 'page-line',
   idProp: 'lineId',
   shapeIdPrefix: 'pline',
+  layerRange: ['a4' as IndexKey, 'a5' as IndexKey],
   listPath: ApiPaths.pagePageLines,
   itemPath: ApiPaths.pageLine,
   toBody: toApi,

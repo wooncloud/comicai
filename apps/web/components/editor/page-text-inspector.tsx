@@ -15,15 +15,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { LayerOrderControls } from './layer-order-controls';
+import type { LayerOrderAction } from '@/lib/use-layer-reorder';
 
 interface Props {
   editor: Editor;
   shapeId: TLShapeId;
   shape: PageTextShape;
+  canMoveForward?: boolean;
+  canMoveBackward?: boolean;
+  onReorder?: (action: LayerOrderAction) => void;
   onCollapse?: () => void;
 }
 
-export function PageTextInspector({ editor, shapeId, shape, onCollapse }: Props) {
+export function PageTextInspector({
+  editor,
+  shapeId,
+  shape,
+  canMoveForward,
+  canMoveBackward,
+  onReorder,
+  onCollapse,
+}: Props) {
   const p = shape.props;
 
   /*
@@ -92,6 +105,15 @@ export function PageTextInspector({ editor, shapeId, shape, onCollapse }: Props)
             />
           </div>
         </div>
+
+        {onReorder && (
+          <LayerOrderControls
+            canMoveForward={canMoveForward ?? false}
+            canMoveBackward={canMoveBackward ?? false}
+            onReorder={onReorder}
+            disabled={!p.textId}
+          />
+        )}
       </div>
     </InspectorShell>
   );

@@ -34,6 +34,7 @@ import { useSpeechBubbleSync } from '@/components/editor/tldraw/use-speech-bubbl
 import { usePageTextSync } from '@/components/editor/tldraw/use-page-text-sync';
 import { usePageLineSync } from '@/components/editor/tldraw/use-page-line-sync';
 import { usePageFrame } from '@/components/editor/tldraw/use-page-frame';
+import { useLayerReorder, type LayerOrderAction } from '@/lib/use-layer-reorder';
 import type { ComicPanelShape } from '@/components/editor/tldraw/comic-panel-shape';
 import type { SpeechBubbleShape } from '@/components/editor/tldraw/speech-bubble-shape';
 import type { PageTextShape } from '@/components/editor/tldraw/page-text-shape';
@@ -184,6 +185,53 @@ export default function PageEditor() {
     label: page ? pageLabel(page) : 'page',
   });
 
+  const bubbleReorder = useLayerReorder({
+    pageId,
+    items: bubbles,
+    onItemsChanged: setBubbles,
+    reorderPath: ApiPaths.pageSpeechBubblesReorder,
+  });
+
+  const textReorder = useLayerReorder({
+    pageId,
+    items: texts,
+    onItemsChanged: setTexts,
+    reorderPath: ApiPaths.pagePageTextsReorder,
+  });
+
+  const lineReorder = useLayerReorder({
+    pageId,
+    items: lines,
+    onItemsChanged: setLines,
+    reorderPath: ApiPaths.pagePageLinesReorder,
+  });
+
+  const onReorderAction = useCallback(
+    (action: LayerOrderAction): boolean => {
+      if (!selection) return false;
+      if (selection.kind === 'bubble') {
+        const id = selection.shape.props.bubbleId;
+        if (!id) return false;
+        void bubbleReorder.reorder(id, action);
+        return true;
+      }
+      if (selection.kind === 'text') {
+        const id = selection.shape.props.textId;
+        if (!id) return false;
+        void textReorder.reorder(id, action);
+        return true;
+      }
+      if (selection.kind === 'line') {
+        const id = selection.shape.props.lineId;
+        if (!id) return false;
+        void lineReorder.reorder(id, action);
+        return true;
+      }
+      return false;
+    },
+    [selection, bubbleReorder, textReorder, lineReorder],
+  );
+
   useEffect(() => {
     if (!editor) return;
 
@@ -306,7 +354,7 @@ export default function PageEditor() {
           </>
         )}
         <div className="relative flex-1 bg-muted/40">
-          <ComicEditor onMount={setEditor} />
+          <ComicEditor onMount={setEditor} onReorderAction={onReorderAction} />
         </div>
         {rightCollapsed ? (
           <CollapseRail side="right" onExpand={() => setRightCollapsed(false)} />
@@ -328,6 +376,20 @@ export default function PageEditor() {
             editor={editor}
             shapeId={selection.shape.id}
             shape={selection.shape}
+            canMoveForward={
+              selection.shape.props.bubbleId
+                ? bubbleReorder.getCanMove(selection.shape.props.bubbleId).canMoveForward
+                : false
+            }
+            canMoveBackward={
+              selection.shape.props.bubbleId
+                ? bubbleReorder.getCanMove(selection.shape.props.bubbleId).canMoveBackward
+                : false
+            }
+            onReorder={(action) => {
+              const id = selection.shape.props.bubbleId;
+              if (id) void bubbleReorder.reorder(id, action);
+            }}
             onCollapse={() => setRightCollapsed(true)}
           />
         ) : selection?.kind === 'text' && editor ? (
@@ -336,6 +398,20 @@ export default function PageEditor() {
             editor={editor}
             shapeId={selection.shape.id}
             shape={selection.shape}
+            canMoveForward={
+              selection.shape.props.textId
+                ? textReorder.getCanMove(selection.shape.props.textId).canMoveForward
+                : false
+            }
+            canMoveBackward={
+              selection.shape.props.textId
+                ? textReorder.getCanMove(selection.shape.props.textId).canMoveBackward
+                : false
+            }
+            onReorder={(action) => {
+              const id = selection.shape.props.textId;
+              if (id) void textReorder.reorder(id, action);
+            }}
             onCollapse={() => setRightCollapsed(true)}
           />
         ) : selection?.kind === 'line' && editor ? (
@@ -344,6 +420,20 @@ export default function PageEditor() {
             editor={editor}
             shapeId={selection.shape.id}
             shape={selection.shape}
+            canMoveForward={
+              selection.shape.props.lineId
+                ? lineReorder.getCanMove(selection.shape.props.lineId).canMoveForward
+                : false
+            }
+            canMoveBackward={
+              selection.shape.props.lineId
+                ? lineReorder.getCanMove(selection.shape.props.lineId).canMoveBackward
+                : false
+            }
+            onReorder={(action) => {
+              const id = selection.shape.props.lineId;
+              if (id) void lineReorder.reorder(id, action);
+            }}
             onCollapse={() => setRightCollapsed(true)}
           />
         ) : page ? (

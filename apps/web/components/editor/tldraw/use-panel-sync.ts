@@ -1,5 +1,5 @@
 'use client';
-import type { Editor } from 'tldraw';
+import type { Editor, IndexKey } from 'tldraw';
 import {
   ApiPaths,
   normalizePolygonPoints,
@@ -49,6 +49,7 @@ const SPEC: ShapeSyncSpec<ComicPanelShape, PanelDTO> = {
   type: 'comic-panel',
   idProp: 'panelId',
   shapeIdPrefix: 'panel',
+  layerRange: ['a1' as IndexKey, 'a2' as IndexKey],
   listPath: ApiPaths.pagePanels,
   itemPath: ApiPaths.panel,
   toBody: (shape) => ({ shape: toApiShape(shape) }),

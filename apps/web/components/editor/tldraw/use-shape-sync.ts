@@ -1,6 +1,14 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import type { Editor, TLShape, TLShapeId, TLShapePartial } from 'tldraw';
+import {
+  getIndicesBetween,
+  sortByIndex,
+  type Editor,
+  type IndexKey,
+  type TLShape,
+  type TLShapeId,
+  type TLShapePartial,
+} from 'tldraw';
 import { api } from '@/lib/api';
 import { shapeId } from './shape-id';
 
@@ -79,6 +87,12 @@ export interface ShapeSyncSpec<
   // ─── 역방향 (서버 DTO → 캔버스 도형) ───
   /** shapeIdPrefix: 캔버스 shape ID 접두사 (예: 'panel', 'bubble', 'ptext', 'pline') */
   shapeIdPrefix?: string;
+  /**
+   * 레이어 z-index 범위 [below, above].
+   * 지정되면 DTO 의 `order` 순서에 맞춰 이 대역 안에서 `IndexKey` 를 생성·부여한다.
+   * 종류 사이의 층(frame 'a0' < panel 'a1~a2' < bubble 'a2~a3' < text 'a3~a4' < line 'a4~a5')을 보장.
+   */
+  layerRange?: [IndexKey, IndexKey];
   /** DTO → shape 좌표 및 props 변환. 직전 도형(existing)이 있으면 두 번째 인자로 전달된다. */
   toShape?: (dto: TDto, existing?: TShape) => ShapeData<TShape>;
   /** 변경 여부 동등성 검사 (생략 시 x, y 및 props 얕은 비교) */
@@ -448,8 +462,46 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
       }
     }
 
+    /*
+     * DTO 의 `order` 순서대로 정렬하고, 필요 시 spec.layerRange 대역 안에서
+     * IndexKey 를 계산해 캔버스 z-order 로 투영한다.
+     * 이미 캔버스의 z 순서(sortByIndex)가 DTO order 와 일치하면 불필요한 index 갱신을 생략한다.
+     */
+    const sortedDtos = [...items].sort((a, b) => {
+      const oa =
+        'order' in a && typeof (a as { order?: unknown }).order === 'number'
+          ? (a as { order: number }).order
+          : 0;
+      const ob =
+        'order' in b && typeof (b as { order?: unknown }).order === 'number'
+          ? (b as { order: number }).order
+          : 0;
+      return oa - ob;
+    });
+
+    const currentShapesOnCanvas = editor
+      .getCurrentPageShapes()
+      .filter((s) => s.type === spec.type && serverIdOf(s, spec.idProp))
+      .sort(sortByIndex);
+
+    const currentOrderMatch =
+      currentShapesOnCanvas.length === sortedDtos.length &&
+      currentShapesOnCanvas.every((s, i) => serverIdOf(s, spec.idProp) === sortedDtos[i]?.id);
+
+    let indices: IndexKey[] | null = null;
+    if (spec.layerRange && sortedDtos.length > 0 && !currentOrderMatch) {
+      indices = getIndicesBetween(spec.layerRange[0], spec.layerRange[1], sortedDtos.length);
+    }
+    const indexMap = new Map<string, IndexKey>();
+    if (indices) {
+      sortedDtos.forEach((dto, i) => {
+        const key = indices[i];
+        if (key) indexMap.set(dto.id, key);
+      });
+    }
+
     editor.store.mergeRemoteChanges(() => {
-      for (const dto of items) {
+      for (const dto of sortedDtos) {
         /*
          * 저장 대기 중인 도형은 건너뛴다 — 그쪽은 서버가 아니라 캔버스가 최신이다.
          * 없으면 왕복이 도는 사이의 편집이 재조회에 덮여 사라진다.
@@ -461,6 +513,7 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
 
         const shape = existing.get(dto.id);
         const next = spec.toShape!(dto, shape);
+        const targetIndex = indexMap.get(dto.id);
 
         if (shape) {
           const unchanged = spec.isEqual
@@ -471,13 +524,15 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
                 shape.props as Record<string, unknown>,
                 next.props as Record<string, unknown>,
               );
+          const indexChanged = targetIndex !== undefined && shape.index !== targetIndex;
 
-          if (!unchanged) {
+          if (!unchanged || indexChanged) {
             editor.updateShape({
               id: shape.id,
               type: spec.type,
               x: next.x,
               y: next.y,
+              ...(indexChanged ? { index: targetIndex } : {}),
               props: { ...shape.props, ...next.props },
             } as TLShapePartial<TShape>);
           }
@@ -488,6 +543,7 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
             type: spec.type,
             x: next.x,
             y: next.y,
+            ...(targetIndex ? { index: targetIndex } : {}),
             props: next.props,
           } as unknown as TLShapePartial<TShape>);
         }
