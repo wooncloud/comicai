@@ -507,11 +507,13 @@ git reset --hard origin/main
 compose="env APP_ENV=prod bash scripts/compose.sh"
 # ① 이미지 빌드만 먼저 — 실패 시 아무것도 건드리지 않고 중단
 $compose build
-# ② 마이그레이션을 지금 떠 있는 DB에 대해 먼저 실행 — 실패 시 앱 컨테이너를 건드리지 않고 중단
+# ② 인프라 확인 — 꺼져 있으면 띄우고, 떠 있으면 설정이 바뀌었어도 다시 만들지 않는다
+$compose up -d --no-recreate --wait postgres redis minio
+# ③ 마이그레이션을 지금 떠 있는 DB에 대해 먼저 실행 — 실패 시 앱 컨테이너를 건드리지 않고 중단
 $compose run --rm --no-deps migrate
-# ③ 마이그레이션 성공 후에만 앱 컨테이너 재생성
+# ④ 마이그레이션 성공 후에만 앱 컨테이너 재생성
 $compose up -d --force-recreate web api worker
-# ④ 백업 및 터널 컨테이너 기동 (--force-recreate 없이)
+# ⑤ 백업 및 터널 컨테이너 기동 (--force-recreate 없이)
 $compose up -d backup cloudflared
 ```
 
@@ -525,18 +527,26 @@ $compose up -d backup cloudflared
 만약 이때 DB 인증 실패(P1000) 등으로 마이그레이션이 실패하면, 새 앱 컨테이너는 시작되지 못하고
 옛 컨테이너는 이미 삭제되어 사이트가 다운된다(2026-09-21 프로덕션 약 2분 다운 사고 원인).
 
-이를 방지하기 위해 배포 순서를 4단계로 분리했다 (`deploy.yml:49-58`, `scripts/deploy.sh:116-128` 동일):
+이를 방지하기 위해 배포 순서를 5단계로 분리했다 (`deploy.yml:49-61`, `scripts/deploy.sh:116-134` 동일):
 
 1. **이미지 빌드만 먼저** (`$compose build`, `deploy.yml:50` / `scripts/deploy.sh:117`):
    빌드가 실패하면 실행 중인 어떤 컨테이너도 건드리지 않고 즉시 중단된다.
-2. **지금 떠 있는 DB 에 마이그레이션 먼저 실행** (`$compose run --rm --no-deps migrate`, `deploy.yml:52` / `scripts/deploy.sh:120`):
+2. **인프라 확인** (`up -d --no-recreate --wait postgres redis minio`, `deploy.yml:53` / `scripts/deploy.sh:123`):
+   다음 단계의 `--no-deps` 는 DB 를 띄우지 않는다. 이 단계가 없으면 DB 가 꺼진 상태(재부팅·첫 배포·`prod:down` 뒤)에서
+   migrate 가 `P1001` 로 매번 실패한다 — 리더가 로컬 docker 로 재현해 찾았다. `--no-recreate` 가 핵심이다: 설정이 바뀌었어도
+   떠 있는 DB 를 다시 만들지 않으므로, `POSTGRES_PASSWORD` 만 바뀐 상태에서도 DB 는 재시작되지 않고 판정은 다음 단계에 맡긴다.
+3. **지금 떠 있는 DB 에 마이그레이션 먼저 실행** (`$compose run --rm --no-deps migrate`, `deploy.yml:55` / `scripts/deploy.sh:126`):
    `--no-deps` 옵션으로 `postgres` 컨테이너를 재시작하거나 다시 만들지 않고, 현재 살아 있는 DB 에 대해 일회성 migrate 컨테이너를 띄워 `prisma migrate deploy` (`full.yml:128`) 를 수행한다. 실패하면 이유를 콘솔에 출력하고 앱 컨테이너를 일절 건드리지 않은 채 중단된다. 기존 앱 컨테이너들이 살아 있으므로 "배포 실패" 가 "사이트 다운" 으로 번지지 않는다.
-3. **그 다음에야 앱 컨테이너 재생성** (`$compose up -d --force-recreate web api worker`, `deploy.yml:54` / `scripts/deploy.sh:123`):
+4. **그 다음에야 앱 컨테이너 재생성** (`$compose up -d --force-recreate web api worker`, `deploy.yml:57` / `scripts/deploy.sh:129`):
    마이그레이션이 성공했을 때만 `web`, `api`, `worker` 를 새 이미지로 교체한다.
-4. **`backup`·`cloudflared` 기동** (`deploy.yml:58`, `scripts/deploy.sh:128`):
-   profile 을 켜는 것과 컨테이너를 올리는 것은 다르므로 따로 올린다. 여기에 `--force-recreate` 를 빼 둔 것은 앱 배포마다 백업 cron 과 healthcheck 시작 유예(26h)가 리셋되지 않게 하기 위해서다 (`deploy.yml:55-57`).
+5. **`backup`·`cloudflared` 기동** (`deploy.yml:61`, `scripts/deploy.sh:134`):
+   profile 을 켜는 것과 컨테이너를 올리는 것은 다르므로 따로 올린다. 여기에 `--force-recreate` 를 빼 둔 것은 앱 배포마다 백업 cron 과 healthcheck 시작 유예(26h)가 리셋되지 않게 하기 위해서다 (`deploy.yml:58-60`).
 
 `postgres`·`redis`·`minio` 는 재생성 대상이 아니므로 그대로 유지된다.
+
+**검증 (2026-09-21, 로컬 docker)**: ① 정상 배포 24초, 다섯 단계 순서대로 통과. ② 사고 재현 — `.env` 의
+`POSTGRES_PASSWORD` 만 바꾸고 배포하자 3단계에서 오늘과 같은 `P1000` 으로 종료 코드 1, **모든 컨테이너 ID 가
+그대로**였고 healthz 는 계속 200 이었다.
 
 #### DB 비밀번호 변경 시 주의사항
 
