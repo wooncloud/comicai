@@ -274,6 +274,21 @@ export interface PageTextStyle {
   textAlign: TextAlign;
 }
 
+/**
+ * 고르는 화면에 보여 줄 이름.
+ *
+ * 값 자체는 CSS 패밀리 이름이라 'Nanum Pen' 처럼 영어다. 그대로 내밀면 한국어를 쓰는
+ * 사람이 무슨 글꼴인지 알기 어렵다.
+ */
+export const PAGE_TEXT_FONT_LABEL: Record<PageTextFontFamily, string> = {
+  'sans-serif': '고딕',
+  serif: '명조',
+  monospace: '고정폭',
+  'Nanum Pen': '나눔손글씨 펜',
+  'Black Han Sans': '검은고딕',
+  'Do Hyeon': '도현',
+};
+
 export function defaultPageTextStyle(): PageTextStyle {
   return {
     fontSize: 24,

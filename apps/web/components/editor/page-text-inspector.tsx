@@ -1,7 +1,11 @@
 'use client';
 import { Type } from 'lucide-react';
 import type { Editor, TLShapeId } from 'tldraw';
-import { PAGE_TEXT_FONT_FAMILIES, type PageTextFontFamily } from '@comicai/types';
+import {
+  PAGE_TEXT_FONT_FAMILIES,
+  PAGE_TEXT_FONT_LABEL,
+  type PageTextFontFamily,
+} from '@comicai/types';
 import type { PageTextShape } from './tldraw/page-text-shape';
 import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
@@ -67,7 +71,7 @@ export function PageTextInspector({
             <SelectContent>
               {PAGE_TEXT_FONT_FAMILIES.map((f) => (
                 <SelectItem key={f} value={f}>
-                  <span style={{ fontFamily: f }}>{f}</span>
+                  <span style={{ fontFamily: f }}>{PAGE_TEXT_FONT_LABEL[f]}</span>
                 </SelectItem>
               ))}
             </SelectContent>

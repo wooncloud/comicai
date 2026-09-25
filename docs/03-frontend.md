@@ -637,7 +637,7 @@ API 도메인의 JSON 에러 화면에 떨어졌다 — 거기서는 앱으로 �
 - 그 화면의 본문은 탭 이름을 쓴다(`app/projects/[id]/consistency/page.tsx:39` 의 `tabLabel`).
   전부 "항목" 이라 부르면 캐릭터 탭에서 "항목이 없습니다" 가 무엇을 만들라는 건지 모른다.
 - 내부 식별자는 화면에 내보내지 않는다. `pageLabel()` 의 폴백이 `p1` 이었고
-  (`packages/types/src/index.ts:366`), 생성 기록 캡션에 job id 6자리와 모델 ID 원문
+  (`packages/types/src/index.ts:381`), 생성 기록 캡션에 job id 6자리와 모델 ID 원문
   (`gemini-3.1-flash-image-preview`)이 찍혔으며, 엔티티 카드에 내부 `version` 이 배지로
   붙어 있었다. 모델 표시 이름은 `lib/model-options.ts` 한 곳에서 나온다 — 예전에는
   같은 목록이 세 파일에 복붙돼 있었다.

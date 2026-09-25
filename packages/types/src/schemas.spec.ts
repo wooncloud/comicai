@@ -14,6 +14,8 @@ import {
   ProjectCreateSchema,
   RenderStartSchema,
 } from './schemas';
+// 라벨은 index 가 갖는다 — 값 목록은 schemas 가 단일 출처이므로 나눠 둔다.
+import { PAGE_TEXT_FONT_LABEL } from './index';
 
 describe('CredentialsSchema', () => {
   it('accepts a valid email + strong password', () => {
@@ -123,10 +125,24 @@ describe('ExportRequestSchema', () => {
  * export SVG 의 font-family 로 나가고, 그때 한글이 통째로 사라진다.
  */
 describe('PageTextStyleSchema fontFamily', () => {
-  it('실제로 렌더되는 3개만 받는다', () => {
-    expect([...PAGE_TEXT_FONT_FAMILIES]).toEqual(['sans-serif', 'serif', 'monospace']);
+  it('실제로 렌더되는 것만 받는다', () => {
+    // 목록과 실제 글꼴 파일이 어긋나지 않는지는 `apps/api` 의 export-fonts.spec.ts 가 본다.
+    expect([...PAGE_TEXT_FONT_FAMILIES]).toEqual([
+      'sans-serif',
+      'serif',
+      'monospace',
+      'Nanum Pen',
+      'Black Han Sans',
+      'Do Hyeon',
+    ]);
     for (const f of PAGE_TEXT_FONT_FAMILIES) {
       expect(PageTextStyleSchema.safeParse({ fontFamily: f }).success).toBe(true);
+    }
+  });
+
+  it('고르는 화면에 쓸 한글 이름이 빠짐없이 있다', () => {
+    for (const f of PAGE_TEXT_FONT_FAMILIES) {
+      expect(PAGE_TEXT_FONT_LABEL[f]).toBeTruthy();
     }
   });
 

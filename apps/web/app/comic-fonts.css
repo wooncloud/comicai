@@ -1,0 +1,34 @@
+/*
+ * 말풍선 대사용 한글 글꼴.
+ *
+ * **패밀리 이름이 계약이다.** 여기 `font-family` 문자열은 `PAGE_TEXT_FONT_FAMILIES`
+ * (`packages/types/src/schemas.ts`)의 값이자, 내보내기 컨테이너에 심는 TTF 안의 이름과
+ * 같아야 한다 (`infra/fonts/README.md`). 하나라도 어긋나면 고를 수는 있는데 아무 일도
+ * 일어나지 않는 선택지가 된다.
+ *
+ * `swap` 으로 둔다 — 글꼴이 늦게 와도 대사가 먼저 보여야 한다. 캔버스에서 글이 잠깐
+ * 안 보이는 쪽이 더 나쁘다.
+ */
+@font-face {
+  font-family: 'Nanum Pen';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/comic/NanumPenScript-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Black Han Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/comic/BlackHanSans-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Do Hyeon';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/comic/DoHyeon-Regular.woff2') format('woff2');
+}

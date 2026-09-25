@@ -2,7 +2,12 @@
 import { MessageSquare, Type } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Editor, TLShapeId } from 'tldraw';
-import { PAGE_TEXT_FONT_FAMILIES, defaultTailPoint, type PageTextFontFamily } from '@comicai/types';
+import {
+  PAGE_TEXT_FONT_FAMILIES,
+  PAGE_TEXT_FONT_LABEL,
+  defaultTailPoint,
+  type PageTextFontFamily,
+} from '@comicai/types';
 import type { SpeechBubbleShape } from './tldraw/speech-bubble-shape';
 import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
@@ -141,7 +146,7 @@ export function SpeechBubbleInspector({
             <SelectContent>
               {PAGE_TEXT_FONT_FAMILIES.map((f) => (
                 <SelectItem key={f} value={f}>
-                  <span style={{ fontFamily: f }}>{f}</span>
+                  <span style={{ fontFamily: f }}>{PAGE_TEXT_FONT_LABEL[f]}</span>
                 </SelectItem>
               ))}
             </SelectContent>

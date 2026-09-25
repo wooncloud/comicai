@@ -37,7 +37,18 @@ RUN pnpm --filter @comicai/db exec prisma generate \
 FROM node:${NODE_VERSION} AS runner
 # font-noto-cjk: sharp 가 export SVG 의 한국어/일본어/중국어 글리프 렌더링에 필요.
 # 미설치 시 페이지 자유 텍스트(PageText)의 한글이 PNG 결과에서 사라진다.
-RUN apk add --no-cache openssl libc6-compat dumb-init font-noto-cjk fontconfig
+#
+# font-noto-cjk-extra 는 Noto **Serif** CJK 를 들여온다. 패키지만 깔아서는 부족하다 —
+# fontconfig 의 일반 이름은 기본 규칙을 따라 Noto Sans CJK JP 로 떨어지므로, 아래
+# 50-comicai.conf 가 한국어 계열을 먼저 보게 못박는다. 없으면 사용자가 '명조' 를 골라도
+# 내보낸 PNG 는 고딕이다.
+RUN apk add --no-cache openssl libc6-compat dumb-init font-noto-cjk font-noto-cjk-extra fontconfig
+
+# 말풍선 대사용 한글 글꼴. 웹은 같은 글꼴을 woff2 로 싣는다(`apps/web/public/fonts/comic/`).
+# fontconfig 는 woff2 를 모르므로 여기서는 TTF 다 — 자세한 사정은 `infra/fonts/README.md`.
+COPY infra/fonts/*.ttf /usr/share/fonts/comicai/
+COPY infra/fonts/50-comicai.conf /etc/fonts/conf.d/50-comicai.conf
+RUN fc-cache -f
 ENV NODE_ENV=production
 WORKDIR /app
 

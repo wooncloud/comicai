@@ -98,6 +98,17 @@ COMPOSE_STACK=dev bash scripts/compose.sh ps
 
 ### 2.1 `infra/docker/api.Dockerfile` (api + worker 공용)
 
+**글꼴.** 내보내기는 sharp(librsvg)가 SVG 를 굽는데, 컨테이너에 없는 글꼴은 그냥 대체된다 —
+화면과 결과물이 말없이 달라진다. 그래서 고를 수 있는 글꼴은 **양쪽에** 있어야 한다.
+
+- `font-noto-cjk` · `font-noto-cjk-extra` — 한글 고딕·명조 (`api.Dockerfile:45`)
+- `infra/fonts/*.ttf` — 만화용 한글 글꼴 세 벌을 `/usr/share/fonts/comicai/` 로 (`api.Dockerfile:49`)
+- `infra/fonts/50-comicai.conf` — **패키지만으로는 부족하다.** fontconfig 의 `serif` 는 기본 규칙을
+  따라 Noto Sans CJK JP 로 떨어져서, '명조' 를 골라도 내보낸 PNG 는 고딕이었다. 이 규칙이
+  한국어 계열을 먼저 보게 한다 (`api.Dockerfile:50`)
+
+웹은 같은 글꼴을 woff2 로 싣는다(`apps/web/app/comic-fonts.css`). 목록과 실제 파일이 어긋나지
+않는지는 `apps/api/src/export/export-fonts.spec.ts` 가 지킨다.
 3-stage 빌드 (`api.Dockerfile:1-60`).
 
 1. **`deps`** (`:8`) — `node:20-alpine` 베이스. `python3 make g++ libc6-compat openssl` 설치(네이티브 모듈/Prisma 용). `pnpm@9.12.0`을 corepack으로 활성화 후 워크스페이스 `package.json`만 복사하여 `pnpm install --frozen-lockfile` (`:22`) — 의존성 캐시 레이어 최적화.
