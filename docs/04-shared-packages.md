@@ -40,11 +40,11 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - `IN_PROGRESS_RENDER_STATUSES`, `TERMINAL_RENDER_STATUSES`, `isInProgressRender()` 헬퍼 (`src/index.ts:114-130`).
 - `PANEL_SHAPE_TYPES = ['rect','rounded','oval','diamond','parallelogram','polygon']` (`src/schemas.ts:196`).
 - `SPEECH_BUBBLE_VARIANTS = ['ellipse','rect','spike','polygon']` (`src/schemas.ts:239`). cloud/thought 는 2026-05-19 migration에서 제거되어 ellipse 로 일괄 변환됨.
-- `PAGE_TEXT_FONT_FAMILIES = ['sans-serif','serif','monospace']` (`src/schemas.ts:357`) — 캔버스(CSS)와
+- `PAGE_TEXT_FONT_FAMILIES = ['sans-serif','serif','monospace']` (`src/schemas.ts:410`) — 캔버스(CSS)와
   export(SVG) 양쪽에서 실제로 해석되는 것만. `index.ts` 는 여기서 타입만 파생시킨다
   (`PageTextFontFamily`, `src/index.ts:274`). 값을 양쪽에 두면 지역 선언이 `export *` 를 가려
   **컴파일 에러 없이** 소비자와 Zod 검증기가 서로 다른 목록을 본다.
-- `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/schemas.ts:425`). PageLine 의 선 종류.
+- `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/schemas.ts:478`). PageLine 의 선 종류.
   폰트와 같은 이유로 값은 `schemas.ts` 에만 있고, `index.ts:357` 은 타입만 파생시킨다.
 - `RenderErrorCategory = 'transient'|'auth'|'quota'|'safety'|'invalid'|'timeout'` (`src/index.ts:495`).
 - `EntityType = 'style'|'character'|'background'|'worldview'` — 값은 `ENTITY_TYPES` (`src/schemas.ts:446`), 타입은 `src/index.ts:188`. `packages/db` 의 `entityIdPrefix` 도 이걸 받아서, 타입이 늘면 그 switch 가 컴파일 에러로 걸린다.
@@ -127,26 +127,26 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
 - 프로필: `MePatchSchema` (`src/schemas.ts:69-73`).
 - API 키: `ApiKeyCreateSchema` — provider는 `gemini`/`openai`만, key는 8~500자 (`src/schemas.ts:77-81`).
 - 프로젝트: `ProjectCreateSchema`, `ProjectPatchSchema`(`defaultModel` 포함) (`src/schemas.ts:85-96`).
-- 화: `EpisodeCreateSchema`/`EpisodePatchSchema`/`EpisodeReorderSchema` (`src/schemas.ts:177`).
+- 화: `EpisodeCreateSchema`/`EpisodePatchSchema`/`EpisodeReorderSchema` (`src/schemas.ts:230`).
   제목은 비울 수 있고, 비면 `episodeLabel`(`src/index.ts:484`)이 순서로 "N화" 를 만든다 —
   **번호를 저장하지 않는다.** 프롤로그·외전·8.5화처럼 순서와 이름이 어긋나는 편이 실제로
   생기는데, 번호를 따로 들면 둘을 손으로 맞춰야 한다.
-- 페이지: `PageSizeSchema`(한 변 `MAX_PAGE_DIMENSION`=4096 상한), `DEFAULT_PAGE_SIZE`(1024×1536 — 새 페이지의 기본값이 나오는 **유일한 곳**. 서버 기본값·'페이지 추가'·캔버스 프레임 폴백이 전부 이걸 읽는다, `src/schemas.ts:188`), `PageCreateSchema`, `PagePatchSchema`(`backgroundColor` 포함, **`order` 없음**), `PageReorderSchema`, `HEX_COLOR_REGEX`/`isHexColor` (`src/schemas.ts:99-157`).
+- 페이지: `PageSizeSchema`(한 변 `MAX_PAGE_DIMENSION`=4096 상한), `DEFAULT_PAGE_SIZE`(800×2400 — **웹툰 기본값**이자 새 페이지 기본값이 나오는 **유일한 곳**. 서버 기본값·'페이지 추가'·캔버스 프레임 폴백이 전부 이걸 읽는다, `DEFAULT_PAGE_SIZE`, `src/schemas.ts:223`), `PAGE_SIZE_GROUPS`(`PAGE_SIZE_GROUPS`, `src/schemas.ts:184` — 웹툰·인스타·출판 형식별 프리셋. 크기는 취향이 아니라 **어디에 올릴 것인가**가 정한다), `PageCreateSchema`, `PagePatchSchema`(`backgroundColor` 포함, **`order` 없음**), `PageReorderSchema`, `HEX_COLOR_REGEX`/`isHexColor` (`src/schemas.ts:99-157`).
   순서 변경은 재정렬 엔드포인트로만 받는다 — 거기서만 "요청이 현재 집합의 순열인가" 를
   검사할 수 있다. PATCH 로 한 페이지의 `order` 를 직접 넣으면 두 페이지가 같은 order 를
   갖고, 그때부터 `orderBy: { order }` 의 타이브레이크가 요청마다 달라진다.
-- 렌더: `RenderModelSchema`(ModelId enum과 동일), `RenderStartSchema` (`src/schemas.ts:233-239`).
-- 내보내기: `ExportFormatSchema = 'png'|'jpg'`, `ExportRequestSchema`(dpi 72~600, 기본 150) (`src/schemas.ts:241-247`).
-- 패널: `PanelShapeSchema` — points 3~64개, 좌표는 ±`MAX_PANEL_COORD`(=페이지 상한×2) 범위, strokeColor 기본 `#000000`, strokeWidth 기본 2 (`src/schemas.ts:244-266`).
-- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림 — strokeWidth/Color/fillColor 만), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts:266-308`).
+- 렌더: `RenderModelSchema`(ModelId enum과 동일), `RenderStartSchema` (`src/schemas.ts:286-292`).
+- 내보내기: `ExportFormatSchema = 'png'|'jpg'`, `ExportRequestSchema`(dpi 72~600, 기본 150) (`src/schemas.ts:294-300`).
+- 패널: `PanelShapeSchema` — points 3~64개, 좌표는 ±`MAX_PANEL_COORD`(=페이지 상한×2) 범위, strokeColor 기본 `#000000`, strokeWidth 기본 2 (`src/schemas.ts:297-319`).
+- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림 — strokeWidth/Color/fillColor 만), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`src/schemas.ts:319-361`).
 - **입력 타입은 스키마에서 파생시킨다** — `SpeechBubbleCreateInput`/`PatchInput`,
   `PageTextCreateInput`/`PatchInput`, `PageLineCreateInput`/`PatchInput` (`z.infer`).
   예전에는 세 서비스가 같은 모양을 손으로 다시 선언했다(모듈마다 두 개씩, 총 6개).
   스키마를 고쳐도 그 선언은 따라오지 않으므로 검증기가 받는 것과 서비스가 기대하는 것이
   조용히 갈라질 수 있었다.
-- 페이지 텍스트: `PAGE_TEXT_FONT_FAMILIES`, `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`src/schemas.ts:332-365`).
-- 페이지 직선: `PAGE_LINE_STROKE_STYLES`, `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`src/schemas.ts:397-428`).
-- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`(`prompt+model`), `ConsistencyAttachSchema`(`storageKey`) (`src/schemas.ts:447-466`).
+- 페이지 텍스트: `PAGE_TEXT_FONT_FAMILIES`, `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`src/schemas.ts:385-418`).
+- 페이지 직선: `PAGE_LINE_STROKE_STYLES`, `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`src/schemas.ts:450-481`).
+- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`(`prompt+model`), `ConsistencyAttachSchema`(`storageKey`) (`src/schemas.ts:500-519`).
 
 ### Panel path 헬퍼 (panel-path.ts)
 

@@ -130,10 +130,12 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
   `projectId` 를 페이지에 남겨 둔 이유이기도 하다(소유권 검사와 S3 키가 이미 그 값을 쓴다).
 - `order` 는 **화 안에서의 순서**다. 프로젝트 전체를 한 줄로 볼 때는 화 순서부터 본다
   (`PagesService.list`).
-- `backgroundColor` (`schema.prisma:160`): 페이지 단색 배경. null이면 투명. `background` 이미지가 있을 땐 그 아래에 깔린다. 검증은 `PagePatchSchema.backgroundColor` (`schemas.ts:220-224`).
-- 새 페이지는 `DEFAULT_PAGE_SIZE`(1024×1536, `schemas.ts:170`)로 만들어진다. 800×1200 이었는데
-  내보낸 PNG 가 작아 인쇄하거나 확대하면 테두리와 대사가 흐렸다. 비율(2:3)은 그대로다.
-  페이지 크기는 캔버스와 내보내기 해상도만 정하고 그림 생성 비용과는 무관하다.
+- `backgroundColor` (`schema.prisma:160`): 페이지 단색 배경. null이면 투명. `background` 이미지가 있을 땐 그 아래에 깔린다. 검증은 `PagePatchSchema.backgroundColor` (`schemas.ts:273-277`).
+- 새 페이지는 `DEFAULT_PAGE_SIZE`(800×2400, `schemas.ts:223`)로 만들어진다 — **웹툰 기본값**이다.
+  1순위 형식이 웹툰인데 출판 비율(2:3)로 시작하면 새 프로젝트를 만든 사람이 매번 크기부터
+  바꿔야 한다. 프리셋은 형식별로 묶여 있다(`PAGE_SIZE_GROUPS`, `schemas.ts:184`) — 크기는
+  취향이 아니라 **어디에 올릴 것인가**가 정한다. 페이지 크기는 캔버스와 내보내기 해상도만
+  정하고 그림 생성 비용과는 무관하다.
 - `size` 는 한 변이 `MAX_PAGE_DIMENSION`(4096) 이하여야 한다 (`schemas.ts:154`). 취향이 아니라
   **메모리 상한**이다 — export 가 이 값으로 sharp 캔버스를 잡으므로, 상한 없이 저장된 거대 페이지
   하나가 export 프로세스를 죽이고 같은 컨테이너의 다른 요청까지 끊는다.
@@ -232,7 +234,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | id          | String PK             | no       | —                                           |
 | panelId     | String                | no       | FK→panels (cascade, `schema.prisma:245`)    |
 | userId      | String                | no       | FK→users (cascade)                          |
-| model       | String                | no       | `RenderModelSchema` enum (`schemas.ts:233`) |
+| model       | String                | no       | `RenderModelSchema` enum (`schemas.ts:286`) |
 | ir          | Json                  | no       | `RenderIR` (`index.ts:583`)                 |
 | status      | String                | no       | `RENDER_STATUSES` (`index.ts:99`)           |
 | resultImage | Json (`result_image`) | yes      | `ImageRef`                                  |
@@ -316,15 +318,15 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | RENDER_STATUSES             | `queued, running, succeeded, failed, timeout, canceled`              | `packages/types/src/index.ts:99` |
 | IN_PROGRESS_RENDER_STATUSES | `queued, running`                                                    | `index.ts:115`                   |
 | TERMINAL_RENDER_STATUSES    | `succeeded, failed, timeout, canceled`                               | `index.ts:93-98`                 |
-| PANEL_SHAPE_TYPES           | `rect, rounded, oval, diamond, parallelogram, polygon`               | `schemas.ts:251-258`             |
-| SPEECH_BUBBLE_VARIANTS      | `ellipse, rect, spike, polygon` (cloud/thought 제거됨)               | `schemas.ts:306`                 |
-| PAGE_TEXT_FONT_FAMILIES     | `sans-serif, serif, monospace`                                       | `schemas.ts:357`                 |
-| EntityType                  | `style, character, background, worldview`                            | `schemas.ts:391`                 |
+| PANEL_SHAPE_TYPES           | `rect, rounded, oval, diamond, parallelogram, polygon`               | `schemas.ts:304-311`             |
+| SPEECH_BUBBLE_VARIANTS      | `ellipse, rect, spike, polygon` (cloud/thought 제거됨)               | `schemas.ts:359`                 |
+| PAGE_TEXT_FONT_FAMILIES     | `sans-serif, serif, monospace`                                       | `schemas.ts:410`                 |
+| EntityType                  | `style, character, background, worldview`                            | `schemas.ts:444`                 |
 | ModelProvider               | `gemini, openai, mock`                                               | `index.ts:22`                    |
 | ModelId                     | `gemini-3.1-flash-image, gpt-image-2.5-flare, mock` (+ 기록용 옛 판) | `schemas.ts:102`                 |
 | OAUTH_PROVIDERS             | `google, github`                                                     | `index.ts:95`                    |
 | RenderErrorCategory         | `transient, auth, quota, safety, invalid, timeout`                   | `index.ts:559`                   |
-| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                                      | `schemas.ts:425`                 |
+| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                                      | `schemas.ts:478`                 |
 | TEXT_ALIGNS                 | `left, center, right`                                                | `schemas.ts:4`                   |
 
 **값 목록은 전부 `schemas.ts` 에만 있다.** `index.ts` 는 타입만 파생시킨다
@@ -361,16 +363,16 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 - API Key 생성: `ApiKeyCreateSchema` (`schemas.ts:78-82`).
 - 프로젝트: `ProjectCreateSchema`, `ProjectPatchSchema` (`schemas.ts:85-96`).
 - 페이지: `PageCreateSchema`, `PagePatchSchema`(`order` 없음 — 순서는 재정렬 전용), `PageSizeSchema`(한 변 4096 상한), `PageReorderSchema` (`schemas.ts:99-157`).
-- 패널: `PanelShapeSchema`(points 3–64, 좌표 ±8192), `PanelCreateSchema`, `PanelPatchSchema` (`schemas.ts:244-277`).
+- 패널: `PanelShapeSchema`(points 3–64, 좌표 ±8192), `PanelCreateSchema`, `PanelPatchSchema` (`schemas.ts:297-330`).
   `PanelPatchSchema` 는 `shape`(전체 교체)와 `stroke`(테두리만) 두 갈래를 받는다. 인스펙터는
   **반드시 `stroke` 를 쓴다** — `shape` 전체를 보내면 선택 시점의 낡은 좌표까지 함께 써서,
   컷을 옮긴 직후 색을 바꾸면 이동이 취소된다. 좌표는 캔버스만 쓴다.
-- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`schemas.ts:266-308`).
-- 페이지 텍스트: `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`schemas.ts:334-365`).
-- 페이지 직선: `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`schemas.ts:398-428`).
-- 렌더: `RenderModelSchema`, `RenderStartSchema` (`schemas.ts:233-239`).
-- 내보내기: `ExportFormatSchema`, `ExportRequestSchema` (`schemas.ts:241-247`).
-- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`, `ConsistencyAttachSchema` (`schemas.ts:447-466`).
+- 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`schemas.ts:319-361`).
+- 페이지 텍스트: `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`schemas.ts:387-418`).
+- 페이지 직선: `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`schemas.ts:451-481`).
+- 렌더: `RenderModelSchema`, `RenderStartSchema` (`schemas.ts:286-292`).
+- 내보내기: `ExportFormatSchema`, `ExportRequestSchema` (`schemas.ts:294-300`).
+- 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`, `ConsistencyAttachSchema` (`schemas.ts:500-519`).
 
 ### 미디어 공통
 

@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MODEL_ID,
+  DEFAULT_PAGE_SIZE,
   ENTITY_TYPES,
+  MAX_PAGE_DIMENSION,
   IN_PROGRESS_RENDER_STATUSES,
   MODEL_IDS,
   MODEL_LABEL,
   MODEL_PROVIDER,
   MODEL_TOKEN_COST,
+  PAGE_SIZE_GROUPS,
   SELECTABLE_MODEL_IDS,
   resolveModelId,
   RENDER_STATUSES,
@@ -98,5 +101,37 @@ describe('모델 판 올리기', () => {
     for (const id of SELECTABLE_MODEL_IDS) {
       expect(resolveModelId(id)).toBe(id);
     }
+  });
+});
+
+/**
+ * 페이지 크기는 **어디에 올릴 것인가**가 정한다. 여기서 틀리면 사용자는 그린 뒤에야
+ * 좌우가 잘리거나 남는 것을 본다 — 되돌리려면 다시 그려야 한다.
+ */
+describe('페이지 크기 프리셋', () => {
+  it('모든 프리셋이 서버 상한 안에 있다', () => {
+    for (const group of PAGE_SIZE_GROUPS) {
+      for (const p of group.presets) {
+        expect(p.w).toBeGreaterThan(0);
+        expect(p.h).toBeGreaterThan(0);
+        expect(Math.max(p.w, p.h)).toBeLessThanOrEqual(MAX_PAGE_DIMENSION);
+      }
+    }
+  });
+
+  it('기본값은 프리셋 중 하나다 — 목록에 없는 크기로 시작하면 어느 칸도 켜지지 않는다', () => {
+    const all = PAGE_SIZE_GROUPS.flatMap((g) => g.presets);
+    expect(all.some((p) => p.w === DEFAULT_PAGE_SIZE.w && p.h === DEFAULT_PAGE_SIZE.h)).toBe(true);
+  });
+
+  it('웹툰이 첫 형식이고 폭은 800 으로 고정이다', () => {
+    const webtoon = PAGE_SIZE_GROUPS[0]!;
+    expect(webtoon.format).toBe('웹툰');
+    for (const p of webtoon.presets) expect(p.w).toBe(800);
+  });
+
+  it('같은 크기가 두 번 나오지 않는다', () => {
+    const all = PAGE_SIZE_GROUPS.flatMap((g) => g.presets).map((p) => `${p.w}x${p.h}`);
+    expect(new Set(all).size).toBe(all.length);
   });
 });

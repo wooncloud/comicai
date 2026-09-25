@@ -11,28 +11,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/cn';
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_DIMENSION } from '@comicai/types';
+import { MAX_PAGE_DIMENSION, PAGE_SIZE_GROUPS } from '@comicai/types';
 
 interface Props {
   value: { w: number; h: number };
   onChange: (size: { w: number; h: number }) => void;
   disabled?: boolean;
 }
-
-/**
- * 자주 쓰는 크기.
- *
- * 한 단계씩 올렸다 — 예전 기본값 800×1200 은 내보낸 PNG 가 작아서 인쇄하거나
- * 확대하면 테두리와 대사가 흐렸다. 세로는 2:3(`DEFAULT_PAGE_SIZE` 와 같은 비율)로
- * 맞춘다. 페이지 크기는 캔버스와 내보내기 해상도만 정하고 그림 생성 비용과는 무관하다.
- */
-const PRESETS: { label: string; w: number; h: number }[] = [
-  { label: '세로 작게', w: 800, h: 1200 },
-  { label: '세로 기본', w: DEFAULT_PAGE_SIZE.w, h: DEFAULT_PAGE_SIZE.h },
-  { label: '세로 큼', w: 1400, h: 2100 },
-  { label: '가로 기본', w: 1536, h: 1024 },
-  { label: '정사각', w: 1200, h: 1200 },
-];
 
 const MIN = 200;
 // 서버의 상한과 같은 값을 쓴다 — 화면이 더 관대하면 저장할 때만 튕긴다.
@@ -89,30 +74,42 @@ export function PageSizeSelect({ value, onChange, disabled }: Props) {
           <DialogHeader>
             <DialogTitle>페이지 크기</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2">
-            <div className="text-caption text-muted-foreground">자주 쓰는 크기</div>
-            <div className="grid grid-cols-2 gap-2">
-              {PRESETS.map((p) => {
-                const active = p.w === value.w && p.h === value.h;
-                return (
-                  <button
-                    key={`${p.w}x${p.h}`}
-                    onClick={() => applyPreset(p)}
-                    className={cn(
-                      'flex items-baseline justify-between rounded border px-3 py-2 text-left text-body-sm transition-colors',
-                      active
-                        ? 'border-foreground bg-muted'
-                        : 'border-border hover:border-foreground/40 hover:bg-muted/50',
-                    )}
-                  >
-                    <span className="font-medium">{p.label}</span>
-                    <span className="text-caption text-muted-foreground">
-                      {p.w}×{p.h}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+          {/*
+            크기는 취향이 아니라 **어디에 올릴 것인가**가 정한다. 그래서 형식으로
+            묶는다 — 예전에는 '세로 작게/기본/큼' 뿐이라 전부 출판 비율이었고,
+            웹툰을 그리려던 사람이 왜 좌우가 남는지 알 수 없었다.
+          */}
+          <div className="space-y-3">
+            {PAGE_SIZE_GROUPS.map((group) => (
+              <div key={group.format} className="space-y-1.5">
+                <div>
+                  <div className="text-body-sm font-medium">{group.format}</div>
+                  <div className="text-caption text-muted-foreground">{group.hint}</div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {group.presets.map((p) => {
+                    const active = p.w === value.w && p.h === value.h;
+                    return (
+                      <button
+                        key={`${p.w}x${p.h}`}
+                        onClick={() => applyPreset(p)}
+                        className={cn(
+                          'flex flex-col items-start rounded border px-3 py-2 text-left transition-colors',
+                          active
+                            ? 'border-foreground bg-muted'
+                            : 'border-border hover:border-foreground/40 hover:bg-muted/50',
+                        )}
+                      >
+                        <span className="text-body-sm font-medium">{p.label}</span>
+                        <span className="text-caption tabular-nums text-muted-foreground">
+                          {p.w}×{p.h}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
           <div className="space-y-2">
             <div className="text-caption text-muted-foreground">직접 입력</div>
