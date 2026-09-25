@@ -32,6 +32,7 @@ import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
 import { requireUploadedFile } from '../common/upload';
 import { apiError } from '../common/api-error';
 import { jsonColumn } from '../common/json-column';
+import { ZodBody } from '../common/zod-body';
 
 const USER_SELECT = {
   id: true,
@@ -54,17 +55,9 @@ type UserRow = {
   emailVerifiedAt: Date | null;
 };
 
-class MePatchDto {
-  static zodSchema = MePatchSchema;
-  displayName?: string | null;
-  avatarUrl?: string | null;
-}
+class MePatchDto extends ZodBody(MePatchSchema) {}
 
-class PasswordChangeDto {
-  static zodSchema = PasswordChangeSchema;
-  currentPassword!: string;
-  newPassword!: string;
-}
+class PasswordChangeDto extends ZodBody(PasswordChangeSchema) {}
 
 @Controller('me')
 export class MeController {

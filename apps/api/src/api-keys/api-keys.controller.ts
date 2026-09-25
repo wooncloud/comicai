@@ -13,13 +13,9 @@ import { ApiKeyCreateSchema } from '@comicai/types';
 import { ApiKeysService } from './api-keys.service';
 import { AuthedRequest } from '../auth/session.guard';
 import { ApiKeysFeatureGuard } from '../common/feature-flag.guard';
+import { ZodBody } from '../common/zod-body';
 
-class CreateApiKeyDto {
-  static zodSchema = ApiKeyCreateSchema;
-  provider!: 'gemini' | 'openai';
-  label!: string;
-  key!: string;
-}
+class CreateApiKeyDto extends ZodBody(ApiKeyCreateSchema) {}
 
 @Controller('api-keys')
 /*

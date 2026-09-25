@@ -2,21 +2,11 @@ import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req } from
 import { PageCreateSchema, PagePatchSchema, PageReorderSchema } from '@comicai/types';
 import { PagesService } from './pages.service';
 import { AuthedRequest } from '../auth/session.guard';
+import { ZodBody } from '../common/zod-body';
 
-class CreateDto {
-  static zodSchema = PageCreateSchema;
-  size!: { w: number; h: number };
-}
-class PatchDto {
-  static zodSchema = PagePatchSchema;
-  size?: { w: number; h: number };
-  name?: string | null;
-  backgroundColor?: string | null;
-}
-class ReorderDto {
-  static zodSchema = PageReorderSchema;
-  pageIds!: string[];
-}
+class CreateDto extends ZodBody(PageCreateSchema) {}
+class PatchDto extends ZodBody(PagePatchSchema) {}
+class ReorderDto extends ZodBody(PageReorderSchema) {}
 
 @Controller()
 export class PagesController {

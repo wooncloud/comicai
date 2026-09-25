@@ -15,12 +15,9 @@ import { clampTake } from '../common/clamp-take';
 import { toOrderDto } from '../billing/billing.service';
 import { TokensService } from '../tokens/tokens.service';
 import { BillingService } from '../billing/billing.service';
+import { ZodBody } from '../common/zod-body';
 
-class TokenGrantDto {
-  static zodSchema = AdminTokenGrantSchema;
-  amount!: number;
-  memo!: string;
-}
+class TokenGrantDto extends ZodBody(AdminTokenGrantSchema) {}
 
 /**
  * 운영자용 읽기 전용 현황.

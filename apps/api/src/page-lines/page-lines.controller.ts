@@ -1,35 +1,14 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req } from '@nestjs/common';
-import {
-  PageLineCreateSchema,
-  PageLinePatchSchema,
-  PageLineReorderSchema,
-  type PageLineStyle,
-} from '@comicai/types';
+import { PageLineCreateSchema, PageLinePatchSchema, PageLineReorderSchema } from '@comicai/types';
 import { PageLinesService } from './page-lines.service';
 import { AuthedRequest } from '../auth/session.guard';
+import { ZodBody } from '../common/zod-body';
 
-class CreateDto {
-  static zodSchema = PageLineCreateSchema;
-  x1!: number;
-  y1!: number;
-  x2!: number;
-  y2!: number;
-  style?: Partial<PageLineStyle>;
-}
+class CreateDto extends ZodBody(PageLineCreateSchema) {}
 
-class PatchDto {
-  static zodSchema = PageLinePatchSchema;
-  x1?: number;
-  y1?: number;
-  x2?: number;
-  y2?: number;
-  style?: Partial<PageLineStyle>;
-}
+class PatchDto extends ZodBody(PageLinePatchSchema) {}
 
-class ReorderDto {
-  static zodSchema = PageLineReorderSchema;
-  ids!: string[];
-}
+class ReorderDto extends ZodBody(PageLineReorderSchema) {}
 
 @Controller()
 export class PageLinesController {

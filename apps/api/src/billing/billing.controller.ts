@@ -2,12 +2,9 @@ import { Body, Controller, Delete, Get, HttpCode, Param, Post, Req } from '@nest
 import { TokenOrderCreateSchema, type TokenOrderDTO, type TokenPackagesDTO } from '@comicai/types';
 import { AuthedRequest } from '../auth/session.guard';
 import { BillingService } from './billing.service';
+import { ZodBody } from '../common/zod-body';
 
-class OrderCreateDto {
-  static zodSchema = TokenOrderCreateSchema;
-  packageId!: string;
-  depositorName?: string;
-}
+class OrderCreateDto extends ZodBody(TokenOrderCreateSchema) {}
 
 @Controller('billing')
 export class BillingController {

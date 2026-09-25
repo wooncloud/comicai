@@ -28,6 +28,15 @@ export type ImageScope =
   | { kind: 'episode-export'; userId: string; episodeId: string };
 
 const PRESIGN_TTL_SECONDS = 15 * 60;
+/**
+ * 서명 시각을 이 단위로 내린다. 같은 창 안에서는 같은 키에 **같은 URL** 이 나온다.
+ *
+ * 서명 시각이 매번 지금이면 URL 이 요청마다 달라진다. 에디터는 저장할 때마다 목록을 다시
+ * 읽는데, 그때마다 컷 그림 URL 이 바뀌어 셰이프가 갱신되고 브라우저가 같은 그림을 처음부터
+ * 다시 받았다 — 6컷 페이지면 저장 한 번에 수 MB. 유효 시간을 창만큼 늘려, 받는 쪽이 보는
+ * 남은 시간은 전과 같이 최소 15분이다.
+ */
+const PRESIGN_WINDOW_SECONDS = 5 * 60;
 
 /** ListObjectsV2 한 페이지의 상한이자 DeleteObjects 한 번의 상한. 둘 다 1000 이다. */
 const DELETE_PAGE_SIZE = 1000;
@@ -148,8 +157,11 @@ export class StorageService implements OnModuleInit {
 
   async presignDownload(key: string): Promise<{ url: string; expiresAt: string }> {
     const cmd = new GetObjectCommand({ Bucket: this.bucket, Key: key });
-    const url = await getSignedUrl(this.presignClient, cmd, { expiresIn: PRESIGN_TTL_SECONDS });
-    const expiresAt = new Date(Date.now() + PRESIGN_TTL_SECONDS * 1000).toISOString();
+    const windowMs = PRESIGN_WINDOW_SECONDS * 1000;
+    const signingDate = new Date(Math.floor(Date.now() / windowMs) * windowMs);
+    const expiresIn = PRESIGN_TTL_SECONDS + PRESIGN_WINDOW_SECONDS;
+    const url = await getSignedUrl(this.presignClient, cmd, { expiresIn, signingDate });
+    const expiresAt = new Date(signingDate.getTime() + expiresIn * 1000).toISOString();
     return { url, expiresAt };
   }
 

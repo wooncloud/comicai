@@ -16,30 +16,15 @@ import { sessionMetaFromRequest } from './session.helpers';
 import { CSRF_COOKIE, csrfCookieOptions, issueCsrfToken } from '../common/csrf.middleware';
 import { EmailService } from '../email/email.provider';
 import { Public } from './public.decorator';
+import { ZodBody } from '../common/zod-body';
 
-class CredentialsDto {
-  static zodSchema = CredentialsSchema;
-  email!: string;
-  password!: string;
-}
+class CredentialsDto extends ZodBody(CredentialsSchema) {}
 
-class SignupDto {
-  static zodSchema = SignupSchema;
-  email!: string;
-  password!: string;
-  agreeToTerms!: true;
-}
+class SignupDto extends ZodBody(SignupSchema) {}
 
-class PasswordResetRequestDto {
-  static zodSchema = PasswordResetRequestSchema;
-  email!: string;
-}
+class PasswordResetRequestDto extends ZodBody(PasswordResetRequestSchema) {}
 
-class PasswordResetConfirmDto {
-  static zodSchema = PasswordResetConfirmSchema;
-  token!: string;
-  password!: string;
-}
+class PasswordResetConfirmDto extends ZodBody(PasswordResetConfirmSchema) {}
 
 @Controller('auth')
 @Public()

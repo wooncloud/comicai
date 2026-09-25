@@ -40,6 +40,10 @@ import 한다 — `main.ts:4`, `worker.ts:3`. `@comicai/config` 의 `loadEnv()` 
   - 전역 파이프라 `@Param('id')` 같은 원시 타입도 지나간다. `PASS_THROUGH` 목록(`:10`)으로 걸러낸다.
   - **이름이 `Dto` 로 끝나는데 `zodSchema` 가 없으면 500 으로 즉시 실패**(`:21-33`). 예전에는 조용히
     통과시켜서, 규약을 잊은 DTO 가 아무 입력이나 받아도 아무도 몰랐다.
+  - DTO 는 `class CreateDto extends ZodBody(Schema) {}` 로 만든다(`common/zod-body.ts:11`). 타입이
+    스키마에서 파생되고 `zodSchema` 는 상속된 static 으로 보인다. 예전에는 필드를 스키마와 따로 손으로
+    적어(서른다섯 벌), 스키마에 필드가 늘어도 컴파일러가 못 잡았다 — 말풍선 DTO 에는 대사
+    (`text`·`textStyle`)가 없었다.
 - 글로벌 인터셉터: `HttpMetricsInterceptor` → `ResponseEnvelopeInterceptor`
   - `ResponseEnvelopeInterceptor`: 204/SSE를 제외한 모든 성공 응답을 `{ data: ... }`로 감싼다 — `common/response-envelope.interceptor.ts:14-22`
 - 글로벌 필터: `AllExceptionsFilter`
@@ -124,7 +128,7 @@ import 한다 — `main.ts:4`, `worker.ts:3`. `@comicai/config` 의 `loadEnv()` 
 
 | Method | Route                             | Handler                                 | 비고                                                   |
 | ------ | --------------------------------- | --------------------------------------- | ------------------------------------------------------ |
-| POST   | `/v1/auth/signup`                 | `signup` (`auth.controller.ts:53-71`)   | argon2 해시, 세션 발급, 검증 메일 발송. Throttle 60s/5 |
+| POST   | `/v1/auth/signup`                 | `signup` (`auth.controller.ts:38-56`)   | argon2 해시, 세션 발급, 검증 메일 발송. Throttle 60s/5 |
 | POST   | `/v1/auth/login`                  | `login` (`:73-89`)                      | Throttle 60s/10                                        |
 | POST   | `/v1/auth/logout`                 | `logout` (`:91-98`)                     | 세션 destroy + 쿠키 clear                              |
 | POST   | `/v1/auth/verify-email/request`   | `requestEmailVerification` (`:100-115`) | 비로그인은 조용히 통과                                 |
@@ -190,14 +194,14 @@ import 한다 — `main.ts:4`, `worker.ts:3`. `@comicai/config` 의 `loadEnv()` 
 | DELETE | `/v1/me/avatar`        | `deleteAvatar` (`:130-139`) — 스토리지 키 + 외부 URL 모두 null                  |
 | PATCH  | `/v1/me/password`      | `changePassword` (`:170-198`) — argon2 검증, 현재 세션 외 모두 종료             |
 | GET    | `/v1/me/sessions`      | `listSessions` (`:200-211`)                                                     |
-| DELETE | `/v1/me/sessions/:sid` | `revokeSession` (`:213-219`)                                                    |
+| DELETE | `/v1/me/sessions/:sid` | `revokeSession` (`:206-212`)                                                    |
 
 ### 3.2 ApiKeysModule (`api-keys/api-keys.controller.ts`)
 
 BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 
 > **기능 플래그 뒤에 있다.** `FEATURE_API_KEYS` 가 켜져 있지 않으면 이 컨트롤러의 모든
-> 라우트가 404 를 돌려준다(`api-keys.controller.ts:34` 의 `ApiKeysFeatureGuard`).
+> 라우트가 404 를 돌려준다(`api-keys.controller.ts:30` 의 `ApiKeysFeatureGuard`).
 > 403 이 아니라 404 인 이유는, 403 은 "그 기능이 존재한다" 는 정보를 주기 때문이다.
 > 세션 검사(전역 가드)가 **먼저** 돌므로 그 404 는 로그인한 사용자만 본다 — 비로그인은
 > 플래그 상태와 무관하게 401 이다.
@@ -210,7 +214,7 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 | GET    | `/v1/api-keys`            | `list` (`api-keys.controller.ts:37-40`) |
 | POST   | `/v1/api-keys`            | `create` (`:42-45`)                     |
 | POST   | `/v1/api-keys/:id/verify` | `verify` (`:47-50`)                     |
-| DELETE | `/v1/api-keys/:id`        | `remove` (`:52-56`)                     |
+| DELETE | `/v1/api-keys/:id`        | `remove` (`:48-52`)                     |
 
 - 키 평문은 AES-256-GCM 봉인: `MASTER_KEY`(base64 32B) + 랜덤 nonce 12B + authTag 16B 이어붙임 — `api-keys/crypto.ts:1-40`
 - `ApiKeyBreaker` (Redis): 1시간 윈도우 내 동일 키 5회 auth 실패 시 `isActive=false`로 비활성화 — `api-keys/api-keys.breaker.ts:7-47`
@@ -220,12 +224,12 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 
 | Method | Route                        | Handler                                                                                  |
 | ------ | ---------------------------- | ---------------------------------------------------------------------------------------- |
-| GET    | `/v1/projects`               | `list` (`projects.controller.ts:39-42`)                                                  |
-| POST   | `/v1/projects`               | `create` (`:44-48`)                                                                      |
-| GET    | `/v1/projects/:id`           | `detail` (`:50-53`) — pages id/order 포함                                                |
-| PATCH  | `/v1/projects/:id`           | `patch` (`:55-58`) — `name?`, `thumbnail?`, `defaultStyleId?`, `defaultModel?` 부분 갱신 |
-| POST   | `/v1/projects/:id/thumbnail` | `uploadThumbnail` (`:60-68`) — multipart `file`, `MAX_UPLOAD_BYTES`. 썸네일 키 교체      |
-| DELETE | `/v1/projects/:id`           | `remove` (`:70-74`)                                                                      |
+| GET    | `/v1/projects`               | `list` (`projects.controller.ts:31-34`)                                                  |
+| POST   | `/v1/projects`               | `create` (`:36-40`)                                                                      |
+| GET    | `/v1/projects/:id`           | `detail` (`:42-45`) — pages id/order 포함                                                |
+| PATCH  | `/v1/projects/:id`           | `patch` (`:47-50`) — `name?`, `thumbnail?`, `defaultStyleId?`, `defaultModel?` 부분 갱신 |
+| POST   | `/v1/projects/:id/thumbnail` | `uploadThumbnail` (`:52-60`) — multipart `file`, `MAX_UPLOAD_BYTES`. 썸네일 키 교체      |
+| DELETE | `/v1/projects/:id`           | `remove` (`:62-66`)                                                                      |
 
 `PATCH`의 `defaultStyleId`는 프로젝트 대표 그림체 엔티티 id를 지정한다(렌더 시 자동 주입). `defaultModel`은 패널 인스펙터 모델 select의 초기값. 소유권 체크: `assertOwned` (`projects/projects.service.ts:116`, public 헬퍼).
 
@@ -261,11 +265,11 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 | ------ | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | GET    | `/v1/projects/:pid/consistency?type=` | `list` (`consistency.controller.ts:59-63`)                                                                                                                          |
 | POST   | `/v1/projects/:pid/consistency`       | `create` (`:65-69`) — **첫 그림체는 대표가 된다** (`consistency.service.ts:188`)                                                                                    |
-| PATCH  | `/v1/consistency/:id`                 | `patch` (`consistency.controller.ts:71-74`)                                                                                                                         |
-| DELETE | `/v1/consistency/:id`                 | `remove` (`consistency.controller.ts:76-80`) — style 삭제 시 트랜잭션으로 `Project.defaultStyleId`/`Panel.styleId` dangling 정리 (`consistency.service.ts:174-186`) |
-| POST   | `/v1/consistency/:id/images`          | `uploadImages` (`consistency.controller.ts:85-102`) — multipart `files`, 최대 12개, 파일당 `MAX_UPLOAD_BYTES`                                                       |
-| POST   | `/v1/consistency/:id/generate`        | `generate` (`:105-108`) — AI 모델로 참조 이미지 1장 생성 (storage 업로드만, refImages 미등록). style 엔티티는 거부                                                  |
-| POST   | `/v1/consistency/:id/images/attach`   | `attach` (`:111-114`) — `generate` 결과의 storageKey 를 refImages 에 등록 (key prefix 검증)                                                                         |
+| PATCH  | `/v1/consistency/:id`                 | `patch` (`consistency.controller.ts:52-55`)                                                                                                                         |
+| DELETE | `/v1/consistency/:id`                 | `remove` (`consistency.controller.ts:57-61`) — style 삭제 시 트랜잭션으로 `Project.defaultStyleId`/`Panel.styleId` dangling 정리 (`consistency.service.ts:174-186`) |
+| POST   | `/v1/consistency/:id/images`          | `uploadImages` (`consistency.controller.ts:66-83`) — multipart `files`, 최대 12개, 파일당 `MAX_UPLOAD_BYTES`                                                        |
+| POST   | `/v1/consistency/:id/generate`        | `generate` (`:86-89`) — AI 모델로 참조 이미지 1장 생성 (storage 업로드만, refImages 미등록). style 엔티티는 거부                                                    |
+| POST   | `/v1/consistency/:id/images/attach`   | `attach` (`:92-95`) — `generate` 결과의 storageKey 를 refImages 에 등록 (key prefix 검증)                                                                           |
 
 `refImages` 에 이미지를 덧붙이는 세 경로(`appendImages` `consistency.service.ts:212`, `attachImage` `:341`,
 `PanelsService.appendUpload` `panels.service.ts:158-172`)는 **원자적 JSONB append** 를 쓴다
@@ -339,7 +343,7 @@ DTO 에 페이지 수를 싣지 않는다. 화면은 그 화의 페이지 목록
 | POST   | `/v1/pages/:pageid/panels` | `create` (`:43-47`)                                                                   |
 | PATCH  | `/v1/panels/:id`           | `patch` (`:49-52`)                                                                    |
 | DELETE | `/v1/panels/:id`           | `remove` (`:54-58`)                                                                   |
-| GET    | `/v1/panels/:id/history`   | `history` (`:60-63`)                                                                  |
+| GET    | `/v1/panels/:id/history`   | `history` (`:53-56`)                                                                  |
 | POST   | `/v1/panels/:id/upload`    | `upload` (`:65-73`) — multipart `file`, `MAX_UPLOAD_BYTES` — 패널 refImages 에 append |
 | POST   | `/v1/panels/:id/conti`     | `setConti` (`:75-83`) — multipart `file`, 콘티(러프 스케치) 단일 슬롯 교체            |
 | DELETE | `/v1/panels/:id/conti`     | `clearConti` (`:85-88`) — 콘티 제거                                                   |
@@ -355,10 +359,10 @@ DTO 에 페이지 수를 싣지 않는다. 화면은 그 화의 페이지 목록
 | Method | Route                                      | Handler                                                 |
 | ------ | ------------------------------------------ | ------------------------------------------------------- |
 | GET    | `/v1/pages/:pageid/speech-bubbles`         | `list` (`speech-bubbles.controller.ts:36-39`)           |
-| POST   | `/v1/pages/:pageid/speech-bubbles`         | `create` (`:53-57`) — `order`는 MAX+1 자동 할당         |
-| POST   | `/v1/pages/:pageid/speech-bubbles/reorder` | `reorder` (`:59-62`) — body `{ ids: string[] }`         |
-| PATCH  | `/v1/speech-bubbles/:id`                   | `patch` (`:52-55`) — `variant`/`shape`/`style` (text X) |
-| DELETE | `/v1/speech-bubbles/:id`                   | `remove` (`:57-61`)                                     |
+| POST   | `/v1/pages/:pageid/speech-bubbles`         | `create` (`:38-42`) — `order`는 MAX+1 자동 할당         |
+| POST   | `/v1/pages/:pageid/speech-bubbles/reorder` | `reorder` (`:44-47`) — body `{ ids: string[] }`         |
+| PATCH  | `/v1/speech-bubbles/:id`                   | `patch` (`:37-40`) — `variant`/`shape`/`style` (text X) |
+| DELETE | `/v1/speech-bubbles/:id`                   | `remove` (`:42-46`)                                     |
 
 소유 검증은 `page→project→userId` 체인을 `PagesService.findOwned` (`pages.service.ts:154`) 와 자체 `assertOwned`로 처리 — `panels.service.ts` 패턴과 동일. `findOwned` 는 **페이지 행 전체**를 돌려준다: 예전에는 id/projectId 만 읽어서 `PagesService.get` 이 곧바로 같은 행을 다시 읽었고(에디터가 페이지를 열 때마다 왕복 2회), 페이지 행은 작으므로 소유권만 필요한 호출부가 조금 더 읽는 비용보다 왕복 하나를 없애는 쪽이 낫다.
 
@@ -371,10 +375,10 @@ DTO 에 페이지 수를 싣지 않는다. 화면은 그 화의 페이지 목록
 | Method | Route                                  | Handler                                                   |
 | ------ | -------------------------------------- | --------------------------------------------------------- |
 | GET    | `/v1/pages/:pageid/page-texts`         | `list` (`page-texts.controller.ts:40-43`)                 |
-| POST   | `/v1/pages/:pageid/page-texts`         | `create` (`:57-61`) — `order`는 MAX+1 자동 할당           |
-| POST   | `/v1/pages/:pageid/page-texts/reorder` | `reorder` (`:63-66`) — body `{ ids: string[] }`           |
-| PATCH  | `/v1/page-texts/:id`                   | `patch` (`:56-59`) — `x/y/w/h`, `text`, `style` 부분 갱신 |
-| DELETE | `/v1/page-texts/:id`                   | `remove` (`:61-65`)                                       |
+| POST   | `/v1/pages/:pageid/page-texts`         | `create` (`:34-38`) — `order`는 MAX+1 자동 할당           |
+| POST   | `/v1/pages/:pageid/page-texts/reorder` | `reorder` (`:40-43`) — body `{ ids: string[] }`           |
+| PATCH  | `/v1/page-texts/:id`                   | `patch` (`:33-36`) — `x/y/w/h`, `text`, `style` 부분 갱신 |
+| DELETE | `/v1/page-texts/:id`                   | `remove` (`:38-42`)                                       |
 
 `text` 는 단순 평문(줄바꿈만 보존, TipTap 미사용), `style` 은 `PageTextStyle` (fontSize/fontFamily/color/textAlign) 의 partial 머지로 정규화 — `page-texts.service.ts:67-89` (`create`) / `:91-105` (`patch`). 소유 검증은 `PagesService.findOwned` 와 자체 `assertOwned`로 동일 패턴.
 
@@ -385,10 +389,10 @@ DTO 에 페이지 수를 싣지 않는다. 화면은 그 화의 페이지 목록
 | Method | Route                                  | Handler                                               |
 | ------ | -------------------------------------- | ----------------------------------------------------- |
 | GET    | `/v1/pages/:pageid/page-lines`         | `list` (`page-lines.controller.ts:38-41`)             |
-| POST   | `/v1/pages/:pageid/page-lines`         | `create` (`:56-60`) — `order`는 MAX+1 자동 할당       |
-| POST   | `/v1/pages/:pageid/page-lines/reorder` | `reorder` (`:62-65`) — body `{ ids: string[] }`       |
-| PATCH  | `/v1/page-lines/:id`                   | `patch` (`:54-57`) — `x1/y1/x2/y2`, `style` 부분 갱신 |
-| DELETE | `/v1/page-lines/:id`                   | `remove` (`:59-63`)                                   |
+| POST   | `/v1/pages/:pageid/page-lines`         | `create` (`:35-39`) — `order`는 MAX+1 자동 할당       |
+| POST   | `/v1/pages/:pageid/page-lines/reorder` | `reorder` (`:41-44`) — body `{ ids: string[] }`       |
+| PATCH  | `/v1/page-lines/:id`                   | `patch` (`:33-36`) — `x1/y1/x2/y2`, `style` 부분 갱신 |
+| DELETE | `/v1/page-lines/:id`                   | `remove` (`:38-42`)                                   |
 
 네 재정렬 경로(pages / speech-bubbles / page-texts / page-lines)는 모두 `isReorderPermutation`
 (`common/reorder.ts:13`) 으로 **순열인지** 검사한다. 예전에는 각자 "길이가 같은가 + 전부 이
@@ -433,7 +437,7 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 | Method | Route                     | Handler                                                                                            |
 | ------ | ------------------------- | -------------------------------------------------------------------------------------------------- |
 | POST   | `/v1/pages/:id/export`    | `export` — `export.controller.ts:29`. 결과 한 장                                                   |
-| POST   | `/v1/episodes/:id/export` | `exportEpisode` — `export.controller.ts:35`. body 에 `mode`·`bundle`. 결과가 **여러 장일 수 있다** |
+| POST   | `/v1/episodes/:id/export` | `exportEpisode` — `export.controller.ts:20`. body 에 `mode`·`bundle`. 결과가 **여러 장일 수 있다** |
 
 **화 단위 내보내기는 두 가지다** (`exportEpisode`, `export.service.ts:275`).
 
@@ -621,7 +625,7 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
   비교하므로, **대소문자만 바꿔 가입하면 그대로 운영자가 됐다.** 앱 쪽에서도
   `EmailSchema`(`packages/types/src/schemas.ts:32`)가 정규화하지만, 앱을 우회하는 경로가
   생겨도 안전해야 하므로 DB 에서 한 번 더 막는다.
-- `/me` 응답의 `isAdmin`(`me/me.controller.ts:89`)은 **화면을 숨기는 용도일 뿐**이다.
+- `/me` 응답의 `isAdmin`(`me/me.controller.ts:82`)은 **화면을 숨기는 용도일 뿐**이다.
   클라이언트 판정은 우회할 수 있으므로 실제 차단은 위 가드가 한다.
 - 사용자 목록에 비밀번호 해시·API 키·아바타 저장 키는 넣지 않는다. 운영 화면에서 볼 이유가
   없고, 한 번 응답에 실리면 브라우저 캐시·로그·스크린샷을 타고 퍼진다.
@@ -793,7 +797,10 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 - 두 개의 클라이언트 보유: 내부 endpoint(`S3_ENDPOINT`)와 presign 전용(`S3_PUBLIC_ENDPOINT`) — `:28-55`. 외부(브라우저)에서 SigV4 host 검증을 통과시키기 위함.
 - 환경 변수: `S3_ENDPOINT(=http://localhost:9000)`, `S3_PUBLIC_ENDPOINT`, `S3_REGION(=us-east-1)`, `S3_BUCKET(=comicai)`, `S3_ACCESS_KEY(=minioadmin)`, `S3_SECRET_KEY(=minioadmin)` — `:41-48`
 - 부팅 시 `HeadBucketCommand` → 없으면 `CreateBucketCommand`. `STORAGE_AUTO_CREATE_BUCKET` 은 **기본이 켜짐**인 플래그라 `isFlagOnByDefault` 로 읽는다 — `:70`
-- presign TTL: 15분 — `:23`
+- presign TTL: 15분 — `:30`. 서명 시각은 5분 창으로 내린다(`PRESIGN_WINDOW_SECONDS`, `:39`) — 같은
+  창 안에서는 같은 키에 같은 URL 이 나온다. 매번 지금으로 서명하던 때는 에디터가 저장 뒤 목록을
+  다시 읽을 때마다 컷 그림 URL 이 바뀌어 브라우저가 같은 그림을 다시 받았다. 유효 시간을 창만큼
+  늘려 받는 쪽이 보는 남은 시간은 최소 15분 그대로다(`presign.spec.ts`).
 - 키 스킴 (`buildKey`, `:284`) — **prefix 로 지울 수 있게 전부 소유 리소스로 묶는다**. 경로를
   따로 적지 않고 `StoragePrefix` 에서 만든다 — 화 내보내기가 생길 때 키만 따로 적고 prefix 는 쓰지
   않아, 삭제가 그 종류를 놓친 채 0건으로 "성공" 했다:
@@ -816,20 +823,20 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
   전부 "DB 행을 이미 지운 뒤" 라, 여기서 던지면 사용자는 삭제에 성공했는데 500 을 받고 다시
   눌러도 지울 대상이 없어 계속 실패한다. 실패는 로그로 남기고 넘어간다 — 남은 오브젝트는
   예전과 같은 미아일 뿐이다. `deleteKeys` 는 파생 썸네일(`{key}.thumb.webp`)도 같이 지운다.
-- 삭제 prefix 는 `StoragePrefix` (`storage.service.ts:269`) 에 모여 있고 **`buildKey` 와 같은 파일에 있다.**
+- 삭제 prefix 는 `StoragePrefix` (`storage.service.ts:281`) 에 모여 있고 **`buildKey` 와 같은 파일에 있다.**
   키 규칙과 삭제 규칙이 떨어져 있으면 키만 바꿨을 때 삭제가 조용히 0건이 된다 —
   실패가 아니라 성공으로 보인다. 그 불변식은 `storage-keys.spec.ts` 가 고정한다.
 - 삭제가 걸린 지점: 프로젝트(`projects.service.ts:117`, prefix + 페이지·화별 export),
   화(`episodes.service.ts:102`)와 페이지(`pages.service.ts:141`) — 둘 다 컷별 prefix + export 를
   `pageObjectPrefixes`(`common/page-objects.ts:13`)로 모은다. 컷 행은 페이지와 함께 cascade 로
-  사라지므로 **DB 에서 지우기 전에** 모아야 한다. 여러 prefix 는 `deleteByPrefixes`(`storage.service.ts:176`)가
+  사라지므로 **DB 에서 지우기 전에** 모아야 한다. 여러 prefix 는 `deleteByPrefixes`(`storage.service.ts:188`)가
   4개씩 겹쳐 지운다. 컷(`panels.service.ts:150`),
   일관성 엔티티(`consistency.service.ts:192`), 프로젝트 썸네일 교체(`projects.service.ts:89`),
   아바타 업로드·삭제·해제(`me.controller.ts:143`, `:157`, `:120`).
   **DB 를 먼저 지우고 그다음 S3 다** — 반대 순서면 S3 삭제 성공 뒤 DB 삭제가 실패했을 때
   화면에는 남아 있는데 이미지가 전부 깨진 리소스가 된다.
-- 업로드는 `validateAndNormalizeImage`(`storage/image-validator.ts:27`)로 검증 후 sharp로 256×256 webp 썸네일 자동 생성 — `storage/storage.service.ts:110-134`
-- `presignIfSucceeded`: render status가 `succeeded`일 때만 presign URL 반환 — `:154-160`
+- 업로드는 `validateAndNormalizeImage`(`storage/image-validator.ts:27`)로 검증 후 sharp로 256×256 webp 썸네일 자동 생성 — `storage/storage.service.ts:119-143`
+- `presignIfSucceeded`: render status가 `succeeded`일 때만 presign URL 반환 — `:166-172`
 - `getBytes`는 어댑터 컨텍스트(`loadReference`)와 export 합성에서 사용 — `:218-231`
 
 ---
@@ -873,7 +880,7 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 | `REDIS_URL`                                                                                          | `redisUrl()` 한 곳에서만 읽는다 — `common/env.ts:18`           | `redis://localhost:6379`             |
 | `DATABASE_URL`                                                                                       | `schema.prisma:9`                                              | Postgres                             |
 | `S3_ENDPOINT` / `S3_PUBLIC_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `storage.service.ts:43-50`                                     | MinIO 기본값                         |
-| `STORAGE_AUTO_CREATE_BUCKET`                                                                         | `storage.service.ts:70`                                        | 기본 켜짐. 끄려면 `0`/`false`        |
+| `STORAGE_AUTO_CREATE_BUCKET`                                                                         | `storage.service.ts:79`                                        | 기본 켜짐. 끄려면 `0`/`false`        |
 | `MASTER_KEY`                                                                                         | `api-keys/crypto.ts:8-14`                                      | base64 32B, BYOK AES-GCM 봉인 키     |
 | `COOKIE_SECURE`                                                                                      | `session.service.ts:167`                                       | secure 쿠키 토글                     |
 | `RENDER_WORKER_DISABLED`                                                                             | `render.worker.ts:43`, `sse.hub.ts:56`                         | `'1'`이면 API 프로세스에서 워커 분리 |

@@ -12,23 +12,15 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ProjectCreateSchema, ProjectPatchSchema, type ModelId } from '@comicai/types';
+import { ProjectCreateSchema, ProjectPatchSchema } from '@comicai/types';
 import { ProjectsService } from './projects.service';
 import { AuthedRequest } from '../auth/session.guard';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
 import { requireUploadedFile } from '../common/upload';
+import { ZodBody } from '../common/zod-body';
 
-class CreateDto {
-  static zodSchema = ProjectCreateSchema;
-  name!: string;
-}
-class PatchDto {
-  static zodSchema = ProjectPatchSchema;
-  name?: string;
-  thumbnail?: null;
-  defaultStyleId?: string | null;
-  defaultModel?: ModelId | null;
-}
+class CreateDto extends ZodBody(ProjectCreateSchema) {}
+class PatchDto extends ZodBody(ProjectPatchSchema) {}
 
 @Controller('projects')
 export class ProjectsController {

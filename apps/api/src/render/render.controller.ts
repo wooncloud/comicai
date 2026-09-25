@@ -1,18 +1,15 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Req, Res } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
-import { RenderStartSchema, type ModelId, type RenderJobDTO } from '@comicai/types';
+import { RenderStartSchema, type RenderJobDTO } from '@comicai/types';
 import type { RenderSseEvent } from '@comicai/events';
 import { RenderService } from './render.service';
 import { SseHub } from './sse.hub';
 import { AuthedRequest } from '../auth/session.guard';
 import { PanelsService } from '../panels/panels.service';
+import { ZodBody } from '../common/zod-body';
 
-class StartDto {
-  static zodSchema = RenderStartSchema;
-  model!: ModelId;
-  seed?: number;
-}
+class StartDto extends ZodBody(RenderStartSchema) {}
 
 @Controller()
 export class RenderController {

@@ -3,31 +3,16 @@ import {
   SpeechBubbleCreateSchema,
   SpeechBubblePatchSchema,
   SpeechBubbleReorderSchema,
-  type SpeechBubbleShape,
-  type SpeechBubbleStyle,
-  type SpeechBubbleVariant,
 } from '@comicai/types';
 import { SpeechBubblesService } from './speech-bubbles.service';
 import { AuthedRequest } from '../auth/session.guard';
+import { ZodBody } from '../common/zod-body';
 
-class CreateDto {
-  static zodSchema = SpeechBubbleCreateSchema;
-  variant!: SpeechBubbleVariant;
-  shape!: SpeechBubbleShape;
-  style?: Partial<SpeechBubbleStyle>;
-}
+class CreateDto extends ZodBody(SpeechBubbleCreateSchema) {}
 
-class PatchDto {
-  static zodSchema = SpeechBubblePatchSchema;
-  variant?: SpeechBubbleVariant;
-  shape?: SpeechBubbleShape;
-  style?: Partial<SpeechBubbleStyle>;
-}
+class PatchDto extends ZodBody(SpeechBubblePatchSchema) {}
 
-class ReorderDto {
-  static zodSchema = SpeechBubbleReorderSchema;
-  ids!: string[];
-}
+class ReorderDto extends ZodBody(SpeechBubbleReorderSchema) {}
 
 @Controller()
 export class SpeechBubblesController {

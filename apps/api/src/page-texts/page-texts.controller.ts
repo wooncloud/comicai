@@ -1,37 +1,14 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req } from '@nestjs/common';
-import {
-  PageTextCreateSchema,
-  PageTextPatchSchema,
-  PageTextReorderSchema,
-  type PageTextStyle,
-} from '@comicai/types';
+import { PageTextCreateSchema, PageTextPatchSchema, PageTextReorderSchema } from '@comicai/types';
 import { PageTextsService } from './page-texts.service';
 import { AuthedRequest } from '../auth/session.guard';
+import { ZodBody } from '../common/zod-body';
 
-class CreateDto {
-  static zodSchema = PageTextCreateSchema;
-  x!: number;
-  y!: number;
-  w!: number;
-  h!: number;
-  text?: string;
-  style?: Partial<PageTextStyle>;
-}
+class CreateDto extends ZodBody(PageTextCreateSchema) {}
 
-class PatchDto {
-  static zodSchema = PageTextPatchSchema;
-  x?: number;
-  y?: number;
-  w?: number;
-  h?: number;
-  text?: string;
-  style?: Partial<PageTextStyle>;
-}
+class PatchDto extends ZodBody(PageTextPatchSchema) {}
 
-class ReorderDto {
-  static zodSchema = PageTextReorderSchema;
-  ids!: string[];
-}
+class ReorderDto extends ZodBody(PageTextReorderSchema) {}
 
 @Controller()
 export class PageTextsController {

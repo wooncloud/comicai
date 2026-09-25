@@ -2,19 +2,11 @@ import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req } from
 import { EpisodeCreateSchema, EpisodePatchSchema, EpisodeReorderSchema } from '@comicai/types';
 import { EpisodesService } from './episodes.service';
 import { AuthedRequest } from '../auth/session.guard';
+import { ZodBody } from '../common/zod-body';
 
-class CreateDto {
-  static zodSchema = EpisodeCreateSchema;
-  title?: string;
-}
-class PatchDto {
-  static zodSchema = EpisodePatchSchema;
-  title?: string | null;
-}
-class ReorderDto {
-  static zodSchema = EpisodeReorderSchema;
-  episodeIds!: string[];
-}
+class CreateDto extends ZodBody(EpisodeCreateSchema) {}
+class PatchDto extends ZodBody(EpisodePatchSchema) {}
+class ReorderDto extends ZodBody(EpisodeReorderSchema) {}
 
 @Controller()
 export class EpisodesController {

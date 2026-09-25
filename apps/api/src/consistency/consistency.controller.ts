@@ -20,36 +20,17 @@ import {
   ConsistencyGenerateSchema,
   ConsistencyPatchSchema,
   EntityTypeSchema,
-  type EntityType,
-  type ModelId,
 } from '@comicai/types';
 import { ConsistencyService } from './consistency.service';
 import { AuthedRequest } from '../auth/session.guard';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
 import { apiError } from '../common/api-error';
+import { ZodBody } from '../common/zod-body';
 
-class CreateDto {
-  static zodSchema = ConsistencyCreateSchema;
-  type!: EntityType;
-  name!: string;
-  aliases!: string[];
-  description!: string;
-}
-class PatchDto {
-  static zodSchema = ConsistencyPatchSchema;
-  name?: string;
-  aliases?: string[];
-  description?: string;
-}
-class GenerateDto {
-  static zodSchema = ConsistencyGenerateSchema;
-  prompt!: string;
-  model!: ModelId;
-}
-class AttachDto {
-  static zodSchema = ConsistencyAttachSchema;
-  storageKey!: string;
-}
+class CreateDto extends ZodBody(ConsistencyCreateSchema) {}
+class PatchDto extends ZodBody(ConsistencyPatchSchema) {}
+class GenerateDto extends ZodBody(ConsistencyGenerateSchema) {}
+class AttachDto extends ZodBody(ConsistencyAttachSchema) {}
 
 @Controller()
 export class ConsistencyController {

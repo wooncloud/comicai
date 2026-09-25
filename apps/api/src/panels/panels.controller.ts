@@ -12,22 +12,15 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { PanelCreateSchema, PanelPatchSchema, type PanelShapeInput } from '@comicai/types';
+import { PanelCreateSchema, PanelPatchSchema } from '@comicai/types';
 import { PanelsService } from './panels.service';
 import { AuthedRequest } from '../auth/session.guard';
 import { MAX_UPLOAD_BYTES } from '../storage/image-validator';
 import { requireUploadedFile } from '../common/upload';
+import { ZodBody } from '../common/zod-body';
 
-class CreateDto {
-  static zodSchema = PanelCreateSchema;
-  shape!: PanelShapeInput;
-}
-class PatchDto {
-  static zodSchema = PanelPatchSchema;
-  shape?: PanelShapeInput;
-  text?: unknown;
-  styleId?: string | null;
-}
+class CreateDto extends ZodBody(PanelCreateSchema) {}
+class PatchDto extends ZodBody(PanelPatchSchema) {}
 
 @Controller()
 export class PanelsController {

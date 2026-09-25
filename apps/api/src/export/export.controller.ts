@@ -1,26 +1,11 @@
 import { Body, Controller, Param, Post, Req } from '@nestjs/common';
-import {
-  EpisodeExportSchema,
-  ExportRequestSchema,
-  type EpisodeExportBundle,
-  type EpisodeExportMode,
-  type ExportFormat,
-} from '@comicai/types';
+import { EpisodeExportSchema, ExportRequestSchema } from '@comicai/types';
 import { AuthedRequest } from '../auth/session.guard';
 import { ExportService } from './export.service';
+import { ZodBody } from '../common/zod-body';
 
-class ExportDto {
-  static zodSchema = ExportRequestSchema;
-  format!: ExportFormat;
-  dpi?: number;
-}
-class EpisodeExportDto {
-  static zodSchema = EpisodeExportSchema;
-  format!: ExportFormat;
-  dpi?: number;
-  mode!: EpisodeExportMode;
-  bundle!: EpisodeExportBundle;
-}
+class ExportDto extends ZodBody(ExportRequestSchema) {}
+class EpisodeExportDto extends ZodBody(EpisodeExportSchema) {}
 
 @Controller()
 export class ExportController {
