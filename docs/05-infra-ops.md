@@ -648,6 +648,45 @@ pnpm run deploy --no-pull    # 코드는 그대로 두고 컨테이너만 재기
 
 ---
 
+### 8.3 DB 비밀번호 교체 런북 — 2026-09-25 맥미니에서 실제로 돌림
+
+**`POSTGRES_PASSWORD` 를 `.env` 에서 고치는 것만으로는 DB 가 바뀌지 않는다.** 그 값은 데이터
+디렉터리를 처음 만들 때만 쓰인다 (`full.yml:61`). 고치기만 하면 DB 는 옛 값, 앱은 새 값이 되어
+다음 배포의 migrate 에서 `P1000` 으로 무너진다 — 2026-09-21 사고가 정확히 이것이었다.
+
+**새 비밀번호는 URL 안전 문자(A–Z a–z 0–9)만 쓴다.** compose 가 `DATABASE_URL` 을 이 값으로
+직접 조립하기 때문에(`full.yml:19`), 퍼센트 인코딩이 필요한 문자가 하나라도 있으면 URL 이
+깨진다. `pnpm env:check` 가 이걸 막는다 (`cli.js:205`).
+
+**함정 — 비밀번호 확인은 반드시 도커 네트워크 너머에서 한다.** postgres 이미지의 `pg_hba.conf` 는
+유닉스 소켓과 `127.0.0.1` 에 `trust` 를 준다. 그래서 `docker exec ... psql -U …` 나
+`psql postgresql://…@127.0.0.1:5432/…` 는 **아무 비밀번호나 통과시킨다.** 앱이 실제로 쓰는 경로
+(다른 컨테이너 → `scram-sha-256`)로 확인해야 뜻이 있다.
+
+```sh
+# 0. 먼저 덤프를 뜬다
+docker exec comicai-postgres pg_dump -U comicai -d comicai --no-owner --no-acl   | gzip > ~/project/comicai-archive/pre-pgpw-rotation-$(date +%Y%m%d-%H%M%S).sql.gz
+
+# 1. 바꾼다 (로컬 소켓이 trust 라 현재 값을 몰라도 된다)
+docker exec comicai-postgres psql -U comicai -d comicai -v ON_ERROR_STOP=1   -c "ALTER USER \"comicai\" WITH PASSWORD '<새 값>';"
+
+# 2. .env 의 POSTGRES_PASSWORD 와 DATABASE_URL 을 같이 고친다 — 확인보다 기록이 먼저다.
+#    확인 단계에서 끊기면 DB 만 바뀐 채 값을 잃는다.
+
+# 3. 앱이 쓰는 경로로 확인 (새 값 통과 / 옛 값 거부)
+docker run --rm --network comicai_default postgres:16   psql "postgresql://comicai:<새 값>@postgres:5432/comicai" -At -c 'select 1'
+
+# 4. 배포 경로로 마이그레이션 → 비밀번호를 들고 있는 컨테이너 교체
+APP_ENV=prod bash scripts/compose.sh run --rm --no-deps migrate
+APP_ENV=prod bash scripts/compose.sh up -d --force-recreate api worker backup
+```
+
+교체 뒤 확인할 것: `/healthz`, DB 를 반드시 읽는 요청(`POST /v1/auth/login` 이 401 을 주는지),
+그리고 **백업** — `docker exec comicai-backup sh /app/backup.sh` 가 `pg_dump ok` 를 찍어야 한다
+(`backup.sh:105-107`). `127.0.0.1:5433` 으로 붙던 GUI 클라이언트가 있으면 그쪽도 새 값이 필요하다.
+
+---
+
 ## 9. 파일 인덱스
 
 - `infra/compose/dev.yml` — 인프라만
