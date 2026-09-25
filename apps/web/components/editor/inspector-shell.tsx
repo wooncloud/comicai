@@ -1,5 +1,6 @@
 'use client';
 import { CollapseButton } from './collapse-button';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   /** 대문자 라벨. 무엇을 선택했는지. */
@@ -7,6 +8,16 @@ interface Props {
   /** 라벨 오른쪽에 붙는 것(상태 배지 등). */
   badge?: React.ReactNode;
   onCollapse?: () => void;
+  /**
+   * 있으면 맨 아래에 삭제 버튼이 붙는다.
+   *
+   * 여기 모은 이유: Delete 키로 지울 수는 있었지만 **버튼이 컷에만 있었다.** 말풍선을
+   * 고르고 인스펙터를 훑은 사람은 지우는 방법이 없다고 읽는다 — 키보드 단축키는
+   * 화면 어디에도 적혀 있지 않았다. 자리도 인스펙터마다 다르면 매번 찾아야 한다.
+   */
+  onDelete?: () => void;
+  /** 삭제 버튼 문구. 무엇이 지워지는지 그대로 적는다("컷 삭제"). */
+  deleteLabel?: string;
   children: React.ReactNode;
 }
 
@@ -20,7 +31,14 @@ interface Props {
  *
  * 폭은 `w-80` 으로 통일한다 — 다섯 중 셋이 이미 그 값이었다.
  */
-export function InspectorShell({ title, badge, onCollapse, children }: Props) {
+export function InspectorShell({
+  title,
+  badge,
+  onCollapse,
+  onDelete,
+  deleteLabel,
+  children,
+}: Props) {
   return (
     <aside className="flex min-h-0 w-80 flex-col gap-4 overflow-y-auto border-l border-border bg-card p-4">
       <div className="flex items-center justify-between gap-2">
@@ -31,6 +49,19 @@ export function InspectorShell({ title, badge, onCollapse, children }: Props) {
         {badge}
       </div>
       {children}
+      {onDelete && (
+        <div className="mt-auto border-t border-border pt-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onDelete}
+            className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            {deleteLabel ?? '삭제'}
+          </Button>
+        </div>
+      )}
     </aside>
   );
 }

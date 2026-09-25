@@ -55,7 +55,12 @@ export function PageTextInspector({
   }
 
   return (
-    <InspectorShell title={`텍스트${p.textId ? '' : ' · 저장 중…'}`} onCollapse={onCollapse}>
+    <InspectorShell
+      title={`텍스트${p.textId ? '' : ' · 저장 중…'}`}
+      onCollapse={onCollapse}
+      onDelete={() => editor.deleteShapes([shapeId])}
+      deleteLabel="텍스트 삭제"
+    >
       <div className="space-y-2">
         <SectionLabel icon={Type}>텍스트</SectionLabel>
 

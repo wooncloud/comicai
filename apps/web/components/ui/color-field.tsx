@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { Check, Pipette } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/cn';
 import { hexToHsv, hsvToHex, isNearWhite, normalizeHex, type Hsv } from '@/lib/color';
 
@@ -36,26 +37,16 @@ interface Props {
  * 무엇보다 **아무 색이나 고르게 한다** — 한 페이지 안에서 서로 어울리지 않는 색이
  * 섞이는 가장 빠른 길이다. 쓸 만한 색을 먼저 내밀고, 그래도 없으면 직접 집는다.
  *
- * 펼치는 방식은 팝오버가 아니라 **그 자리에서 아래로**다. 이 고르개는 폭 320px
- * 인스펙터 안에만 산다 — 좁은 칸에 띄우는 팝오버는 어디에 놓아도 무언가를 가린다.
+ * **팝오버로 띄운다.** 처음에는 그 자리에서 아래로 펼쳤는데, 폭 320px 인스펙터에서
+ * 팔레트가 펼쳐지면 아래 항목들이 한 화면 밖으로 밀려났다 — 색을 고르는 동안 굵기도
+ * 정렬도 보이지 않는다. 떠 있는 패널은 인스펙터 **왼쪽**(캔버스 위)으로 나가므로
+ * 목록이 그대로 있고, 패널 폭도 인스펙터에 묶이지 않는다.
  */
 export function ColorField({ value, onCommit, ariaLabel, variant = 'page' }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
-  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setDraft(value), [value]);
-
-  // 바깥을 누르면 닫는다. 인스펙터에는 칸이 여럿이라, 다른 색칸을 누르러 갔을 때
-  // 둘 다 펼쳐져 있으면 어느 쪽을 고치는 중인지 알 수 없다.
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: PointerEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('pointerdown', onDown);
-    return () => document.removeEventListener('pointerdown', onDown);
-  }, [open]);
 
   const current = normalizeHex(value) ?? '#000000';
   const bg = variant === 'panel' ? 'bg-card' : 'bg-background';
@@ -71,41 +62,27 @@ export function ColorField({ value, onCommit, ariaLabel, variant = 'page' }: Pro
   }
 
   return (
-    <div ref={rootRef} className="min-w-0 flex-1">
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-label={ariaLabel}
-          aria-expanded={open}
-          title={ariaLabel}
-          className={cn(
-            'h-8 w-10 shrink-0 rounded border p-0.5 transition-colors',
-            open ? 'border-foreground' : 'border-border hover:border-foreground/40',
-            bg,
-          )}
-        >
-          <Swatch color={current} className="h-full w-full rounded-sm" />
-        </button>
-        <input
-          type="text"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={(e) => commit(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') commit((e.target as HTMLInputElement).value);
-            else if (e.key === 'Escape') setDraft(value);
-          }}
-          className={cn(
-            'h-8 min-w-0 flex-1 rounded border border-border px-2 font-mono text-caption',
-            bg,
-          )}
-          aria-label={`${ariaLabel} (hex)`}
-        />
-      </div>
-
-      {open && (
-        <div className={cn('mt-2 space-y-3 rounded-md border border-border p-2', bg)}>
+    <div className="flex min-w-0 flex-1 items-center gap-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={ariaLabel}
+            title={ariaLabel}
+            className={cn(
+              'h-8 w-10 shrink-0 rounded border p-0.5 transition-colors',
+              open ? 'border-foreground' : 'border-border hover:border-foreground/40',
+              bg,
+            )}
+          >
+            <Swatch color={current} className="h-full w-full rounded-sm" />
+          </button>
+        </PopoverTrigger>
+        {/*
+          인스펙터가 화면 오른쪽 끝이라 왼쪽으로 낸다. 폭은 팔레트 여덟 칸이
+          손가락으로 누를 만한 크기가 되도록 잡았다.
+        */}
+        <PopoverContent side="left" align="start" className="w-64 space-y-3">
           <div className="space-y-1">
             {PRESETS.map((row, i) => (
               <div key={i} className="flex gap-1">
@@ -119,7 +96,7 @@ export function ColorField({ value, onCommit, ariaLabel, variant = 'page' }: Pro
                       aria-label={hex}
                       aria-pressed={active}
                       title={hex}
-                      className="relative h-6 flex-1 rounded-sm outline-none ring-offset-1 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                      className="relative h-6 flex-1 rounded-sm outline-none ring-offset-1 ring-offset-popover focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <Swatch color={hex} className="h-full w-full rounded-sm" />
                       {active && (
@@ -139,8 +116,24 @@ export function ColorField({ value, onCommit, ariaLabel, variant = 'page' }: Pro
           </div>
 
           <CustomPicker value={current} onPick={commit} />
-        </div>
-      )}
+        </PopoverContent>
+      </Popover>
+
+      <input
+        type="text"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={(e) => commit(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit((e.target as HTMLInputElement).value);
+          else if (e.key === 'Escape') setDraft(value);
+        }}
+        className={cn(
+          'h-8 min-w-0 flex-1 rounded border border-border px-2 font-mono text-caption',
+          bg,
+        )}
+        aria-label={`${ariaLabel} (hex)`}
+      />
     </div>
   );
 }
