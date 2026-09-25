@@ -80,24 +80,29 @@ function ConsistencyPage() {
   }
 
   /*
-   * 탭마다 키가 갈리는 것이 요점이다.
+   * **한 번에 다 읽고 탭은 걸러서 본다.** 프로젝트 하나의 설정집은 수십 개 규모라
+   * 네 번 나눠 읽을 이유가 없다.
    *
-   * 예전에는 `useState` + `useEffect` + 생 `api()` 였고 `catch` 도 취소 가드도
-   * 없었다. 그래서 (1) 탭을 바꿔도 응답이 올 때까지 **이전 탭의 카드가 그대로**
-   * 남아 그 상태에서 삭제를 누르면 엉뚱한 것을 지웠고, (2) 탭을 연달아 누르면
-   * 늦게 온 응답이 다른 탭에 붙었고, (3) 조회가 실패하면 "아직 등록한 …이 없습니다"
-   * 라고 말했다. 키를 탭별로 두면 셋이 한 번에 사라진다.
+   * 예전에는 탭마다 키가 갈렸다(`['consistency', pid, 'character']`). 그런데 프로젝트
+   * 화면의 요약은 전체 키(`['consistency', pid]`)를 보고, 컷 인스펙터는 또 style 키를
+   * 본다 — **같은 데이터에 캐시가 셋**이었다. 여기서 캐릭터를 추가하면 이 탭의 캐시만
+   * 고쳐지고, 뒤로 나간 프로젝트 화면은 새로고침하기 전까지 옛 목록을 보여 줬다.
+   * 실제로 사장님이 그걸 밟았다(2026-09-25).
+   *
+   * 키가 하나면 낙관적 갱신 한 번이 세 화면에 모두 닿는다. 탭 전환도 즉시다 —
+   * 예전에 탭별 키를 둔 이유였던 "이전 탭 카드가 남는다·늦은 응답이 다른 탭에 붙는다"
+   * 는 애초에 탭마다 따로 읽었기 때문에 생긴 문제라, 안 나눠 읽으면 사라진다.
    */
-  const { data: items, isLoading } = useQuery<ConsistencyEntityDTO[]>({
-    queryKey: qk.consistency(projectId, tab),
-    queryFn: () =>
-      api<ConsistencyEntityDTO[]>(`${ApiPaths.projectConsistency(projectId)}?type=${tab}`),
+  const { data: all, isLoading } = useQuery<ConsistencyEntityDTO[]>({
+    queryKey: qk.consistency(projectId),
+    queryFn: () => api<ConsistencyEntityDTO[]>(ApiPaths.projectConsistency(projectId)),
     enabled: !!projectId,
   });
+  const items = all?.filter((i) => i.type === tab);
 
   /** 낙관적 갱신은 부모가 캐시를 직접 고친다 — 이 저장소의 기존 패턴이다. */
   function setItems(next: (prev: ConsistencyEntityDTO[]) => ConsistencyEntityDTO[]) {
-    queryClient.setQueryData<ConsistencyEntityDTO[]>(qk.consistency(projectId, tab), (prev) =>
+    queryClient.setQueryData<ConsistencyEntityDTO[]>(qk.consistency(projectId), (prev) =>
       next(prev ?? []),
     );
   }

@@ -1,5 +1,3 @@
-import type { EntityType } from '@comicai/types';
-
 /**
  * react-query 캐시 키를 한 곳에서 만든다.
  *
@@ -46,7 +44,13 @@ export const qk = {
   billingPackages: () => ['billing-packages'] as const,
   billingOrders: () => ['billing-orders'] as const,
 
-  /** 프로젝트의 일관성 엔티티. 타입을 주면 그 타입만. */
-  consistency: (projectId: string, type?: EntityType) =>
-    type ? (['consistency', projectId, type] as const) : (['consistency', projectId] as const),
+  /**
+   * 프로젝트의 설정집 전체.
+   *
+   * **갈래별로 나누지 않는다.** 예전에는 타입 인자를 받아 `['consistency', pid, 'character']`
+   * 같은 키를 만들 수 있었는데, 그 결과 설정집 화면·프로젝트 요약·컷 인스펙터가 **같은
+   * 데이터를 서로 다른 캐시 세 개**로 들고 있었다. 한 화면에서 고쳐도 다른 화면은 옛
+   * 값을 보여 줬다. 읽는 쪽에서 `type` 으로 거르면 될 일이다.
+   */
+  consistency: (projectId: string) => ['consistency', projectId] as const,
 } as const;

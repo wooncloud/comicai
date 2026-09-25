@@ -269,25 +269,26 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 캐시 키는 `lib/query-keys.ts:12` 의 `qk` 객체 한 곳에서 생성한다. 호출부마다 배열 리터럴을 직접 적으면 조회하는 쪽과 무효화(`invalidateQueries`)하는 쪽의 키가 미묘하게 어긋나도 타입 에러가 나지 않아 캐시가 갱신되지 않는 버그가 생긴다.
 
-| 쿼리 키                      | 위치                                       | 용도                                                                                                                                        |
-| ---------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `['me']`                     | `components/shell/app-shell.tsx:54`        | 현재 세션 사용자 (`qk.me()`). `retry: false`, `throwOnError: false`. 401 리다이렉트는 `lib/api.ts:37` 다. 로그아웃 시 `queryClient.clear()` |
-| `['projects']`               | `app/dashboard/page.tsx:16`                | 프로젝트 목록 (`qk.projects()`). 생성/패치/삭제는 모두 `queryClient.setQueryData<ProjectDTO[]>(...)`로 옵티미스틱 갱신 (`:21-35`)           |
-| `['project', id]`            | `lib/use-project.ts:9`                     | 단일 프로젝트 (`qk.project(id)`). `enabled: !!projectId`                                                                                    |
-| `['panel-history', panelId]` | `components/editor/history-tray.tsx:22`    | 패널의 렌더 잡 목록 (`qk.panelHistory(panelId)`). `restore` mutation 성공 시 `invalidateQueries` (`:34`)                                    |
-| `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:81` | 단일 렌더 잡 (`qk.renderJob(jobId)`). `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치                            |
-| `['token-balance']`          | `lib/tokens.ts:51`                         | 현재 사용자 토큰 잔액 (`qk.tokenBalance()`). 상단바 배지와 충전 화면이 공유. `throwOnError: false`                                          |
-| `['token-history']`          | `lib/tokens.ts:93`                         | 토큰 사용/충전/조정 내역 (`qk.tokenHistory()`). 렌더 종료 시 `useRefreshTokens()` 로 무효화                                                 |
-| `['billing-packages']`       | `app/settings/billing/page.tsx:110`        | 충전 패키지 목록 및 입금 안내 (`qk.billingPackages()`). `notice === null` 이면 요청 버튼 미노출                                             |
-| `['billing-orders']`         | `lib/tokens.ts:73`                         | 내 충전 요청 주문 목록 (`qk.billingOrders()`). 요청 접수·취소 시 무효화                                                                     |
-| `['admin', 'overview']`      | `app/admin/page.tsx:37`                    | 운영 현황 집계 (`qk.adminOverview()`). `isAdmin` 참일 때만 조회                                                                             |
-| `['admin', 'users']`         | `app/admin/page.tsx:43`                    | 최근 가입자 및 사용자별 토큰 잔액 (`qk.adminUsers()`). 입금 확인·토큰 조정 시 무효화                                                        |
-| `['admin', 'orders']`        | `components/admin/pending-orders.tsx:28`   | 입금 확인 대기 주문 목록 (`qk.adminOrders()`). `markPaid` 성공 시 무효화                                                                    |
+| 쿼리 키                      | 위치                                        | 용도                                                                                                                                        |
+| ---------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `['me']`                     | `components/shell/app-shell.tsx:54`         | 현재 세션 사용자 (`qk.me()`). `retry: false`, `throwOnError: false`. 401 리다이렉트는 `lib/api.ts:37` 다. 로그아웃 시 `queryClient.clear()` |
+| `['projects']`               | `app/dashboard/page.tsx:16`                 | 프로젝트 목록 (`qk.projects()`). 생성/패치/삭제는 모두 `queryClient.setQueryData<ProjectDTO[]>(...)`로 옵티미스틱 갱신 (`:21-35`)           |
+| `['project', id]`            | `lib/use-project.ts:9`                      | 단일 프로젝트 (`qk.project(id)`). `enabled: !!projectId`                                                                                    |
+| `['panel-history', panelId]` | `components/editor/history-tray.tsx:22`     | 패널의 렌더 잡 목록 (`qk.panelHistory(panelId)`). `restore` mutation 성공 시 `invalidateQueries` (`:34`)                                    |
+| `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:81`  | 단일 렌더 잡 (`qk.renderJob(jobId)`). `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치                            |
+| `['token-balance']`          | `lib/tokens.ts:51`                          | 현재 사용자 토큰 잔액 (`qk.tokenBalance()`). 상단바 배지와 충전 화면이 공유. `throwOnError: false`                                          |
+| `['token-history']`          | `lib/tokens.ts:93`                          | 토큰 사용/충전/조정 내역 (`qk.tokenHistory()`). 렌더 종료 시 `useRefreshTokens()` 로 무효화                                                 |
+| `['billing-packages']`       | `app/settings/billing/page.tsx:110`         | 충전 패키지 목록 및 입금 안내 (`qk.billingPackages()`). `notice === null` 이면 요청 버튼 미노출                                             |
+| `['billing-orders']`         | `lib/tokens.ts:73`                          | 내 충전 요청 주문 목록 (`qk.billingOrders()`). 요청 접수·취소 시 무효화                                                                     |
+| `['admin', 'overview']`      | `app/admin/page.tsx:37`                     | 운영 현황 집계 (`qk.adminOverview()`). `isAdmin` 참일 때만 조회                                                                             |
+| `['admin', 'users']`         | `app/admin/page.tsx:43`                     | 최근 가입자 및 사용자별 토큰 잔액 (`qk.adminUsers()`). 입금 확인·토큰 조정 시 무효화                                                        |
+| `['admin', 'orders']`        | `components/admin/pending-orders.tsx:28`    | 입금 확인 대기 주문 목록 (`qk.adminOrders()`). `markPaid` 성공 시 무효화                                                                    |
+| `['consistency', projectId]` | `app/projects/[id]/consistency/page.tsx:96` | 프로젝트의 설정집 **전체** (`qk.consistency(projectId)`). 갈래로 나누지 않는다 — 후술                                                       |
 
 뮤테이션은 화면과 상황에 맞게 `useMutation` 과 직접 `api()` 호출을 섞어 쓴다.
 
-- `panel-inspector.tsx:135` `startRender` — `POST /panels/:id/render` 후 `setQueryData(qk.renderJob(jobId), ...)` 로 낙관적 'queued' 상태를 캐시에 시드하고 `subscribeJob(jobId)` 로 SSE 연결
-- `panel-inspector.tsx:166` `cancelRender` — `POST /render-jobs/:id/cancel` 후 잡 상태 'canceled' 패치 및 SSE 연결 종료
+- `panel-inspector.tsx:140` `startRender` — `POST /panels/:id/render` 후 `setQueryData(qk.renderJob(jobId), ...)` 로 낙관적 'queued' 상태를 캐시에 시드하고 `subscribeJob(jobId)` 로 SSE 연결
+- `panel-inspector.tsx:171` `cancelRender` — `POST /render-jobs/:id/cancel` 후 잡 상태 'canceled' 패치 및 SSE 연결 종료
 - `history-tray.tsx:29` `restore` — `POST /render-jobs/:id/restore` 후 부모 콜백 + `qk.panelHistory(panelId)` 무효화
 - `charge-dialog.tsx:47` `create` — `POST /billing/orders` 후 `qk.billingOrders()` 무효화
 - `app/settings/billing/page.tsx:181` `cancel` — `DELETE /billing/orders/:id` 후 `qk.billingOrders()` 무효화
@@ -595,6 +596,25 @@ apps/web/
 
 ## 10. 관찰된 패턴 / 제약
 
+### 설정집 캐시는 하나다 — 같은 데이터를 세 벌로 들고 있던 것
+
+설정집은 세 화면이 읽는다: 설정집 화면(`app/projects/[id]/consistency/page.tsx:96`),
+프로젝트 요약(`components/consistency/setting-book-summary.tsx:28`), 컷 인스펙터의
+그림체 목록(`components/editor/panel-inspector.tsx:112`).
+
+예전에는 앞의 둘이 갈래별 키(`['consistency', pid, 'character']`)와 전체 키를 따로
+썼고, 인스펙터는 또 `?type=style` 로 세 번째 캐시를 만들었다. **그래서 설정집에서
+캐릭터를 추가하고 뒤로 나가면 프로젝트 요약은 새로고침하기 전까지 옛 목록이었다**
+(2026-09-25, 사장님이 밟음). 낙관적 갱신이 자기 캐시만 고치기 때문이다.
+
+- 키를 하나로 모았다(`lib/query-keys.ts:56`). 읽는 쪽이 `type` 으로 거른다
+  (`app/projects/[id]/consistency/page.tsx:101`, `styles`, `components/editor/panel-inspector.tsx:112`). 한 번의 `setQueryData` 가
+  세 화면에 모두 닿는다.
+- 갈래별로 나눠 읽던 원래 이유("탭을 바꿔도 이전 탭 카드가 남는다", "늦은 응답이 다른
+  탭에 붙는다")는 **탭마다 따로 읽었기 때문에** 생긴 문제였다. 한 번에 다 읽으면
+  사라지고, 덤으로 탭 전환이 즉시가 된다. 프로젝트 하나의 설정집은 수십 개 규모라
+  네 번 나눠 읽을 이유가 없다.
+
 ### 색은 고를 값을 정해 준다 — `<input type="color">` 를 안 쓰는 이유
 
 인스펙터의 색 입력 여섯 자리(컷 테두리·말풍선 채움/선/글자·직선·페이지 배경)는 전부
@@ -862,13 +882,13 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 
 `panel-inspector.tsx` 의 생성 영역(`생성하기`, `components/editor/panel-inspector.tsx:459`)은 모델별 토큰 단가와 부족 상태를 표시한다.
 
-- **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:466`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
-- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:477`, `lib/tokens.ts:151`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:479`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
+- **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:471`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
+- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:482`, `lib/tokens.ts:151`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:484`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
 - **버튼을 잠그지 않는 이유 (`components/editor/panel-inspector.tsx:468-471`)**:
   - 잔액이 부족해도 **생성하기 버튼을 비활성화(`disabled`)하지 않는다.**
   - 화면의 잔액은 캐시일 뿐이라 방금 운영자에게 지급받은 토큰이 아직 캐시에 도착하지 않았을 수 있다. 버튼을 잠그면 사용자는 새로고침 외에 아무것도 할 수 없게 된다.
   - 진짜 잔액 판정은 서버가 하며, 서버에서 거부되면 상세 메시지(`insufficientTokensMessage`, `lib/error-message.ts:130`)로 필요한 토큰과 현재 잔액을 정확히 알려 준다.
-  - 서버에서 토큰 부족 에러가 돌아오면 `components/editor/panel-inspector.tsx:161` 에서 즉시 `refreshTokens()` 를 호출해 캐시를 서버 잔액과 일치시킨다.
+  - 서버에서 토큰 부족 에러가 돌아오면 `components/editor/panel-inspector.tsx:166` 에서 즉시 `refreshTokens()` 를 호출해 캐시를 서버 잔액과 일치시킨다.
 - **빈 컷 안내 우선 (`docs/develop-docs/50-owner/02-verify.md` B-5)**: 컷 본문·콘티·참조 이미지가 모두 없는 빈 컷에서는 토큰 부족 문구 대신 컷 내용 입력 안내 오류가 우선한다. 사용자가 토큰을 충전하고 돌아와서야 컷이 비어 있다는 사실을 알게 되는 낭비를 방지한다.
 
 ### 운영자 화면 (/admin)과 권한 차단

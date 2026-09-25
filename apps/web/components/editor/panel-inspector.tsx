@@ -99,12 +99,17 @@ export function PanelInspector({
     queryFn: () => api<ProjectDTO>(ApiPaths.project(projectId)),
     throwOnError: false,
   });
-  const { data: styles } = useQuery<ConsistencyEntityDTO[]>({
-    queryKey: qk.consistency(projectId, 'style'),
-    queryFn: () =>
-      api<ConsistencyEntityDTO[]>(`${ApiPaths.projectConsistency(projectId)}?type=style`),
+  /*
+   * 설정집 전체를 읽고 그림체만 거른다. 예전에는 `?type=style` 로 따로 읽어
+   * **같은 데이터에 캐시가 둘**이었고, 설정집 화면에서 그림체를 고쳐도 여기 목록은
+   * 옛 값이었다. 키를 하나로 두면 어느 화면에서 고치든 다 같이 따라온다.
+   */
+  const { data: consistency } = useQuery<ConsistencyEntityDTO[]>({
+    queryKey: qk.consistency(projectId),
+    queryFn: () => api<ConsistencyEntityDTO[]>(ApiPaths.projectConsistency(projectId)),
     throwOnError: false,
   });
+  const styles = consistency?.filter((c) => c.type === 'style');
   const effectiveStyleId = panel.styleId ?? project?.defaultStyleId ?? null;
   const model: ModelId = userModel ?? project?.defaultModel ?? 'gemini-3.1-flash-image-preview';
   const { data: tokens } = useTokenBalance();
