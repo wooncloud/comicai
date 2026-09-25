@@ -17,7 +17,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { EmailVerifyBanner } from '@/components/shell/email-verify-banner';
-import { FooterLinks } from '@/components/shell/footer-links';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { TokenBalance } from '@/components/shell/token-balance';
 import { cn } from '@/lib/cn';
@@ -42,18 +41,13 @@ export function AppShell({
     <div className="flex min-h-dvh flex-col">
       <Topbar authed nav={breadcrumb ? <div className="min-w-0">{breadcrumb}</div> : undefined} />
       <EmailVerifyBanner />
-      <main className="flex-1">{children}</main>
       {/*
-        약관·개인정보 처리방침은 로그인한 뒤에도 닿아야 한다. 랜딩 푸터에만
-        두면 이미 가입한 사람은 다시 볼 방법이 없다 — 실제로 그런 상태였다.
-
-        에디터는 AppShell 을 쓰지 않는다(전체 화면). 문서 흐름 화면에만 붙는다.
+        푸터가 없다. 약관·개인정보 처리방침은 랜딩과 설정 화면에 있고
+        (`components/shell/footer-links.tsx`), 그 둘이면 법이 요구하는 공개
+        게재와 "가입할 때 동의한 것을 다시 본다" 가 모두 된다. 작업하는 화면
+        아래에 상주할 만큼 자주 여는 링크가 아니다.
       */}
-      <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-6xl items-center justify-end px-6 py-2 text-caption text-muted-foreground">
-          <FooterLinks />
-        </div>
-      </footer>
+      <main className="flex-1">{children}</main>
     </div>
   );
 }

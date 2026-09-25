@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AppShell } from '@/components/shell/app-shell';
 import { PageContainer } from '@/components/shell/page-container';
+import { FooterLinks } from '@/components/shell/footer-links';
 import { cn } from '@/lib/cn';
 import { SETTINGS_NAV } from '@/lib/nav';
 
@@ -35,6 +36,15 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           </ul>
         </nav>
         <div className="mt-8">{children}</div>
+
+        {/*
+          가입할 때 동의한 약관을 다시 볼 자리. 예전에는 로그인 후 모든 화면의
+          푸터에 있었는데, 그림 그리는 화면 아래에 상주할 만큼 자주 여는 링크가
+          아니다. 계정에 관한 것들이 모인 여기가 찾을 만한 곳이다.
+        */}
+        <div className="mt-16 border-t border-border pt-4 text-caption text-muted-foreground">
+          <FooterLinks />
+        </div>
       </PageContainer>
     </AppShell>
   );
