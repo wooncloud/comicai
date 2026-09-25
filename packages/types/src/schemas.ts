@@ -309,10 +309,22 @@ export type ExportRequest = z.infer<typeof ExportRequestSchema>;
  * 수만 픽셀이면 올리는 쪽도 보는 쪽도 감당하지 못한다.
  */
 export const EPISODE_EXPORT_MODES = ['stitch', 'pages'] as const;
+
+/**
+ * 만든 그림들을 **어떻게 건네줄 것인가.** `mode` 와 축이 다르다 — 무엇을 만드는지와
+ * 어떻게 묶는지는 서로 독립이다(이어 붙인 웹툰 세 조각을 ZIP 으로 받을 수도 있다).
+ *
+ * - `none` — 낱장 그대로. 한두 장이면 이게 가장 빠르다.
+ * - `zip` — 한 봉투에. 인스타·출판은 장수가 많아 링크를 열 번 누르게 된다.
+ * - `pdf` — 한 문서로. 인쇄는 낱장 PNG 보다 PDF 가 맞다.
+ */
+export const EPISODE_EXPORT_BUNDLES = ['none', 'zip', 'pdf'] as const;
+
 export const EpisodeExportSchema = z.object({
   format: ExportFormatSchema,
   dpi: z.number().int().min(72).max(600).default(150).optional(),
   mode: z.enum(EPISODE_EXPORT_MODES).default('stitch'),
+  bundle: z.enum(EPISODE_EXPORT_BUNDLES).default('none'),
 });
 
 /**

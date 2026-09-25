@@ -424,10 +424,10 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 
 ### 3.9 ExportModule (`export/export.controller.ts`)
 
-| Method | Route                     | Handler                                                                                   |
-| ------ | ------------------------- | ----------------------------------------------------------------------------------------- |
-| POST   | `/v1/pages/:id/export`    | `export` — `export.controller.ts:22`. 결과 한 장                                          |
-| POST   | `/v1/episodes/:id/export` | `exportEpisode` — `export.controller.ts:29`. body 에 `mode`. 결과가 **여러 장일 수 있다** |
+| Method | Route                     | Handler                                                                                            |
+| ------ | ------------------------- | -------------------------------------------------------------------------------------------------- |
+| POST   | `/v1/pages/:id/export`    | `export` — `export.controller.ts:29`. 결과 한 장                                                   |
+| POST   | `/v1/episodes/:id/export` | `exportEpisode` — `export.controller.ts:35`. body 에 `mode`·`bundle`. 결과가 **여러 장일 수 있다** |
 
 **화 단위 내보내기는 두 가지다** (`exportEpisode`, `export.service.ts:265`).
 
@@ -448,6 +448,29 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 그린 것은 **한 파일 분량만** 들고 있는다. 화 전체를 먼저 그려 두고 나누면 페이지
 10장이면 그것만으로 수백 MB 가 동시에 메모리에 산다.
 
+**받는 방법은 별개의 축이다** (`bundle`, `bundleUp` — `export.service.ts:345`).
+`mode` 가 "몇 장을 만드는가" 라면 `bundle` 은 "그것을 어떻게 건네는가" 다. 둘을 한
+축에 섞으면 `pages+zip`·`stitch+zip` 같은 조합마다 이름이 하나씩 늘고, 실제로 다른 일을
+하는 곳은 마지막 업로드 한 곳뿐이다.
+
+- `none` — 만든 만큼 낱장으로. 링크가 여러 개다.
+- `zip` — 한 봉투. 인스타·출판은 장수가 많아 낱장이면 링크를 열 번 누른다.
+- `pdf` — 한 문서. 인쇄는 PNG 낱장보다 PDF 가 맞다.
+
+묶을 때는 **그린 것을 전부 들고 있어야 한다** (`:298-305`) — 봉투도 문서도 전체를 한 번에
+받는다. 낱장 경로가 한 장씩 흘려보내 아끼는 메모리를 여기서는 아낄 수 없다.
+
+**ZIP 은 직접 쓴다** (`export/zip.ts`) — 의존성 없이 `node:zlib` 의 `crc32` 만 쓰고 전부
+STORE(무압축)로 넣는다. 안에 들어가는 것이 이미 압축된 PNG/JPEG 라 deflate 를 돌려도
+줄지 않고 CPU 만 쓴다. 파일 이름은 UTF-8 이라 범용 플래그의 `FLAG_UTF8`(0x0800)을 세운다 —
+세우지 않으면 한글 이름이 CP437 로 읽혀 깨진다. 테스트는 python `zipfile` 로 푼다
+(`zip.spec.ts`) — 우리 코드로 쓰고 우리 코드로 읽으면 같은 오해를 두 번 하고도 통과한다.
+
+**PDF 는 `pdf-lib`** (`export/pdf.ts`). ZIP 과 달리 손으로 쓰지 않은 이유는 검증 때문이다 —
+봉투는 파이썬 표준 라이브러리로 풀어 볼 수 있지만, 직접 쓴 PDF 가 뷰어마다 열리는지는
+CI 안에서 확인할 방법이 없다. 픽셀을 포인트로 바꾸는 환산(`scale = 72 / dpi`)만 우리 몫이다 —
+150dpi 로 그린 1240×1754 는 595×842pt, 곧 A4 다.
+
 `renderPage` (`export.service.ts:107`)는 픽셀만 만들고 **올리지 않는다.** 올리는 일과
 그리는 일이 갈려 있어야 화 단위가 같은 그림을 여러 장 모아 이어 붙일 수 있다 —
 예전에는 한 함수 안에 붙어 있어 화를 내보내려면 페이지마다 S3 왕복이 한 번씩 더 생겼다.
@@ -462,19 +485,19 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
 그러면 캔버스와 export 결과가 다르게 보이는데 어느 쪽도 오류를 내지 않는다. 폴백은 각
 도메인의 기본 스타일 값을 쓴다.
 
-각 패널의 `currentRender` 결과를 패널 shape 마스크(SVG)로 잘라 `composite` — `export/export.service.ts:113-153`. 그 위로 말풍선(`renderSpeechBubbleLayer`, `:165-174`) → 자유 텍스트(`:169-181`) → 자유 직선(`:184-195`) 레이어가 순서대로 쌓인다. `sharp`로 캔버스(페이지 size, alpha)를 만들어 전체를 합성하며 dpi는 `withMetadata({ density: dpi })`(기본 150)로 박힌다 — `:197-208`. 결과는 S3에 `exports/{userId}/{pageId}/{ulid}.{ext}` 키로 업로드 후 presign URL 반환 — `:210-218`.
+각 패널의 `currentRender` 결과를 패널 shape 마스크(SVG)로 잘라 `composite` — `export/export.service.ts:113-153`. 그 위로 말풍선(`renderSpeechBubbleLayer`, `:165-174`) → 자유 텍스트(`:169-181`) → 자유 직선(`:187-198`) 레이어가 순서대로 쌓인다. `sharp`로 캔버스(페이지 size, alpha)를 만들어 전체를 합성하며 dpi는 `withMetadata({ density: dpi })`(기본 150)로 박힌다 — `:197-208`. 결과는 S3에 `exports/{userId}/{pageId}/{ulid}.{ext}` 키로 업로드 후 presign URL 반환 — `:210-218`.
 
-**캔버스 크기는 방어적으로 묶는다** — `clampDimension` (`export.service.ts:381`) 이 페이지 크기를
+**캔버스 크기는 방어적으로 묶는다** — `clampDimension` (`export.service.ts:452`) 이 페이지 크기를
 `MAX_PAGE_DIMENSION`(4096) 이하로, 패널 bounding box 도 캔버스 크기로 자른다 (`shapeBoundingBox`, `:157-161`).
 `PageSizeSchema` 가 이제 상한을 걸지만 **이미 저장된 행은 그 검증을 거치지 않는다**. 묶지 않으면
 `size:{w:50000,h:50000}` 한 행으로 sharp 가 10GB 할당을 시도하다 프로세스가 죽고, 같은 컨테이너의
 다른 사용자 요청까지 함께 끊긴다.
 
-**패널 합성은 4개씩 끊어 돈다** — `mapLimit` (`export.service.ts:389`) +
+**패널 합성은 4개씩 끊어 돈다** — `mapLimit` (`export.service.ts:460`) +
 `PANEL_COMPOSITE_CONCURRENCY` (`:33`). 예전에는 `Promise.all` 로 전부 한꺼번에 돌려서
 **N개의 원본 바이트와 N개의 마스킹된 PNG 버퍼가 동시에 살아 있었다** — 1536×1024 RGBA 기준
 패널당 약 6MB 라 12컷 페이지면 마스킹본만 ~75MB 에 원본이 더 붙는다. 원본은
-`maskedPanelImage` (`:66`) 안에서만 살아 마스킹본과 겹쳐 붙들리지 않는다. 결과 순서는 입력
+`maskedPanelImage` (`:69`) 안에서만 살아 마스킹본과 겹쳐 붙들리지 않는다. 결과 순서는 입력
 순서를 유지한다 — 합성 순서가 곧 z-order 다.
 
 ### 3.10 HealthController / MetricsController

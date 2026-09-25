@@ -2,7 +2,12 @@
 import { useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
 import { api } from '@/lib/api';
-import { ApiPaths, type EpisodeExportMode, type PanelDTO } from '@comicai/types';
+import {
+  ApiPaths,
+  type EpisodeExportBundle,
+  type EpisodeExportMode,
+  type PanelDTO,
+} from '@comicai/types';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +37,13 @@ interface ExportResult {
   storageKey: string;
   width: number;
   height: number;
+  mimeType: string;
+}
+
+/** 목록에 보일 이름. 여러 장이면 몇 번째인지가 유일하게 필요한 정보다. */
+function resultLabel(r: ExportResult, index: number, total: number): string {
+  if (!r.mimeType.startsWith('image/')) return '묶음 파일';
+  return total > 1 ? `${index + 1}번째` : '결과';
 }
 
 interface Props {
@@ -68,6 +80,7 @@ export function ExportDialog({
   const confirm = useConfirm();
   const [scope, setScope] = useState<Scope>('page');
   const [mode, setMode] = useState<EpisodeExportMode>('stitch');
+  const [bundle, setBundle] = useState<EpisodeExportBundle>('none');
   const [format, setFormat] = useState<Format>('png');
   const [dpi, setDpi] = useState('150');
   const [pending, setPending] = useState(false);
@@ -95,7 +108,7 @@ export function ExportDialog({
       if (scope === 'episode' && episodeId) {
         const list = await api<ExportResult[]>(ApiPaths.episodeExport(episodeId), {
           method: 'POST',
-          body: JSON.stringify({ format, dpi: Number(dpi), mode }),
+          body: JSON.stringify({ format, dpi: Number(dpi), mode, bundle }),
         });
         setResults(list);
       } else {
@@ -170,6 +183,30 @@ export function ExportDialog({
             </div>
           )}
 
+          {scope === 'episode' && (
+            <div className="space-y-2">
+              <div className="text-caption text-muted-foreground">받기</div>
+              <RadioGroup
+                value={bundle}
+                onValueChange={(v) => setBundle(v as EpisodeExportBundle)}
+                className="flex flex-col gap-2"
+              >
+                <label className="flex items-center gap-2 text-body-sm">
+                  <RadioGroupItem value="none" id="bundle-none" />
+                  <span>낱장 그대로</span>
+                </label>
+                <label className="flex items-center gap-2 text-body-sm">
+                  <RadioGroupItem value="zip" id="bundle-zip" />
+                  <span>ZIP 한 개로 묶기</span>
+                </label>
+                <label className="flex items-center gap-2 text-body-sm">
+                  <RadioGroupItem value="pdf" id="bundle-pdf" />
+                  <span>PDF 한 개로 (인쇄용)</span>
+                </label>
+              </RadioGroup>
+            </div>
+          )}
+
           <div className="space-y-2">
             <div className="text-caption text-muted-foreground">형식</div>
             <RadioGroup
@@ -223,9 +260,14 @@ export function ExportDialog({
                       className="flex items-center gap-2 rounded px-2 py-1.5 text-body-sm transition-colors hover:bg-muted"
                     >
                       <Download className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <span className="flex-1">{results.length > 1 ? `${i + 1}번째` : '결과'}</span>
+                      <span className="flex-1">{resultLabel(r, i, results.length)}</span>
                       <span className="text-caption tabular-nums text-muted-foreground">
-                        {r.width}×{r.height}
+                        {/* 봉투·문서는 크기가 없다(0×0). 대신 무엇인지를 말한다. */}
+                        {r.mimeType.startsWith('image/')
+                          ? `${r.width}×${r.height}`
+                          : r.mimeType === 'application/zip'
+                            ? 'ZIP'
+                            : 'PDF'}
                       </span>
                     </a>
                   </li>

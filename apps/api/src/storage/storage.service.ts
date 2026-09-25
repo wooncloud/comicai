@@ -302,5 +302,8 @@ function extensionFor(mime: string): string {
   if (mime === 'image/png') return 'png';
   if (mime === 'image/jpeg' || mime === 'image/jpg') return 'jpg';
   if (mime === 'image/webp') return 'webp';
+  // 내보내기 묶음. 확장자가 'bin' 이면 받아도 무엇으로 열지 모른다.
+  if (mime === 'application/zip') return 'zip';
+  if (mime === 'application/pdf') return 'pdf';
   return 'bin';
 }

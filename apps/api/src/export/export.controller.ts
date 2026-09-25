@@ -1,5 +1,10 @@
 import { Body, Controller, Param, Post, Req } from '@nestjs/common';
-import { EpisodeExportSchema, ExportRequestSchema, type EpisodeExportMode } from '@comicai/types';
+import {
+  EpisodeExportSchema,
+  ExportRequestSchema,
+  type EpisodeExportBundle,
+  type EpisodeExportMode,
+} from '@comicai/types';
 import { AuthedRequest } from '../auth/session.guard';
 import { ExportService } from './export.service';
 
@@ -13,6 +18,7 @@ class EpisodeExportDto {
   format!: 'png' | 'jpg';
   dpi?: number;
   mode!: EpisodeExportMode;
+  bundle!: EpisodeExportBundle;
 }
 
 @Controller()
@@ -31,6 +37,6 @@ export class ExportController {
     @Param('id') id: string,
     @Body() body: EpisodeExportDto,
   ) {
-    return this.svc.exportEpisode(req.user.id, id, body.format, body.dpi, body.mode);
+    return this.svc.exportEpisode(req.user.id, id, body.format, body.dpi, body.mode, body.bundle);
   }
 }

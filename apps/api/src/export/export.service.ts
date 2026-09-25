@@ -5,6 +5,7 @@ import {
   isHexColor,
   MAX_PAGE_DIMENSION,
   MAX_STITCH_HEIGHT,
+  type EpisodeExportBundle,
   type EpisodeExportMode,
   type ImageRef,
   type PageLineStyle,
@@ -24,6 +25,8 @@ import { renderPageTextLayer } from './page-text.render';
 import { renderPageLineLayer } from './page-line.render';
 import { apiError } from '../common/api-error';
 import { planStitchSegments } from './stitch-plan';
+import { buildZip } from './zip';
+import { buildPdf } from './pdf';
 
 /*
  * 패널 합성을 몇 개씩 동시에 할 것인가.
@@ -268,6 +271,7 @@ export class ExportService {
     format: 'png' | 'jpg',
     dpi = 150,
     mode: EpisodeExportMode = 'stitch',
+    bundle: EpisodeExportBundle = 'none',
   ): Promise<ExportResult[]> {
     const episode = await this.episodes.findOwned(userId, episodeId);
     const pages = await prisma.page.findMany({
@@ -284,12 +288,21 @@ export class ExportService {
     const scope = { kind: 'episode-export', userId, episodeId: episode.id } as const;
 
     if (mode === 'pages') {
-      const out: ExportResult[] = [];
-      for (const p of pages) {
-        // 한 장씩 차례로. 병렬로 돌리면 페이지 수만큼의 캔버스가 동시에 메모리에 산다.
-        out.push(await this.upload(scope, await this.renderPage(p.id, format, dpi), format));
+      if (bundle === 'none') {
+        const out: ExportResult[] = [];
+        for (const p of pages) {
+          // 한 장씩 차례로. 병렬로 돌리면 페이지 수만큼의 캔버스가 동시에 메모리에 산다.
+          out.push(await this.upload(scope, await this.renderPage(p.id, format, dpi), format));
+        }
+        return out;
       }
-      return out;
+      /*
+       * 묶어서 낼 때는 그린 것을 모아 둬야 한다 — 봉투도 문서도 전부를 한 번에 받는다.
+       * 낱장으로 낼 때는 한 장씩 흘려보내 메모리를 아끼지만, 여기서는 아낄 수 없다.
+       */
+      const rendered: RenderedPage[] = [];
+      for (const p of pages) rendered.push(await this.renderPage(p.id, format, dpi));
+      return [await this.bundleUp(scope, rendered, format, dpi, bundle)];
     }
 
     /*
@@ -309,13 +322,71 @@ export class ExportService {
     const heights = sizes.map((p) => clampDimension((p.size as { h: number }).h));
     const segments = planStitchSegments(heights, MAX_STITCH_HEIGHT);
 
-    const out: ExportResult[] = [];
+    const stitched: RenderedPage[] = [];
     for (const indices of segments) {
       const rendered: RenderedPage[] = [];
       for (const i of indices) rendered.push(await this.renderPage(pages[i]!.id, format, dpi));
-      out.push(await this.upload(scope, stitch(rendered, dpi, format), format));
+      stitched.push(await stitch(rendered, dpi, format));
     }
+    if (bundle !== 'none') return [await this.bundleUp(scope, stitched, format, dpi, bundle)];
+
+    const out: ExportResult[] = [];
+    for (const seg of stitched) out.push(await this.upload(scope, seg, format));
     return out;
+  }
+
+  /**
+   * 여러 장을 한 파일로 묶어 올린다.
+   *
+   * 결과 타입은 낱장과 같다 — 받는 쪽은 "누르면 받아지는 것" 하나로 보면 된다.
+   * 다만 `width`/`height` 는 이미지가 아니라 봉투의 것이 아니므로 0 으로 둔다.
+   * 화면은 `mimeType` 을 보고 크기 대신 파일 종류를 보여 준다.
+   */
+  private async bundleUp(
+    scope: ImageScope,
+    pages: readonly RenderedPage[],
+    format: 'png' | 'jpg',
+    dpi: number,
+    bundle: Exclude<EpisodeExportBundle, 'none'>,
+  ): Promise<ExportResult> {
+    const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+    const ext = format === 'jpg' ? 'jpg' : 'png';
+    const bytes =
+      bundle === 'zip'
+        ? buildZip(
+            pages.map((p, i) => ({
+              // 이름은 순서가 드러나야 한다. 파일 탐색기는 이름으로 정렬하므로
+              // 자리수를 맞추지 않으면 10 이 2 앞에 온다.
+              name: `${String(i + 1).padStart(2, '0')}.${ext}`,
+              bytes: p.bytes,
+            })),
+          )
+        : await buildPdf(
+            pages.map((p) => ({
+              bytes: p.bytes,
+              mimeType,
+              width: p.width,
+              height: p.height,
+            })),
+            dpi,
+          );
+
+    const ref = await this.storage.putImage(
+      scope,
+      Uint8Array.from(bytes),
+      bundle === 'zip' ? 'application/zip' : 'application/pdf',
+      0,
+      0,
+    );
+    const presigned = await this.storage.presignDownload(ref.storageKey);
+    return {
+      storageKey: ref.storageKey,
+      url: presigned.url,
+      expiresAt: presigned.expiresAt,
+      width: 0,
+      height: 0,
+      mimeType: ref.mimeType,
+    };
   }
 
   private async upload(
