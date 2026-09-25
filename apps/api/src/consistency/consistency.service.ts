@@ -155,6 +155,24 @@ export class ConsistencyService {
         description: data.description,
       },
     });
+
+    /*
+     * **처음 만든 그림체는 대표가 된다.**
+     *
+     * 그림체는 등록만 해서는 아무 일도 하지 않는다 — 컷이 쓰는 것은 컷에 지정한
+     * 그림체이거나 프로젝트 대표 그림체다. 그래서 하나만 만들어 두고 컷을 그리면
+     * 그림체가 반영되지 않았고, 사용자는 '대표로 지정' 이라는 버튼을 스스로 찾아야
+     * 했다. 하나뿐일 때 대표가 아닐 이유가 없다.
+     *
+     * 조건을 `null` 로 걸어 **이미 대표가 있으면 덮지 않는다.** 동시에 두 개를 만들어도
+     * 먼저 커밋된 쪽만 대표가 된다.
+     */
+    if (data.type === 'style') {
+      await prisma.project.updateMany({
+        where: { id: projectId, defaultStyleId: null },
+        data: { defaultStyleId: row.id },
+      });
+    }
     return this.dtoWithUrls(row);
   }
 

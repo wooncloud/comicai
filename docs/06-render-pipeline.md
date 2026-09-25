@@ -176,15 +176,15 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 `apps/web/components/editor/panel-inspector.tsx:185-244`
 
 - `new EventSource(`${API_BASE}${ApiPaths.renderJobEvents(jobId)}`, { withCredentials: true })`.
-- `'status'` 리스너 (`:196`):
-  - React Query 캐시 `['render-job', jobId]`에 status 즉시 반영 (`:194`).
+- `'status'` 리스너 (`:223`):
+  - React Query 캐시 `['render-job', jobId]`에 status 즉시 반영 (`:221`).
   - `succeeded` → `GET /render-jobs/:id`로 최종 DTO(presigned URL 포함) 재요청 →
     `patchRender({ currentRenderStatus:'succeeded', currentRenderImageUrl })` →
     `panel-history` invalidate → EventSource close (`:197-214`).
-  - `failed`/`canceled`/`timeout` → 토스트 + invalidate + close (`:215-232`). 이 경로는 **환급이
+  - `failed`/`canceled`/`timeout` → 토스트 + invalidate + close (`:242-259`). 이 경로는 **환급이
     끝난 뒤**라 토큰 잔액도 다시 읽는다 (`:221`).
   - 그 외(`queued`/`running`) → `patchRender` 로 status만 반영 (`:238-240`).
-- `'error'` 리스너 (`:243`): payload 의 `error.category` 를 한국어 문구로 바꿔 인스펙터 상단 배너에 표시한다(`lib/error-message.ts` 의 `renderCategoryMessage`). 서버 원문(`no gemini key` 등)은 화면에 내보내지 않는다.
+- `'error'` 리스너 (`:270`): payload 의 `error.category` 를 한국어 문구로 바꿔 인스펙터 상단 배너에 표시한다(`lib/error-message.ts` 의 `renderCategoryMessage`). 서버 원문(`no gemini key` 등)은 화면에 내보내지 않는다.
 
 ---
 
@@ -319,7 +319,7 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 - SSE 측은 컨트롤러가 취소 시점에 `canceled` 이벤트를 발행하지는 않는다. 다만 **재연결하면
   스냅샷으로 현재 상태가 온다**(위 §2.4) — 취소된 잡도 그때 `canceled` 로 관찰된다.
 
-UI에서 취소 버튼은 생성 중(`queued`/`running`)일 때 panel-inspector에 노출된다 (`apps/web/components/editor/panel-inspector.tsx:433-451`).
+UI에서 취소 버튼은 생성 중(`queued`/`running`)일 때 panel-inspector에 노출된다 (`apps/web/components/editor/panel-inspector.tsx:469-487`).
 `cancelRender` mutation (`:166-183`)이 경로 헬퍼 `ApiPaths.renderJobCancel` (`packages/types/src/paths.ts:61`)을 호출하여 잡을 취소한다.
 
 ---
@@ -368,10 +368,10 @@ interface RenderError {
 2. **DB**: `RenderJob.error` JSON 컬럼에 에러(`error`) 저장 (`:209-212`, `finalizeOrphan` `:83-86`).
 3. **GET /render-jobs/:id 응답**: `RenderJobDTO.error`로 노출 (`render.service.ts:216`).
 4. **UI**:
-   - `panel-inspector.tsx:179-184` `'error'` 이벤트 리스너가 `setError(payload.error.message)`로
+   - `panel-inspector.tsx:206-211` `'error'` 이벤트 리스너가 `setError(payload.error.message)`로
      배너 표시 (`:305-309`).
    - `'status'` 이벤트의 terminal 도달 시 토스트:
-     `failed` → "렌더 실패", `canceled` → "렌더 취소됨" (`:167-172`).
+     `failed` → "렌더 실패", `canceled` → "렌더 취소됨" (`:194-199`).
    - PanelStatusBadge가 색상으로 상태 시각화.
 
 ### 6.4 컨트롤러 단의 동기 에러
@@ -382,7 +382,7 @@ interface RenderError {
 - `RESOURCE_NOT_FOUND` (`render.service.ts:150, 175; panels.service.ts:243`).
 - `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:248-252`),
   성공 아닌 잡 restore 시도(`panels.service.ts:245-249`).
-- `PANEL_NOT_FOUND` — `panels.service.ts:308-310`. 소유권 실패도 같은 404 다(존재 여부가 새지 않도록).
+- `PANEL_NOT_FOUND` — `panels.service.ts:313-315`. 소유권 실패도 같은 404 다(존재 여부가 새지 않도록).
 
 API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생하며 `category:'auth'`로 분류되어
 위 경로를 거쳐 SSE로 전달된다.

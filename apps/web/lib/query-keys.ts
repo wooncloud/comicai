@@ -35,6 +35,9 @@ export const qk = {
   /** 프로젝트의 페이지 목록. 상세 화면과 에디터 사이드바가 공유한다. */
   projectPages: (projectId: string) => ['project-pages', projectId] as const,
 
+  /** 페이지 한 장. 설정집이 '돌아갈 페이지' 이름을 읽을 때 쓴다. */
+  page: (pageId: string | null) => ['page', pageId] as const,
+
   /** 로그인된 기기 목록. */
   meSessions: () => ['me-sessions'] as const,
 

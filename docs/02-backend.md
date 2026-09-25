@@ -250,24 +250,24 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 호출부 문맥에 기대게 되는데, 도메인 코드는 그 자체로 안내가 된다.
 
 같은 이유로 `PanelsService.restoreRender` 의 "성공한 렌더만 복원" 거부도 403 에서 400 으로
-바꿨다 (`panels.service.ts:274`) — 403 인데 code 가 `CONFLICT` 라 상태 코드와 코드가 서로 다른
+바꿨다 (`panels.service.ts:279`) — 403 인데 code 가 `CONFLICT` 라 상태 코드와 코드가 서로 다른
 말을 하고 있었고, 같은 상황을 다루는 `RenderService.cancel` 은 이미 400 이다.
 
 ### 3.4 ConsistencyModule (`consistency/consistency.controller.ts`)
 
 타입: `style | character | background | worldview` (`@comicai/types`).
 
-| Method | Route                                 | Handler                                                                                                                                    |
-| ------ | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| GET    | `/v1/projects/:pid/consistency?type=` | `list` (`consistency.controller.ts:59-63`)                                                                                                 |
-| POST   | `/v1/projects/:pid/consistency`       | `create` (`:65-69`)                                                                                                                        |
-| PATCH  | `/v1/consistency/:id`                 | `patch` (`:71-74`)                                                                                                                         |
-| DELETE | `/v1/consistency/:id`                 | `remove` (`:76-80`) — style 삭제 시 트랜잭션으로 `Project.defaultStyleId`/`Panel.styleId` dangling 정리 (`consistency.service.ts:174-186`) |
-| POST   | `/v1/consistency/:id/images`          | `uploadImages` (`consistency.controller.ts:85-102`) — multipart `files`, 최대 12개, 파일당 `MAX_UPLOAD_BYTES`                              |
-| POST   | `/v1/consistency/:id/generate`        | `generate` (`:105-108`) — AI 모델로 참조 이미지 1장 생성 (storage 업로드만, refImages 미등록). style 엔티티는 거부                         |
-| POST   | `/v1/consistency/:id/images/attach`   | `attach` (`:111-114`) — `generate` 결과의 storageKey 를 refImages 에 등록 (key prefix 검증)                                                |
+| Method | Route                                 | Handler                                                                                                                                                             |
+| ------ | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/projects/:pid/consistency?type=` | `list` (`consistency.controller.ts:59-63`)                                                                                                                          |
+| POST   | `/v1/projects/:pid/consistency`       | `create` (`:65-69`) — **첫 그림체는 대표가 된다** (`consistency.service.ts:188`)                                                                                    |
+| PATCH  | `/v1/consistency/:id`                 | `patch` (`consistency.controller.ts:71-74`)                                                                                                                         |
+| DELETE | `/v1/consistency/:id`                 | `remove` (`consistency.controller.ts:76-80`) — style 삭제 시 트랜잭션으로 `Project.defaultStyleId`/`Panel.styleId` dangling 정리 (`consistency.service.ts:174-186`) |
+| POST   | `/v1/consistency/:id/images`          | `uploadImages` (`consistency.controller.ts:85-102`) — multipart `files`, 최대 12개, 파일당 `MAX_UPLOAD_BYTES`                                                       |
+| POST   | `/v1/consistency/:id/generate`        | `generate` (`:105-108`) — AI 모델로 참조 이미지 1장 생성 (storage 업로드만, refImages 미등록). style 엔티티는 거부                                                  |
+| POST   | `/v1/consistency/:id/images/attach`   | `attach` (`:111-114`) — `generate` 결과의 storageKey 를 refImages 에 등록 (key prefix 검증)                                                                         |
 
-`refImages` 에 이미지를 덧붙이는 세 경로(`appendImages` `consistency.service.ts:194`, `attachImage` `:323`,
+`refImages` 에 이미지를 덧붙이는 세 경로(`appendImages` `consistency.service.ts:212`, `attachImage` `:341`,
 `PanelsService.appendUpload` `panels.service.ts:171-185`)는 **원자적 JSONB append** 를 쓴다
 (`common/ref-images.ts`). 읽어서 `[...기존, 새것]` 으로 통째 덮어쓰면 동시 업로드가 유실된다 —
 12장을 한 번에 드래그하면 전부 같은 배열을 읽고 각자 덮어써서 마지막 1장만 남고 나머지는
@@ -275,9 +275,19 @@ S3 고아가 된다. Prisma 에 JSON 배열 append 프리미티브가 없어 raw
 같은 문장에서 `version` 과 `updated_at` 도 올린다(`@updatedAt` 은 클라이언트가 채우는 값이라
 이 경로에서는 손으로 넣어야 한다).
 
-AI 생성 로직은 `consistency.service.ts:220-298` (`generateImage`) / `:304-334` (`attachImage`). 엔티티 타입별 system prompt (`ENTITY_SYSTEM_PROMPTS`, `:68-75`) 와 출력 비율(`ENTITY_OUTPUT_SHAPE`, `:54-61`)이 적용되어 패널-룰 대신 캐릭터 시트/환경 콘셉트/세계관 무드 보드 톤을 강제한다. style 은 그림체 자체가 다른 패널 결과의 일관성 기준이라 `generate` 자체를 거부 (`CONSISTENCY_GENERATE_UNSUPPORTED`).
+**처음 만든 그림체는 프로젝트 대표가 된다** (`consistency.service.ts:170`).
 
-키 조회는 **`try` 안에 있다**(`consistency.service.ts:265`). 밖에 두면 쿼터 초과·키 없음 같은
+그림체는 등록만 해서는 아무 일도 하지 않는다 — 컷이 쓰는 것은 컷에 지정한 그림체이거나
+프로젝트 대표 그림체다. 그래서 하나만 만들어 두고 컷을 그리면 그림체가 반영되지 않았고,
+사용자는 '대표로 지정' 이라는 버튼을 스스로 찾아야 했다. 하나뿐일 때 대표가 아닐 이유가 없다.
+
+조건부 `updateMany`(`WHERE default_style_id IS NULL`)라서 **이미 대표가 있으면 덮지 않는다.**
+동시에 두 개를 만들어도 먼저 커밋된 쪽만 대표가 된다. 이 규칙은 진짜 Postgres 로
+고정했다(`apps/api/test/integration/consistency.integration.spec.ts`).
+
+AI 생성 로직은 `consistency.service.ts:220-298` (`generateImage`) / `:322-352` (`attachImage`). 엔티티 타입별 system prompt (`ENTITY_SYSTEM_PROMPTS`, `:68-75`) 와 출력 비율(`ENTITY_OUTPUT_SHAPE`, `:54-61`)이 적용되어 패널-룰 대신 캐릭터 시트/환경 콘셉트/세계관 무드 보드 톤을 강제한다. style 은 그림체 자체가 다른 패널 결과의 일관성 기준이라 `generate` 자체를 거부 (`CONSISTENCY_GENERATE_UNSUPPORTED`).
+
+키 조회는 **`try` 안에 있다**(`consistency.service.ts:283`). 밖에 두면 쿼터 초과·키 없음 같은
 평범한 정책 거부가 `HttpException` 이 아닌 채로 예외 필터까지 올라가 500 `INTERNAL_ERROR` 가
 되고, 서버 로그에는 정상 거부가 `unhandled exception` ERROR 로 쌓여 진짜 장애 신호를 덮는다.
 실패는 전부 `CONSISTENCY_GENERATE_FAILED` + `details.category` 로 나가되 상태 코드만 분기한다 —

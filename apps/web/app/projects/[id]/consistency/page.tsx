@@ -1,7 +1,7 @@
 'use client';
 import { Suspense, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { ImagePlus, X } from 'lucide-react';
+import { ImagePlus } from 'lucide-react';
 import { AppShell } from '@/components/shell/app-shell';
 import { PageContainer } from '@/components/shell/page-container';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
@@ -11,14 +11,17 @@ import {
   ApiPaths,
   ENTITY_TYPES,
   ENTITY_TYPE_LABEL,
+  pageLabel,
   type ConsistencyEntityDTO,
   type EntityType,
+  type PageDTO,
   type ProjectDTO,
 } from '@comicai/types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EntityCard } from '@/components/consistency/entity-card';
+import { EntityImageDialog } from '@/components/consistency/entity-image-dialog';
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
 import { qk } from '@/lib/query-keys';
@@ -49,15 +52,23 @@ function ConsistencyPage() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
   const searchParams = useSearchParams();
+  /*
+   * 에디터에서 왔으면 **보던 페이지로 돌아갈 길**을 남긴다.
+   *
+   * 없을 때 무슨 일이 있었나. 컷을 그리다 캐릭터 설명을 고치러 오면, 여기 브레드크럼은
+   * 대시보드 / 프로젝트 / 설정집 뿐이라 프로젝트 목록까지 나갔다가 페이지를 다시
+   * 골라 들어가야 했다 — 어느 페이지를 보고 있었는지는 사용자가 기억해야 했다.
+   */
+  const fromPageId = searchParams.get('from');
   const [tab, setTab] = useState<EntityType>(() => tabFromQuery(searchParams.get('type')));
   // 화면 문구에 쓰는 현재 탭 이름. 예전에는 전부 '항목' 이라 캐릭터 탭에서
   // "항목이 없습니다" 를 보면 무엇을 만들라는 건지 알 수 없었다.
   const tabLabel = ENTITY_TYPE_LABEL[tab];
   const [editing, setEditing] = useState<ConsistencyEntityDTO | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [pendingImages, setPendingImages] = useState<File[]>([]);
+  /** 저장 직후 참조 이미지 다이얼로그를 열 대상. */
+  const [imageTarget, setImageTarget] = useState<ConsistencyEntityDTO | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const project = useProject(projectId);
@@ -93,6 +104,14 @@ function ConsistencyPage() {
    * 예전에 탭별 키를 둔 이유였던 "이전 탭 카드가 남는다·늦은 응답이 다른 탭에 붙는다"
    * 는 애초에 탭마다 따로 읽었기 때문에 생긴 문제라, 안 나눠 읽으면 사라진다.
    */
+  const { data: fromPage } = useQuery<PageDTO>({
+    queryKey: qk.page(fromPageId),
+    queryFn: () => api<PageDTO>(ApiPaths.page(fromPageId!)),
+    enabled: !!fromPageId,
+    // 돌아갈 링크 하나를 못 읽었다고 설정집 전체를 오류로 바꾸지 않는다.
+    throwOnError: false,
+  });
+
   const { data: all, isLoading } = useQuery<ConsistencyEntityDTO[]>({
     queryKey: qk.consistency(projectId),
     queryFn: () => api<ConsistencyEntityDTO[]>(ApiPaths.projectConsistency(projectId)),
@@ -107,7 +126,14 @@ function ConsistencyPage() {
     );
   }
 
-  async function save(e: React.FormEvent) {
+  /**
+   * 저장.
+   *
+   * @param openImages 새로 만든 항목의 참조 이미지 다이얼로그를 이어서 연다.
+   *   예전에는 이 폼에 `<input type="file">` 하나뿐이라 **AI 로 참조 이미지를
+   *   만드는 길이 카드에만 있었다** — 처음 등록할 때가 가장 필요한 순간인데.
+   */
+  async function save(e: React.FormEvent, openImages = false) {
     e.preventDefault();
     setSubmitting(true);
     try {
@@ -126,25 +152,26 @@ function ConsistencyPage() {
         });
         setItems((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
         toast.push('success', `'${updated.name}'을(를) 수정했습니다.`);
-      } else {
-        const created = await api<ConsistencyEntityDTO>(ApiPaths.projectConsistency(projectId), {
-          method: 'POST',
-          body: JSON.stringify({ type: tab, ...payload }),
-        });
-        // 폼에 첨부된 이미지가 있으면 같은 호출 흐름에서 업로드해 새 카드에 즉시 반영.
-        let final = created;
-        if (pendingImages.length > 0) {
-          const fd = new FormData();
-          for (const f of pendingImages) fd.append('files', f);
-          final = await api<ConsistencyEntityDTO>(ApiPaths.consistencyImages(created.id), {
-            method: 'POST',
-            body: fd,
-          });
-        }
-        setItems((prev) => [final, ...prev]);
-        toast.push('success', `'${final.name}'을(를) 추가했습니다.`);
+        resetForm();
+        if (openImages) setImageTarget(updated);
+        return;
       }
+      const created = await api<ConsistencyEntityDTO>(ApiPaths.projectConsistency(projectId), {
+        method: 'POST',
+        body: JSON.stringify({ type: tab, ...payload }),
+      });
+      setItems((prev) => [created, ...prev]);
+      /*
+       * 처음 만든 그림체는 서버가 대표로 지정한다(`ConsistencyService.create`).
+       * 그 결과는 프로젝트에 남으므로 캐시를 다시 읽어야 '대표' 배지와 컷 인스펙터의
+       * 기본 그림체가 따라온다.
+       */
+      if (tab === 'style' && !defaultStyleId) {
+        void queryClient.invalidateQueries({ queryKey: qk.project(projectId) });
+      }
+      toast.push('success', `'${created.name}'을(를) 추가했습니다.`);
       resetForm();
+      if (openImages) setImageTarget(created);
     } catch (err) {
       toast.push('error', errorMessage(err, `${tabLabel}을(를) 저장`));
     } finally {
@@ -155,8 +182,6 @@ function ConsistencyPage() {
   function resetForm() {
     setEditing(null);
     setForm(EMPTY_FORM);
-    setPendingImages([]);
-    if (fileRef.current) fileRef.current.value = '';
   }
 
   async function remove(id: string) {
@@ -183,8 +208,6 @@ function ConsistencyPage() {
       aliases: item.aliases.join(', '),
       description: item.description,
     });
-    setPendingImages([]);
-    if (fileRef.current) fileRef.current.value = '';
     // 폼이 화면 밖이면 '수정' 을 눌러도 아무 일도 안 일어난 것처럼 보인다.
     // 폼으로 데려가고 이름 칸에 커서를 둔다.
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -202,6 +225,15 @@ function ConsistencyPage() {
           items={[
             { label: '대시보드', href: '/dashboard' },
             { label: project?.name ?? '…', href: `/projects/${projectId}` },
+            // 에디터에서 왔을 때만 한 칸 더. 그 칸이 돌아가는 길이다.
+            ...(fromPage
+              ? [
+                  {
+                    label: pageLabel(fromPage),
+                    href: `/projects/${projectId}/pages/${fromPage.id}`,
+                  },
+                ]
+              : []),
             { label: '설정집' },
           ]}
         />
@@ -269,52 +301,27 @@ function ConsistencyPage() {
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-body-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
-            {!editing && (
-              <div className="space-y-2">
-                <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-border px-3 py-3 text-caption text-muted-foreground hover:border-foreground/40 hover:text-foreground">
-                  <ImagePlus className="h-3.5 w-3.5" />
-                  <span>
-                    참조 이미지 첨부{pendingImages.length > 0 ? ` (${pendingImages.length})` : ''}
-                  </span>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => setPendingImages(Array.from(e.target.files ?? []))}
-                  />
-                </label>
-                {pendingImages.length > 0 && (
-                  <ul className="flex flex-wrap gap-2">
-                    {pendingImages.map((f, i) => (
-                      <li
-                        key={`${f.name}-${i}`}
-                        className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-caption"
-                      >
-                        <span className="max-w-[120px] truncate">{f.name}</span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPendingImages((prev) => prev.filter((_, idx) => idx !== i))
-                          }
-                          className="-my-1 flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
-                          title="제거"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-            <div className="flex gap-2">
+            {/*
+              참조 이미지는 **저장한 뒤** 붙는다. AI 생성도 업로드도 서버에서 이 항목의
+              id 를 쓰기 때문이다. 예전에는 이 폼에 파일 선택 하나뿐이라, AI 로 참조를
+              만드는 길이 카드에만 있었다 — 처음 등록할 때가 가장 필요한 순간인데.
+            */}
+            <div className="flex flex-wrap gap-2">
               <Button type="submit" size="sm" disabled={submitting}>
                 {submitting ? '저장 중…' : editing ? '저장' : '추가'}
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={submitting || !form.name.trim()}
+                onClick={(e) => void save(e, true)}
+              >
+                <ImagePlus className="h-3.5 w-3.5" />
+                {editing ? '저장하고 참조 이미지' : '추가하고 참조 이미지'}
+              </Button>
               {editing && (
-                <Button type="button" variant="outline" size="sm" onClick={resetForm}>
+                <Button type="button" variant="ghost" size="sm" onClick={resetForm}>
                   취소
                 </Button>
               )}
@@ -360,6 +367,22 @@ function ConsistencyPage() {
             </ul>
           )}
         </section>
+
+        {/* 방금 만든(또는 고른) 항목에 참조 이미지를 붙인다. 카드의 '+ 이미지' 와 같은 창. */}
+        {imageTarget && (
+          <EntityImageDialog
+            open
+            onOpenChange={(v) => {
+              if (!v) setImageTarget(null);
+            }}
+            entityId={imageTarget.id}
+            entityType={imageTarget.type}
+            onUpdated={(e) => {
+              applyUpdated(e);
+              setImageTarget(null);
+            }}
+          />
+        )}
       </PageContainer>
     </AppShell>
   );

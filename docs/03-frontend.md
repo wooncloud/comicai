@@ -208,6 +208,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
   - `speech-bubble-inspector.tsx` — `speech-bubble` shape 선택 시. variant/strokeWidth/strokeColor/fillColor 만 (텍스트 키 없음)
 - 공용 입력:
   - `number-field.tsx` — 디바운스 + 화살표 조정이 있는 숫자 입력. 인스펙터 전반에서 재사용
+  - `stroke-width-field.tsx` — 선 굵기(`StrokeWidthField`, `stroke-width-field.tsx:27`). 슬라이더 1~10 + 숫자 칸. 컷 테두리·말풍선 선·직선이 공유한다
   - `align-toggle.tsx` — `TextAlign` 토글 (left/center/right). PageText/SpeechBubble 공유
   - `section-label.tsx` — 아이콘 + 캡션 섹션 헤더
   - `collapse-button.tsx` / `collapse-rail.tsx` — 좌/우 사이드바 접기/펴기
@@ -275,7 +276,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 | `['projects']`               | `app/dashboard/page.tsx:16`                 | 프로젝트 목록 (`qk.projects()`). 생성/패치/삭제는 모두 `queryClient.setQueryData<ProjectDTO[]>(...)`로 옵티미스틱 갱신 (`:21-35`)           |
 | `['project', id]`            | `lib/use-project.ts:9`                      | 단일 프로젝트 (`qk.project(id)`). `enabled: !!projectId`                                                                                    |
 | `['panel-history', panelId]` | `components/editor/history-tray.tsx:22`     | 패널의 렌더 잡 목록 (`qk.panelHistory(panelId)`). `restore` mutation 성공 시 `invalidateQueries` (`:34`)                                    |
-| `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:81`  | 단일 렌더 잡 (`qk.renderJob(jobId)`). `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치                            |
+| `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:84`  | 단일 렌더 잡 (`qk.renderJob(jobId)`). `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치                            |
 | `['token-balance']`          | `lib/tokens.ts:51`                          | 현재 사용자 토큰 잔액 (`qk.tokenBalance()`). 상단바 배지와 충전 화면이 공유. `throwOnError: false`                                          |
 | `['token-history']`          | `lib/tokens.ts:93`                          | 토큰 사용/충전/조정 내역 (`qk.tokenHistory()`). 렌더 종료 시 `useRefreshTokens()` 로 무효화                                                 |
 | `['billing-packages']`       | `app/settings/billing/page.tsx:110`         | 충전 패키지 목록 및 입금 안내 (`qk.billingPackages()`). `notice === null` 이면 요청 버튼 미노출                                             |
@@ -287,8 +288,8 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 뮤테이션은 화면과 상황에 맞게 `useMutation` 과 직접 `api()` 호출을 섞어 쓴다.
 
-- `panel-inspector.tsx:140` `startRender` — `POST /panels/:id/render` 후 `setQueryData(qk.renderJob(jobId), ...)` 로 낙관적 'queued' 상태를 캐시에 시드하고 `subscribeJob(jobId)` 로 SSE 연결
-- `panel-inspector.tsx:171` `cancelRender` — `POST /render-jobs/:id/cancel` 후 잡 상태 'canceled' 패치 및 SSE 연결 종료
+- `panel-inspector.tsx:167` `startRender` — `POST /panels/:id/render` 후 `setQueryData(qk.renderJob(jobId), ...)` 로 낙관적 'queued' 상태를 캐시에 시드하고 `subscribeJob(jobId)` 로 SSE 연결
+- `panel-inspector.tsx:198` `cancelRender` — `POST /render-jobs/:id/cancel` 후 잡 상태 'canceled' 패치 및 SSE 연결 종료
 - `history-tray.tsx:29` `restore` — `POST /render-jobs/:id/restore` 후 부모 콜백 + `qk.panelHistory(panelId)` 무효화
 - `charge-dialog.tsx:47` `create` — `POST /billing/orders` 후 `qk.billingOrders()` 무효화
 - `app/settings/billing/page.tsx:181` `cancel` — `DELETE /billing/orders/:id` 후 `qk.billingOrders()` 무효화
@@ -429,7 +430,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 있고, 그걸 되쓰면 그 뒤 이 도형의 모든 편집이 저장 큐에서 "id 없음" 으로 걸러진다. 색을 한 번
 바꿨을 뿐인데 영구히 저장되지 않았다.
 
-컷 테두리는 아예 다른 경로를 쓴다 — `PATCH /v1/panels/:id` 의 `stroke` 필드(`panel-inspector.tsx:287`).
+컷 테두리는 아예 다른 경로를 쓴다 — `PATCH /v1/panels/:id` 의 `stroke` 필드(`panel-inspector.tsx:314`).
 `shape` 전체를 보내면 낡은 좌표까지 같이 써서 방금 옮긴 위치가 되돌아간다.
 
 #### `use-page-frame.ts`
@@ -635,6 +636,59 @@ apps/web/
   사라지고, 덤으로 탭 전환이 즉시가 된다. 프로젝트 하나의 설정집은 수십 개 규모라
   네 번 나눠 읽을 이유가 없다.
 
+### 굵기는 슬라이더로 — 숫자만으로는 정해지지 않는다
+
+컷 테두리·말풍선 선·직선의 굵기는 `StrokeWidthField`(`components/editor/stroke-width-field.tsx:27`)
+하나를 쓴다. 범위는 1~10 이다.
+
+- **슬라이더인 이유**: 굵기는 "얼마나 굵은가" 가 눈으로 보여야 정해진다. 숫자 칸만
+  있으면 3 과 6 의 차이를 머릿속으로 그려야 하고, 결국 값을 넣고 캔버스를 보고 다시
+  넣기를 반복하게 된다. 끄는 동안(`onChange`) 바로 반영해 그 왕복을 없앤다.
+- **숫자 칸도 남기는 이유**: 슬라이더만 두면 "7 로 맞춰 둔 것과 똑같이" 가 안 된다.
+  키보드로 값을 넣는 길이기도 하다.
+- 지나온 구간만 진하게 칠한다(인라인 배경 그라디언트). 손잡이 모양은
+  `globals.css` 의 `.range-track::-webkit-slider-thumb`.
+- 예전 범위는 0~20/1~40 이었다. 0(테두리 없음)은 인스펙터에서 더 이상 집을 수 없다 —
+  운영 데이터에 0 을 쓴 컷은 하나도 없었다(2026-09-25 확인). 서버 스키마는 그대로라
+  이미 저장된 값은 살아 있다.
+
+### 컷 인스펙터: 설명 칸이 먼저, 콘티는 내렸다
+
+- 설명 칸이 한 줄 높이로 시작했다. 장면 설명은 보통 두세 문장이라 쓰는 동안 칸이
+  아래로 자라며 밑엣것들을 밀어냈다. 이제 6.5rem 자리를 먼저 잡고, 길어지면 그 안에서
+  스크롤한다(`components/editor/panel-editor.tsx:59`). 안쪽 여백도 줄였다 — 폭 320px
+  인스펙터에서 12px 여백은 글자가 쓸 폭을 그만큼 뺏는다.
+- **콘티(구도 스케치)는 화면에서 내렸다**(`FEATURES.conti`, `lib/features.ts:36`).
+  컷 하나를 그리려고 스케치를 따로 그려 올리는 흐름이 실제로 쓰이지 않았는데,
+  인스펙터에서 가장 큰 자리를 차지했다. 코드와 API 는 `@deprecated` 로 남아 있어
+  플래그 한 줄로 되돌아온다(`panel-inspector.tsx:336`).
+
+### 그림체 없이 그리려 하면 설정집으로 데려간다
+
+그림체는 이 제품이 "같은 그림으로 여러 컷" 을 만드는 방식 그 자체인데, 등록하지 않아도
+생성 버튼은 눌렸다. 화풍이 컷마다 달라진다는 사실은 **여러 장 그려 본 뒤에야** 보이고,
+그때는 이미 토큰을 썼다.
+
+- 프로젝트에 그림체가 하나도 없으면 첫 생성 앞에서 한 번 묻는다
+  (`requestRender`, `components/editor/panel-inspector.tsx:156`). '설정집으로' 를 누르면
+  `?type=style&from=<pageId>` 로 간다.
+- 목록을 아직 못 읽었으면(`undefined`) 막지 않는다. 조회 실패로 생성이 잠기면 사용자가
+  할 수 있는 일이 없어진다.
+- `from` 은 **돌아올 페이지**다. 설정집의 브레드크럼이 그 페이지를 한 칸 더 그려
+  (`app/projects/[id]/consistency/page.tsx:62`), 캐릭터 설명 한 줄 고치고 바로 그리던
+  자리로 돌아온다. 예전에는 프로젝트 목록까지 나갔다가 페이지를 다시 골라야 했고,
+  어느 페이지였는지는 사용자가 기억해야 했다.
+
+### 참조 이미지는 저장한 뒤 붙는다
+
+설정집 폼의 '추가하고 참조 이미지'(`app/projects/[id]/consistency/page.tsx:321`)는 항목을
+저장한 **뒤** 카드의 '+ 이미지' 와 같은 창을 연다. AI 생성도 업로드도 서버에서 이 항목의
+id 를 쓰기 때문에 저장 없이는 붙일 수 없다.
+
+예전에는 폼에 파일 선택 하나뿐이라, **AI 로 참조를 만드는 길이 카드에만 있었다** —
+처음 등록할 때가 가장 필요한 순간인데. 파일 선택은 창의 업로드 탭이 대신한다(미리보기와
+검증이 거기 있다).
+
 ### 색은 고를 값을 정해 준다 — `<input type="color">` 를 안 쓰는 이유
 
 인스펙터의 색 입력 여섯 자리(컷 테두리·말풍선 채움/선/글자·직선·페이지 배경)는 전부
@@ -833,7 +887,7 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
   프리미티브에 둔 것은 새로 추가되는 버튼까지 자동으로 적용되게 하기 위해서다.
   - 반대로 여기를 `button, a` 같은 전역 요소 선택자로 올리면 안 된다. 아이콘 버튼·본문 인라인
     링크·tldraw 툴바가 한꺼번에 망가진다. 폰트 하한과 층이 다른 이유가 이것이다.
-- **`.tap-link`** (`app/globals.css:164-168`) — 본문 문장 안에 놓인 링크(회원가입, 비밀번호 찾기,
+- **`.tap-link`** (`app/globals.css:183-187`) — 본문 문장 안에 놓인 링크(회원가입, 비밀번호 찾기,
   브레드크럼)의 탭 영역. 글자 높이만으로는 20px 남짓이다. 마우스 환경에서는 아무것도 하지 않고,
   터치에서만 `-my-2 inline-flex min-h-11` 이 붙어 문단 흐름을 유지한 채 탭 영역만 넓힌다.
 - **`.reveal-on-hover`** (`app/globals.css:115-121`) — hover 로만 드러나는 보조 액션(썸네일 변경,
@@ -907,13 +961,13 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 
 `panel-inspector.tsx` 의 생성 영역(`생성하기`, `components/editor/panel-inspector.tsx:459`)은 모델별 토큰 단가와 부족 상태를 표시한다.
 
-- **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:471`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
-- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:482`, `lib/tokens.ts:151`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:484`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
+- **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:507`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
+- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:518`, `lib/tokens.ts:151`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:520`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
 - **버튼을 잠그지 않는 이유 (`components/editor/panel-inspector.tsx:468-471`)**:
   - 잔액이 부족해도 **생성하기 버튼을 비활성화(`disabled`)하지 않는다.**
   - 화면의 잔액은 캐시일 뿐이라 방금 운영자에게 지급받은 토큰이 아직 캐시에 도착하지 않았을 수 있다. 버튼을 잠그면 사용자는 새로고침 외에 아무것도 할 수 없게 된다.
   - 진짜 잔액 판정은 서버가 하며, 서버에서 거부되면 상세 메시지(`insufficientTokensMessage`, `lib/error-message.ts:130`)로 필요한 토큰과 현재 잔액을 정확히 알려 준다.
-  - 서버에서 토큰 부족 에러가 돌아오면 `components/editor/panel-inspector.tsx:166` 에서 즉시 `refreshTokens()` 를 호출해 캐시를 서버 잔액과 일치시킨다.
+  - 서버에서 토큰 부족 에러가 돌아오면 `components/editor/panel-inspector.tsx:193` 에서 즉시 `refreshTokens()` 를 호출해 캐시를 서버 잔액과 일치시킨다.
 - **빈 컷 안내 우선 (`docs/develop-docs/50-owner/02-verify.md` B-5)**: 컷 본문·콘티·참조 이미지가 모두 없는 빈 컷에서는 토큰 부족 문구 대신 컷 내용 입력 안내 오류가 우선한다. 사용자가 토큰을 충전하고 돌아와서야 컷이 비어 있다는 사실을 알게 되는 낭비를 방지한다.
 
 ### 운영자 화면 (/admin)과 권한 차단
