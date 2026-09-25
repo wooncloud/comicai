@@ -194,7 +194,6 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
   - `speech-bubble-inspector.tsx` — `speech-bubble` shape 선택 시. variant/strokeWidth/strokeColor/fillColor 만 (텍스트 키 없음)
 - 공용 입력:
   - `number-field.tsx` — 디바운스 + 화살표 조정이 있는 숫자 입력. 인스펙터 전반에서 재사용
-  - `hex-color-field.tsx` — `#RRGGBB` 컬러 입력 + 라이브 검증 + commit
   - `align-toggle.tsx` — `TextAlign` 토글 (left/center/right). PageText/SpeechBubble 공유
   - `section-label.tsx` — 아이콘 + 캡션 섹션 헤더
   - `collapse-button.tsx` / `collapse-rail.tsx` — 좌/우 사이드바 접기/펴기
@@ -234,6 +233,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 - `dialog.tsx:3-9` — `@radix-ui/react-dialog` 래퍼 (Overlay/Content/Header/Footer/Title/Description/Close)
 - `dropdown-menu.tsx`, `select.tsx`, `avatar.tsx`, `radio-group.tsx`, `tooltip.tsx` — 동명 Radix 패키지 래퍼
 - `input.tsx`, `breadcrumb.tsx` — 순수 컴포넌트 (Radix 미사용)
+- `color-field.tsx` — 색 고르개(`ColorField`, `color-field.tsx:42`). 인스펙터의 모든 색 입력이 쓴다. 후술
 - `toast.tsx` — 후술 (sonner 래퍼)
 
 ### components/billing
@@ -557,7 +557,7 @@ apps/web/
 │   │   ├── placeholder-extension.ts  # 빈 칸 안내(ProseMirror Decoration)
 │   │   ├── mention-{extension,suggestion}.{ts,tsx}
 │   │   ├── conti-dialog.tsx          # 콘티 업/다운/삭제
-│   │   ├── (number-field|hex-color-field|align-toggle|section-label|collapse-button|collapse-rail|tool-rail).tsx
+│   │   ├── (number-field|align-toggle|section-label|collapse-button|collapse-rail|tool-rail).tsx
 │   │   ├── (page-sidebar|page-size-select|export-dialog|save-status|panel-status-badge).tsx
 │   │   └── tldraw/             # comic-editor, comic-panel-{shape,tool},
 │   │                           # polygon-{panel-tool,preview,state}, polygon-tool-base,
@@ -580,6 +580,32 @@ apps/web/
 ```
 
 ## 10. 관찰된 패턴 / 제약
+
+### 색은 고를 값을 정해 준다 — `<input type="color">` 를 안 쓰는 이유
+
+인스펙터의 색 입력 여섯 자리(컷 테두리·말풍선 채움/선/글자·직선·페이지 배경)는 전부
+`ColorField`(`components/ui/color-field.tsx:42`) 하나를 쓴다. 예전에는 네이티브
+`<input type="color">` 였다.
+
+- 그건 **OS 색상 선택 창**을 띄운다. 창이 앱 밖에 떠서 어떤 칸을 고치는 중인지 잃고,
+  운영체제마다 생김새가 다르며, 무엇보다 아무 색이나 고르게 한다 — 한 페이지 안에서
+  서로 어울리지 않는 색이 섞이는 가장 빠른 길이다.
+- 그래서 **쓸 만한 색을 먼저 내민다**(`PRESETS`, `color-field.tsx:16`). 무채색 한 줄,
+  따뜻한 색 한 줄, 차가운 색 한 줄. 컷 테두리는 거의 검정이고 말풍선은 흰색·미색이라
+  무채색이 맨 위다.
+- 그래도 없으면 직접 집는다(`CustomPicker`, `color-field.tsx:172`). 채도·밝기 판과
+  색상 띠 — 띠를 `<input type="range">` 로 둔 것은 방향키로 조절되고 스크린 리더가
+  읽기 때문이다.
+- 팝오버가 아니라 **그 자리에서 아래로** 펼친다. 이 고르개는 폭 320px 인스펙터 안에만
+  사는데, 좁은 칸에 띄우는 팝오버는 어디에 놓아도 무언가를 가린다.
+- 색과 굵기를 한 줄에 두지 않는다(`panel-inspector.tsx`, `speech-bubble-inspector.tsx`).
+  색칸이 펼쳐지면 그 줄 전체가 높아지면서 굵기 칸이 팔레트 옆에 떠, 무엇에 딸린 값인지
+  흐려진다.
+- hex ↔ HSV 변환은 `lib/color.ts`. `hex → hsv → hex` 왕복이 값을 바꾸지 않는다는 것이
+  `lib/color.spec.ts` 로 묶여 있다 — 어긋나면 색칸을 열었다 닫기만 해도 색이 바뀐 것으로
+  저장된다.
+- 흰색에 가까운 견본에는 테두리를 두른다(`isNearWhite`, `lib/color.ts:111`). 안 그러면
+  흰 바탕에서 빈 칸으로 보인다.
 
 ### 설정집은 '설정' 이 아니다 — 프로젝트 화면에 둔다
 
@@ -748,7 +774,7 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
   프리미티브에 둔 것은 새로 추가되는 버튼까지 자동으로 적용되게 하기 위해서다.
   - 반대로 여기를 `button, a` 같은 전역 요소 선택자로 올리면 안 된다. 아이콘 버튼·본문 인라인
     링크·tldraw 툴바가 한꺼번에 망가진다. 폰트 하한과 층이 다른 이유가 이것이다.
-- **`.tap-link`** (`app/globals.css:147-151`) — 본문 문장 안에 놓인 링크(회원가입, 비밀번호 찾기,
+- **`.tap-link`** (`app/globals.css:164-168`) — 본문 문장 안에 놓인 링크(회원가입, 비밀번호 찾기,
   브레드크럼)의 탭 영역. 글자 높이만으로는 20px 남짓이다. 마우스 환경에서는 아무것도 하지 않고,
   터치에서만 `-my-2 inline-flex min-h-11` 이 붙어 문단 흐름을 유지한 채 탭 영역만 넓힌다.
 - **`.reveal-on-hover`** (`app/globals.css:115-121`) — hover 로만 드러나는 보조 액션(썸네일 변경,

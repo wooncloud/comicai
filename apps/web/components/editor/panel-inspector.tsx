@@ -26,7 +26,7 @@ const PanelTextEditor = dynamic(() => import('./panel-editor').then((m) => m.Pan
 import { PanelStatusBadge } from './panel-status-badge';
 import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
-import { HexColorField } from './hex-color-field';
+import { ColorField } from '@/components/ui/color-field';
 import { NumberField } from './number-field';
 import { HistoryTray } from './history-tray';
 import { ContiDialog } from './conti-dialog';
@@ -539,13 +539,12 @@ function PanelStrokeEditor({
   return (
     <div className="space-y-2">
       <SectionLabel icon={Square}>컷 테두리</SectionLabel>
+      {/*
+        색과 굵기를 한 줄에 두지 않는다. 색칸이 펼쳐지면 그 줄 전체가 높아지면서
+        굵기 칸이 팔레트 옆에 떠 버린다 — 무엇에 딸린 값인지 흐려진다.
+      */}
+      <ColorField value={color} onCommit={commitColor} ariaLabel="컷 테두리 색" variant="panel" />
       <div className="flex items-center gap-2">
-        <HexColorField
-          value={color}
-          onCommit={commitColor}
-          ariaLabel="컷 테두리 색"
-          variant="panel"
-        />
         <NumberField
           value={width}
           min={0}
@@ -554,7 +553,7 @@ function PanelStrokeEditor({
           onCommit={commitWidth}
           ariaLabel="컷 테두리 굵기 (px)"
         />
-        <span className="text-caption text-muted-foreground">px</span>
+        <span className="text-caption text-muted-foreground">px 굵기</span>
       </div>
     </div>
   );

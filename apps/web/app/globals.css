@@ -121,6 +121,23 @@
   }
 
   /*
+   * 색상 띠의 손잡이(`components/ui/color-field.tsx`).
+   *
+   * `appearance-none` 으로 트랙을 지우면 손잡이도 같이 사라진다 — 브라우저마다
+   * 가상 요소 이름이 달라 둘 다 적는다. 흰 테두리에 검은 실선을 둘러, 띠의 어느
+   * 색 위에 놓여도 보인다.
+   */
+  .hue-slider::-webkit-slider-thumb {
+    @apply h-4 w-4 appearance-none rounded-full border-2 border-white;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.45);
+  }
+  .hue-slider::-moz-range-thumb {
+    @apply h-4 w-4 rounded-full border-2 border-white;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.45);
+    background: transparent;
+  }
+
+  /*
    * 빈 컷 설명 칸의 안내 문구(`components/editor/placeholder-extension.ts`).
    *
    * `:empty` 로는 잡히지 않는다 — ProseMirror 의 빈 문단에는 커서를 세우려고

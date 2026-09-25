@@ -6,7 +6,7 @@ import { PageSizeSelect } from './page-size-select';
 import { Button } from '@/components/ui/button';
 import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
-import { HexColorField } from './hex-color-field';
+import { ColorField } from '@/components/ui/color-field';
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
 
@@ -62,9 +62,7 @@ export function PageInspector({ page, onPageUpdated, onExport, onCollapse }: Pro
 
       <div className="space-y-2">
         <SectionLabel icon={Palette}>배경 색</SectionLabel>
-        <div className="flex items-center gap-2">
-          <HexColorField value={currentColor} onCommit={commitColor} ariaLabel="페이지 배경 색" />
-        </div>
+        <ColorField value={currentColor} onCommit={commitColor} ariaLabel="페이지 배경 색" />
         {hasColor && (
           <button
             type="button"

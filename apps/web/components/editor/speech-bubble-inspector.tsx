@@ -11,7 +11,7 @@ import {
 import type { SpeechBubbleShape } from './tldraw/speech-bubble-shape';
 import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
-import { HexColorField } from './hex-color-field';
+import { ColorField } from '@/components/ui/color-field';
 import { NumberField } from './number-field';
 import { AlignToggle } from './align-toggle';
 import {
@@ -63,24 +63,26 @@ export function SpeechBubbleInspector({
         <SectionLabel icon={MessageSquare}>말풍선</SectionLabel>
         <div className="space-y-1">
           <div className="text-caption text-muted-foreground">채움</div>
-          <div className="flex items-center gap-2">
-            <HexColorField
-              value={p.fillColor}
-              onCommit={(v) => patch({ fillColor: v })}
-              ariaLabel="말풍선 채움색"
-              variant="panel"
-            />
-          </div>
+          <ColorField
+            value={p.fillColor}
+            onCommit={(v) => patch({ fillColor: v })}
+            ariaLabel="말풍선 채움색"
+            variant="panel"
+          />
         </div>
         <div className="space-y-1">
           <div className="text-caption text-muted-foreground">선</div>
+          {/*
+            색과 굵기를 한 줄에 두지 않는다. 색칸이 펼쳐지면 그 줄 전체가 높아지면서
+            굵기 칸이 팔레트 옆에 떠 버린다 — 무엇에 딸린 값인지 흐려진다.
+          */}
+          <ColorField
+            value={p.strokeColor}
+            onCommit={(v) => patch({ strokeColor: v })}
+            ariaLabel="말풍선 선 색"
+            variant="panel"
+          />
           <div className="flex items-center gap-2">
-            <HexColorField
-              value={p.strokeColor}
-              onCommit={(v) => patch({ strokeColor: v })}
-              ariaLabel="말풍선 선 색"
-              variant="panel"
-            />
             <NumberField
               value={p.strokeWidth}
               min={0}
@@ -89,7 +91,7 @@ export function SpeechBubbleInspector({
               onCommit={(v) => patch({ strokeWidth: v })}
               ariaLabel="말풍선 선 굵기"
             />
-            <span className="text-caption text-muted-foreground">px</span>
+            <span className="text-caption text-muted-foreground">px 굵기</span>
           </div>
         </div>
 
@@ -175,14 +177,12 @@ export function SpeechBubbleInspector({
 
         <div className="space-y-1">
           <div className="text-caption text-muted-foreground">글자 색</div>
-          <div className="flex items-center gap-2">
-            <HexColorField
-              value={p.textColor}
-              onCommit={(v) => patch({ textColor: v })}
-              ariaLabel="대사 글자 색"
-              variant="panel"
-            />
-          </div>
+          <ColorField
+            value={p.textColor}
+            onCommit={(v) => patch({ textColor: v })}
+            ariaLabel="대사 글자 색"
+            variant="panel"
+          />
         </div>
 
         {onReorder && (

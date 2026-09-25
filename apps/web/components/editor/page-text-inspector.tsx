@@ -9,7 +9,7 @@ import {
 import type { PageTextShape } from './tldraw/page-text-shape';
 import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
-import { HexColorField } from './hex-color-field';
+import { ColorField } from '@/components/ui/color-field';
 import { NumberField } from './number-field';
 import { AlignToggle } from './align-toggle';
 import {
@@ -100,14 +100,12 @@ export function PageTextInspector({
 
         <div className="space-y-1">
           <div className="text-caption text-muted-foreground">색</div>
-          <div className="flex items-center gap-2">
-            <HexColorField
-              value={p.color}
-              onCommit={(v) => patch({ color: v })}
-              ariaLabel="글자 색"
-              variant="panel"
-            />
-          </div>
+          <ColorField
+            value={p.color}
+            onCommit={(v) => patch({ color: v })}
+            ariaLabel="글자 색"
+            variant="panel"
+          />
         </div>
 
         {onReorder && (

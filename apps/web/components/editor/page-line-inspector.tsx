@@ -5,7 +5,7 @@ import { PAGE_LINE_STROKE_STYLES, type PageLineStrokeStyle } from '@comicai/type
 import type { PageLineShape } from './tldraw/page-line-shape';
 import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
-import { HexColorField } from './hex-color-field';
+import { ColorField } from '@/components/ui/color-field';
 import { NumberField } from './number-field';
 import {
   Select,
@@ -61,14 +61,12 @@ export function PageLineInspector({
 
         <div className="space-y-1">
           <div className="text-caption text-muted-foreground">색</div>
-          <div className="flex items-center gap-2">
-            <HexColorField
-              value={p.strokeColor}
-              onCommit={(v) => patch({ strokeColor: v })}
-              ariaLabel="선 색"
-              variant="panel"
-            />
-          </div>
+          <ColorField
+            value={p.strokeColor}
+            onCommit={(v) => patch({ strokeColor: v })}
+            ariaLabel="선 색"
+            variant="panel"
+          />
         </div>
 
         <div className="space-y-1">
