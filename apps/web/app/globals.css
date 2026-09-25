@@ -121,6 +121,21 @@
   }
 
   /*
+   * 빈 컷 설명 칸의 안내 문구(`components/editor/placeholder-extension.ts`).
+   *
+   * `:empty` 로는 잡히지 않는다 — ProseMirror 의 빈 문단에는 커서를 세우려고
+   * 넣는 `<br>` 가 들어 있다. 그래서 확장이 붙여 준 클래스를 본다.
+   *
+   * `float` 인 이유: `position: absolute` 로 띄우면 문단이 높이를 잃어 칸이
+   * 한 줄 높이로 쪼그라들었다가 글을 쓰는 순간 다시 벌어진다. float 는 문단
+   * 흐름 안에 남아 높이를 지킨다.
+   */
+  .tiptap-placeholder::before {
+    content: attr(data-placeholder);
+    @apply pointer-events-none float-left h-0 text-muted-foreground;
+  }
+
+  /*
    * 본문 문장 안에 놓인 링크("회원가입", "비밀번호 찾기", 브레드크럼)의 탭 영역.
    * 글자 높이만으로는 20px 남짓이라 손가락으로 정확히 누르기 어렵다.
    *

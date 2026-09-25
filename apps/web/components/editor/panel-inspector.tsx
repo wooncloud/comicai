@@ -456,6 +456,9 @@ export function PanelInspector({
             <Button
               onClick={() => startRender.mutate()}
               disabled={startRender.isPending}
+              // 단축키는 여기서만 말한다. 예전에는 설명 칸 아래 회색 한 줄이
+              // 상주하면서 알려 줬는데, 그 자리는 이제 플레이스홀더가 쓴다.
+              title="⌘/Ctrl + Enter"
               className="w-full"
             >
               생성하기

@@ -182,7 +182,8 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 ### components/editor (TipTap 측 + 인스펙터 + 공용 입력)
 
-- `panel-editor.tsx` — TipTap `useEditor`로 `StarterKit`(heading/codeBlock/blockquote off) + `ComicMention`. `onUpdate`에서 `editor.getJSON()`을 `TipTapDoc`으로 콜백. `immediatelyRender: false` (SSR 호환)
+- `panel-editor.tsx` — TipTap `useEditor`로 `StarterKit`(heading/codeBlock/blockquote off) + `ComicMention` + `Placeholder`. `onUpdate`에서 `editor.getJSON()`을 `TipTapDoc`으로 콜백. `immediatelyRender: false` (SSR 호환)
+- `placeholder-extension.ts` — 빈 칸 안내를 ProseMirror `Decoration` 으로 붙이는 자체 확장(`Placeholder`, `placeholder-extension.ts:15`). `@tiptap/extension-placeholder` 를 받지 않은 이유와 `:empty` 가 안 되는 이유(빈 문단 안의 `<br>`)가 파일 주석에 있다. 그리는 것은 `globals.css` 의 `.tiptap-placeholder::before`
 - `mention-extension.ts:1-16` — `@tiptap/extension-mention` 확장, attrs `{ id, label, version, deleted }`를 직렬화. 렌더는 `<span data-mention-id=…>@label</span>`
 - `mention-suggestion.tsx` — `@` 트리거 후 일관성 엔티티 검색·삽입 팝업
 - 인스펙터:
@@ -553,6 +554,7 @@ apps/web/
 │   │   ├── speech-bubble-inspector.tsx
 │   │   ├── history-tray.tsx          # useQuery(['panel-history', id])
 │   │   ├── panel-editor.tsx          # TipTap
+│   │   ├── placeholder-extension.ts  # 빈 칸 안내(ProseMirror Decoration)
 │   │   ├── mention-{extension,suggestion}.{ts,tsx}
 │   │   ├── conti-dialog.tsx          # 콘티 업/다운/삭제
 │   │   ├── (number-field|hex-color-field|align-toggle|section-label|collapse-button|collapse-rail|tool-rail).tsx
@@ -746,7 +748,7 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
   프리미티브에 둔 것은 새로 추가되는 버튼까지 자동으로 적용되게 하기 위해서다.
   - 반대로 여기를 `button, a` 같은 전역 요소 선택자로 올리면 안 된다. 아이콘 버튼·본문 인라인
     링크·tldraw 툴바가 한꺼번에 망가진다. 폰트 하한과 층이 다른 이유가 이것이다.
-- **`.tap-link`** (`app/globals.css:131-135`) — 본문 문장 안에 놓인 링크(회원가입, 비밀번호 찾기,
+- **`.tap-link`** (`app/globals.css:147-151`) — 본문 문장 안에 놓인 링크(회원가입, 비밀번호 찾기,
   브레드크럼)의 탭 영역. 글자 높이만으로는 20px 남짓이다. 마우스 환경에서는 아무것도 하지 않고,
   터치에서만 `-my-2 inline-flex min-h-11` 이 붙어 문단 흐름을 유지한 채 탭 영역만 넓힌다.
 - **`.reveal-on-hover`** (`app/globals.css:115-121`) — hover 로만 드러나는 보조 액션(썸네일 변경,
@@ -820,8 +822,8 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 
 `panel-inspector.tsx` 의 생성 영역(`생성하기`, `components/editor/panel-inspector.tsx:459`)은 모델별 토큰 단가와 부족 상태를 표시한다.
 
-- **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:461`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
-- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:472`, `lib/tokens.ts:151`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:474`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
+- **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:466`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
+- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:477`, `lib/tokens.ts:151`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:479`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
 - **버튼을 잠그지 않는 이유 (`components/editor/panel-inspector.tsx:468-471`)**:
   - 잔액이 부족해도 **생성하기 버튼을 비활성화(`disabled`)하지 않는다.**
   - 화면의 잔액은 캐시일 뿐이라 방금 운영자에게 지급받은 토큰이 아직 캐시에 도착하지 않았을 수 있다. 버튼을 잠그면 사용자는 새로고침 외에 아무것도 할 수 없게 된다.
