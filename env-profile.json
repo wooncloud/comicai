@@ -94,7 +94,7 @@
     "FEATURE_API_KEYS": false,
     "NEXT_PUBLIC_FEATURE_API_KEYS": false,
 
-    "EMAIL_FROM": "ComicAI <onboarding@resend.dev>",
+    "EMAIL_FROM": "ComicAI <no-reply@comic.wooncloud.com>",
 
     "BACKUP_SCHEDULE": "0 3 * * *",
     "BACKUP_RETENTION_DAYS": 14,

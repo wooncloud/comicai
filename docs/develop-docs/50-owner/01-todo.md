@@ -92,15 +92,14 @@ PLATFORM_GEMINI_KEY=AIza...
 
 ---
 
-## 3. `RESEND_API_KEY` — 메일이 나가야 하는 이유
+## 3. ~~`RESEND_API_KEY` — 메일이 나가야 하는 이유~~ (끝)
 
-**왜.** 지금은 인증 메일·비밀번호 재설정 메일이 서버 콘솔에만 찍힌다. 사용자는 가입 후
-인증을 못 하고, 비밀번호를 잃으면 되찾을 방법이 없다. 2번의 우회로(도커 로그)는 사장님
-본인 계정에만 쓸 수 있다.
+**왜였나.** 키가 없을 땐 인증 메일·비밀번호 재설정 메일이 서버 콘솔에만 찍혔다. 사용자는
+가입 후 인증을 못 하고, 비밀번호를 잃으면 되찾을 방법이 없었다.
 
-`https://resend.com` 에서 발급 → `RESEND_API_KEY=` 에 넣는다.
-`EMAIL_FROM` 은 지금 Resend 테스트 주소(`onboarding@resend.dev`)라, 도메인을 붙이면
-같이 바꾼다.
+**끝났다(2026-09-25).** 키는 넣었고, `comic.wooncloud.com` 도메인 인증도 마쳤다.
+prod `EMAIL_FROM` 은 `ComicAI <no-reply@comic.wooncloud.com>` — 이제 누구에게나 나간다.
+dev 는 `onboarding@resend.dev` 그대로라 개발 중 발송은 계정 주인에게만 간다.
 
 ---
 
