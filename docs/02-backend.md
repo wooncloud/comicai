@@ -681,7 +681,7 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 - TipTap 멘션 노드에서 `consistencyEntity.id`를 추출(`resolveMentionIds`), DB 조회 후 텍스트에 이름 치환(`serializeTextWithNameReplacement`) — `:38-46`
 - 그림체(`style`) 자동 주입: `panel.styleId ?? project.defaultStyleId` 를 `effectiveStyleId` 로 결정하여 멘션 대상이 아니라도 styles 페이로드에 포함. 멘션된 style 엔티티는 무시 — `:34-36, 61-63`
 - entity type별로 `styles | characters | backgrounds | worldviews` 페이로드 분리 — `:53-67`
-- `aspectRatio`와 `panelSize`는 패널 shape의 bounding box로 계산 — `:85-98`
+- `aspectRatio`와 `panelSize`는 패널 shape의 bounding box로 계산 — `:85-98`. 여기서 나오는 비율은 약분한 실제 값(`73:28` 등)이고, Gemini 로 보낼 때만 허용 비율로 붙인다 (`packages/adapters/src/gemini.ts:126`)
 
 ---
 

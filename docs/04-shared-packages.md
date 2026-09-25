@@ -331,16 +331,18 @@ availableModels(): ModelId[]
 
 - 모델 ID: `gemini-3.1-flash-image-preview` (`:5`).
 - Endpoint: `https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent` (`:6`).
-- 요청 구조: `{ url, headers: { 'x-goog-api-key': apiKey }, body: { contents: [{role:'user', parts: GeminiPart[]}], generationConfig: { responseModalities: ['IMAGE','TEXT'], imageConfig: { aspectRatio } } } }` (`:16-26`, `:57-69`).
+- 요청 구조: `{ url, headers: { 'x-goog-api-key': apiKey }, body: { contents: [{role:'user', parts: GeminiPart[]}], generationConfig: { responseModalities: ['IMAGE','TEXT'], imageConfig: { aspectRatio } } } }` (`:16-26`, `:100-112`).
+- **`imageConfig.aspectRatio` 는 Gemini 가 허용하는 14개 값 중 하나여야 한다** (`gemini.ts:126`). 컷은 사람이 그린 사각형이라 크기를 약분하면 `73:28` 같은 값이 나오고, 그대로 보내면 `400` 이라 컷이 한 장도 안 그려진다.
+- `nearestGeminiAspectRatio` 가 로그 거리로 가장 가까운 허용 비율을 골라 준다 (`:58-75`). 정확한 픽셀 크기는 프롬프트 문장이 따로 전달하므로 구도는 문장이 책임진다.
 - 프롬프트 빌드: styles/characters/backgrounds/worldviews를 각각 `[그림체: ...]`, `[캐릭터: ...]` 등 한국어 태그 텍스트 파트로, 그 뒤 reference 이미지 파트(placeholder), 마지막에 일관성 지시 + userPrompt + seed (`:42-55`).
 - 응답: `candidates[0].content.parts[*].inlineData{mimeType,data(base64)}`에서 첫 inlineData 추출 (`:116-139`).
-- **차단은 두 자리에서 온다.** 프롬프트가 막히면 `promptFeedback.blockReason` (`:135`), **결과
+- **차단은 두 자리에서 온다.** 프롬프트가 막히면 `promptFeedback.blockReason` (`:169-170`), **결과
   이미지**가 막히면 그 필드는 비어 있고 `candidates[0].finishReason` 에만 이유가 담긴 채 HTTP 200
-  이 온다 (`BLOCKED_FINISH_REASONS`, `:32-42`). 후자를 읽지 않으면 "이미지 없음"으로만 보여
+  이 온다 (`BLOCKED_FINISH_REASONS`, `:77-87`). 후자를 읽지 않으면 "이미지 없음"으로만 보여
   `transient` 로 분류되고, `retryLimitFor` 가 3 이라 **통과할 수 없는 요청을 세 번 호출·세 번
   과금**한 뒤 "잠시 후 다시" 를 안내하게 된다.
 - 에러 분류는 공통 `classifyModelHttpError` 에 위임하고, 안전성 판정만 넘긴다
-  (`classifyError`, `:142`): `SAFETY:` 접두 → `safety`.
+  (`classifyError`, `:187`): `SAFETY:` 접두 → `safety`.
 
 ### OpenAIAdapter (`src/openai.ts`)
 

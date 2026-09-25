@@ -29,6 +29,51 @@ interface GeminiRequest {
  * 을 비워 둔 채 candidate 의 `finishReason` 에만 이유를 넣고 200 을 준다. 이걸 읽지 않으면
  * "이미지 없음" 으로만 보여서 재시도 대상이 되고, 절대 통과 못 할 요청을 유료로 반복한다.
  */
+/**
+ * Gemini 의 `imageConfig.aspectRatio` 는 **고정된 목록만** 받는다. 반면 패널은 사람이 캔버스에
+ * 그린 사각형이라 크기를 약분하면 `73:28` 같은 값이 나오고, 그대로 보내면 `400` 이다
+ * (`aspect_ratio must be one of …`). 그러면 생성이 실패해 토큰이 환급되고, 사용자는
+ * **아무 컷도 그릴 수 없다.** 그래서 가장 가까운 허용 비율로 붙여서 보낸다.
+ *
+ * 프롬프트 본문에는 실제 픽셀 크기를 그대로 적는다(`:67`) — 붙인 비율은 모델에 주는 힌트이고,
+ * 정확한 구도는 문장이 책임진다.
+ */
+const GEMINI_ASPECT_RATIOS = [
+  '1:8',
+  '1:4',
+  '9:16',
+  '2:3',
+  '3:4',
+  '4:5',
+  '1:1',
+  '5:4',
+  '4:3',
+  '3:2',
+  '16:9',
+  '21:9',
+  '4:1',
+  '8:1',
+] as const;
+
+export function nearestGeminiAspectRatio(aspect: string): string {
+  const [w, h] = aspect.split(':').map(Number);
+  if (!w || !h || !Number.isFinite(w) || !Number.isFinite(h)) return '1:1';
+  const target = w / h;
+  let best: string = '1:1';
+  let bestDistance = Infinity;
+  for (const candidate of GEMINI_ASPECT_RATIOS) {
+    const [cw, ch] = candidate.split(':').map(Number) as [number, number];
+    // 로그 거리로 재야 가로가 긴 쪽과 세로가 긴 쪽이 대칭으로 다뤄진다 —
+    // 선형 차이로 재면 21:9 같은 큰 값 쪽 간격이 과대평가된다.
+    const distance = Math.abs(Math.log(target / (cw / ch)));
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = candidate;
+    }
+  }
+  return best;
+}
+
 const BLOCKED_FINISH_REASONS = new Set([
   'SAFETY',
   'IMAGE_SAFETY',
@@ -75,10 +120,10 @@ export const GeminiAdapter: ModelAdapter = {
       body: {
         contents: [{ role: 'user', parts }],
         // 이미지 생성 모델은 responseModalities를 요구. responseMimeType은 400을 유발.
-        // imageConfig.aspectRatio로 패널 비율을 모델에 직접 전달(지원 시 자동 적용).
+        // imageConfig.aspectRatio 는 허용 목록에만 있는 값이어야 한다 — 위 nearestGeminiAspectRatio 참고.
         generationConfig: {
           responseModalities: ['IMAGE', 'TEXT'],
-          imageConfig: { aspectRatio: ir.aspectRatio },
+          imageConfig: { aspectRatio: nearestGeminiAspectRatio(ir.aspectRatio) },
         },
       },
     };

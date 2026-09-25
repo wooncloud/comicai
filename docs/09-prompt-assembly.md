@@ -79,14 +79,14 @@ RenderIR {
   ],
   "generationConfig": {
     "responseModalities": ["IMAGE", "TEXT"],
-    "imageConfig": { "aspectRatio": "<aspect>" }
+    "imageConfig": { "aspectRatio": "<허용 목록 중 가장 가까운 비율>" }
   }
 }
 ```
 
 순서 의미: 일관성 메타데이터 → 레퍼런스 이미지들 → 마지막 텍스트 파트(시스템성 지시 + 사용자 본문). 마지막 파트에 사용자 본문과 시스템 지시가 함께 들어가는 이유는 Gemini가 마지막 텍스트 파트의 의도를 강하게 따르기 때문이다.
 
-레퍼런스 이미지는 빌드 단계에서 `__storageKey` 플레이스홀더로만 보관하고, `call()` 직전에 R2에서 base64로 치환한다 (`gemini.ts:86-95`).
+레퍼런스 이미지는 빌드 단계에서 `__storageKey` 플레이스홀더로만 보관하고, `call()` 직전에 R2에서 base64로 치환한다 (`gemini.ts:132-149`).
 
 ### 3.2 OpenAI (`packages/adapters/src/openai.ts:31`, `:111`)
 
@@ -144,7 +144,7 @@ seed=<N>                          ← seed가 있을 때만
 
 비율은 텍스트로 알리는 동시에 가능한 곳에서는 API 파라미터로도 지정한다.
 
-- Gemini: `generationConfig.imageConfig.aspectRatio` (`gemini.ts:74-76`)
+- Gemini: `generationConfig.imageConfig.aspectRatio` — 허용 목록(14개) 안의 값으로 붙여서 보낸다 (`nearestGeminiAspectRatio`, `gemini.ts:58-75`)
 - OpenAI: `size`를 가장 가까운 허용값으로 매핑 (`aspectToSize`, `openai.ts:127-134`)
 
 ## 5. End-to-End 예시
