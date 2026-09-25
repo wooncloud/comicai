@@ -22,7 +22,8 @@ describe('말풍선 대사', () => {
 
   it('줄바꿈은 export 와 같은 wrapText 를 쓴다 — CSS 로 접지 않는다', () => {
     expect(BUBBLE).toContain('wrapText(text,');
-    expect(BUBBLE).toContain('bubbleTextBox(variant, w, h)');
+    // 다각형은 꼭짓점까지 넘겨 안쪽을 직접 구한다.
+    expect(BUBBLE).toContain('bubbleTextBox(variant, w, h, polygonPoints)');
   });
 
   it('편집이 열리면 캐럿을 준다', () => {
