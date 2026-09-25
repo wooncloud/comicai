@@ -50,7 +50,7 @@ App Router 구조. 모든 `page.tsx` 파일.
 | `/settings/(profile\|billing\|api-keys\|security)` | `app/settings/...`                             | 계정 설정. `settings/layout.tsx:13`이 탭 네비 + `AppShell` 공통 적용. `BillingSettingsPage`(`app/settings/billing/page.tsx:25`)는 잔액·충전·주문·내역                               |
 | `/admin`                                           | `app/admin/page.tsx:21`                        | **운영 현황**. `isAdmin` 판정 후 입금 확인 대기(`PendingOrders`)·지표 통계·최근 가입 목록 및 토큰 조정 다이얼로그 제공                                                              |
 | `/projects/[id]/settings`                          | `app/projects/[id]/settings/page.tsx:42`       | 프로젝트 설정. 이름·기본 AI 서비스·프로젝트 삭제만. 설정집은 여기 없다 — 프로젝트 화면에 있다                                                                                       |
-| `/health`                                          | `app/health/page.tsx:6-14`                     | **서버 컴포넌트**. `INTERNAL_API_URL`/`NEXT_PUBLIC_API_URL`로 `/healthz` 호출 후 JSON 덤프                                                                                          |
+| `/health`                                          | `HealthPage`, `app/health/page.tsx:49`         | **서버 컴포넌트**. 공개 상태 페이지. `INTERNAL_API_URL`/`NEXT_PUBLIC_API_URL` 로 `/healthz` 를 불러 웹·서버를 정상/점검 중/응답 없음으로 보여 준다                                  |
 
 루트 레이아웃 `app/layout.tsx:8-12`은 Inter를 주입하고 `<Providers><ToastProvider>` 순으로 감싼다 (`app/layout.tsx:44-46`).
 
@@ -595,6 +595,26 @@ apps/web/
 ```
 
 ## 10. 관찰된 패턴 / 제약
+
+### 상태 페이지는 사용자가 읽는 화면이다
+
+`/health` 는 **로그인 없이 누구나 열 수 있다.** 예전에는 `JSON.stringify` 덤프를
+`<pre>` 에 찍었다 — 만드는 사람에게는 충분하지만, "지금 서비스가 되나" 를 보러 온
+사람에게는 읽을 수 없는 화면이다.
+
+- 맨 위 한 줄이 전부다(`app/health/page.tsx:76`): "모든 기능이 정상입니다" 혹은
+  "일부 기능에 문제가 있습니다". 아래 표는 그 판단의 근거일 뿐이다.
+- 이름은 사용자 말로 쓴다 — `web`/`api` 가 아니라 **웹사이트**(지금 보고 계신 화면)와
+  **서버**(로그인·프로젝트·만화 생성) 다(`checks`, `:52`).
+- **무엇이 죽었는지는 묻지 않는다.** `/healthz` 는 인증 없이 열려 있어서 DB·Redis·S3
+  중 무엇이 죽었는지를 응답에 담지 않는다(`apps/api/src/health/health.controller.ts`).
+  운영자는 로그를 본다. 이 화면이 말할 수 있는 것은 "되느냐" 까지다.
+- 서버가 "문제 있다" 고 답한 것(`점검 중`)과 아예 답이 없는 것(`응답 없음`)을 가른다
+  (`VERDICT_LABEL`, `app/health/page.tsx:140`). 원인이 다르면 사용자가 할 일도 다르다.
+- 시각은 `formatKoreanDateTime`(`lib/datetime.ts:19`)으로 찍는다. **서버 컴포넌트라서**
+  필요한 함수다 — Node 의 ICU 는 `toLocaleString('ko-KR')` 에 `2026년 9월 25일 PM 9:00`
+  을 돌려준다(오전/오후만 영어). 컨테이너 이미지의 ICU 판본에 따라 갈리는 어긋남이라
+  배포한 뒤에야 보인다. 브라우저에서 찍는 다른 화면들은 이 함수가 필요 없다.
 
 ### 설정집 캐시는 하나다 — 같은 데이터를 세 벌로 들고 있던 것
 
