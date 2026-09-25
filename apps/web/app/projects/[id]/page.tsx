@@ -24,6 +24,7 @@ import {
 import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
 import { useConfirm } from '@/components/ui/confirm';
+import { SettingBookSummary } from '@/components/consistency/setting-book-summary';
 
 export default function ProjectDetail() {
   const params = useParams<{ id: string }>();
@@ -83,6 +84,8 @@ export default function ProjectDetail() {
             </Link>
           </Button>
         </div>
+
+        <SettingBookSummary projectId={projectId} />
 
         <section className="mt-10">
           <div className="flex items-center justify-between gap-3">

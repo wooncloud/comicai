@@ -35,22 +35,22 @@ Playwright(`e2e/`)와 typecheck(`tsc --noEmit`)는 dev tooling.
 
 App Router 구조. 모든 `page.tsx` 파일.
 
-| 경로                                               | 파일                                           | 렌더                                                                                                                                                  |
-| -------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                                                | `app/page.tsx:10`                              | 랜딩. `useEffect`로 `GET /me` 시도해 성공 시 `/dashboard`로 replace, 실패 시 히어로 + STEP 3개 + BYOK 안내. `Topbar`만 사용                           |
-| `/dashboard`                                       | `app/dashboard/page.tsx:12`                    | 내 프로젝트 목록. `useQuery(['projects'])`로 로딩, `ProjectRow` 리스트(`:75-79`) + `ProjectCreateDialog`                                              |
-| `/projects`                                        | `app/projects/page.tsx:1`                      | 서버 컴포넌트. `redirect('/dashboard')`                                                                                                               |
-| `/projects/[id]`                                   | `app/projects/[id]/page.tsx:10`                | 프로젝트 상세 — 페이지 목록과 페이지 추가. `useState`/`useEffect`로 로딩 (React Query 미사용)                                                         |
-| `/projects/[id]/pages/[pageid]`                    | `app/projects/[id]/pages/[pageid]/page.tsx:45` | **에디터 본체**. `dynamic(..., { ssr: false })`로 `ComicEditor` 로드. 좌 사이드바·캔버스·우 인스펙터 3분할                                            |
-| `/projects/[id]/consistency`                       | `app/projects/[id]/consistency/page.tsx:23`    | 일관성 엔티티(`style`/`character`/`background`/`worldview`) 탭 + CRUD + 이미지 업로드                                                                 |
-| `/login`, `/signup`                                | `app/login/page.tsx`, `app/signup/page.tsx`    | 폼 + `OAuthButtons`. `Suspense`로 쿼리파라미터 배너 분리                                                                                              |
+| 경로                                               | 파일                                           | 렌더                                                                                                                                                                                |
+| -------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                                | `app/page.tsx:10`                              | 랜딩. `useEffect`로 `GET /me` 시도해 성공 시 `/dashboard`로 replace, 실패 시 히어로 + STEP 3개 + BYOK 안내. `Topbar`만 사용                                                         |
+| `/dashboard`                                       | `app/dashboard/page.tsx:12`                    | 내 프로젝트 목록. `useQuery(['projects'])`로 로딩, `ProjectRow` 리스트(`:75-79`) + `ProjectCreateDialog`                                                                            |
+| `/projects`                                        | `app/projects/page.tsx:1`                      | 서버 컴포넌트. `redirect('/dashboard')`                                                                                                                                             |
+| `/projects/[id]`                                   | `app/projects/[id]/page.tsx:29`                | 프로젝트 상세 — 설정집 요약(`app/projects/[id]/page.tsx:88`)과 페이지 목록·추가                                                                                                     |
+| `/projects/[id]/pages/[pageid]`                    | `app/projects/[id]/pages/[pageid]/page.tsx:45` | **에디터 본체**. `dynamic(..., { ssr: false })`로 `ComicEditor` 로드. 좌 사이드바·캔버스·우 인스펙터 3분할                                                                          |
+| `/projects/[id]/consistency`                       | `app/projects/[id]/consistency/page.tsx:48`    | 설정집. 일관성 엔티티(`style`/`character`/`background`/`worldview`) 탭 + CRUD + 이미지 업로드. `?type=` 로 탭을 연다(`app/projects/[id]/consistency/page.tsx:30` 의 `tabFromQuery`) |
+| `/login`, `/signup`                                | `app/login/page.tsx`, `app/signup/page.tsx`    | 폼 + `OAuthButtons`. `Suspense`로 쿼리파라미터 배너 분리                                                                                                                            |
 | `/forgot-password`, `/reset-password`              | 비밀번호 재설정 요청/확정 폼                   |
-| `/verify-email/[token]`                            | `app/verify-email/[token]/page.tsx:10`         | 토큰으로 `POST /verify-email/:token`, 상태별 메시지                                                                                                   |
-| `/settings`                                        | `app/settings/page.tsx:1`                      | `redirect('/settings/profile')`                                                                                                                       |
-| `/settings/(profile\|billing\|api-keys\|security)` | `app/settings/...`                             | 계정 설정. `settings/layout.tsx:13`이 탭 네비 + `AppShell` 공통 적용. `BillingSettingsPage`(`app/settings/billing/page.tsx:25`)는 잔액·충전·주문·내역 |
-| `/admin`                                           | `app/admin/page.tsx:21`                        | **운영 현황**. `isAdmin` 판정 후 입금 확인 대기(`PendingOrders`)·지표 통계·최근 가입 목록 및 토큰 조정 다이얼로그 제공                                |
-| `/projects/[id]/settings`                          | `app/projects/[id]/settings/page.tsx:42`       | 프로젝트 설정. 이름·기본 AI 서비스·삭제 + 캐릭터·설정 관리로 가는 링크                                                                                |
-| `/health`                                          | `app/health/page.tsx:6-14`                     | **서버 컴포넌트**. `INTERNAL_API_URL`/`NEXT_PUBLIC_API_URL`로 `/healthz` 호출 후 JSON 덤프                                                            |
+| `/verify-email/[token]`                            | `app/verify-email/[token]/page.tsx:10`         | 토큰으로 `POST /verify-email/:token`, 상태별 메시지                                                                                                                                 |
+| `/settings`                                        | `app/settings/page.tsx:1`                      | `redirect('/settings/profile')`                                                                                                                                                     |
+| `/settings/(profile\|billing\|api-keys\|security)` | `app/settings/...`                             | 계정 설정. `settings/layout.tsx:13`이 탭 네비 + `AppShell` 공통 적용. `BillingSettingsPage`(`app/settings/billing/page.tsx:25`)는 잔액·충전·주문·내역                               |
+| `/admin`                                           | `app/admin/page.tsx:21`                        | **운영 현황**. `isAdmin` 판정 후 입금 확인 대기(`PendingOrders`)·지표 통계·최근 가입 목록 및 토큰 조정 다이얼로그 제공                                                              |
+| `/projects/[id]/settings`                          | `app/projects/[id]/settings/page.tsx:42`       | 프로젝트 설정. 이름·기본 AI 서비스·프로젝트 삭제만. 설정집은 여기 없다 — 프로젝트 화면에 있다                                                                                       |
+| `/health`                                          | `app/health/page.tsx:6-14`                     | **서버 컴포넌트**. `INTERNAL_API_URL`/`NEXT_PUBLIC_API_URL`로 `/healthz` 호출 후 JSON 덤프                                                                                          |
 
 루트 레이아웃 `app/layout.tsx:8-12`은 Inter를 주입하고 `<Providers><ToastProvider>` 순으로 감싼다 (`app/layout.tsx:44-46`).
 
@@ -171,6 +171,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 ### components/consistency
 
+- `setting-book-summary.tsx` — 프로젝트 화면 맨 위의 설정집 요약(`setting-book-summary.tsx:27`). 갈래별 등록 이름을 한 줄로 보여 주고 `?type=` 으로 그 탭을 연다
 - `entity-card.tsx` — 일관성 엔티티(캐릭터/배경/세계관/그림체) 카드와 인라인 편집 UI. style 탭에서는 `isDefault?`/`onSetDefault?` props로 대표 그림체 배지·"대표로 지정" 버튼 노출(`entity-card.tsx:12-15, 57-61, 85-88`). 목록 페이지는 `app/projects/[id]/consistency/page.tsx`에서 `useState`로 직접 관리(React Query 미사용)
 
 ### components/editor (TipTap 측 + 인스펙터 + 공용 입력)
@@ -535,7 +536,7 @@ apps/web/
 │   ├── shell/mobile-nav.tsx    # 햄버거 + 사이드 드로어(md 미만)
 │   ├── shell/mobile-blocker.tsx
 │   ├── dashboard/              # project-row, project-create-dialog
-│   ├── consistency/entity-card.tsx
+│   ├── consistency/            # entity-card, setting-book-summary
 │   ├── billing/charge-dialog.tsx # 충전 요청 다이얼로그
 │   ├── admin/                  # pending-orders, token-grant-dialog
 │   ├── editor/
@@ -572,6 +573,22 @@ apps/web/
 ```
 
 ## 10. 관찰된 패턴 / 제약
+
+### 설정집은 '설정' 이 아니다 — 프로젝트 화면에 둔다
+
+이름에 '설정' 이 들어갈 뿐, 설정집은 작품의 재료다. 캐릭터를 등록해야 컷 설명에서
+`@` 로 부를 수 있고, 그림체를 정해야 컷들이 같은 그림으로 나온다. 그런데 입구가
+프로젝트 → 프로젝트 설정 → 설정집으로 두 단계 안에 묻혀 있어서, 처음 들어온 사람은
+그런 게 있다는 것조차 몰랐다.
+
+- 프로젝트 화면 맨 위로 꺼냈다(`app/projects/[id]/page.tsx:88`). 링크만 두지 않고
+  갈래별로 등록된 이름을 같이 보여 준다(`components/consistency/setting-book-summary.tsx:27`) —
+  들어가 보지 않고도 "캐릭터는 넣었고 배경이 비었다" 를 안다. 한 줄이라 페이지 목록을
+  밀어내지 않는다.
+- 갈래를 누르면 `?type=` 으로 그 탭이 열린다(`app/projects/[id]/consistency/page.tsx:30`).
+  그냥 보내면 항상 그림체 탭이라, 배경을 누른 사람이 탭을 한 번 더 눌러야 했다.
+- 에디터 헤더에도 같은 입구가 있다(`app/projects/[id]/pages/[pageid]/page.tsx:358`).
+  캐릭터 설명을 고치려고 그림 그리던 화면을 나와 프로젝트까지 되돌아갈 이유가 없다.
 
 ### 설정집: 폼이 위, 이미지는 접고 뷰어로 크게 본다
 
@@ -631,10 +648,12 @@ API 도메인의 JSON 에러 화면에 떨어졌다 — 거기서는 앱으로 �
 같은 이유로 정리한 것들:
 
 - 캐릭터·배경·세계관·그림체를 등록하는 화면의 이름은 **"설정집"** 하나다
-  (`app/projects/[id]/consistency/page.tsx:164`). 예전에는 제목이 "일관성 정보",
+  (`app/projects/[id]/consistency/page.tsx:203`). 예전에는 제목이 "일관성 정보",
   들어가는 링크가 "캐릭터·설정 관리" 라서 같은 곳인지 알 수 없었다. 입구 라벨
-  (`app/projects/[id]/settings/page.tsx:192`)과 도착 제목은 **글자 그대로 같아야 한다.**
-- 그 화면의 본문은 탭 이름을 쓴다(`app/projects/[id]/consistency/page.tsx:39` 의 `tabLabel`).
+  (`components/consistency/setting-book-summary.tsx:53`)과 도착 제목은 **글자 그대로 같아야 한다.**
+- 그 화면의 본문은 탭 이름을 쓴다(`app/projects/[id]/consistency/page.tsx:55` 의 `tabLabel`).
+  갈래 이름은 `packages/types/src/index.ts:171` 의 `ENTITY_TYPE_LABEL` 한 곳에서 나온다 —
+  요약과 탭이 같은 것을 두 이름으로 부르면 안 된다.
   전부 "항목" 이라 부르면 캐릭터 탭에서 "항목이 없습니다" 가 무엇을 만들라는 건지 모른다.
 - 내부 식별자는 화면에 내보내지 않는다. `pageLabel()` 의 폴백이 `p1` 이었고
   (`packages/types/src/index.ts:381`), 생성 기록 캡션에 job id 6자리와 모델 ID 원문

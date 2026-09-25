@@ -1,9 +1,7 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronRight } from 'lucide-react';
 import { AppShell } from '@/components/shell/app-shell';
 import { PageContainer } from '@/components/shell/page-container';
 import { api } from '@/lib/api';
@@ -36,6 +34,10 @@ const NO_MODEL = '__none__';
  * 차지했고, 좁은 화면에서는 제목 아래로 줄바꿈돼 무엇이 제목인지도 흐려졌다.
  *
  * 여기 모아 두면 앞으로 프로젝트 단위 설정이 늘어나도 헤더가 다시 붐비지 않는다.
+ *
+ * **설정집은 여기 없다.** 이름에 '설정' 이 들어갈 뿐 설정이 아니라 작품의 재료라,
+ * 프로젝트 화면에서 바로 보인다(`setting-book-summary.tsx`). 이 화면 안에 두면
+ * 캐릭터 한 명 고치는 데 두 단계를 들어가야 했다.
  */
 export default function ProjectSettingsPage() {
   const params = useParams<{ id: string }>();
@@ -186,20 +188,6 @@ export default function ProjectSettingsPage() {
                 </SelectContent>
               </Select>
             </div>
-          </section>
-
-          <section className="mt-10 space-y-2">
-            <h2 className="text-title-md font-medium">설정집</h2>
-            <p className="text-body-sm text-muted-foreground">
-              등장인물·배경·세계관·그림체를 등록해 두면 여러 컷에 걸쳐 같은 모습으로 그려집니다.
-            </p>
-            <Link
-              href={`/projects/${projectId}/consistency`}
-              className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted/40 touch:min-h-11"
-            >
-              <span className="text-body-sm font-medium">설정집</span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </Link>
           </section>
 
           <section className="mt-14 space-y-2 rounded-lg border border-destructive/40 p-4">

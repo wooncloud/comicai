@@ -6,6 +6,8 @@ import type { Editor, TLShapeId } from 'tldraw';
 import { api } from '@/lib/api';
 import { useProject } from '@/lib/use-project';
 import { useLocalStorageBoolean } from '@/lib/use-local-storage-state';
+import Link from 'next/link';
+import { BookMarked } from 'lucide-react';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { MobileBlocker } from '@/components/shell/mobile-blocker';
 import { Button } from '@/components/ui/button';
@@ -347,6 +349,19 @@ export default function PageEditor() {
         </div>
         <div className="flex items-center gap-3">
           <SaveStatus state={saveState} lastSavedAt={lastSavedAt} />
+          {/*
+            설정집으로 가는 지름길. 컷을 그리다 보면 "이 캐릭터 설명을 좀 고쳐야겠다"
+            가 수시로 생기는데, 예전에는 브레드크럼으로 프로젝트까지 나갔다가 다시
+            들어와야 했다 — 나가는 순간 어느 페이지를 보고 있었는지도 잃는다.
+          */}
+          <Link
+            href={`/projects/${projectId}/consistency`}
+            title="설정집 — 캐릭터·배경·세계관·그림체"
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-caption text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <BookMarked className="h-3.5 w-3.5" aria-hidden />
+            설정집
+          </Link>
           <TokenBalance />
           <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
             내보내기

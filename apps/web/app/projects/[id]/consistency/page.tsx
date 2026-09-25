@@ -1,6 +1,6 @@
 'use client';
-import { useRef, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { Suspense, useRef, useState } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 import { ImagePlus, X } from 'lucide-react';
 import { AppShell } from '@/components/shell/app-shell';
 import { PageContainer } from '@/components/shell/page-container';
@@ -9,6 +9,8 @@ import { api } from '@/lib/api';
 import { useProject } from '@/lib/use-project';
 import {
   ApiPaths,
+  ENTITY_TYPES,
+  ENTITY_TYPE_LABEL,
   type ConsistencyEntityDTO,
   type EntityType,
   type ProjectDTO,
@@ -22,22 +24,35 @@ import { errorMessage } from '@/lib/error-message';
 import { qk } from '@/lib/query-keys';
 import { useConfirm } from '@/components/ui/confirm';
 
-const TABS: { key: EntityType; label: string }[] = [
-  { key: 'style', label: '그림체' },
-  { key: 'character', label: '캐릭터' },
-  { key: 'background', label: '배경' },
-  { key: 'worldview', label: '세계관' },
-];
-
 const EMPTY_FORM = { name: '', aliases: '', description: '' };
 
-export default function ConsistencyPage() {
+/** `?type=` 가 없거나 모르는 값이면 첫 탭. 프로젝트 화면의 요약이 이 쿼리로 들어온다. */
+function tabFromQuery(raw: string | null): EntityType {
+  return (ENTITY_TYPES as readonly string[]).includes(raw ?? '')
+    ? (raw as EntityType)
+    : ENTITY_TYPES[0];
+}
+
+/*
+ * `useSearchParams` 는 정적 셸을 만들 때 Suspense 경계를 요구한다(Next 규칙).
+ * 클라이언트에서는 즉시 값을 돌려주므로 이 경계는 런타임 비용이 아니다.
+ */
+export default function ConsistencyRoute() {
+  return (
+    <Suspense fallback={null}>
+      <ConsistencyPage />
+    </Suspense>
+  );
+}
+
+function ConsistencyPage() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
-  const [tab, setTab] = useState<EntityType>('style');
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<EntityType>(() => tabFromQuery(searchParams.get('type')));
   // 화면 문구에 쓰는 현재 탭 이름. 예전에는 전부 '항목' 이라 캐릭터 탭에서
   // "항목이 없습니다" 를 보면 무엇을 만들라는 건지 알 수 없었다.
-  const tabLabel = TABS.find((t) => t.key === tab)?.label ?? '항목';
+  const tabLabel = ENTITY_TYPE_LABEL[tab];
   const [editing, setEditing] = useState<ConsistencyEntityDTO | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [pendingImages, setPendingImages] = useState<File[]>([]);
@@ -182,7 +197,6 @@ export default function ConsistencyPage() {
           items={[
             { label: '대시보드', href: '/dashboard' },
             { label: project?.name ?? '…', href: `/projects/${projectId}` },
-            { label: '설정', href: `/projects/${projectId}/settings` },
             { label: '설정집' },
           ]}
         />
@@ -193,20 +207,20 @@ export default function ConsistencyPage() {
         </p>
 
         <div className="mt-6 flex gap-1 overflow-x-auto border-b border-border">
-          {TABS.map((t) => (
+          {ENTITY_TYPES.map((t) => (
             <button
-              key={t.key}
+              key={t}
               onClick={() => {
-                setTab(t.key);
+                setTab(t);
                 resetForm();
               }}
               className={`-mb-px flex shrink-0 items-center whitespace-nowrap border-b-2 px-4 py-2 text-body-sm transition-colors touch:min-h-11 ${
-                tab === t.key
+                tab === t
                   ? 'border-foreground font-medium text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
-              {t.label}
+              {ENTITY_TYPE_LABEL[t]}
             </button>
           ))}
         </div>

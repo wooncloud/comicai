@@ -162,6 +162,19 @@ export interface AdapterImage {
 // ─── 일관성 ─────────────────────────────────────
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
+/**
+ * 설정집 갈래의 한국어 이름.
+ *
+ * 프로젝트 화면의 요약과 설정집 화면의 탭이 같은 말을 써야 한다 — 한쪽만
+ * 고치면 같은 것을 두 이름으로 부르게 된다.
+ */
+export const ENTITY_TYPE_LABEL: Record<EntityType, string> = {
+  style: '그림체',
+  character: '캐릭터',
+  background: '배경',
+  worldview: '세계관',
+};
+
 export interface ConsistencyEntityDTO {
   id: string;
   projectId: string;
