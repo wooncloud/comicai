@@ -4,18 +4,19 @@ import {
   ExportRequestSchema,
   type EpisodeExportBundle,
   type EpisodeExportMode,
+  type ExportFormat,
 } from '@comicai/types';
 import { AuthedRequest } from '../auth/session.guard';
 import { ExportService } from './export.service';
 
 class ExportDto {
   static zodSchema = ExportRequestSchema;
-  format!: 'png' | 'jpg';
+  format!: ExportFormat;
   dpi?: number;
 }
 class EpisodeExportDto {
   static zodSchema = EpisodeExportSchema;
-  format!: 'png' | 'jpg';
+  format!: ExportFormat;
   dpi?: number;
   mode!: EpisodeExportMode;
   bundle!: EpisodeExportBundle;

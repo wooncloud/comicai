@@ -438,7 +438,7 @@ export default function PageEditor() {
         pageId={pageId}
         episodeId={page?.episodeId ?? null}
         episodeName={currentEpisode ? episodeLabel(currentEpisode) : '이 화'}
-        panels={panels}
+        emptyPanels={panels.filter((p) => !p.currentRenderId).length}
       />
 
       <div className="flex flex-1 overflow-hidden">

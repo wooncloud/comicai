@@ -7,6 +7,8 @@ import {
   MAX_STITCH_HEIGHT,
   type EpisodeExportBundle,
   type EpisodeExportMode,
+  type ExportFormat,
+  type ExportResultDTO,
   type ImageRef,
   type PageLineStyle,
   type PageTextStyle,
@@ -28,6 +30,7 @@ import { planStitchSegments } from './stitch-plan';
 import { buildZip } from './zip';
 import { buildPdf } from './pdf';
 import { mapLimit } from '../common/map-limit';
+import { readPageSize } from '../common/page-size';
 
 /*
  * 패널 합성을 몇 개씩 동시에 할 것인가.
@@ -41,23 +44,28 @@ import { mapLimit } from '../common/map-limit';
  */
 const PANEL_COMPOSITE_CONCURRENCY = 4;
 
-/** 아직 올리지 않은 페이지 한 장. 이어 붙이기가 이걸 모아 쓴다. */
+const IMAGE_MIME: Record<ExportFormat, string> = { png: 'image/png', jpg: 'image/jpeg' };
+const BUNDLE_MIME: Record<Exclude<EpisodeExportBundle, 'none'>, string> = {
+  zip: 'application/zip',
+  pdf: 'application/pdf',
+};
+
+type BaseColor = string | { r: number; g: number; b: number; alpha: number };
+
+/** 아직 올리지 않은 그림 한 장. 이어 붙이기·묶기가 이걸 모아 쓴다. */
 interface RenderedPage {
   bytes: Buffer;
   width: number;
   height: number;
   /** 이어 붙일 때 빈 자리를 칠할 색. 페이지가 정한 바탕색이거나 형식 기본값이다. */
-  baseColor: string | { r: number; g: number; b: number; alpha: number };
+  baseColor: BaseColor;
 }
 
-export interface ExportResult {
-  storageKey: string;
-  url: string;
-  expiresAt: string;
-  width: number;
-  height: number;
-  mimeType: string;
-}
+/**
+ * 무엇으로 구울 것인가. `lossless` 는 이어 붙이기 전의 중간본이다 — 곧 다시 풀려
+ * 한 장으로 구워지므로, JPG 로 구웠다가 다시 JPG 로 구우면 화질이 두 번 깎인다.
+ */
+type Encoding = ExportFormat | 'lossless';
 
 @Injectable()
 export class ExportService {
@@ -75,7 +83,7 @@ export class ExportService {
     h: number,
   ): Promise<Buffer> {
     const { bytes } = await this.storage.getBytes(ref.storageKey);
-    return sharp(Buffer.from(bytes))
+    return sharp(bytes)
       .resize({ width: w, height: h, fit: 'cover' })
       .ensureAlpha()
       .composite([{ input: buildPanelMaskSvg(shape, w, h), blend: 'dest-in' }])
@@ -90,12 +98,16 @@ export class ExportService {
   async exportPage(
     userId: string,
     pageId: string,
-    format: 'png' | 'jpg',
+    format: ExportFormat,
     dpi = 150,
-  ): Promise<ExportResult> {
+  ): Promise<ExportResultDTO> {
     const owned = await this.pages.findOwned(userId, pageId);
-    const rendered = await this.renderPage(owned.id, format, dpi);
-    return this.upload({ kind: 'export', userId, pageId: owned.id }, rendered, format);
+    const page = await this.renderPage(owned.id, format, dpi);
+    return this.putAndPresign(
+      { kind: 'export', userId, pageId: owned.id },
+      page,
+      IMAGE_MIME[format],
+    );
   }
 
   /**
@@ -107,11 +119,15 @@ export class ExportService {
    *
    * 소유권은 **호출부가 이미 확인했다고 본다** — 여기서 다시 확인하면 화 내보내기가
    * 페이지 수만큼 같은 질의를 반복한다.
+   *
+   * `format` 은 최종 형식이다(바탕을 투명으로 둘지가 여기에 달렸다). 굽는 방식은
+   * `encoding` 이 따로 정한다 — 이어 붙일 페이지는 무손실로 굽는다.
    */
   private async renderPage(
     pageId: string,
-    format: 'png' | 'jpg',
+    format: ExportFormat,
     dpi: number,
+    encoding: Encoding = format,
   ): Promise<RenderedPage> {
     const page = await prisma.page.findUnique({
       where: { id: pageId },
@@ -127,7 +143,7 @@ export class ExportService {
     });
     if (!page) throw new NotFoundException(apiError({ code: 'PAGE_NOT_FOUND' }));
 
-    const size = page.size as { w: number; h: number };
+    const size = readPageSize(page.size);
     /*
      * 스키마가 이제 상한을 걸지만(`PageSizeSchema`), **이미 저장된 행은 그 검증을 거치지
      * 않는다.** 여기서 한 번 더 묶지 않으면 상한 도입 이전에 들어온 거대 페이지 하나로
@@ -241,19 +257,8 @@ export class ExportService {
     );
     if (lineLayer) composites.push({ input: lineLayer, left: 0, top: 0 });
 
-    let canvas = sharp({
-      create: {
-        width: canvasW,
-        height: canvasH,
-        channels: 4,
-        background: baseColor as never,
-      },
-    })
-      .withMetadata({ density: dpi })
-      .composite(composites);
-    canvas = format === 'jpg' ? canvas.jpeg({ quality: 92 }) : canvas.png();
-
-    return { bytes: await canvas.toBuffer(), width: canvasW, height: canvasH, baseColor };
+    const bytes = await bake(canvasW, canvasH, baseColor, dpi, composites, encoding);
+    return { bytes, width: canvasW, height: canvasH, baseColor };
   }
 
   /**
@@ -269,148 +274,106 @@ export class ExportService {
   async exportEpisode(
     userId: string,
     episodeId: string,
-    format: 'png' | 'jpg',
+    format: ExportFormat,
     dpi = 150,
     mode: EpisodeExportMode = 'stitch',
     bundle: EpisodeExportBundle = 'none',
-  ): Promise<ExportResult[]> {
+  ): Promise<ExportResultDTO[]> {
     const episode = await this.episodes.findOwned(userId, episodeId);
     const pages = await prisma.page.findMany({
       where: { episodeId: episode.id },
       orderBy: { order: 'asc' },
-      select: { id: true },
+      select: { id: true, size: true },
     });
     if (pages.length === 0) {
       throw new BadRequestException(
         apiError({ code: 'EPISODE_EMPTY', message: '이 화에는 페이지가 없습니다.' }),
       );
     }
-
     const scope = { kind: 'episode-export', userId, episodeId: episode.id } as const;
 
-    if (mode === 'pages') {
-      if (bundle === 'none') {
-        const out: ExportResult[] = [];
-        for (const p of pages) {
-          // 한 장씩 차례로. 병렬로 돌리면 페이지 수만큼의 캔버스가 동시에 메모리에 산다.
-          out.push(await this.upload(scope, await this.renderPage(p.id, format, dpi), format));
-        }
-        return out;
-      }
-      /*
-       * 묶어서 낼 때는 그린 것을 모아 둬야 한다 — 봉투도 문서도 전부를 한 번에 받는다.
-       * 낱장으로 낼 때는 한 장씩 흘려보내 메모리를 아끼지만, 여기서는 아낄 수 없다.
-       */
-      const rendered: RenderedPage[] = [];
-      for (const p of pages) rendered.push(await this.renderPage(p.id, format, dpi));
-      return [await this.bundleUp(scope, rendered, format, dpi, bundle)];
-    }
+    /*
+     * 한 파일에 들어갈 페이지 묶음. 한 장씩이면 한 장이 한 묶음이다. 이어 붙이면 너무
+     * 길지 않게 페이지 경계에서 나누는데, 어디서 끊을지는 **페이지 크기만 보고** 그리기
+     * 전에 정한다(`planStitchSegments`) — 정작 틀리기 쉬운 곳이라 따로 떼어 테스트로 묶었다.
+     */
+    const groups =
+      mode === 'pages'
+        ? pages.map((_, i) => [i])
+        : planStitchSegments(
+            pages.map((p) => clampDimension(readPageSize(p.size).h)),
+            MAX_STITCH_HEIGHT,
+          );
 
     /*
-     * 이어 붙이기.
-     *
-     * 어디서 끊을지는 **페이지 크기만 보고** 먼저 정한다(`planStitchSegments`) — 그림을
-     * 그리기 전에 알 수 있는 값이고, 정작 틀리기 쉬운 곳이라 따로 떼어 테스트로 묶었다.
-     *
-     * 그린 것은 한 파일 분량만 들고 있는다. 화 전체를 먼저 그려 두고 나누면 페이지
-     * 10장이면 그것만으로 수백 MB 가 동시에 메모리에 산다.
+     * 한 묶음씩 **차례로** 그려 곧바로 올린다. 화 전체를 먼저 그려 두면 페이지 10장이면
+     * 그것만으로 수백 MB 가 동시에 메모리에 산다 — 병렬로 돌리지 않는 것도 같은 이유다.
+     * 묶어서 받을 때(ZIP·PDF)만 파일을 모아 둔다. 봉투도 문서도 전체를 한 번에 받는다.
      */
-    const sizes = await prisma.page.findMany({
-      where: { episodeId: episode.id },
-      orderBy: { order: 'asc' },
-      select: { size: true },
-    });
-    const heights = sizes.map((p) => clampDimension((p.size as { h: number }).h));
-    const segments = planStitchSegments(heights, MAX_STITCH_HEIGHT);
-
-    const stitched: RenderedPage[] = [];
-    for (const indices of segments) {
-      const rendered: RenderedPage[] = [];
-      for (const i of indices) rendered.push(await this.renderPage(pages[i]!.id, format, dpi));
-      stitched.push(await stitch(rendered, dpi, format));
+    const out: ExportResultDTO[] = [];
+    const files: RenderedPage[] = [];
+    for (const group of groups) {
+      const file = await this.renderGroup(
+        group.map((i) => pages[i]!.id),
+        format,
+        dpi,
+      );
+      if (bundle === 'none') out.push(await this.putAndPresign(scope, file, IMAGE_MIME[format]));
+      else files.push(file);
     }
-    if (bundle !== 'none') return [await this.bundleUp(scope, stitched, format, dpi, bundle)];
+    if (bundle === 'none') return out;
 
-    const out: ExportResult[] = [];
-    for (const seg of stitched) out.push(await this.upload(scope, seg, format));
-    return out;
-  }
-
-  /**
-   * 여러 장을 한 파일로 묶어 올린다.
-   *
-   * 결과 타입은 낱장과 같다 — 받는 쪽은 "누르면 받아지는 것" 하나로 보면 된다.
-   * 다만 `width`/`height` 는 이미지가 아니라 봉투의 것이 아니므로 0 으로 둔다.
-   * 화면은 `mimeType` 을 보고 크기 대신 파일 종류를 보여 준다.
-   */
-  private async bundleUp(
-    scope: ImageScope,
-    pages: readonly RenderedPage[],
-    format: 'png' | 'jpg',
-    dpi: number,
-    bundle: Exclude<EpisodeExportBundle, 'none'>,
-  ): Promise<ExportResult> {
-    const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
-    const ext = format === 'jpg' ? 'jpg' : 'png';
     const bytes =
       bundle === 'zip'
         ? buildZip(
-            pages.map((p, i) => ({
+            files.map((f, i) => ({
               // 이름은 순서가 드러나야 한다. 파일 탐색기는 이름으로 정렬하므로
               // 자리수를 맞추지 않으면 10 이 2 앞에 온다.
-              name: `${String(i + 1).padStart(2, '0')}.${ext}`,
-              bytes: p.bytes,
+              name: `${String(i + 1).padStart(2, '0')}.${format}`,
+              bytes: f.bytes,
             })),
           )
         : await buildPdf(
-            pages.map((p) => ({
-              bytes: p.bytes,
-              mimeType,
-              width: p.width,
-              height: p.height,
-            })),
+            files.map((f) => ({ ...f, mimeType: IMAGE_MIME[format] })),
             dpi,
           );
-
-    const ref = await this.storage.putImage(
-      scope,
-      Uint8Array.from(bytes),
-      bundle === 'zip' ? 'application/zip' : 'application/pdf',
-      0,
-      0,
-    );
-    const presigned = await this.storage.presignDownload(ref.storageKey);
-    return {
-      storageKey: ref.storageKey,
-      url: presigned.url,
-      expiresAt: presigned.expiresAt,
-      width: 0,
-      height: 0,
-      mimeType: ref.mimeType,
-    };
+    return [await this.putAndPresign(scope, { bytes }, BUNDLE_MIME[bundle])];
   }
 
-  private async upload(
+  /** 한 장이면 그대로, 여럿이면 세로로 이어 붙인 한 파일. */
+  private async renderGroup(
+    pageIds: readonly string[],
+    format: ExportFormat,
+    dpi: number,
+  ): Promise<RenderedPage> {
+    if (pageIds.length === 1) return this.renderPage(pageIds[0]!, format, dpi);
+    const parts: RenderedPage[] = [];
+    for (const id of pageIds) parts.push(await this.renderPage(id, format, dpi, 'lossless'));
+    return stitch(parts, dpi, format);
+  }
+
+  /**
+   * 올리고 받을 링크를 만든다. 크기가 있으면 이미지, 없으면 묶음(ZIP·PDF)이다 —
+   * 묶음은 크기를 읽으려고 이미지로 열어 보지 않는다(`putFile`).
+   */
+  private async putAndPresign(
     scope: ImageScope,
-    rendered: RenderedPage | Promise<RenderedPage>,
-    format: 'png' | 'jpg',
-  ): Promise<ExportResult> {
-    const { bytes, width, height } = await rendered;
-    const ref = await this.storage.putImage(
-      scope,
-      Uint8Array.from(bytes),
-      format === 'jpg' ? 'image/jpeg' : 'image/png',
-      width,
-      height,
-    );
-    const presigned = await this.storage.presignDownload(ref.storageKey);
+    file: { bytes: Buffer; width?: number; height?: number },
+    mimeType: string,
+  ): Promise<ExportResultDTO> {
+    const { width, height } = file;
+    const storageKey =
+      width && height
+        ? (await this.storage.putImage(scope, file.bytes, mimeType, width, height)).storageKey
+        : await this.storage.putFile(scope, file.bytes, mimeType);
+    const presigned = await this.storage.presignDownload(storageKey);
     return {
-      storageKey: ref.storageKey,
+      storageKey,
       url: presigned.url,
       expiresAt: presigned.expiresAt,
-      width: ref.width,
-      height: ref.height,
-      mimeType: ref.mimeType,
+      mimeType,
+      width,
+      height,
     };
   }
 }
@@ -425,11 +388,9 @@ export class ExportService {
 async function stitch(
   pages: readonly RenderedPage[],
   dpi: number,
-  format: 'png' | 'jpg',
+  format: ExportFormat,
 ): Promise<RenderedPage> {
   const first = pages[0]!;
-  if (pages.length === 1) return first;
-
   const width = Math.max(...pages.map((p) => p.width));
   const height = pages.reduce((sum, p) => sum + p.height, 0);
 
@@ -440,13 +401,25 @@ async function stitch(
     return item;
   });
 
-  let canvas = sharp({
-    create: { width, height, channels: 4, background: first.baseColor as never },
-  })
+  const bytes = await bake(width, height, first.baseColor, dpi, composites, format);
+  return { bytes, width, height, baseColor: first.baseColor };
+}
+
+/** 바탕을 깔고 레이어를 합성해 굽는다. 페이지 한 장과 이어 붙인 한 장이 같이 쓴다. */
+async function bake(
+  width: number,
+  height: number,
+  background: BaseColor,
+  dpi: number,
+  composites: sharp.OverlayOptions[],
+  encoding: Encoding,
+): Promise<Buffer> {
+  const canvas = sharp({ create: { width, height, channels: 4, background } })
     .withMetadata({ density: dpi })
     .composite(composites);
-  canvas = format === 'jpg' ? canvas.jpeg({ quality: 92 }) : canvas.png();
-  return { bytes: await canvas.toBuffer(), width, height, baseColor: first.baseColor };
+  if (encoding === 'jpg') return canvas.jpeg({ quality: 92 }).toBuffer();
+  // 중간본은 곧 다시 풀리므로 빨리 굽는다. 무손실이라 화질은 같다.
+  return canvas.png(encoding === 'lossless' ? { compressionLevel: 1 } : {}).toBuffer();
 }
 
 /** 저장된 페이지 크기를 sharp 가 감당할 범위로 묶는다. 0·음수·NaN 도 여기서 걸러진다. */

@@ -98,16 +98,25 @@ export class StorageService implements OnModuleInit {
     let h = height;
     if (!w || !h) {
       try {
-        const meta = await sharp(Buffer.from(bytes)).metadata();
+        const meta = await sharp(asBuffer(bytes)).metadata();
         w = meta.width ?? 0;
         h = meta.height ?? 0;
       } catch {
         // sharp는 잘린 이미지에서 throw — caller가 이미 크기 검증을 했으면 0으로 통과.
       }
     }
+    const storageKey = await this.putFile(scope, bytes, mimeType);
+    return { storageKey, width: w, height: h, mimeType };
+  }
+
+  /**
+   * 이미지가 아닌 파일(내보내기 묶음 ZIP·PDF). 크기를 읽으려고 sharp 로 열어 보지 않는다 —
+   * 묶음을 이미지 경로로 올리던 때는 수십 MB 봉투를 매번 이미지로 열어 보고 실패를 삼켰다.
+   */
+  async putFile(scope: ImageScope, bytes: Uint8Array, mimeType: string): Promise<string> {
     const key = buildKey(scope, mimeType);
-    await this.put(key, Buffer.from(bytes), mimeType);
-    return { storageKey: key, width: w, height: h, mimeType };
+    await this.put(key, asBuffer(bytes), mimeType);
+    return key;
   }
 
   async putThumbnail(originalKey: string, bytes: Uint8Array): Promise<string> {
@@ -233,7 +242,8 @@ export class StorageService implements OnModuleInit {
       }
     }
     return {
-      bytes: Uint8Array.from(Buffer.concat(chunks)),
+      // Buffer 가 곧 Uint8Array 다. `Uint8Array.from` 은 받은 파일 전체를 한 번 더 복사했다.
+      bytes: Buffer.concat(chunks),
       mimeType: r.ContentType ?? 'application/octet-stream',
     };
   }
@@ -303,6 +313,16 @@ export function buildKey(scope: ImageScope, mimeType: string): string {
     case 'episode-export':
       return `${StoragePrefix.episodeExports(scope.userId, scope.episodeId)}${id}.${ext}`;
   }
+}
+
+/**
+ * 복사하지 않고 Buffer 로 본다. `Buffer.from(u8)` 은 **복사한다** — 내보내기 봉투처럼
+ * 수십 MB 짜리를 넘길 때마다 같은 크기가 한 번 더 잡혔다.
+ */
+function asBuffer(bytes: Uint8Array): Buffer {
+  return Buffer.isBuffer(bytes)
+    ? bytes
+    : Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 }
 
 function extensionFor(mime: string): string {

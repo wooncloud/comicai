@@ -36,7 +36,8 @@ export function buildZip(entries: readonly ZipEntry[]): Buffer {
 
   for (const entry of entries) {
     const name = Buffer.from(entry.name, 'utf8');
-    const data = Buffer.from(entry.bytes);
+    // 복사하지 않고 본다. 봉투에 드는 그림 전체를 한 벌 더 잡을 이유가 없다.
+    const data = Buffer.from(entry.bytes.buffer, entry.bytes.byteOffset, entry.bytes.byteLength);
     if (data.length > MAX_SIZE) {
       throw new RangeError(`zip: '${entry.name}' 이 4GB 를 넘어 담을 수 없습니다.`);
     }

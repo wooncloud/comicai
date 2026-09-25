@@ -6,7 +6,8 @@ import {
   ApiPaths,
   type EpisodeExportBundle,
   type EpisodeExportMode,
-  type PanelDTO,
+  type ExportFormat,
+  type ExportResultDTO,
 } from '@comicai/types';
 import {
   Dialog,
@@ -29,19 +30,35 @@ import { useToast } from '@/components/ui/toast';
 import { errorMessage } from '@/lib/error-message';
 import { useConfirm } from '@/components/ui/confirm';
 
-type Format = 'png' | 'jpg';
 type Scope = 'page' | 'episode';
 
-interface ExportResult {
-  url: string;
-  storageKey: string;
-  width: number;
-  height: number;
-  mimeType: string;
+interface Choice<T extends string> {
+  value: T;
+  label: string;
+  hint?: string;
+  disabled?: boolean;
 }
 
+const MODE_OPTIONS: Choice<EpisodeExportMode>[] = [
+  {
+    value: 'stitch',
+    label: '세로로 이어 붙이기',
+    hint: '웹툰용. 너무 길면 페이지 경계에서 나눕니다.',
+  },
+  { value: 'pages', label: '페이지마다 한 장씩', hint: '인스타·출판용.' },
+];
+const BUNDLE_OPTIONS: Choice<EpisodeExportBundle>[] = [
+  { value: 'none', label: '낱장 그대로' },
+  { value: 'zip', label: 'ZIP 한 개로 묶기' },
+  { value: 'pdf', label: 'PDF 한 개로 (인쇄용)' },
+];
+const FORMAT_OPTIONS: Choice<ExportFormat>[] = [
+  { value: 'png', label: 'PNG (투명 배경)' },
+  { value: 'jpg', label: 'JPG (작은 용량)' },
+];
+
 /** 목록에 보일 이름. 여러 장이면 몇 번째인지가 유일하게 필요한 정보다. */
-function resultLabel(r: ExportResult, index: number, total: number): string {
+function resultLabel(r: ExportResultDTO, index: number, total: number): string {
   if (!r.mimeType.startsWith('image/')) return '묶음 파일';
   return total > 1 ? `${index + 1}번째` : '결과';
 }
@@ -53,7 +70,8 @@ interface Props {
   /** 이 페이지가 속한 화. 없으면(아직 못 읽었으면) 화 단위 선택을 내밀지 않는다. */
   episodeId: string | null;
   episodeName: string;
-  panels: PanelDTO[];
+  /** 이 페이지에서 아직 그림이 없는 컷 수. 한 장을 내보낼 때만 묻는다. */
+  emptyPanels: number;
 }
 
 /**
@@ -74,24 +92,22 @@ export function ExportDialog({
   pageId,
   episodeId,
   episodeName,
-  panels,
+  emptyPanels,
 }: Props) {
   const toast = useToast();
   const confirm = useConfirm();
   const [scope, setScope] = useState<Scope>('page');
   const [mode, setMode] = useState<EpisodeExportMode>('stitch');
   const [bundle, setBundle] = useState<EpisodeExportBundle>('none');
-  const [format, setFormat] = useState<Format>('png');
+  const [format, setFormat] = useState<ExportFormat>('png');
   const [dpi, setDpi] = useState('150');
   const [pending, setPending] = useState(false);
-  const [results, setResults] = useState<ExportResult[]>([]);
+  const [results, setResults] = useState<ExportResultDTO[]>([]);
 
   // 다시 열면 지난 결과를 지운다. 남겨 두면 방금 만든 것으로 착각한다.
   useEffect(() => {
     if (open) setResults([]);
   }, [open]);
-
-  const emptyPanels = panels.filter((p) => !p.currentRenderId).length;
 
   async function onExport() {
     // 빈 컷 경고는 이 페이지 기준이다 — 화 전체는 다른 페이지의 빈 컷까지 세지 못한다.
@@ -106,13 +122,13 @@ export function ExportDialog({
     setPending(true);
     try {
       if (scope === 'episode' && episodeId) {
-        const list = await api<ExportResult[]>(ApiPaths.episodeExport(episodeId), {
+        const list = await api<ExportResultDTO[]>(ApiPaths.episodeExport(episodeId), {
           method: 'POST',
           body: JSON.stringify({ format, dpi: Number(dpi), mode, bundle }),
         });
         setResults(list);
       } else {
-        const one = await api<ExportResult>(ApiPaths.pageExport(pageId), {
+        const one = await api<ExportResultDTO>(ApiPaths.pageExport(pageId), {
           method: 'POST',
           body: JSON.stringify({ format, dpi: Number(dpi) }),
         });
@@ -135,95 +151,33 @@ export function ExportDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <div className="text-caption text-muted-foreground">범위</div>
-            <RadioGroup
-              value={scope}
-              onValueChange={(v) => setScope(v as Scope)}
-              className="flex flex-col gap-2"
-            >
-              <label className="flex items-center gap-2 text-body-sm">
-                <RadioGroupItem value="page" id="scope-page" />
-                <span>이 페이지 한 장</span>
-              </label>
-              <label className="flex items-center gap-2 text-body-sm">
-                <RadioGroupItem value="episode" id="scope-episode" disabled={!episodeId} />
-                <span>{episodeName} 전체</span>
-              </label>
-            </RadioGroup>
-          </div>
-
+          <ChoiceGroup
+            label="범위"
+            value={scope}
+            onChange={setScope}
+            options={[
+              { value: 'page', label: '이 페이지 한 장' },
+              { value: 'episode', label: `${episodeName} 전체`, disabled: !episodeId },
+            ]}
+          />
           {scope === 'episode' && (
-            <div className="space-y-2">
-              <div className="text-caption text-muted-foreground">방식</div>
-              <RadioGroup
-                value={mode}
-                onValueChange={(v) => setMode(v as EpisodeExportMode)}
-                className="flex flex-col gap-2"
-              >
-                <label className="flex items-start gap-2 text-body-sm">
-                  <RadioGroupItem value="stitch" id="mode-stitch" className="mt-0.5" />
-                  <span>
-                    세로로 이어 붙이기
-                    <span className="mt-0.5 block text-caption text-muted-foreground">
-                      웹툰용. 너무 길면 페이지 경계에서 나눕니다.
-                    </span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 text-body-sm">
-                  <RadioGroupItem value="pages" id="mode-pages" className="mt-0.5" />
-                  <span>
-                    페이지마다 한 장씩
-                    <span className="mt-0.5 block text-caption text-muted-foreground">
-                      인스타·출판용.
-                    </span>
-                  </span>
-                </label>
-              </RadioGroup>
-            </div>
-          )}
-
-          {scope === 'episode' && (
-            <div className="space-y-2">
-              <div className="text-caption text-muted-foreground">받기</div>
-              <RadioGroup
+            <>
+              <ChoiceGroup label="방식" value={mode} onChange={setMode} options={MODE_OPTIONS} />
+              <ChoiceGroup
+                label="받기"
                 value={bundle}
-                onValueChange={(v) => setBundle(v as EpisodeExportBundle)}
-                className="flex flex-col gap-2"
-              >
-                <label className="flex items-center gap-2 text-body-sm">
-                  <RadioGroupItem value="none" id="bundle-none" />
-                  <span>낱장 그대로</span>
-                </label>
-                <label className="flex items-center gap-2 text-body-sm">
-                  <RadioGroupItem value="zip" id="bundle-zip" />
-                  <span>ZIP 한 개로 묶기</span>
-                </label>
-                <label className="flex items-center gap-2 text-body-sm">
-                  <RadioGroupItem value="pdf" id="bundle-pdf" />
-                  <span>PDF 한 개로 (인쇄용)</span>
-                </label>
-              </RadioGroup>
-            </div>
+                onChange={setBundle}
+                options={BUNDLE_OPTIONS}
+              />
+            </>
           )}
-
-          <div className="space-y-2">
-            <div className="text-caption text-muted-foreground">형식</div>
-            <RadioGroup
-              value={format}
-              onValueChange={(v) => setFormat(v as Format)}
-              className="flex gap-4"
-            >
-              <label className="flex items-center gap-2 text-body-sm">
-                <RadioGroupItem value="png" id="fmt-png" />
-                <span>PNG (투명 배경)</span>
-              </label>
-              <label className="flex items-center gap-2 text-body-sm">
-                <RadioGroupItem value="jpg" id="fmt-jpg" />
-                <span>JPG (작은 용량)</span>
-              </label>
-            </RadioGroup>
-          </div>
+          <ChoiceGroup
+            label="형식"
+            value={format}
+            onChange={setFormat}
+            options={FORMAT_OPTIONS}
+            inline
+          />
 
           <div className="space-y-2">
             <div className="text-caption text-muted-foreground">DPI</div>
@@ -262,8 +216,8 @@ export function ExportDialog({
                       <Download className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       <span className="flex-1">{resultLabel(r, i, results.length)}</span>
                       <span className="text-caption tabular-nums text-muted-foreground">
-                        {/* 봉투·문서는 크기가 없다(0×0). 대신 무엇인지를 말한다. */}
-                        {r.mimeType.startsWith('image/')
+                        {/* 봉투·문서는 크기가 없다. 대신 무엇인지를 말한다. */}
+                        {r.width && r.height
                           ? `${r.width}×${r.height}`
                           : r.mimeType === 'application/zip'
                             ? 'ZIP'
@@ -287,5 +241,44 @@ export function ExportDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** 라디오 한 벌. 이 창의 선택지 네 벌이 모두 같은 모양이다. */
+function ChoiceGroup<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+  inline = false,
+}: {
+  label: string;
+  value: T;
+  onChange: (v: T) => void;
+  options: readonly Choice<T>[];
+  /** 짧은 선택지는 한 줄에 나란히. */
+  inline?: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="text-caption text-muted-foreground">{label}</div>
+      <RadioGroup
+        value={value}
+        onValueChange={(v) => onChange(v as T)}
+        className={inline ? 'flex gap-4' : 'flex flex-col gap-2'}
+      >
+        {options.map((o) => (
+          <label key={o.value} className="flex items-start gap-2 text-body-sm">
+            <RadioGroupItem value={o.value} disabled={o.disabled} className="mt-0.5" />
+            <span>
+              {o.label}
+              {o.hint && (
+                <span className="mt-0.5 block text-caption text-muted-foreground">{o.hint}</span>
+              )}
+            </span>
+          </label>
+        ))}
+      </RadioGroup>
+    </div>
   );
 }

@@ -10,7 +10,7 @@ import {
   type SpeechBubbleStyle,
   type SpeechBubbleVariant,
 } from '@comicai/types';
-import { escapeAttr, escapeText, safeColor, svgLayer } from './svg';
+import { safeColor, svgLayer, svgTextBlock } from './svg';
 
 interface BubbleInput {
   variant: SpeechBubbleVariant;
@@ -69,25 +69,7 @@ function buildBubbleFragment(b: BubbleInput): string {
 function bubbleTextFragment(b: BubbleInput, W: number, H: number): string {
   const text = b.text.trim();
   if (!text) return '';
-  const defaults = defaultPageTextStyle();
-  const st = { ...defaults, ...b.textStyle };
+  const style = { ...defaultPageTextStyle(), ...b.textStyle };
   const box = bubbleTextBox(b.variant, W, H, b.shape.points ?? null);
-  const lines = wrapText(text, { maxWidth: box.w, fontSize: st.fontSize });
-  if (lines.length === 0) return '';
-  const lh = st.fontSize * 1.25;
-  const anchor = st.textAlign === 'left' ? 'start' : st.textAlign === 'right' ? 'end' : 'middle';
-  const cx = box.x + (st.textAlign === 'left' ? 0 : st.textAlign === 'right' ? box.w : box.w / 2);
-  // 줄 뭉치를 글자 영역 세로 한가운데에 — page-text.render.ts 와 같은 계산이다.
-  const startY = box.y + (box.h - lines.length * lh) / 2 + st.fontSize;
-  const tspans = lines
-    .map(
-      (l, i) => `<tspan x="${round2(cx)}" y="${round2(startY + i * lh)}">${escapeText(l)}</tspan>`,
-    )
-    .join('');
-  return `<text font-family="${escapeAttr(st.fontFamily)}" font-size="${st.fontSize}" fill="${safeColor(st.color, defaults.color)}" text-anchor="${anchor}" dominant-baseline="alphabetic">${tspans}</text>`;
-}
-
-/** SVG 좌표에 소수점이 길게 붙지 않게. */
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
+  return svgTextBlock(wrapText(text, { maxWidth: box.w, fontSize: style.fontSize }), box, style);
 }

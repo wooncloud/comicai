@@ -32,6 +32,12 @@ function breakableBefore(ch: string): boolean {
 /** 줄 끝에 남으면 어색한 여는 괄호류 — 여기서 끊지 않는다. */
 const NO_BREAK_BEFORE = /[.,;:!?)\]}」』】〉》…%]/;
 
+/**
+ * 줄 높이(글자 크기의 배수). 캔버스의 CSS `line-height` 와 export 의 `<tspan>` 간격이
+ * 같은 값이어야 한다 — 다르면 여러 줄 대사의 세로 위치가 화면과 결과물에서 갈린다.
+ */
+export const TEXT_LINE_HEIGHT = 1.25;
+
 export interface WrapTextOptions {
   /** 글자가 들어갈 수 있는 가로 폭(px). */
   maxWidth: number;
@@ -66,10 +72,9 @@ export function wrapText(text: string, { maxWidth, fontSize }: WrapTextOptions):
       if (width + w > limit && line !== '') {
         if (breakAt > 0) {
           out.push(line.slice(0, breakAt).trimEnd());
-          const rest = line.slice(breakAt);
-          line = rest + ch;
-          width = 0;
-          for (const c of line) width += charWidthEm(c);
+          // 끊은 자리 뒤에 남은 폭 = 지금 폭 − 끊은 자리까지의 폭.
+          line = line.slice(breakAt) + ch;
+          width = width - breakWidth + w;
         } else {
           out.push(line);
           line = ch;
@@ -88,7 +93,6 @@ export function wrapText(text: string, { maxWidth, fontSize }: WrapTextOptions):
       }
     }
     if (line !== '') out.push(line);
-    void breakWidth;
   }
   // 닫는 문장부호가 줄 맨 앞에 떨어지면 앞 줄로 끌어올린다.
   for (let i = 1; i < out.length; i += 1) {

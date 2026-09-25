@@ -4,6 +4,7 @@ import {
   type ENTITY_TYPES,
   type EPISODE_EXPORT_BUNDLES,
   type EPISODE_EXPORT_MODES,
+  type EXPORT_FORMATS,
   type MODEL_IDS,
   type PAGE_LINE_STROKE_STYLES,
   PAGE_TEXT_FONT_FAMILIES,
@@ -484,6 +485,23 @@ export interface EpisodeDTO {
 export type EpisodeExportMode = (typeof EPISODE_EXPORT_MODES)[number];
 /** 만든 그림들을 어떻게 건네줄 것인가. `mode` 와 축이 다르다. */
 export type EpisodeExportBundle = (typeof EPISODE_EXPORT_BUNDLES)[number];
+/** 내보낼 이미지 형식. */
+export type ExportFormat = (typeof EXPORT_FORMATS)[number];
+
+/**
+ * 내보내기 결과 하나 — 누르면 받아지는 링크.
+ *
+ * 낱장이든 묶음(ZIP·PDF)이든 같은 모양이다. 화면은 `mimeType` 으로 무엇인지 말한다.
+ */
+export interface ExportResultDTO {
+  storageKey: string;
+  url: string;
+  expiresAt: string;
+  mimeType: string;
+  /** 이미지일 때만. 묶음에는 크기가 없다. */
+  width?: number;
+  height?: number;
+}
 
 /** EpisodeDTO.title 과 order 에서 표시용 라벨. `pageLabel` 과 같은 규칙이다. */
 export function episodeLabel(episode: { title: string | null; order: number }): string {

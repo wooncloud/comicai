@@ -366,7 +366,7 @@ DTO 에 페이지 수를 싣지 않는다. 화면은 그 화의 페이지 목록
 
 페이지 직속 자유 텍스트 박스 (만화 효과음/자막/내레이션 등). 말풍선과 마찬가지로 패널·렌더와 독립이며, export 단계에서 말풍선 위·자유 직선 아래 레이어로 합성된다(`apps/api/src/export/page-text.render.ts`).
 
-**글자는 상자의 가로·세로 한가운데에 놓인다** (`page-text.render.ts:50`). 말풍선과 텍스트는 별개 객체라, 상단 정렬이 기본이면 풍선 안에 넣은 대사가 풍선 천장에 붙는다. 캔버스도 같은 규칙이라 (`apps/web/components/editor/tldraw/page-text-shape.tsx:148`) 화면과 내보낸 PNG 가 어긋나지 않는다.
+**글자는 상자의 가로·세로 한가운데에 놓인다** (`svgTextBlock`, `export/svg.ts:71` — 말풍선 대사와 같은 계산). 말풍선과 텍스트는 별개 객체라, 상단 정렬이 기본이면 풍선 안에 넣은 대사가 풍선 천장에 붙는다. 캔버스도 같은 규칙이라 (`apps/web/components/editor/tldraw/page-text-shape.tsx:148`) 화면과 내보낸 PNG 가 어긋나지 않는다.
 
 | Method | Route                                  | Handler                                                   |
 | ------ | -------------------------------------- | --------------------------------------------------------- |
@@ -435,7 +435,7 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 | POST   | `/v1/pages/:id/export`    | `export` — `export.controller.ts:29`. 결과 한 장                                                   |
 | POST   | `/v1/episodes/:id/export` | `exportEpisode` — `export.controller.ts:35`. body 에 `mode`·`bundle`. 결과가 **여러 장일 수 있다** |
 
-**화 단위 내보내기는 두 가지다** (`exportEpisode`, `export.service.ts:266`).
+**화 단위 내보내기는 두 가지다** (`exportEpisode`, `export.service.ts:275`).
 
 - `stitch` — 페이지를 **세로로 이어 붙인다**. 웹툰은 한 화가 끊김 없이 흐르는 한
   덩어리라, 한 장씩 받으면 올릴 때 다시 이어 붙여야 한다.
@@ -451,10 +451,20 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 순수 함수로 떼어 둔 이유는 실제 이어 붙이기가 sharp 와 S3 를 거쳐 테스트가 무겁기
 때문이다 — 정작 틀리기 쉬운 것은 "언제 끊는가" 하나뿐이다(`stitch-plan.spec.ts`).
 
+**`mode` 는 "한 파일에 들어갈 페이지 묶음" 만 정한다** (`groups`, `export.service.ts:300`).
+한 장씩이면 `[[0],[1],…]`, 이어 붙이면 `planStitchSegments` 가 만든 묶음이다. 그 뒤는 루프
+하나다(`:315`) — 묶음씩 차례로 그려(`renderGroup`, `:344`) 곧바로 올리거나, ZIP·PDF 면 모았다가
+끝에 한 번 묶는다. 예전에는 `mode × bundle` 네 갈래가 업로드·묶기·메모리 규칙을 각자 지켰고,
+같은 페이지 행을 id 로 한 번, 크기로 한 번 두 번 읽었다.
+
 그린 것은 **한 파일 분량만** 들고 있는다. 화 전체를 먼저 그려 두고 나누면 페이지
 10장이면 그것만으로 수백 MB 가 동시에 메모리에 산다.
 
-**받는 방법은 별개의 축이다** (`bundle`, `bundleUp` — `export.service.ts:345`).
+**이어 붙일 페이지는 무손실로 굽는다** (`bake`, `:409`). 중간본을 JPG 로 구웠다가 이어 붙인
+한 장을 다시 JPG 로 구우면 화질이 두 번 깎였다. 중간본은 곧 다시 풀리므로 압축은 가볍게
+(PNG level 1) 한다. 바탕을 투명으로 둘지는 최종 형식이 정하므로 `renderPage` 는 둘을 따로 받는다.
+
+**받는 방법은 별개의 축이다** (`bundle`, `exportEpisode` — `export.service.ts:274`).
 `mode` 가 "몇 장을 만드는가" 라면 `bundle` 은 "그것을 어떻게 건네는가" 다. 둘을 한
 축에 섞으면 `pages+zip`·`stitch+zip` 같은 조합마다 이름이 하나씩 늘고, 실제로 다른 일을
 하는 곳은 마지막 업로드 한 곳뿐이다.
@@ -463,8 +473,15 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 - `zip` — 한 봉투. 인스타·출판은 장수가 많아 낱장이면 링크를 열 번 누른다.
 - `pdf` — 한 문서. 인쇄는 PNG 낱장보다 PDF 가 맞다.
 
-묶을 때는 **그린 것을 전부 들고 있어야 한다** (`:298-305`) — 봉투도 문서도 전체를 한 번에
+묶을 때는 **그린 것을 전부 들고 있어야 한다** (`:315-322`) — 봉투도 문서도 전체를 한 번에
 받는다. 낱장 경로가 한 장씩 흘려보내 아끼는 메모리를 여기서는 아낄 수 없다.
+
+**묶음은 이미지로 올리지 않는다** (`putAndPresign`, `:359` → `StorageService.putFile`,
+`storage.service.ts:116`). 처음에는 크기 0×0 으로 이미지 경로에 올렸는데, 그러면 저장소가
+크기를 읽으려고 봉투를 sharp 로 열어 보다 실패를 삼켰다. 결과는 낱장이든 묶음이든
+`ExportResultDTO`(`packages/types/src/index.ts:496`) 한 모양이고, 묶음에는 크기가 없다 —
+웹이 들고 있던 사본 타입도 지웠다. 바이트는 복사하지 않고 넘긴다(`Uint8Array.from` 과
+`Buffer.from(u8)` 은 복사다 — 봉투 크기만큼씩 몇 번 더 잡혔다).
 
 **ZIP 은 직접 쓴다** (`export/zip.ts`) — 의존성 없이 `node:zlib` 의 `crc32` 만 쓰고 전부
 STORE(무압축)로 넣는다. 안에 들어가는 것이 이미 압축된 PNG/JPEG 라 deflate 를 돌려도
@@ -477,33 +494,36 @@ STORE(무압축)로 넣는다. 안에 들어가는 것이 이미 압축된 PNG/J
 CI 안에서 확인할 방법이 없다. 픽셀을 포인트로 바꾸는 환산(`scale = 72 / dpi`)만 우리 몫이다 —
 150dpi 로 그린 1240×1754 는 595×842pt, 곧 A4 다.
 
-`renderPage` (`export.service.ts:108`)는 픽셀만 만들고 **올리지 않는다.** 올리는 일과
+`renderPage` (`export.service.ts:126`)는 픽셀만 만들고 **올리지 않는다.** 올리는 일과
 그리는 일이 갈려 있어야 화 단위가 같은 그림을 여러 장 모아 이어 붙일 수 있다 —
 예전에는 한 함수 안에 붙어 있어 화를 내보내려면 페이지마다 S3 왕복이 한 번씩 더 생겼다.
 
 **SVG 조립은 `export/svg.ts` 한 곳이다.** 문서 래퍼(`<svg xmlns … viewBox>`)가 다섯 벌,
 레이어 껍데기(빈 배열→null → map → join → Buffer)가 세 벌로 흩어져 있던 것을
-`svgDocument` (`export/svg.ts:26-31`)·`svgLayer` (`:39`) 로 모았다.
+`svgDocument` (`export/svg.ts:31-36`)·`svgLayer` (`:44`) 로 모았다. 말풍선 대사와 자유 텍스트의
+`<text>` 블록(정렬·세로 가운데·줄 높이)도 `svgTextBlock` (`:71`) 하나다 — 두 렌더러가 같은
+계산을 한 줄씩 들고 있었고, 주석도 스스로 "같은 계산" 이라고 적고 있었다. 줄 높이는
+`TEXT_LINE_HEIGHT`(`packages/types`)로 캔버스와 같은 값을 쓴다.
 
-**색은 읽는 쪽에서도 흡수한다** — `safeColor` (`export/svg.ts:21`). 예전에는 패널 외곽선만
+**색은 읽는 쪽에서도 흡수한다** — `safeColor` (`export/svg.ts:26`). 예전에는 패널 외곽선만
 hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자열을 그대로 SVG 속성에 넣었다.
 새 입력은 `ColorStringSchema` 가 막지만 **그 검증이 생기기 전에 저장된 행은 거치지 않았다** —
 그러면 캔버스와 export 결과가 다르게 보이는데 어느 쪽도 오류를 내지 않는다. 폴백은 각
 도메인의 기본 스타일 값을 쓴다.
 
-각 패널의 `currentRender` 결과를 패널 shape 마스크(SVG)로 잘라 `composite` — `export/export.service.ts:113-153`. 그 위로 말풍선(`renderSpeechBubbleLayer`, `:165-174`) → 자유 텍스트(`:169-181`) → 자유 직선(`:187-198`) 레이어가 순서대로 쌓인다. `sharp`로 캔버스(페이지 size, alpha)를 만들어 전체를 합성하며 dpi는 `withMetadata({ density: dpi })`(기본 150)로 박힌다 — `:197-208`. 결과는 S3에 `exports/{userId}/{pageId}/{ulid}.{ext}` 키로 업로드 후 presign URL 반환 — `:210-218`.
+각 패널의 `currentRender` 결과를 패널 shape 마스크(SVG)로 잘라 `composite` — `export/export.service.ts:170-214`. 그 위로 말풍선(`renderSpeechBubbleLayer`, `:218`) → 자유 텍스트(`:232`) → 자유 직선(`:247`) 레이어가 순서대로 쌓인다. `sharp`로 캔버스(페이지 size, alpha)를 만들어 전체를 합성하며 dpi는 `withMetadata({ density: dpi })`(기본 150)로 박힌다 — `bake`, `:409`. 결과는 S3에 `exports/{userId}/{pageId}/{ulid}.{ext}` 키로 업로드 후 presign URL 반환 — `putAndPresign`, `:359`. 페이지 크기는 DTO 와 같은 `readPageSize`(`common/page-size.ts`)로 읽는다.
 
-**캔버스 크기는 방어적으로 묶는다** — `clampDimension` (`export.service.ts:452`) 이 페이지 크기를
-`MAX_PAGE_DIMENSION`(4096) 이하로, 패널 bounding box 도 캔버스 크기로 자른다 (`shapeBoundingBox`, `:157-161`).
+**캔버스 크기는 방어적으로 묶는다** — `clampDimension` (`export.service.ts:426`) 이 페이지 크기를
+`MAX_PAGE_DIMENSION`(4096) 이하로, 패널 bounding box 도 캔버스 크기로 자른다 (`shapeBoundingBox`, `:177-181`).
 `PageSizeSchema` 가 이제 상한을 걸지만 **이미 저장된 행은 그 검증을 거치지 않는다**. 묶지 않으면
 `size:{w:50000,h:50000}` 한 행으로 sharp 가 10GB 할당을 시도하다 프로세스가 죽고, 같은 컨테이너의
 다른 사용자 요청까지 함께 끊긴다.
 
 **패널 합성은 4개씩 끊어 돈다** — `mapLimit` (`common/map-limit.ts:5`) +
-`PANEL_COMPOSITE_CONCURRENCY` (`export.service.ts:42`). 예전에는 `Promise.all` 로 전부 한꺼번에 돌려서
+`PANEL_COMPOSITE_CONCURRENCY` (`export.service.ts:45`). 예전에는 `Promise.all` 로 전부 한꺼번에 돌려서
 **N개의 원본 바이트와 N개의 마스킹된 PNG 버퍼가 동시에 살아 있었다** — 1536×1024 RGBA 기준
 패널당 약 6MB 라 12컷 페이지면 마스킹본만 ~75MB 에 원본이 더 붙는다. 원본은
-`maskedPanelImage` (`:71`) 안에서만 살아 마스킹본과 겹쳐 붙들리지 않는다. 결과 순서는 입력
+`maskedPanelImage` (`:79`) 안에서만 살아 마스킹본과 겹쳐 붙들리지 않는다. 결과 순서는 입력
 순서를 유지한다 — 합성 순서가 곧 z-order 다.
 
 ### 3.10 HealthController / MetricsController
@@ -796,20 +816,20 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
   전부 "DB 행을 이미 지운 뒤" 라, 여기서 던지면 사용자는 삭제에 성공했는데 500 을 받고 다시
   눌러도 지울 대상이 없어 계속 실패한다. 실패는 로그로 남기고 넘어간다 — 남은 오브젝트는
   예전과 같은 미아일 뿐이다. `deleteKeys` 는 파생 썸네일(`{key}.thumb.webp`)도 같이 지운다.
-- 삭제 prefix 는 `StoragePrefix` (`storage.service.ts:259`) 에 모여 있고 **`buildKey` 와 같은 파일에 있다.**
+- 삭제 prefix 는 `StoragePrefix` (`storage.service.ts:269`) 에 모여 있고 **`buildKey` 와 같은 파일에 있다.**
   키 규칙과 삭제 규칙이 떨어져 있으면 키만 바꿨을 때 삭제가 조용히 0건이 된다 —
   실패가 아니라 성공으로 보인다. 그 불변식은 `storage-keys.spec.ts` 가 고정한다.
 - 삭제가 걸린 지점: 프로젝트(`projects.service.ts:117`, prefix + 페이지·화별 export),
   화(`episodes.service.ts:102`)와 페이지(`pages.service.ts:141`) — 둘 다 컷별 prefix + export 를
   `pageObjectPrefixes`(`common/page-objects.ts:13`)로 모은다. 컷 행은 페이지와 함께 cascade 로
-  사라지므로 **DB 에서 지우기 전에** 모아야 한다. 여러 prefix 는 `deleteByPrefixes`(`storage.service.ts:167`)가
+  사라지므로 **DB 에서 지우기 전에** 모아야 한다. 여러 prefix 는 `deleteByPrefixes`(`storage.service.ts:176`)가
   4개씩 겹쳐 지운다. 컷(`panels.service.ts:150`),
   일관성 엔티티(`consistency.service.ts:192`), 프로젝트 썸네일 교체(`projects.service.ts:89`),
   아바타 업로드·삭제·해제(`me.controller.ts:143`, `:157`, `:120`).
   **DB 를 먼저 지우고 그다음 S3 다** — 반대 순서면 S3 삭제 성공 뒤 DB 삭제가 실패했을 때
   화면에는 남아 있는데 이미지가 전부 깨진 리소스가 된다.
 - 업로드는 `validateAndNormalizeImage`(`storage/image-validator.ts:27`)로 검증 후 sharp로 256×256 webp 썸네일 자동 생성 — `storage/storage.service.ts:110-134`
-- `presignIfSucceeded`: render status가 `succeeded`일 때만 presign URL 반환 — `:145-151`
+- `presignIfSucceeded`: render status가 `succeeded`일 때만 presign URL 반환 — `:154-160`
 - `getBytes`는 어댑터 컨텍스트(`loadReference`)와 export 합성에서 사용 — `:218-231`
 
 ---

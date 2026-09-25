@@ -291,7 +291,8 @@ export const RenderStartSchema = z.object({
 export type RenderStart = z.infer<typeof RenderStartSchema>;
 
 // ─── 내보내기 ─────────────────────────────────
-export const ExportFormatSchema = z.enum(['png', 'jpg']);
+export const EXPORT_FORMATS = ['png', 'jpg'] as const;
+export const ExportFormatSchema = z.enum(EXPORT_FORMATS);
 export const ExportRequestSchema = z.object({
   format: ExportFormatSchema,
   dpi: z.number().int().min(72).max(600).default(150).optional(),
@@ -320,9 +321,7 @@ export const EPISODE_EXPORT_MODES = ['stitch', 'pages'] as const;
  */
 export const EPISODE_EXPORT_BUNDLES = ['none', 'zip', 'pdf'] as const;
 
-export const EpisodeExportSchema = z.object({
-  format: ExportFormatSchema,
-  dpi: z.number().int().min(72).max(600).default(150).optional(),
+export const EpisodeExportSchema = ExportRequestSchema.extend({
   mode: z.enum(EPISODE_EXPORT_MODES).default('stitch'),
   bundle: z.enum(EPISODE_EXPORT_BUNDLES).default('none'),
 });

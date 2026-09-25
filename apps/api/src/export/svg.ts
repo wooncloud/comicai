@@ -1,4 +1,9 @@
-import { isHexColor } from '@comicai/types';
+import {
+  defaultPageTextStyle,
+  isHexColor,
+  TEXT_LINE_HEIGHT,
+  type PageTextStyle,
+} from '@comicai/types';
 
 export function escapeAttr(v: string): string {
   return v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -46,4 +51,40 @@ export function svgLayer<T>(
   const body = items.map(build).filter(Boolean).join('\n');
   if (!body) return null;
   return svgDocument(width, height, body);
+}
+
+/** SVG 좌표에 소수점이 길게 붙지 않게. */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * 줄 목록을 상자 안의 `<text>` 한 덩어리로. 가로는 정렬대로, 세로는 줄 뭉치를 상자
+ * 가운데에 놓는다. 말풍선 대사와 자유 텍스트가 같이 쓴다 — 예전에는 두 렌더러가 같은
+ * 계산을 한 줄씩 따로 들고 있었다.
+ *
+ * 첫 줄의 baseline: 캔버스는 `align-items: center` 로 줄 뭉치를 상자 가운데에 놓는다.
+ * 여기서도 같은 그림이 나와야 한다 — 내보낸 PNG 에서만 글자가 위로 붙으면, 화면에서
+ * 말풍선 한가운데에 맞춰 둔 대사가 결과물에서 천장에 붙어 나온다. 줄 뭉치의 윗변은
+ * `(h - 줄수 × 줄높이) / 2`, 한 줄 안에서 baseline 은 위에서 `fontSize` 만큼 내려온 자리다.
+ */
+export function svgTextBlock(
+  lines: readonly string[],
+  box: { x: number; y: number; w: number; h: number },
+  style: PageTextStyle,
+): string {
+  if (lines.length === 0) return '';
+  const lh = style.fontSize * TEXT_LINE_HEIGHT;
+  const anchor =
+    style.textAlign === 'left' ? 'start' : style.textAlign === 'right' ? 'end' : 'middle';
+  const cx =
+    box.x + (style.textAlign === 'left' ? 0 : style.textAlign === 'right' ? box.w : box.w / 2);
+  const startY = box.y + (box.h - lines.length * lh) / 2 + style.fontSize;
+  const tspans = lines
+    .map(
+      (l, i) => `<tspan x="${round2(cx)}" y="${round2(startY + i * lh)}">${escapeText(l)}</tspan>`,
+    )
+    .join('');
+  const fill = safeColor(style.color, defaultPageTextStyle().color);
+  return `<text font-family="${escapeAttr(style.fontFamily)}" font-size="${style.fontSize}" fill="${fill}" text-anchor="${anchor}" dominant-baseline="alphabetic">${tspans}</text>`;
 }
