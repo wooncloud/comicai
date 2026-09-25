@@ -28,7 +28,7 @@ import { PanelStatusBadge } from './panel-status-badge';
 import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
 import { ColorField } from '@/components/ui/color-field';
-import { NumberField } from './number-field';
+import { StrokeWidthField } from './stroke-width-field';
 import { HistoryTray } from './history-tray';
 import { ContiDialog } from './conti-dialog';
 import { useToast } from '@/components/ui/toast';
@@ -46,6 +46,8 @@ import { MODEL_OPTIONS } from '@/lib/model-options';
 import { affordability, formatTokens, useRefreshTokens, useTokenBalance } from '@/lib/tokens';
 import { useConfirm } from '@/components/ui/confirm';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { FEATURES } from '@/lib/features';
 
 interface Props {
   projectId: string;
@@ -71,6 +73,7 @@ export function PanelInspector({
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
   const confirm = useConfirm();
+  const router = useRouter();
   const esRef = useRef<EventSource | null>(null);
   const queryClient = useQueryClient();
 
@@ -139,6 +142,30 @@ export function PanelInspector({
       }
     }
   });
+
+  /**
+   * 생성 시작 — 그림체가 하나도 없으면 먼저 설정집으로 데려간다.
+   *
+   * 그림체는 이 제품이 "같은 그림으로 여러 컷" 을 만드는 방식 그 자체다. 하나도
+   * 없이 그리면 컷마다 화풍이 달라지고, 그 사실은 **여러 장 그려 본 뒤에야** 보인다 —
+   * 그때는 이미 토큰을 썼다. 그래서 첫 장 앞에서 한 번 묻는다.
+   *
+   * 아직 목록을 못 읽었으면(`undefined`) 막지 않는다. 조회 실패로 생성이 잠기면
+   * 사용자가 할 수 있는 일이 없어진다.
+   */
+  async function requestRender() {
+    if (styles?.length === 0) {
+      const ok = await confirm({
+        title: '그림체를 먼저 등록해 주세요',
+        body: '그림체가 있어야 컷들이 같은 그림으로 나옵니다. 설정집에서 하나만 만들어 두면 그 뒤로는 자동으로 쓰입니다.',
+        confirmLabel: '설정집으로',
+      });
+      // 돌아올 페이지를 들려 보낸다 — 설정집에서 다시 여기로 오는 길이 된다.
+      if (ok) router.push(`/projects/${projectId}/consistency?type=style&from=${panel.pageId}`);
+      return;
+    }
+    startRender.mutate();
+  }
 
   const startRender = useMutation({
     mutationFn: () =>
@@ -277,7 +304,7 @@ export function PanelInspector({
         onSubmit={() => {
           // 진행 중이거나 mutation pending이면 무시.
           if (status === 'queued' || status === 'running' || startRender.isPending) return;
-          startRender.mutate();
+          void requestRender();
         }}
       />
 
@@ -301,82 +328,91 @@ export function PanelInspector({
         }}
       />
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <SectionLabel icon={PencilRuler}>콘티 (구도 스케치)</SectionLabel>
-          {panel.conti && (
-            <button
-              type="button"
-              onClick={async () => {
-                const ok = await confirm({
-                  title: '콘티를 제거할까요?',
-                  body: '올린 스케치가 사라집니다. 컷의 장면 설명은 그대로 남습니다.',
-                  confirmLabel: '제거',
-                  destructive: true,
-                });
-                if (!ok) return;
+      {/*
+        콘티는 화면에서 내렸다(`FEATURES.conti`). 컷 하나를 그리려고 스케치를 따로
+        그려 올리는 흐름이 실제로 쓰이지 않았는데, 인스펙터에서 가장 큰 자리를
+        차지하고 있었다. 코드와 API 는 남아 있어 플래그 한 줄로 되돌아온다.
+      */}
+      {FEATURES.conti && (
+        <>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <SectionLabel icon={PencilRuler}>콘티 (구도 스케치)</SectionLabel>
+              {panel.conti && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: '콘티를 제거할까요?',
+                      body: '올린 스케치가 사라집니다. 컷의 장면 설명은 그대로 남습니다.',
+                      confirmLabel: '제거',
+                      destructive: true,
+                    });
+                    if (!ok) return;
+                    try {
+                      const updated = await api<PanelDTO>(ApiPaths.panelConti(panel.id), {
+                        method: 'DELETE',
+                      });
+                      onPanelUpdated(updated);
+                    } catch (err) {
+                      toast.push('error', errorMessage(err, '콘티를 제거'));
+                    }
+                  }}
+                  className="text-caption text-destructive hover:underline"
+                >
+                  제거
+                </button>
+              )}
+            </div>
+            {panel.contiUrl ? (
+              <button
+                type="button"
+                onClick={() => setContiDialogOpen(true)}
+                className="block w-full overflow-hidden rounded-md border border-border bg-card transition hover:border-foreground/40"
+                title="콘티 변경"
+              >
+                <img
+                  src={panel.contiUrl}
+                  alt="콘티"
+                  className="block h-auto w-full bg-white object-contain"
+                />
+              </button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setContiDialogOpen(true)}
+                className="w-full"
+              >
+                + 콘티 추가
+              </Button>
+            )}
+          </div>
+
+          {contiDialogOpen && (
+            <ContiDialog
+              open={contiDialogOpen}
+              onClose={() => setContiDialogOpen(false)}
+              width={1024}
+              height={1024}
+              onSubmit={async (file) => {
+                const fd = new FormData();
+                fd.append('file', file);
                 try {
                   const updated = await api<PanelDTO>(ApiPaths.panelConti(panel.id), {
-                    method: 'DELETE',
+                    method: 'POST',
+                    body: fd,
                   });
                   onPanelUpdated(updated);
+                  toast.push('success', '콘티가 첨부되었습니다.');
                 } catch (err) {
-                  toast.push('error', errorMessage(err, '콘티를 제거'));
+                  toast.push('error', errorMessage(err, '이미지를 업로드'));
+                  throw err;
                 }
               }}
-              className="text-caption text-destructive hover:underline"
-            >
-              제거
-            </button>
-          )}
-        </div>
-        {panel.contiUrl ? (
-          <button
-            type="button"
-            onClick={() => setContiDialogOpen(true)}
-            className="block w-full overflow-hidden rounded-md border border-border bg-card transition hover:border-foreground/40"
-            title="콘티 변경"
-          >
-            <img
-              src={panel.contiUrl}
-              alt="콘티"
-              className="block h-auto w-full bg-white object-contain"
             />
-          </button>
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setContiDialogOpen(true)}
-            className="w-full"
-          >
-            + 콘티 추가
-          </Button>
-        )}
-      </div>
-
-      {contiDialogOpen && (
-        <ContiDialog
-          open={contiDialogOpen}
-          onClose={() => setContiDialogOpen(false)}
-          width={1024}
-          height={1024}
-          onSubmit={async (file) => {
-            const fd = new FormData();
-            fd.append('file', file);
-            try {
-              const updated = await api<PanelDTO>(ApiPaths.panelConti(panel.id), {
-                method: 'POST',
-                body: fd,
-              });
-              onPanelUpdated(updated);
-              toast.push('success', '콘티가 첨부되었습니다.');
-            } catch (err) {
-              toast.push('error', errorMessage(err, '이미지를 업로드'));
-              throw err;
-            }
-          }}
-        />
+          )}
+        </>
       )}
 
       {error && (
@@ -460,7 +496,7 @@ export function PanelInspector({
         ) : (
           <div className="space-y-1.5">
             <Button
-              onClick={() => startRender.mutate()}
+              onClick={() => void requestRender()}
               disabled={startRender.isPending}
               // 단축키는 여기서만 말한다. 예전에는 설명 칸 아래 회색 한 줄이
               // 상주하면서 알려 줬는데, 그 자리는 이제 플레이스홀더가 쓴다.
@@ -550,16 +586,9 @@ function PanelStrokeEditor({
         굵기 칸이 팔레트 옆에 떠 버린다 — 무엇에 딸린 값인지 흐려진다.
       */}
       <ColorField value={color} onCommit={commitColor} ariaLabel="컷 테두리 색" variant="panel" />
-      <div className="flex items-center gap-2">
-        <NumberField
-          value={width}
-          min={0}
-          max={20}
-          step={1}
-          onCommit={commitWidth}
-          ariaLabel="컷 테두리 굵기 (px)"
-        />
-        <span className="text-caption text-muted-foreground">px 굵기</span>
+      <div className="space-y-1">
+        <div className="text-caption text-muted-foreground">굵기</div>
+        <StrokeWidthField value={width} onCommit={commitWidth} ariaLabel="컷 테두리 굵기" />
       </div>
     </div>
   );

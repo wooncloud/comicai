@@ -26,6 +26,10 @@ interface Props {
 const STROKE_COLORS = ['#000000', '#dc2626', '#2563eb', '#16a34a'] as const;
 const STROKE_WIDTHS = [2, 4, 8, 16] as const;
 
+/**
+ * @deprecated 2026-09-25 화면에서 내렸다(`lib/features.ts` 의 `FEATURES.conti`).
+ * 플래그 한 줄로 되돌아오도록 남겨 둔다. 새 기능을 여기에 얹지 말 것.
+ */
 export function ContiDialog({ open, onClose, onSubmit, width = 1024, height = 1024 }: Props) {
   const [mode, setMode] = useState<Mode>('draw');
   const [submitting, setSubmitting] = useState(false);

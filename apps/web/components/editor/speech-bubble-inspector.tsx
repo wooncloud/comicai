@@ -13,6 +13,7 @@ import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
 import { ColorField } from '@/components/ui/color-field';
 import { NumberField } from './number-field';
+import { StrokeWidthField } from './stroke-width-field';
 import { AlignToggle } from './align-toggle';
 import {
   Select,
@@ -82,17 +83,11 @@ export function SpeechBubbleInspector({
             ariaLabel="말풍선 선 색"
             variant="panel"
           />
-          <div className="flex items-center gap-2">
-            <NumberField
-              value={p.strokeWidth}
-              min={0}
-              max={20}
-              step={1}
-              onCommit={(v) => patch({ strokeWidth: v })}
-              ariaLabel="말풍선 선 굵기"
-            />
-            <span className="text-caption text-muted-foreground">px 굵기</span>
-          </div>
+          <StrokeWidthField
+            value={p.strokeWidth}
+            onCommit={(v) => patch({ strokeWidth: v })}
+            ariaLabel="말풍선 선 굵기"
+          />
         </div>
 
         {/*

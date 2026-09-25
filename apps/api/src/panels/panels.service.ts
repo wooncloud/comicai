@@ -184,6 +184,10 @@ export class PanelsService {
     );
   }
 
+  /**
+   * @deprecated 2026-09-25 콘티는 화면에서 내렸다(`apps/web/lib/features.ts` 의 `FEATURES.conti`).
+   * 이미 붙은 콘티를 읽는 경로(`presignContiUrl`)는 살아 있다.
+   */
   async setConti(userId: string, panelId: string, fileBuffer: Buffer): Promise<PanelDTO> {
     const owned = await this.assertOwned(userId, panelId);
     const ref = await this.storage.storeUploadedImage(
@@ -201,6 +205,7 @@ export class PanelsService {
     );
   }
 
+  /** @deprecated `setConti` 와 같은 이유. */
   async clearConti(userId: string, panelId: string): Promise<PanelDTO> {
     await this.assertOwned(userId, panelId);
     const row = await prisma.panel.update({

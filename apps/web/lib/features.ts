@@ -21,4 +21,17 @@ export const FEATURES = {
    * 끄면 그림 생성에 쓸 키를 새로 등록할 수 없다는 점에 주의 — .env.example 참고.
    */
   apiKeys: isFlagOn(process.env.NEXT_PUBLIC_FEATURE_API_KEYS),
+
+  /**
+   * 콘티(구도 스케치) 첨부.
+   *
+   * @deprecated 2026-09-25 화면에서 내렸다. 컷 하나를 그리려고 스케치를 따로 그려
+   * 올리는 흐름이 실제로 쓰이지 않았고, 인스펙터에서 가장 큰 자리를 차지하고 있었다.
+   * 코드와 API(`POST/DELETE /v1/panels/:id/conti`)는 남겨 둔다 — 이미 올린 콘티가
+   * 있는 컷이 있고, 되살릴 때 다시 만들 이유가 없다.
+   *
+   * 환경변수가 아니라 여기 박아 둔 이유: 배포 설정이 아니라 **제품 결정**이다.
+   * `as boolean` 은 타입이 `false` 로 좁혀져 쓰는 쪽이 죽은 코드로 보이는 것을 막는다.
+   */
+  conti: false as boolean,
 } as const;

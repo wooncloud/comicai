@@ -72,6 +72,13 @@ export class PanelsController {
     return this.svc.appendUpload(req.user.id, id, requireUploadedFile(file).buffer);
   }
 
+  /**
+   * 콘티(구도 스케치) 붙이기.
+   *
+   * @deprecated 2026-09-25 화면에서 내렸다(`apps/web/lib/features.ts` 의 `FEATURES.conti`).
+   * 엔드포인트는 남긴다 — 이미 콘티가 붙은 컷이 있고, 되살릴 때 다시 만들 이유가 없다.
+   * 새 기능을 여기에 얹지 말 것.
+   */
   @Post('panels/:id/conti')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
   setConti(
@@ -82,6 +89,7 @@ export class PanelsController {
     return this.svc.setConti(req.user.id, id, requireUploadedFile(file).buffer);
   }
 
+  /** @deprecated `setConti` 와 같은 이유로 화면에서 내렸다. */
   @Delete('panels/:id/conti')
   clearConti(@Req() req: AuthedRequest, @Param('id') id: string) {
     return this.svc.clearConti(req.user.id, id);

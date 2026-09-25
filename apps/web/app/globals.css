@@ -121,6 +121,25 @@
   }
 
   /*
+   * 굵기 슬라이더의 손잡이(`components/editor/stroke-width-field.tsx`).
+   *
+   * 트랙은 인라인 배경 그라디언트라 지나온 구간이 진하다. 손잡이는 흰 테두리에
+   * 얇은 그림자를 둘러, 진한 쪽과 옅은 쪽 어디에 놓여도 경계가 보인다.
+   * 가상 요소 이름이 브라우저마다 달라 둘 다 적는다.
+   */
+  .range-track::-webkit-slider-thumb {
+    @apply h-4 w-4 appearance-none rounded-full border-2 border-background bg-foreground transition-transform;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+  }
+  .range-track:active::-webkit-slider-thumb {
+    @apply scale-110;
+  }
+  .range-track::-moz-range-thumb {
+    @apply h-4 w-4 rounded-full border-2 border-background bg-foreground;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+  }
+
+  /*
    * 색상 띠의 손잡이(`components/ui/color-field.tsx`).
    *
    * `appearance-none` 으로 트랙을 지우면 손잡이도 같이 사라진다 — 브라우저마다

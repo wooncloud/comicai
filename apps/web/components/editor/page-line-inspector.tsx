@@ -6,7 +6,7 @@ import type { PageLineShape } from './tldraw/page-line-shape';
 import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
 import { ColorField } from '@/components/ui/color-field';
-import { NumberField } from './number-field';
+import { StrokeWidthField } from './stroke-width-field';
 import {
   Select,
   SelectContent,
@@ -71,17 +71,11 @@ export function PageLineInspector({
 
         <div className="space-y-1">
           <div className="text-caption text-muted-foreground">굵기</div>
-          <div className="flex items-center gap-2">
-            <NumberField
-              value={p.strokeWidth}
-              min={1}
-              max={40}
-              step={1}
-              onCommit={(v) => patch({ strokeWidth: v })}
-              ariaLabel="선 굵기"
-            />
-            <span className="text-caption text-muted-foreground">px</span>
-          </div>
+          <StrokeWidthField
+            value={p.strokeWidth}
+            onCommit={(v) => patch({ strokeWidth: v })}
+            ariaLabel="선 굵기"
+          />
         </div>
 
         <div className="space-y-1">
