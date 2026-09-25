@@ -191,7 +191,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 ### components/consistency
 
-- `setting-book-summary.tsx` — 프로젝트 화면 맨 위의 설정집 요약(`setting-book-summary.tsx:27`). 갈래별 등록 이름을 한 줄로 보여 주고 `?type=` 으로 그 탭을 연다
+- `setting-book-summary.tsx` — 프로젝트 화면 맨 위의 설정집 요약(`SettingBookSummary`, `setting-book-summary.tsx:27`). 갈래별 등록 이름을 배지로 보여 주고(`Names`, `:81`) `?type=` 으로 그 탭을 연다
 - `entity-card.tsx` — 일관성 엔티티(캐릭터/배경/세계관/그림체) 카드와 인라인 편집 UI. style 탭에서는 `isDefault?`/`onSetDefault?` props로 대표 그림체 배지·"대표로 지정" 버튼 노출(`entity-card.tsx:12-15, 57-61, 85-88`). 목록 페이지는 `app/projects/[id]/consistency/page.tsx`에서 `useState`로 직접 관리(React Query 미사용)
 
 ### components/editor (TipTap 측 + 인스펙터 + 공용 입력)
@@ -649,9 +649,14 @@ apps/web/
 그런 게 있다는 것조차 몰랐다.
 
 - 프로젝트 화면 맨 위로 꺼냈다(`app/projects/[id]/page.tsx:88`). 링크만 두지 않고
-  갈래별로 등록된 이름을 같이 보여 준다(`components/consistency/setting-book-summary.tsx:27`) —
+  갈래별로 등록된 이름을 배지로 같이 보여 준다(`Names`, `components/consistency/setting-book-summary.tsx:81`) —
   들어가 보지 않고도 "캐릭터는 넣었고 배경이 비었다" 를 안다. 한 줄이라 페이지 목록을
   밀어내지 않는다.
+- 이름은 **배지**다. 쉼표로 이은 한 줄은 어디서 하나가 끝나고 다음이 시작하는지 눈으로
+  세어야 하고, 넘치면 `truncate` 가 마지막 이름을 반 토막 낸 채 `…` 로 끝난다 — 몇 개가
+  더 있는지도, 잘린 게 이름인지도 알 수 없다. 그래서 `…` 대신 **`+N`** 이다
+  (`SHOWN`, `components/consistency/setting-book-summary.tsx:70`). "세 개가 더 있다" 는
+  셀 수 있는 정보다.
 - 갈래를 누르면 `?type=` 으로 그 탭이 열린다(`app/projects/[id]/consistency/page.tsx:30`).
   그냥 보내면 항상 그림체 탭이라, 배경을 누른 사람이 탭을 한 번 더 눌러야 했다.
 - 에디터 헤더에도 같은 입구가 있다(`app/projects/[id]/pages/[pageid]/page.tsx:358`).
@@ -717,7 +722,7 @@ API 도메인의 JSON 에러 화면에 떨어졌다 — 거기서는 앱으로 �
 - 캐릭터·배경·세계관·그림체를 등록하는 화면의 이름은 **"설정집"** 하나다
   (`app/projects/[id]/consistency/page.tsx:203`). 예전에는 제목이 "일관성 정보",
   들어가는 링크가 "캐릭터·설정 관리" 라서 같은 곳인지 알 수 없었다. 입구 라벨
-  (`components/consistency/setting-book-summary.tsx:53`)과 도착 제목은 **글자 그대로 같아야 한다.**
+  (`components/consistency/setting-book-summary.tsx:42`)과 도착 제목은 **글자 그대로 같아야 한다.**
 - 그 화면의 본문은 탭 이름을 쓴다(`app/projects/[id]/consistency/page.tsx:55` 의 `tabLabel`).
   갈래 이름은 `packages/types/src/index.ts:171` 의 `ENTITY_TYPE_LABEL` 한 곳에서 나온다 —
   요약과 탭이 같은 것을 두 이름으로 부르면 안 된다.
