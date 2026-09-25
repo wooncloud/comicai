@@ -147,7 +147,7 @@ function SpeechBubbleBody({
   const isEditing = useIsEditing(shape.id);
   const editableRef = useRef<HTMLDivElement>(null);
   const composingRef = useRef(false);
-  const box = bubbleTextBox(variant, w, h);
+  const box = bubbleTextBox(variant, w, h, polygonPoints);
 
   /*
    * 편집 중이 아닐 때만 밖에서 온 값을 넣는다 — page-text-shape 와 같은 이유다.

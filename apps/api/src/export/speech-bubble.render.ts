@@ -64,7 +64,7 @@ function bubbleTextFragment(b: BubbleInput, W: number, H: number): string {
   if (!text) return '';
   const defaults = defaultPageTextStyle();
   const st = { ...defaults, ...b.textStyle };
-  const box = bubbleTextBox(b.variant, W, H);
+  const box = bubbleTextBox(b.variant, W, H, b.shape.points ?? null);
   const lines = wrapText(text, { maxWidth: box.w, fontSize: st.fontSize });
   if (lines.length === 0) return '';
   const lh = st.fontSize * 1.25;

@@ -42,17 +42,52 @@ describe('wrapText', () => {
   });
 });
 
-describe('bubbleTextBox', () => {
-  it('타원은 사각형보다 좁은 영역을 준다 — 둥근 모서리로 글자가 새지 않게', () => {
-    const ellipse = bubbleTextBox('ellipse', 200, 100);
-    const rect = bubbleTextBox('rect', 200, 100);
-    expect(ellipse.w).toBeLessThan(rect.w);
-    expect(ellipse.h).toBeLessThan(rect.h);
+describe('bubbleTextBox — 모양마다 안쪽이 다르다', () => {
+  it('사각 > 타원 > 뾰족 순으로 넓다', () => {
+    const rect = bubbleTextBox('rect', 200, 100).w;
+    const ellipse = bubbleTextBox('ellipse', 200, 100).w;
+    const spike = bubbleTextBox('spike', 200, 100).w;
+    expect(rect).toBeGreaterThan(ellipse);
+    expect(ellipse).toBeGreaterThan(spike);
+  });
+
+  it('뾰족은 가시 안쪽(바깥의 0.7배)에 내접한다 — 0.5배 안쪽', () => {
+    // 2026-09-25: 타원과 같은 값을 쓰다가 글자가 가시를 넘어갔다.
+    expect(bubbleTextBox('spike', 200, 100).w).toBeLessThanOrEqual(200 * 0.5);
   });
 
   it('영역은 풍선 한가운데에 놓인다', () => {
-    const box = bubbleTextBox('ellipse', 200, 100);
-    expect(box.x + box.w / 2).toBeCloseTo(100, 5);
-    expect(box.y + box.h / 2).toBeCloseTo(50, 5);
+    for (const v of ['rect', 'ellipse', 'spike']) {
+      const box = bubbleTextBox(v, 200, 100);
+      expect(box.x + box.w / 2).toBeCloseTo(100, 5);
+      expect(box.y + box.h / 2).toBeCloseTo(50, 5);
+    }
+  });
+
+  it('다각형은 꼭짓점에서 직접 구한다 — 모양을 모르는 채 추측하지 않는다', () => {
+    // 오른쪽으로 치우친 삼각형: 고정 비율이면 중앙에 놓여 왼쪽 빈 공간으로 새어 나간다.
+    const tri = [
+      { x: 0.5, y: 0 },
+      { x: 1, y: 1 },
+      { x: 0.5, y: 1 },
+    ];
+    const box = bubbleTextBox('polygon', 200, 100, tri);
+    const fixed = bubbleTextBox('polygon', 200, 100);
+    expect(box.x).not.toBeCloseTo(fixed.x, 1);
+    // 당긴 다각형의 bbox 이므로 원본 bbox 안에 들어간다.
+    expect(box.x).toBeGreaterThanOrEqual(0.5 * 200 - 1);
+    expect(box.x + box.w).toBeLessThanOrEqual(200 + 1);
+  });
+
+  it('꼭짓점이 모자라면 고정 비율로 떨어진다', () => {
+    const two = [
+      { x: 0, y: 0 },
+      { x: 1, y: 1 },
+    ];
+    expect(bubbleTextBox('polygon', 200, 100, two)).toEqual(bubbleTextBox('polygon', 200, 100));
+  });
+
+  it('모르는 variant 는 타원 값으로 떨어진다', () => {
+    expect(bubbleTextBox('무엇', 200, 100)).toEqual(bubbleTextBox('ellipse', 200, 100));
   });
 });

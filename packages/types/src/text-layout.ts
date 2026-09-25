@@ -105,15 +105,48 @@ export function wrapText(text: string, { maxWidth, fontSize }: WrapTextOptions):
 /**
  * 말풍선 안에서 글자가 쓸 수 있는 영역.
  *
- * 타원은 모서리가 둥글어 가로폭을 그대로 쓰면 글자가 선 밖으로 나간다. 내접 사각형은
- * w/√2 지만 그러면 너무 좁아 보여서, 실제로 그려 보고 0.78 / 0.62 로 잡았다.
+ * 풍선 모양마다 "선 안쪽" 이 다르다. 한 값으로 뭉뚱그리면 뾰족 풍선에서 글자가
+ * 가시를 넘어간다 — 2026-09-25 에 네 종류를 나란히 그려 보고 실제로 그랬다.
+ *
+ * - `rect` 는 모서리만 둥글어 거의 다 쓴다.
+ * - `ellipse` 에 꼭 맞는 사각형은 `w/√2`(0.707)지만, 줄이 세로 가운데에 모이므로
+ *   가장 넓은 허리께를 쓴다. 조금 여유를 둔 값이다.
+ * - `spike` 는 가시의 안쪽 반지름이 바깥의 0.7 배다(`bubble-path.ts` 의 `rInnerFactor`).
+ *   그 타원에 내접하는 사각형이라 0.7 × 0.707 ≈ 0.49 다.
+ * - `polygon` 은 모양을 모르니 **꼭짓점에서 직접 구한다** — 각 꼭짓점을 중심 쪽으로
+ *   당긴 다각형의 bbox 다. 볼록한 도형에서는 항상 안쪽이다.
  */
+const TEXT_BOX_FACTORS: Record<string, [number, number]> = {
+  rect: [0.88, 0.82],
+  ellipse: [0.74, 0.62],
+  spike: [0.49, 0.45],
+  polygon: [0.62, 0.56],
+};
+
+/** 다각형 꼭짓점을 중심 쪽으로 당길 비율. */
+const POLYGON_INSET = 0.62;
+
 export function bubbleTextBox(
   variant: string,
   w: number,
   h: number,
+  points?: readonly { x: number; y: number }[] | null,
 ): { x: number; y: number; w: number; h: number } {
-  const [fw, fh] = variant === 'rect' ? [0.88, 0.82] : [0.78, 0.62];
+  if (variant === 'polygon' && points && points.length >= 3) {
+    const cx = points.reduce((a, p) => a + p.x, 0) / points.length;
+    const cy = points.reduce((a, p) => a + p.y, 0) / points.length;
+    const xs = points.map((p) => cx + (p.x - cx) * POLYGON_INSET);
+    const ys = points.map((p) => cy + (p.y - cy) * POLYGON_INSET);
+    const x0 = Math.min(...xs);
+    const y0 = Math.min(...ys);
+    return {
+      x: x0 * w,
+      y: y0 * h,
+      w: Math.max(1, (Math.max(...xs) - x0) * w),
+      h: Math.max(1, (Math.max(...ys) - y0) * h),
+    };
+  }
+  const [fw, fh] = TEXT_BOX_FACTORS[variant] ?? TEXT_BOX_FACTORS.ellipse!;
   const bw = w * fw;
   const bh = h * fh;
   return { x: (w - bw) / 2, y: (h - bh) / 2, w: bw, h: bh };
