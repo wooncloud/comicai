@@ -1,5 +1,11 @@
 'use client';
-import { StateNode, createShapeId, type TLStateNodeConstructor } from 'tldraw';
+import {
+  StateNode,
+  createShapeId,
+  type Editor,
+  type TLShapeId,
+  type TLStateNodeConstructor,
+} from 'tldraw';
 import { defaultPageTextStyle } from '@comicai/types';
 import type { PageTextShape } from './page-text-shape';
 
@@ -20,6 +26,30 @@ function defaultPageTextProps(): Omit<PageTextShape['props'], 'w' | 'h'> {
     text: '',
     ...defaultPageTextStyle(),
   };
+}
+
+/**
+ * 드래그로 새로 그린 도형을 **손을 뗀 뒤** 편집으로 연다.
+ *
+ * 클릭 생성은 도구가 그 자리에서 편집으로 보내면 된다. 드래그 생성은 `select.resizing`
+ * 으로 넘어가 거기서 끝나므로 도구에는 끝났다는 신호가 오지 않는다. `ShapeUtil.onResizeEnd`
+ * 도 **생성 드래그에서는 불리지 않는다** — 운영에서 확인했다. 그래서 다음 pointerup 을
+ * 한 번만 듣는다.
+ *
+ * 드래그 도중 취소되면 도형이 없으므로 `getShape` 로 거른다.
+ */
+function openEditingAfterDrag(editor: Editor, id: TLShapeId): void {
+  const run = () => {
+    window.removeEventListener('pointerup', run, true);
+    // 리사이즈 상태가 정리된 다음 프레임에 연다.
+    requestAnimationFrame(() => {
+      if (!editor.getShape(id)) return;
+      editor.select(id);
+      editor.setEditingShape(id);
+      editor.setCurrentTool('select.editing_shape');
+    });
+  };
+  window.addEventListener('pointerup', run, true);
 }
 
 class PageTextIdle extends StateNode {
@@ -58,6 +88,7 @@ class PageTextPointing extends StateNode {
       creatingMarkId: markId,
       creationCursorOffset: { x: 1, y: 1 },
     });
+    openEditingAfterDrag(this.editor, id);
   }
 
   override onPointerUp(): void {

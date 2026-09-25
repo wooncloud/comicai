@@ -108,23 +108,6 @@ export class SpeechBubbleShapeUtil extends BaseBoxShapeUtil<SpeechBubbleShape> {
     };
   }
 
-  /**
-   * 드래그로 **새로 그린** 도형이면 리사이즈가 끝나는 순간 편집을 연다.
-   *
-   * 클릭 생성은 도구가 직접 편집으로 보내지만, 드래그 생성은 `select.resizing` 을
-   * 거쳐 끝나므로 도구에는 끝났다는 신호가 오지 않는다. 그래서 드래그로 그린
-   * 풍선·텍스트만 빈 채로 남고 사용자가 다시 더블클릭해야 했다.
-   *
-   * "아직 저장된 적 없고(id 가 null) 글자가 비어 있다" 로 새로 그린 것만 고른다 —
-   * 이미 쓴 것을 크기만 바꾼 경우에는 편집이 열리지 않는다.
-   */
-  override onResizeEnd(initial: SpeechBubbleShape, current: SpeechBubbleShape): void {
-    if (current.props.bubbleId !== null) return;
-    if (current.props.text !== '') return;
-    this.editor.setEditingShape(current.id);
-    this.editor.setCurrentTool('select.editing_shape');
-  }
-
   override component(shape: SpeechBubbleShape) {
     return <SpeechBubbleBody shape={shape} util={this} />;
   }
