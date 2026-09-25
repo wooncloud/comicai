@@ -50,6 +50,7 @@ T-10 은 여러 파일을 건드리므로 편집기 티켓과 동시에 돌리�
 
 ## 최근 끝난 것
 
+- 2026-09-25 화(話) 도입과 내보내기 재편 — 프로젝트>화>페이지 그루핑(데이터·API·화면), 페이지 크기 프리셋을 웹툰/인스타/출판으로, 화 단위 내보내기(웹툰은 세로 이어 붙이기 + 16384px 경계 분할, 나머지는 한 장씩), 받는 방법에 ZIP·PDF 추가. ZIP 은 의존성 없이 직접 쓰고(STORE, `node:zlib` crc32) PDF 만 `pdf-lib`. 운영 마이그레이션 전 수동 백업 후 화 7개·페이지 14장 이관 확인, 운영에서 ZIP(CRC)·PDF(384×288pt@150dpi) 실물 검증 (리더)
 - 2026-09-25 L-03 풀 테스트 — `50-owner/02-verify.md` 를 로컬 스택에서 브라우저(Playwright)로 한 바퀴. A-1·A-2·B-1·B-3·B-4·B-5·C-1·C-2·C-3·D-1·D-2·D-3·E-1·E-3·F(더 보기) 통과. **버그 두 건을 찾아 같은 날 고쳐 배포**: ① Gemini 비율 400 으로 컷이 한 장도 안 그려지던 것(`bed2df4`) ② 생성 실패 문구에 서버 원문 `no gemini key` 가 노출되던 것(`2e3fe0b`). 가입 메일은 yopmail 로 실제 수신까지 확인했고, 운영에서도 가입→인증메일→설정집→컷 생성(12초)→내보내기를 통합 확인 (리더)
 - 2026-09-25 O-11 DB 비밀번호 교체 — 사장님이 고르려던 값에 URL 인코딩이 필요한 기호가 있어(compose 가 `DATABASE_URL` 을 그 값으로 조립한다) URL 안전한 40자로 새로 발급. 덤프 → `ALTER USER` → `.env` 두 줄 → migrate → api·worker·backup 교체, 로그인 401·백업 `pg_dump ok` 까지 확인. **유닉스 소켓과 127.0.0.1 은 `trust` 라 비밀번호 확인이 무의미하다**는 걸 두 번 헛짚고 알아냄 — 런북을 `docs/05-infra-ops.md` §8.3 에. O-09(옛 `.env.bak`)도 함께 삭제 (리더)
 - 2026-09-25 O-01 Resend 도메인 인증 — `comic.wooncloud.com` (Tokyo `ap-northeast-1`) 등록, Cloudflare 에 DKIM·SPF CNAME 2개·DMARC 추가, Resend `Domain verified`. `EMAIL_FROM` prod 를 `no-reply@comic.wooncloud.com` 으로 (리더, 오르카 컴퓨터 유즈로 화면 조작. Resend 의 "Cloudflare Auto configure" 는 계정 권한을 통째로 넘기게 되어 쓰지 않음)
