@@ -13,13 +13,47 @@ describe('defaultTailPoint', () => {
   });
 });
 
+/** path 의 세 점을 뽑는다. */
+function points(d: string): { x: number; y: number }[] {
+  return [...d.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => ({ x: +m[1]!, y: +m[2]! }));
+}
+/** bbox 타원 안인가 — 밑변은 몸통이 덮어야 하므로 안쪽이어야 한다. */
+const insideEllipse = (p: { x: number; y: number }, w: number, h: number) =>
+  ((p.x - w / 2) / (w / 2)) ** 2 + ((p.y - h / 2) / (h / 2)) ** 2 <= 1.0001;
+
 describe('bubbleTailPath', () => {
-  it('삼각형 세 점 — 밑변 둘은 풍선 중심 근처, 꼭짓점은 끝점', () => {
-    const d = bubbleTailPath(100, 200, 200, 100);
-    const nums = d.match(/-?\d+(\.\d+)?/g)!.map(Number);
-    expect(nums).toHaveLength(6);
-    expect(d).toContain('L 100 200'); // 끝점
-    expect(d.trim().endsWith('Z')).toBe(true);
+  it('세 점 — 밑변 둘과 끝점', () => {
+    const pts = points(bubbleTailPath(100, 200, 200, 100));
+    expect(pts).toHaveLength(3);
+    expect(pts[1]).toEqual({ x: 100, y: 200 }); // 끝점은 요청한 그대로
+  });
+
+  it('밑변 두 점이 풍선 안에 있다 — 몸통이 덮어야 선이 삐져나오지 않는다', () => {
+    // 2026-09-25: 넓적한 풍선에서 밑변 모서리가 아래 곡선 밖으로 나와 짧은 선처럼 보였다.
+    const cases: [number, number, number, number][] = [
+      [680, 130, 120, 180], // 아주 넓적
+      [300, 160, 150, 250],
+      [200, 120, 300, -60], // 오른쪽 위로
+      [160, 190, -90, 100], // 왼쪽으로
+      [80, 80, 40, 200],
+    ];
+    for (const [w, h, tx, ty] of cases) {
+      const [a, , b] = points(bubbleTailPath(tx, ty, w, h));
+      expect(insideEllipse(a!, w, h)).toBe(true);
+      expect(insideEllipse(b!, w, h)).toBe(true);
+    }
+  });
+
+  it('밑변이 풍선 크기에 비례해 넓어진다 — 바늘처럼 가늘지 않게', () => {
+    const wide = points(bubbleTailPath(120, 180, 680, 130));
+    const width = Math.hypot(wide[0]!.x - wide[2]!.x, wide[0]!.y - wide[2]!.y);
+    expect(width).toBeGreaterThan(40);
+  });
+
+  it('꼬리가 짧으면 밑변도 같이 좁아진다 — 밑변이 꼬리보다 넓으면 우스워진다', () => {
+    const short = points(bubbleTailPath(105, 55, 200, 100)); // 중심 바로 옆
+    const w = Math.hypot(short[0]!.x - short[2]!.x, short[0]!.y - short[2]!.y);
+    expect(w).toBeLessThan(60);
   });
 
   it('끝점이 중심과 같아도 터지지 않는다', () => {
