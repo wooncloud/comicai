@@ -52,25 +52,6 @@ function toApi(shape: PageTextShape): {
   };
 }
 
-function samePropsAsDto(
-  shape: PageTextShape,
-  next: { x: number; y: number; props: PageTextShape['props'] },
-): boolean {
-  const cur = shape.props;
-  const n = next.props;
-  return (
-    shape.x === next.x &&
-    shape.y === next.y &&
-    cur.w === n.w &&
-    cur.h === n.h &&
-    cur.text === n.text &&
-    cur.fontSize === n.fontSize &&
-    cur.fontFamily === n.fontFamily &&
-    cur.color === n.color &&
-    cur.textAlign === n.textAlign
-  );
-}
-
 export function usePageTextSync({
   editor,
   pageId,
@@ -103,5 +84,4 @@ const SPEC: ShapeSyncSpec<PageTextShape, PageTextDTO> = {
     y: dto.y,
     props: flatten(dto),
   }),
-  isEqual: samePropsAsDto,
 };

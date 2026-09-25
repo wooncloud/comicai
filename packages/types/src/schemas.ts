@@ -452,6 +452,12 @@ export const PageTextStyleSchema = z.object({
   textAlign: z.enum(TEXT_ALIGNS).default('center'),
 });
 
+/**
+ * 캔버스 글자(말풍선 대사·자유 텍스트)의 최대 길이. 캔버스가 칠 때 자르는 값과 서버가
+ * 받는 값이 같아야 한다 — 다르면 캔버스에서 쳐진 글이 저장에서 거부된다.
+ */
+export const MAX_CANVAS_TEXT_LENGTH = 2000;
+
 /*
  * 말풍선은 **자기 대사를 갖는다.** 예전에는 PageText 를 따로 만들어 위에 얹어야 했고,
  * 풍선을 옮기면 글자가 그 자리에 남았다. 글자 스타일은 PageText 와 같은 모양을 쓴다 —
@@ -461,7 +467,7 @@ export const SpeechBubbleCreateSchema = z.object({
   variant: SpeechBubbleVariantSchema,
   shape: SpeechBubbleShapeSchema,
   style: SpeechBubbleStyleSchema.partial().optional(),
-  text: z.string().max(2000).optional(),
+  text: z.string().max(MAX_CANVAS_TEXT_LENGTH).optional(),
   textStyle: PageTextStyleSchema.partial().optional(),
 });
 
@@ -469,7 +475,7 @@ export const SpeechBubblePatchSchema = z.object({
   variant: SpeechBubbleVariantSchema.optional(),
   shape: SpeechBubbleShapeSchema.optional(),
   style: SpeechBubbleStyleSchema.partial().optional(),
-  text: z.string().max(2000).optional(),
+  text: z.string().max(MAX_CANVAS_TEXT_LENGTH).optional(),
   textStyle: PageTextStyleSchema.partial().optional(),
 });
 
@@ -478,7 +484,7 @@ export const PageTextCreateSchema = z.object({
   y: z.number(),
   w: z.number().positive(),
   h: z.number().positive(),
-  text: z.string().max(2000).optional(),
+  text: z.string().max(MAX_CANVAS_TEXT_LENGTH).optional(),
   style: PageTextStyleSchema.partial().optional(),
 });
 
@@ -487,7 +493,7 @@ export const PageTextPatchSchema = z.object({
   y: z.number().optional(),
   w: z.number().positive().optional(),
   h: z.number().positive().optional(),
-  text: z.string().max(2000).optional(),
+  text: z.string().max(MAX_CANVAS_TEXT_LENGTH).optional(),
   style: PageTextStyleSchema.partial().optional(),
 });
 

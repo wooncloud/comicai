@@ -319,14 +319,14 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | IN_PROGRESS_RENDER_STATUSES | `queued, running`                                                    | `index.ts:115`                   |
 | TERMINAL_RENDER_STATUSES    | `succeeded, failed, timeout, canceled`                               | `index.ts:96-101`                |
 | PANEL_SHAPE_TYPES           | `rect, rounded, oval, diamond, parallelogram, polygon`               | `schemas.ts:342-349`             |
-| SPEECH_BUBBLE_VARIANTS      | `ellipse, rect, spike, polygon` (cloud/thought 제거됨)               | `schemas.ts:385`                 |
-| PAGE_TEXT_FONT_FAMILIES     | `sans-serif, serif, monospace`                                       | `schemas.ts:448`                 |
-| EntityType                  | `style, character, background, worldview`                            | `schemas.ts:482`                 |
-| ModelProvider               | `gemini, openai, mock`                                               | `index.ts:22`                    |
+| SPEECH_BUBBLE_VARIANTS      | `ellipse, rect, spike, polygon` (cloud/thought 제거됨)               | `schemas.ts:384`                 |
+| PAGE_TEXT_FONT_FAMILIES     | `sans-serif, serif, monospace`                                       | `schemas.ts:435`                 |
+| EntityType                  | `style, character, background, worldview`                            | `schemas.ts:542`                 |
+| ModelProvider               | `gemini, openai, mock`                                               | `index.ts:25`                    |
 | ModelId                     | `gemini-3.1-flash-image, gpt-image-2.5-flare, mock` (+ 기록용 옛 판) | `schemas.ts:102`                 |
-| OAUTH_PROVIDERS             | `google, github`                                                     | `index.ts:95`                    |
+| OAUTH_PROVIDERS             | `google, github`                                                     | `index.ts:98`                    |
 | RenderErrorCategory         | `transient, auth, quota, safety, invalid, timeout`                   | `index.ts:584`                   |
-| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                                      | `schemas.ts:504`                 |
+| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                                      | `schemas.ts:509`                 |
 | TEXT_ALIGNS                 | `left, center, right`                                                | `schemas.ts:4`                   |
 
 **값 목록은 전부 `schemas.ts` 에만 있다.** `index.ts` 는 타입만 파생시킨다

@@ -1,20 +1,9 @@
 'use client';
 import { StateNode, createShapeId, type TLStateNodeConstructor } from 'tldraw';
-import { defaultPageLineStyle } from '@comicai/types';
 import type { PageLineShape } from './page-line-shape';
 
 /** drag로 두 점을 지정해 만든다. click(드래그 거의 없음)은 무시. */
 const MIN_DRAG_PX = 4;
-
-function defaultLineProps(): Omit<
-  PageLineShape['props'],
-  'w' | 'h' | 'x1Norm' | 'y1Norm' | 'x2Norm' | 'y2Norm'
-> {
-  return {
-    lineId: null,
-    ...defaultPageLineStyle(),
-  };
-}
 
 class PageLineIdle extends StateNode {
   static override id = 'idle';
@@ -67,7 +56,8 @@ class PageLineDragging extends StateNode {
       type: 'page-line',
       x: placed.x,
       y: placed.y,
-      props: { ...defaultLineProps(), ...placed.dims },
+      // 나머지 props 는 셰이프의 `getDefaultProps()` 가 채운다.
+      props: placed.dims,
     });
     this.editor.select(id);
   }

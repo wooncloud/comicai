@@ -9,7 +9,6 @@ import {
 } from '@comicai/types';
 import type { ComicPanelShape } from './comic-panel-shape';
 import { useShapeSync, type ShapeSyncSpec } from './use-shape-sync';
-import type { NormalizedPoint } from './panel-geometry';
 
 interface Args {
   editor: Editor | null;
@@ -24,7 +23,7 @@ interface Args {
  * 컷(패널) 양방향 동기화.
  *
  * 순방향(캔버스 → 서버)과 역방향(서버 DTO → 캔버스) 모두 `useShapeSync` 공통 엔진이 맡는다.
- * 여기에는 패널 고유의 좌표 변환(`toShape`, `toApiShape`)과 다각형 동등성 비교(`samePolygon`)만 남긴다.
+ * 여기에는 패널 고유의 좌표 변환(`toShape`, `toApiShape`)만 남긴다.
  */
 export function usePanelSync({
   editor,
@@ -93,17 +92,6 @@ const SPEC: ShapeSyncSpec<ComicPanelShape, PanelDTO> = {
       },
     };
   },
-  isEqual: (shape, next) =>
-    shape.x === next.x &&
-    shape.y === next.y &&
-    shape.props.w === next.props.w &&
-    shape.props.h === next.props.h &&
-    shape.props.status === next.props.status &&
-    shape.props.resultImageUrl === next.props.resultImageUrl &&
-    shape.props.variant === next.props.variant &&
-    shape.props.strokeColor === next.props.strokeColor &&
-    shape.props.strokeWidth === next.props.strokeWidth &&
-    samePolygon(shape.props.polygonPoints, next.props.polygonPoints),
 };
 
 function toApiShape(shape: ComicPanelShape): PanelShape {
@@ -122,14 +110,4 @@ function toApiShape(shape: ComicPanelShape): PanelShape {
   // 여기 값은 tldraw props 다. shape util 이 기본값을 보장하므로 폴백이 필요 없다 —
   // 서버에서 읽어 온 JSON(위 `stored`)과 헷갈리지 말 것.
   return { type: variant, points, strokeColor, strokeWidth };
-}
-
-function samePolygon(a: NormalizedPoint[] | null, b: NormalizedPoint[] | null): boolean {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  if (a.length !== b.length) return false;
-  return a.every((pa, i) => {
-    const pb = b[i];
-    return pa.x === pb?.x && pa.y === pb.y;
-  });
 }

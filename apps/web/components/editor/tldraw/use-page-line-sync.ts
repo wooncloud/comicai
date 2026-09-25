@@ -78,27 +78,6 @@ function toApi(shape: PageLineShape): {
   };
 }
 
-function samePropsAsDto(
-  shape: PageLineShape,
-  next: { x: number; y: number; props: PageLineShape['props'] },
-): boolean {
-  const cur = shape.props;
-  const n = next.props;
-  return (
-    shape.x === next.x &&
-    shape.y === next.y &&
-    cur.w === n.w &&
-    cur.h === n.h &&
-    cur.x1Norm === n.x1Norm &&
-    cur.y1Norm === n.y1Norm &&
-    cur.x2Norm === n.x2Norm &&
-    cur.y2Norm === n.y2Norm &&
-    cur.strokeWidth === n.strokeWidth &&
-    cur.strokeColor === n.strokeColor &&
-    cur.strokeStyle === n.strokeStyle
-  );
-}
-
 export function usePageLineSync({
   editor,
   pageId,
@@ -127,5 +106,4 @@ const SPEC: ShapeSyncSpec<PageLineShape, PageLineDTO> = {
   itemPath: ApiPaths.pageLine,
   toBody: toApi,
   toShape: (dto) => flatten(dto),
-  isEqual: samePropsAsDto,
 };

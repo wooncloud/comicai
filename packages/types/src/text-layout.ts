@@ -155,3 +155,13 @@ export function bubbleTextBox(
   const bh = h * fh;
   return { x: (w - bw) / 2, y: (h - bh) / 2, w: bw, h: bh };
 }
+
+/**
+ * 자유 텍스트 상자 안에서 글자가 들어갈 자리. 안쪽으로 2px — 편집 칸의 점선이 상자 선과
+ * 겹치지 않게. 캔버스와 export 가 **같은 자리에서 같은 폭으로** 끊어야 줄 수가 같다.
+ * 말풍선은 모양마다 자리가 달라 `bubbleTextBox` 가 따로 있다.
+ */
+export function pageTextBox(w: number, h: number): { x: number; y: number; w: number; h: number } {
+  const inset = 2;
+  return { x: inset, y: inset, w: Math.max(1, w - inset * 2), h: Math.max(1, h - inset * 2) };
+}

@@ -4,7 +4,6 @@ import {
   ApiPaths,
   defaultPageTextStyle,
   defaultSpeechBubbleStyle,
-  type NormalizedPoint,
   type SpeechBubbleDTO,
   type SpeechBubbleShape as ApiBubbleShape,
   type SpeechBubbleStyle,
@@ -87,41 +86,6 @@ function toApi(shape: SpeechBubbleShape): {
   };
 }
 
-function samePropsAsDto(
-  shape: SpeechBubbleShape,
-  next: { x: number; y: number; props: SpeechBubbleShape['props'] },
-): boolean {
-  const cur = shape.props;
-  const n = next.props;
-  if (
-    shape.x !== next.x ||
-    shape.y !== next.y ||
-    cur.w !== n.w ||
-    cur.h !== n.h ||
-    cur.variant !== n.variant ||
-    cur.tailX !== n.tailX ||
-    cur.tailY !== n.tailY ||
-    cur.strokeWidth !== n.strokeWidth ||
-    cur.strokeColor !== n.strokeColor ||
-    cur.fillColor !== n.fillColor ||
-    cur.text !== n.text ||
-    cur.fontSize !== n.fontSize ||
-    cur.fontFamily !== n.fontFamily ||
-    cur.textColor !== n.textColor ||
-    cur.textAlign !== n.textAlign
-  ) {
-    return false;
-  }
-  return samePolygon(cur.polygonPoints, n.polygonPoints);
-}
-
-function samePolygon(a: NormalizedPoint[] | null, b: NormalizedPoint[] | null): boolean {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  if (a.length !== b.length) return false;
-  return a.every((pa, i) => pa.x === b[i]?.x && pa.y === b[i].y);
-}
-
 export function useSpeechBubbleSync({
   editor,
   pageId,
@@ -154,5 +118,4 @@ const SPEC: ShapeSyncSpec<SpeechBubbleShape, SpeechBubbleDTO> = {
     y: dto.shape.y,
     props: flatten(dto),
   }),
-  isEqual: samePropsAsDto,
 };

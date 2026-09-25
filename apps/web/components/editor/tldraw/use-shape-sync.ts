@@ -95,8 +95,6 @@ export interface ShapeSyncSpec<
   layerRange?: [IndexKey, IndexKey];
   /** DTO → shape 좌표 및 props 변환. 직전 도형(existing)이 있으면 두 번째 인자로 전달된다. */
   toShape?: (dto: TDto, existing?: TShape) => ShapeData<TShape>;
-  /** 변경 여부 동등성 검사 (생략 시 x, y 및 props 얕은 비교) */
-  isEqual?: (existing: TShape, next: ShapeData<TShape>) => boolean;
 }
 
 /** 역방향 투영이 이 훅에게 묻는 것. 반환값의 정체성은 렌더 간에 고정된다. */
@@ -516,14 +514,13 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
         const targetIndex = indexMap.get(dto.id);
 
         if (shape) {
-          const unchanged = spec.isEqual
-            ? spec.isEqual(shape, next)
-            : shape.x === next.x &&
-              shape.y === next.y &&
-              isShallowEqual(
-                shape.props as Record<string, unknown>,
-                next.props as Record<string, unknown>,
-              );
+          const unchanged =
+            shape.x === next.x &&
+            shape.y === next.y &&
+            sameProps(
+              shape.props as Record<string, unknown>,
+              next.props as Record<string, unknown>,
+            );
           const indexChanged = targetIndex !== undefined && shape.index !== targetIndex;
 
           if (!unchanged || indexChanged) {
@@ -560,13 +557,27 @@ export function useShapeSync<TShape extends TLShape, TDto extends { id: string }
   return state;
 }
 
-function isShallowEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+/**
+ * 서버에서 온 값이 캔버스 도형과 같은가. 같으면 도형을 다시 쓰지 않는다.
+ *
+ * props 는 원시값이거나 다각형 꼭짓점 같은 `{x, y}` 배열이다. 배열은 서버에서 읽을 때마다
+ * 새로 만들어져 참조가 늘 다르므로 **원소별로** 본다. 예전에는 기본 비교가 참조만 봐서,
+ * 다각형을 가진 컷·말풍선은 각자 필드를 손으로 나열한 비교를 들고 있었다 — 필드를
+ * 하나 더할 때 그 목록에 빠뜨리면, 서버에서 바뀐 그 값이 캔버스에 조용히 반영되지 않는다.
+ */
+function sameProps(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
   if (a === b) return true;
-  const keysA = Object.keys(a);
-  const keysB = Object.keys(b);
-  if (keysA.length !== keysB.length) return false;
-  for (const k of keysA) {
-    if (a[k] !== b[k]) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((k) => sameValue(a[k], b[k]));
+}
+
+function sameValue(x: unknown, y: unknown): boolean {
+  if (x === y) return true;
+  if (Array.isArray(x) && Array.isArray(y)) {
+    return x.length === y.length && x.every((v, i) => sameValue(v, y[i]));
   }
-  return true;
+  if (x && y && typeof x === 'object' && typeof y === 'object') {
+    return sameProps(x as Record<string, unknown>, y as Record<string, unknown>);
+  }
+  return false;
 }

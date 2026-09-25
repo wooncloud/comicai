@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultPageTextStyle } from '@comicai/types';
+import { defaultPageTextStyle, pageTextBox, wrapText } from '@comicai/types';
 import { renderPageTextLayer } from './page-text.render';
 
 /** 렌더 결과 SVG 에서 tspan 의 y 좌표만 뽑는다. */
@@ -73,6 +73,36 @@ describe('기본 스타일', () => {
       1200,
     )!.toString('utf8');
     expect(svg).toContain('text-anchor="start"');
-    expect(svg).toContain('x="0"');
+    // 캔버스와 같은 안쪽 여백(`pageTextBox`) — 왼쪽 정렬 글이 상자 선에 붙지 않는다.
+    expect(svg).toContain('x="2"');
+  });
+});
+
+describe('줄바꿈 — 캔버스와 같은 폭에서 접는다', () => {
+  it('상자보다 긴 글은 여러 줄이 된다', () => {
+    const svg = renderPageTextLayer(
+      [
+        {
+          ...box,
+          h: 200,
+          text: '가나다라마바사아자차카타파하 가나다라마바사아자차',
+          style: style(),
+        },
+      ],
+      800,
+      1200,
+    )!.toString('utf8');
+    // 예전에는 `\n` 으로만 나눠 한 줄로 상자 밖까지 뻗었다.
+    expect(baselines(svg).length).toBeGreaterThan(1);
+  });
+
+  it('캔버스와 같은 함수·같은 폭이다', () => {
+    const text = '말풍선 밖에 두는 긴 내레이션 한 문장이 상자 폭을 넘는다';
+    const { w, h } = box;
+    const expected = wrapText(text, { maxWidth: pageTextBox(w, h).w, fontSize: 24 });
+    const svg = renderPageTextLayer([{ ...box, text, style: style() }], 800, 1200)!.toString(
+      'utf8',
+    );
+    expect(baselines(svg)).toHaveLength(expected.length);
   });
 });

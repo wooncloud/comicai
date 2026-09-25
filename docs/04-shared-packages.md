@@ -36,19 +36,19 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
   `MODEL_IDS` 에만 남고, `resolveModelId`(`src/index.ts:56`)가 새 생성 때 지금 판으로 올린다.
   예전에는 같은 문자열이 세 곳(이 유니온, `RenderModelSchema`, `ProjectPatchSchema.defaultModel`)
   에 적혀 있어서, 하나만 늘리면 나머지가 조용히 거부했다.
-- `RENDER_STATUSES = ['queued','running','succeeded','failed','timeout','canceled']` (`src/index.ts:27-34`).
-- `IN_PROGRESS_RENDER_STATUSES`, `TERMINAL_RENDER_STATUSES`, `isInProgressRender()` 헬퍼 (`src/index.ts:114-130`).
-- `PANEL_SHAPE_TYPES = ['rect','rounded','oval','diamond','parallelogram','polygon']` (`src/schemas.ts:196`).
-- `SPEECH_BUBBLE_VARIANTS = ['ellipse','rect','spike','polygon']` (`src/schemas.ts:239`). cloud/thought 는 2026-05-19 migration에서 제거되어 ellipse 로 일괄 변환됨.
-- `PAGE_TEXT_FONT_FAMILIES = ['sans-serif','serif','monospace']` (`src/schemas.ts:448`) — 캔버스(CSS)와
+- `RENDER_STATUSES = ['queued','running','succeeded','failed','timeout','canceled']` (`src/index.ts:101-108`).
+- `IN_PROGRESS_RENDER_STATUSES`, `TERMINAL_RENDER_STATUSES`, `isInProgressRender()` 헬퍼 (`src/index.ts:117-133`).
+- `PANEL_SHAPE_TYPES = ['rect','rounded','oval','diamond','parallelogram','polygon']` (`src/schemas.ts:353`).
+- `SPEECH_BUBBLE_VARIANTS = ['ellipse','rect','spike','polygon']` (`src/schemas.ts:384`). cloud/thought 는 2026-05-19 migration에서 제거되어 ellipse 로 일괄 변환됨.
+- `PAGE_TEXT_FONT_FAMILIES = ['sans-serif','serif','monospace']` (`src/schemas.ts:435`) — 캔버스(CSS)와
   export(SVG) 양쪽에서 실제로 해석되는 것만. `index.ts` 는 여기서 타입만 파생시킨다
-  (`PageTextFontFamily`, `src/index.ts:274`). 값을 양쪽에 두면 지역 선언이 `export *` 를 가려
+  (`PageTextFontFamily`, `src/index.ts:302`). 값을 양쪽에 두면 지역 선언이 `export *` 를 가려
   **컴파일 에러 없이** 소비자와 Zod 검증기가 서로 다른 목록을 본다.
-- `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/schemas.ts:504`). PageLine 의 선 종류.
-  폰트와 같은 이유로 값은 `schemas.ts` 에만 있고, `index.ts:358` 은 타입만 파생시킨다.
-- `RenderErrorCategory = 'transient'|'auth'|'quota'|'safety'|'invalid'|'timeout'` (`src/index.ts:495`).
-- `EntityType = 'style'|'character'|'background'|'worldview'` — 값은 `ENTITY_TYPES` (`src/schemas.ts:484`), 타입은 `src/index.ts:188`. `packages/db` 의 `entityIdPrefix` 도 이걸 받아서, 타입이 늘면 그 switch 가 컴파일 에러로 걸린다.
-- `OAUTH_PROVIDERS = ['google','github']` (`src/index.ts:95`).
+- `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/schemas.ts:509`). PageLine 의 선 종류.
+  폰트와 같은 이유로 값은 `schemas.ts` 에만 있고, `index.ts:362` 은 타입만 파생시킨다.
+- `RenderErrorCategory = 'transient'|'auth'|'quota'|'safety'|'invalid'|'timeout'` (`src/index.ts:584`).
+- `EntityType = 'style'|'character'|'background'|'worldview'` — 값은 `ENTITY_TYPES` (`src/schemas.ts:542`), 타입은 `src/index.ts:191`. `packages/db` 의 `entityIdPrefix` 도 이걸 받아서, 타입이 늘면 그 switch 가 컴파일 에러로 걸린다.
+- `OAUTH_PROVIDERS = ['google','github']` (`src/index.ts:98`).
 - `TEXT_ALIGNS = ['left','center','right']` (`src/schemas.ts:4`) — PageText/말풍선 인스펙터 공용 정렬 enum.
 - `MODEL_LABEL`, `modelLabel(id)` — 화면 및 서버 공용 AI 모델 표시 이름('Gemini', 'OpenAI', '테스트') (`src/index.ts:748-764`).
 

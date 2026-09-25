@@ -1,9 +1,7 @@
 'use client';
-import { useLayoutEffect, useRef } from 'react';
 import {
   BaseBoxShapeUtil,
   HTMLContainer,
-  useIsEditing,
   type RecordProps,
   T,
   type TLBaseShape,
@@ -22,12 +20,12 @@ import {
   PAGE_TEXT_FONT_FAMILIES,
   SPEECH_BUBBLE_VARIANTS,
   TEXT_ALIGNS,
-  wrapText,
   type NormalizedPoint,
   type PageTextFontFamily,
   type SpeechBubbleVariant,
   type TextAlign,
 } from '@comicai/types';
+import { EditableText } from './editable-text';
 
 export type SpeechBubbleShape = TLBaseShape<
   'speech-bubble',
@@ -183,51 +181,7 @@ function SpeechBubbleBody({
   const bodyPath = bubbleBodyPath(variant, w, h, polygonPoints);
   const tailPath = tailX !== null && tailY !== null ? bubbleTailPath(tailX, tailY, w, h) : null;
 
-  const isEditing = useIsEditing(shape.id);
-  const editableRef = useRef<HTMLDivElement>(null);
-  const composingRef = useRef(false);
   const box = bubbleTextBox(variant, w, h, polygonPoints);
-
-  /*
-   * 편집 중이 아닐 때만 밖에서 온 값을 넣는다 — page-text-shape 와 같은 이유다.
-   * 저장 뒤 재조회가 방금 친 글자를 지우고 캐럿을 앞으로 보내는 일이 있었다.
-   */
-  useLayoutEffect(() => {
-    if (isEditing) return;
-    const el = editableRef.current;
-    if (el && el.textContent !== text) el.textContent = text;
-  }, [text, isEditing]);
-
-  /* 편집이 열리면 실제로 캐럿을 준다. tldraw 는 상태만 바꾼다. */
-  useLayoutEffect(() => {
-    if (!isEditing) return;
-    const el = editableRef.current;
-    if (!el) return;
-    el.focus();
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    range.collapse(false);
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-  }, [isEditing]);
-
-  function commit(next: string) {
-    const sliced = next.slice(0, 2000);
-    if (sliced === shape.props.text) return;
-    util.editor.updateShape<SpeechBubbleShape>({
-      id: shape.id,
-      type: 'speech-bubble',
-      props: { text: sliced },
-    });
-  }
-
-  /*
-   * 줄바꿈은 `wrapText` 로 미리 끊는다 — **export 와 같은 함수다.**
-   * CSS 로 접으면 화면과 내보낸 PNG 의 줄 수가 달라진다(librsvg 에는 foreignObject 가 없다).
-   * 편집 중에는 캐럿이 필요해 원문 그대로 두고, 폭만 같게 잡아 미리보기를 맞춘다.
-   */
-  const lines = wrapText(text, { maxWidth: box.w, fontSize });
 
   return (
     <HTMLContainer
@@ -266,53 +220,22 @@ function SpeechBubbleBody({
         />
         {tailPath && <path d={tailPath} fill={fillColor} stroke="none" />}
       </svg>
-      <div
-        ref={editableRef}
-        contentEditable={isEditing}
-        suppressContentEditableWarning
-        spellCheck={false}
-        onCompositionStart={() => {
-          composingRef.current = true;
-        }}
-        onCompositionEnd={(e) => {
-          composingRef.current = false;
-          if (!isEditing) return;
-          commit(e.currentTarget.textContent);
-        }}
-        onInput={(e) => {
-          if (!isEditing) return;
-          if (composingRef.current) return;
-          commit(e.currentTarget.textContent);
-        }}
-        onPointerDown={(e) => {
-          if (isEditing) e.stopPropagation();
-        }}
-        style={{
-          position: 'absolute',
-          left: box.x,
-          top: box.y,
-          width: box.w,
-          height: box.h,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems:
-            textAlign === 'left' ? 'flex-start' : textAlign === 'right' ? 'flex-end' : 'center',
-          justifyContent: 'center',
-          textAlign,
-          fontSize,
-          fontFamily,
-          lineHeight: 1.25,
-          color: textColor,
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          outline: isEditing ? '1px dashed rgba(0,0,0,0.3)' : 'none',
-          cursor: isEditing ? 'text' : 'inherit',
-          userSelect: isEditing ? 'text' : 'none',
-          pointerEvents: isEditing ? 'auto' : 'none',
-        }}
-      >
-        {isEditing ? null : lines.map((l, i) => <div key={i}>{l === '' ? '\u00a0' : l}</div>)}
-      </div>
+      <EditableText
+        shapeId={shape.id}
+        text={text}
+        box={box}
+        fontSize={fontSize}
+        fontFamily={fontFamily}
+        color={textColor}
+        textAlign={textAlign}
+        onCommit={(next) =>
+          util.editor.updateShape<SpeechBubbleShape>({
+            id: shape.id,
+            type: 'speech-bubble',
+            props: { text: next },
+          })
+        }
+      />
     </HTMLContainer>
   );
 }

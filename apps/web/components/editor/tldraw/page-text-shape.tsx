@@ -1,20 +1,14 @@
 'use client';
-import { useLayoutEffect, useRef } from 'react';
-import {
-  BaseBoxShapeUtil,
-  HTMLContainer,
-  useIsEditing,
-  type RecordProps,
-  T,
-  type TLBaseShape,
-} from 'tldraw';
+import { BaseBoxShapeUtil, HTMLContainer, type RecordProps, T, type TLBaseShape } from 'tldraw';
 import {
   PAGE_TEXT_FONT_FAMILIES,
   TEXT_ALIGNS,
   type PageTextFontFamily,
   type TextAlign,
   defaultPageTextStyle,
+  pageTextBox,
 } from '@comicai/types';
+import { EditableText } from './editable-text';
 
 export type PageTextShape = TLBaseShape<
   'page-text',
@@ -75,114 +69,25 @@ export class PageTextShapeUtil extends BaseBoxShapeUtil<PageTextShape> {
 }
 
 function PageTextBody({ shape, util }: { shape: PageTextShape; util: PageTextShapeUtil }) {
-  const isEditing = useIsEditing(shape.id);
   const { w, h, text, fontSize, fontFamily, color, textAlign } = shape.props;
-
-  const editableRef = useRef<HTMLDivElement>(null);
-  const composingRef = useRef(false);
-
-  /*
-   * 외부 변경(DTO sync, 인스펙터에서 다른 필드 변경 후 re-render)만 textContent 에 반영.
-   *
-   * **편집 중에는 건드리지 않는다.** POST 응답 뒤의 refetch 가 조금 전 본문을 들고
-   * 오는데, 그 사이 사용자가 이어 친 글자가 여기서 지워지고 캐럿이 앞으로 튀었다.
-   * 편집이 끝나면 `isEditing` 이 false 가 되면서 이 이펙트가 다시 돌아 맞춰진다.
-   */
-  useLayoutEffect(() => {
-    if (isEditing) return;
-    const el = editableRef.current;
-    if (!el) return;
-    if (el.textContent !== text) {
-      el.textContent = text;
-    }
-  }, [text, isEditing]);
-
-  /*
-   * 편집이 시작되면 **실제로 캐럿을 준다.**
-   *
-   * tldraw 는 "이 도형이 편집 중" 이라는 상태만 바꾼다. 어느 요소에 포커스를 둘지는
-   * 도형이 정하는데, 그걸 아무도 안 하고 있었다. 그래서 `contentEditable` 이 켜져도
-   * 키 입력이 아무 데도 안 들어갔다 — 더블클릭해서 편집을 열어도 글자가 안 쳐지고,
-   * 사용자는 상자를 한 번 더 클릭해야 한다는 걸 스스로 알아내야 했다.
-   *
-   * 캐럿은 끝에 둔다. 이미 쓰던 글을 고치려고 연 경우 앞으로 튀면 안 된다.
-   */
-  useLayoutEffect(() => {
-    if (!isEditing) return;
-    const el = editableRef.current;
-    if (!el) return;
-    el.focus();
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    range.collapse(false);
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-  }, [isEditing]);
-
-  function commit(next: string) {
-    const sliced = next.slice(0, 2000);
-    if (sliced === shape.props.text) return;
-    // 바뀐 키만. `updateShape` 는 props 를 부분 병합하므로 스프레드하면 낡은
-    // 스냅샷(특히 아직 null 인 textId)을 되쓰게 된다.
-    util.editor.updateShape<PageTextShape>({
-      id: shape.id,
-      type: 'page-text',
-      props: { text: sliced },
-    });
-  }
-
   return (
-    <HTMLContainer
-      style={{
-        width: w,
-        height: h,
-        pointerEvents: 'all',
-        position: 'relative',
-      }}
-    >
-      <div
-        ref={editableRef}
-        contentEditable={isEditing}
-        suppressContentEditableWarning
-        spellCheck={false}
-        onCompositionStart={() => {
-          composingRef.current = true;
-        }}
-        onCompositionEnd={(e) => {
-          composingRef.current = false;
-          if (!isEditing) return;
-          commit(e.currentTarget.textContent);
-        }}
-        onInput={(e) => {
-          if (!isEditing) return;
-          if (composingRef.current) return;
-          commit(e.currentTarget.textContent);
-        }}
-        onPointerDown={(e) => {
-          if (isEditing) e.stopPropagation();
-        }}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          padding: '2px',
-          display: 'flex',
-          // 세로도 가운데 — 말풍선 안에 놓였을 때 풍선 중앙에 오게 한다.
-          alignItems: 'center',
-          justifyContent:
-            textAlign === 'left' ? 'flex-start' : textAlign === 'right' ? 'flex-end' : 'center',
-          textAlign,
-          fontSize,
-          fontFamily,
-          lineHeight: 1.25,
-          color,
-          outline: isEditing ? '1px dashed rgba(0,0,0,0.3)' : 'none',
-          cursor: isEditing ? 'text' : 'inherit',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          userSelect: isEditing ? 'text' : 'none',
-          pointerEvents: isEditing ? 'auto' : 'none',
-        }}
+    <HTMLContainer style={{ width: w, height: h, pointerEvents: 'all', position: 'relative' }}>
+      <EditableText
+        shapeId={shape.id}
+        text={text}
+        box={pageTextBox(w, h)}
+        fontSize={fontSize}
+        fontFamily={fontFamily}
+        color={color}
+        textAlign={textAlign}
+        onCommit={(next) =>
+          // 바뀐 키만. 스프레드하면 낡은 스냅샷(특히 아직 null 인 textId)을 되쓴다.
+          util.editor.updateShape<PageTextShape>({
+            id: shape.id,
+            type: 'page-text',
+            props: { text: next },
+          })
+        }
       />
     </HTMLContainer>
   );

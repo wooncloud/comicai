@@ -234,10 +234,13 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 - `use-page-frame.ts` — 페이지 frame 자동 생성/갱신 훅 (후술)
 - `speech-bubble-shape.tsx` — `BaseBoxShapeUtil` 기반 `speech-bubble` shape. variant `ellipse/rect/spike/polygon` 별 SVG path(`@comicai/types`의 `bubbleBodyPath`). **대사를 직접 갖는다** — 더블클릭으로 풍선 안에서 편집(`canEdit()=true`).
 - 꼬리는 손잡이 하나로 만든다 (`getHandles`). 꼬리가 없으면 `create` 손잡이가 풍선 아래에 서 있고, 끌면 생긴다. **꼬리를 몸통보다 먼저 그린다** — 반대로 그리면 삼각형 밑변이 풍선 한가운데를 가로지른다.
-- `speech-bubble-tools.tsx` — variant별 box 도구 3종(ellipse/rect/spike, 자체 `StateNode` + Idle/Pointing children — click은 default 160×100, drag는 사용자 bbox)과 `BubblePolygonTool`(polygon-tool-base 공유). tldraw `BaseBoxShapeTool`은 click-only 경로에서 `onCreate`를 호출하지 않아 variant 패치가 누락되므로 사용하지 않는다
+- `speech-bubble-tools.tsx` — variant별 box 도구 3종(ellipse/rect/spike)과 `BubblePolygonTool`(polygon-tool-base 공유). box 도구는 `box-tool.ts` 의 공용 두 상태(`boxToolStates`, `box-tool.ts:66`)를 쓴다 — click 은 160×100, drag 는 사용자 bbox, 만들자마자 편집을 연다. tldraw `BaseBoxShapeTool`은 click-only 경로에서 `onCreate`를 호출하지 않아 variant 패치가 누락되므로 사용하지 않는다
+- 도구는 **기본 props 를 다시 적지 않는다.** tldraw 가 만들 때 셰이프의 `getDefaultProps()` 로 채운다(`{ ...getDefaultProps(), ...partial.props }`). 예전에는 도구마다 기본값 함수가 있어 출처가 둘이었고, 공용 기본값을 바꿔도 새로 만든 도형에는 반영되지 않았다
 - `use-speech-bubble-sync.ts` — 말풍선 ↔ tldraw 양방향 동기화 (use-panel-sync 패턴, 1.5초 디바운스, mergeRemoteChanges 보호)
-- `page-text-shape.tsx` — `BaseBoxShapeUtil` 기반 `page-text` shape. props: w, h, textId, text, fontSize, fontFamily, color, textAlign. `canEdit()=true` 로 더블클릭 시 inline 텍스트 편집(IME 안전 처리)
-- `page-text-tool.tsx` — `StateNode` 기반 텍스트 박스 도구. click 시 default 200×60, drag 시 사용자 bbox
+- `page-text-shape.tsx` — `BaseBoxShapeUtil` 기반 `page-text` shape. props: w, h, textId, text, fontSize, fontFamily, color, textAlign. `canEdit()=true` 로 더블클릭 시 inline 텍스트 편집
+- `editable-text.tsx` — 캔버스 글자 한 칸(`EditableText`, `editable-text.tsx:31`). 말풍선 대사와 자유 텍스트가 같이 쓴다. **보여 주는 칸(React 가 `wrapText` 로 끊은 줄을 그림)과 편집 칸(편집하는 동안만 붙는 contentEditable)이 다른 요소다.** 예전에는 한 요소를 React 와 명령형 코드가 나눠 쥐어, 밖에서 값이 바뀌면 `textContent` 로 덮는 이펙트가 말풍선에서는 React 가 그린 줄들까지 원문으로 덮었다. 두 칸은 `key` 도 다르다 — 같으면 React 가 DOM 을 재사용해 편집 칸의 글자 노드가 남고, Esc 뒤 원문과 끊은 줄이 두 벌 보인다. 편집 칸은 붙는 순간에만 원문을 넣는다(편집 중 재조회가 친 글자를 지우지 않게). 글자 수 상한은 `MAX_CANVAS_TEXT_LENGTH`(`packages/types`)로 서버 스키마와 같다
+- 자유 텍스트도 말풍선처럼 끊은 줄을 그리고, 내보내기도 **같은 자리(`pageTextBox`, `packages/types/src/text-layout.ts:164`)에서 같은 폭으로** 끊는다. 예전에는 캔버스는 CSS 로 접고 내보내기는 `\n` 으로만 나눠, 긴 글이 화면에서는 접히고 PNG 에서는 상자 밖까지 뻗었다
+- `page-text-tool.tsx` — 텍스트 박스 도구. 말풍선과 같은 `boxToolStates` — click 시 200×60, drag 시 사용자 bbox
 - `use-page-text-sync.ts` — PageText ↔ tldraw 양방향 동기화 (1.5초 디바운스). 신규 shape 생성 시 `POST /v1/pages/:id/page-texts` 로 백엔드 id 채움
 - `page-line-shape.tsx` — `BaseBoxShapeUtil` 기반 `page-line` shape. props: w, h, lineId, x1Norm/y1Norm/x2Norm/y2Norm(bbox 내 0..1), strokeWidth, strokeColor, strokeStyle(`'solid'|'dashed'`). 내부 `<svg><line>` 으로 렌더, `canEdit=false`, `hideRotateHandle=true`
 - `page-line-tool.tsx` — drag로 두 점을 지정해 만드는 `StateNode` 도구 (Idle/Pointing/Dragging 3-state). Shift 누르면 시작점 기준 8방향(45°) 스냅, 너무 짧으면(< 4px) 무효화. 단일 클릭은 무시
@@ -346,7 +349,11 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 #### 캔버스 ↔ 서버 동기화는 `use-shape-sync.ts` 한 곳이다
 
 `components/editor/tldraw/use-shape-sync.ts:118` — 컷·말풍선·자유 텍스트·자유 직선이 **같은 코드**를
-쓴다. 각 훅은 `ShapeSyncSpec`(shape type, id prop 이름, 경로 두 개, `toBody`, `toShape`, `isEqual`)만 넘긴다.
+쓴다. 각 훅은 `ShapeSyncSpec`(shape type, id prop 이름, 경로 두 개, `toBody`, `toShape`)만 넘긴다.
+서버 값과 캔버스 도형이 같은지는 한 함수가 본다(`sameProps`, `use-shape-sync.ts:568`) — 다각형
+꼭짓점 같은 배열은 원소별로. 예전에는 기본 비교가 참조만 봐서 컷·말풍선은 필드를 손으로 나열한
+비교를 들고 있었고, 텍스트·직선도 기본 비교와 결과가 같은 손 비교를 들고 있었다. 필드를 하나 더할 때
+그 목록에 빠뜨리면 서버에서 바뀐 값이 캔버스에 조용히 반영되지 않는다.
 
 순방향(캔버스 → 서버)뿐 아니라 역방향(서버 DTO → 캔버스) 역시 `use-shape-sync.ts` 안에서 공통으로 처리한다.
 예전에는 이 동기화 코드가 네 파일에 복제돼 있었고, 각 훅이 역방향 이펙트를 따로 돌리며 미묘하게 갈라졌다.
@@ -405,7 +412,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 #### `use-panel-sync.ts` 외 3개 훅 — 역방향 투영의 `useShapeSync` 위임
 
 `components/editor/tldraw/use-panel-sync.ts:29` — **DTO → 캔버스** 역방향 투영 역시 `useShapeSync` 안으로
-통합되었다(`use-shape-sync.ts:97`). 네 훅은 `toShape`와 `isEqual`을 포함한 `ShapeSyncSpec`만 선언하고
+통합되었다(`use-shape-sync.ts:97`). 네 훅은 `toShape`를 포함한 `ShapeSyncSpec`만 선언하고
 `useShapeSync`에 위임한다(`use-panel-sync.ts:37`).
 
 - 서버 DTO 목록이 바뀌면 기존 shape map과 diff 떠서 `mergeRemoteChanges` 안에서 create/update/delete.
