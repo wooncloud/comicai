@@ -266,7 +266,9 @@ export function defaultPageTextStyle(): PageTextStyle {
     fontSize: 24,
     fontFamily: 'sans-serif',
     color: '#111111',
-    textAlign: 'left',
+    // 만화에서 텍스트 상자는 거의 항상 말풍선 안에 놓인다. 왼쪽 정렬이 기본이면
+    // 글자가 풍선 왼쪽 벽에 붙어, 사용자가 매번 가운데로 바꿔야 했다.
+    textAlign: 'center',
   };
 }
 

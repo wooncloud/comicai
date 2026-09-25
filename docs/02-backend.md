@@ -333,6 +333,8 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 페이지 직속 자유 텍스트 박스 (만화 효과음/자막/내레이션 등). 말풍선과 마찬가지로 패널·렌더와 독립이며, export 단계에서 말풍선 위·자유 직선 아래 레이어로 합성된다(`apps/api/src/export/page-text.render.ts`).
 
+**글자는 상자의 가로·세로 한가운데에 놓인다** (`page-text.render.ts:50`). 말풍선과 텍스트는 별개 객체라, 상단 정렬이 기본이면 풍선 안에 넣은 대사가 풍선 천장에 붙는다. 캔버스도 같은 규칙이라 (`apps/web/components/editor/tldraw/page-text-shape.tsx:148`) 화면과 내보낸 PNG 가 어긋나지 않는다.
+
 | Method | Route                                  | Handler                                                   |
 | ------ | -------------------------------------- | --------------------------------------------------------- |
 | GET    | `/v1/pages/:pageid/page-texts`         | `list` (`page-texts.controller.ts:40-43`)                 |

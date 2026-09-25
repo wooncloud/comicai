@@ -144,7 +144,8 @@ function PageTextBody({ shape, util }: { shape: PageTextShape; util: PageTextSha
           inset: 0,
           padding: '2px',
           display: 'flex',
-          alignItems: 'flex-start',
+          // 세로도 가운데 — 말풍선 안에 놓였을 때 풍선 중앙에 오게 한다.
+          alignItems: 'center',
           justifyContent:
             textAlign === 'left' ? 'flex-start' : textAlign === 'right' ? 'flex-end' : 'center',
           textAlign,

@@ -145,7 +145,8 @@ describe('usePageTextSync — DTO → 캔버스', () => {
     expect(shape?.props.fontSize).toBe(24);
     expect(shape?.props.fontFamily).toBe('sans-serif');
     expect(shape?.props.color).toBe('#111111');
-    expect(shape?.props.textAlign).toBe('left');
+    // 2026-09-25: 기본 정렬이 가운데로 바뀌었다 — 말풍선 안에 놓이는 게 보통이라서.
+    expect(shape?.props.textAlign).toBe('center');
   });
 
   it('DTO 목록에서 빠진 텍스트는 캔버스에서 삭제된다', () => {
