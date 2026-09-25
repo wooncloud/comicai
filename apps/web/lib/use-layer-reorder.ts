@@ -86,5 +86,24 @@ export function useLayerReorder<T extends HasOrder>({
     };
   }
 
-  return { reorder, getCanMove };
+  /**
+   * 인스펙터의 "순서" 구역에 넘길 것 한 벌. 아직 저장되지 않은 도형(`id` 가 null)은
+   * 서버에 순서가 없으므로 버튼이 모두 꺼진다.
+   */
+  function orderFor(id: string | null): LayerOrder {
+    return {
+      ...(id ? getCanMove(id) : { canMoveForward: false, canMoveBackward: false }),
+      onReorder: (action) => {
+        if (id) void reorder(id, action);
+      },
+    };
+  }
+
+  return { reorder, orderFor };
+}
+
+export interface LayerOrder {
+  canMoveForward: boolean;
+  canMoveBackward: boolean;
+  onReorder: (action: LayerOrderAction) => void;
 }

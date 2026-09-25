@@ -2,10 +2,9 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import type { Editor, TLShapeId } from 'tldraw';
-import { useQuery } from '@tanstack/react-query';
+import type { Editor, TLShape, TLShapeId } from 'tldraw';
 import { api } from '@/lib/api';
-import { qk } from '@/lib/query-keys';
+import { useProjectEpisodes } from '@/lib/queries';
 import { useProject } from '@/lib/use-project';
 import Link from 'next/link';
 import { BookMarked } from 'lucide-react';
@@ -18,7 +17,6 @@ import {
   ApiPaths,
   episodeLabel,
   pageLabel,
-  type EpisodeDTO,
   type PageDTO,
   type PageLineDTO,
   type PageTextDTO,
@@ -62,14 +60,49 @@ const ToolRail = dynamic(() => import('@/components/editor/tool-rail').then((m) 
   ssr: false,
 });
 
-type Selection =
-  // 캔버스 셰이프 id 도 같이 든다 — 인스펙터가 굵기를 끄는 동안 셰이프를 직접 고쳐야
-  // 캔버스가 따라오고, 좌표는 캔버스가 계속 쥐고 있게 된다.
-  | { kind: 'panel'; id: string; shapeId: TLShapeId }
-  | { kind: 'bubble'; shape: SpeechBubbleShape }
-  | { kind: 'text'; shape: PageTextShape }
-  | { kind: 'line'; shape: PageLineShape }
-  | null;
+/**
+ * 무엇이 선택됐나 — **값은 들지 않는다.** 인스펙터가 자기 셰이프를 직접 구독한다
+ * (`use-shape-props.ts`). 레코드를 여기 들고 있던 때는 도형을 끄는 동안 이 라우트
+ * 전체가 포인터 속도로 다시 그려졌다.
+ *
+ * `serverId` 는 저장된 뒤 서버가 준 id 다. 방금 그린 도형은 null 이다.
+ */
+type Selection = {
+  kind: 'panel' | 'bubble' | 'text' | 'line';
+  shapeId: TLShapeId;
+  serverId: string | null;
+} | null;
+
+/** 캔버스 셰이프 → 선택. 우리가 인스펙터를 두지 않는 셰이프면 null. */
+function selectionOf(shape: TLShape | undefined): Selection {
+  if (!shape) return null;
+  switch (shape.type) {
+    case 'comic-panel': {
+      const panelId = (shape as ComicPanelShape).props.panelId;
+      // 컷 인스펙터는 서버의 컷 레코드(장면 설명·생성 기록)가 있어야 그릴 수 있다.
+      return panelId ? { kind: 'panel', shapeId: shape.id, serverId: panelId } : null;
+    }
+    case 'speech-bubble':
+      return {
+        kind: 'bubble',
+        shapeId: shape.id,
+        serverId: (shape as SpeechBubbleShape).props.bubbleId,
+      };
+    case 'page-text':
+      return { kind: 'text', shapeId: shape.id, serverId: (shape as PageTextShape).props.textId };
+    case 'page-line':
+      return { kind: 'line', shapeId: shape.id, serverId: (shape as PageLineShape).props.lineId };
+    default:
+      return null;
+  }
+}
+
+/** 말풍선·텍스트·직선 인스펙터는 모양이 같다 — 셰이프 id 와 순서 한 벌. */
+const LAYER_INSPECTORS = {
+  bubble: SpeechBubbleInspector,
+  text: PageTextInspector,
+  line: PageLineInspector,
+} as const;
 
 function CanvasFallback() {
   return (
@@ -89,13 +122,8 @@ export default function PageEditor() {
    *
    * 목록 전체를 읽는다. 사이드바가 이미 같은 캐시를 쓰므로 왕복이 늘지 않는다.
    */
-  const { data: episodes } = useQuery<EpisodeDTO[]>({
-    queryKey: qk.projectEpisodes(projectId),
-    queryFn: () => api<EpisodeDTO[]>(ApiPaths.projectEpisodes(projectId)),
-    enabled: !!projectId,
-    // 브레드크럼 한 칸 때문에 에디터를 오류 화면으로 바꾸지 않는다.
-    throwOnError: false,
-  });
+  // 브레드크럼 한 칸 때문에 에디터를 오류 화면으로 바꾸지 않는다.
+  const { data: episodes } = useProjectEpisodes(projectId, { throwOnError: false });
   const [page, setPage] = useState<PageDTO | null>(null);
   const [panels, setPanels] = useState<PanelDTO[]>([]);
   const [bubbles, setBubbles] = useState<SpeechBubbleDTO[]>([]);
@@ -252,60 +280,34 @@ export default function PageEditor() {
     reorderPath: ApiPaths.pagePageLinesReorder,
   });
 
-  const onReorderAction = useCallback(
-    (action: LayerOrderAction): boolean => {
-      if (!editor) return false;
-      const selectedShapes = editor.getSelectedShapes();
-      if (selectedShapes.length === 0) return false;
+  /** 종류 → 순서 훅. 레이어 종류가 늘면 여기 한 줄이다. */
+  const layerReorders = { bubble: bubbleReorder, text: textReorder, line: lineReorder };
+  const layer =
+    selection && selection.kind !== 'panel'
+      ? {
+          shapeId: selection.shapeId,
+          Inspector: LAYER_INSPECTORS[selection.kind],
+          order: layerReorders[selection.kind].orderFor(selection.serverId),
+        }
+      : null;
 
-      /*
-       * 컷(comic-panel)은 항상 최하위 층('a1~a2')을 유지해야 하며, 서버에 reorder API 가 없다.
-       * 선택 항목에 컷이 섞여 있을 때 tldraw 기본 reorder 가 실행되면 컷이 상위 레이어로 올라가므로,
-       * 가로채서(true 반환) 아무런 API 호출도 하지 않고 no-op 처리한다.
-       */
-      if (selectedShapes.some((s) => s.type === 'comic-panel')) {
-        return true;
-      }
-
-      if (selection?.kind === 'bubble') {
-        const id = selection.shape.props.bubbleId;
-        if (!id) return false;
-        void bubbleReorder.reorder(id, action);
-        return true;
-      }
-      if (selection?.kind === 'text') {
-        const id = selection.shape.props.textId;
-        if (!id) return false;
-        void textReorder.reorder(id, action);
-        return true;
-      }
-      if (selection?.kind === 'line') {
-        const id = selection.shape.props.lineId;
-        if (!id) return false;
-        void lineReorder.reorder(id, action);
-        return true;
-      }
-      return false;
-    },
-    [editor, selection, bubbleReorder, textReorder, lineReorder],
-  );
+  /*
+   * 단축키(], [ 등)로 순서를 바꿀 때도 인스펙터와 같은 API 를 탄다. 컷이 섞인 선택은
+   * 캔버스(`comic-editor.tsx`)가 여기 오기 전에 막는다. 아직 저장되지 않은 도형이면
+   * false 를 돌려 tldraw 기본 동작에 맡긴다.
+   */
+  function onReorderAction(action: LayerOrderAction): boolean {
+    if (!selection || selection.kind === 'panel' || !selection.serverId) return false;
+    void layerReorders[selection.kind].reorder(selection.serverId, action);
+    return true;
+  }
 
   useEffect(() => {
     if (!editor) return;
 
-    function compute(): Selection | null {
-      const ids = editor!.getSelectedShapeIds();
-      if (ids.length === 0) return null;
-      const shape = editor!.getShape(ids[0] as TLShapeId);
-      if (shape?.type === 'comic-panel') {
-        const panelId = (shape as ComicPanelShape).props.panelId;
-        return panelId ? { kind: 'panel', id: panelId, shapeId: shape.id } : null;
-      }
-      if (shape?.type === 'speech-bubble')
-        return { kind: 'bubble', shape: shape as SpeechBubbleShape };
-      if (shape?.type === 'page-text') return { kind: 'text', shape: shape as PageTextShape };
-      if (shape?.type === 'page-line') return { kind: 'line', shape: shape as PageLineShape };
-      return null;
+    function compute(): Selection {
+      const [first] = editor!.getSelectedShapeIds();
+      return first ? selectionOf(editor!.getShape(first)) : null;
     }
 
     /*
@@ -317,16 +319,16 @@ export default function PageEditor() {
      * scope 필터로는 못 거른다 — 선택 상태(instance_page_state)도 pointer 와 같은
      * 'session' scope 라 같이 걸러지기 때문이다.
      *
-     * shape 레코드는 불변이라 바뀌지 않으면 참조가 그대로다. 참조 비교로 충분하다.
+     * 선택에는 값이 없으므로 셋만 같으면 같은 선택이다.
      */
-    function same(a: Selection | null, b: Selection | null): boolean {
+    function same(a: Selection, b: Selection): boolean {
       if (a === b) return true;
-      if (!a || a.kind !== b?.kind) return false;
-      if (a.kind === 'panel') return a.id === (b as typeof a).id;
-      return a.shape === (b as typeof a).shape;
+      return (
+        !!a && !!b && a.kind === b.kind && a.shapeId === b.shapeId && a.serverId === b.serverId
+      );
     }
 
-    let prev: Selection | null = null;
+    let prev: Selection = null;
     const sync = () => {
       const next = compute();
       if (same(prev, next)) return;
@@ -351,10 +353,11 @@ export default function PageEditor() {
 
   const selectedPanel = useMemo(
     () =>
-      selection?.kind === 'panel' ? (panels.find((p) => p.id === selection.id) ?? null) : null,
+      selection?.kind === 'panel'
+        ? (panels.find((p) => p.id === selection.serverId) ?? null)
+        : null,
     [panels, selection],
   );
-  const selectedPanelShapeId = selection?.kind === 'panel' ? selection.shapeId : null;
 
   /*
    * 실패했으면 캔버스를 아예 그리지 않는다. 빈 캔버스를 띄우면 사용자가 자기 컷이
@@ -485,12 +488,12 @@ export default function PageEditor() {
         />
         {right.hidden ? null : (
           <div style={{ width: right.width }} className="flex min-w-0 shrink-0">
-            {selectedPanel && editor && selectedPanelShapeId ? (
+            {selection && selectedPanel && editor ? (
               <PanelInspector
                 key={selectedPanel.id}
                 projectId={projectId}
                 editor={editor}
-                shapeId={selectedPanelShapeId}
+                shapeId={selection.shapeId}
                 panel={selectedPanel}
                 onPanelUpdated={(p) =>
                   setPanels((prev) => prev.map((x) => (x.id === p.id ? p : x)))
@@ -500,68 +503,12 @@ export default function PageEditor() {
                   setSelection(null);
                 }}
               />
-            ) : selection?.kind === 'bubble' && editor ? (
-              <SpeechBubbleInspector
-                key={selection.shape.id}
+            ) : layer && editor ? (
+              <layer.Inspector
+                key={layer.shapeId}
                 editor={editor}
-                shapeId={selection.shape.id}
-                shape={selection.shape}
-                canMoveForward={
-                  selection.shape.props.bubbleId
-                    ? bubbleReorder.getCanMove(selection.shape.props.bubbleId).canMoveForward
-                    : false
-                }
-                canMoveBackward={
-                  selection.shape.props.bubbleId
-                    ? bubbleReorder.getCanMove(selection.shape.props.bubbleId).canMoveBackward
-                    : false
-                }
-                onReorder={(action) => {
-                  const id = selection.shape.props.bubbleId;
-                  if (id) void bubbleReorder.reorder(id, action);
-                }}
-              />
-            ) : selection?.kind === 'text' && editor ? (
-              <PageTextInspector
-                key={selection.shape.id}
-                editor={editor}
-                shapeId={selection.shape.id}
-                shape={selection.shape}
-                canMoveForward={
-                  selection.shape.props.textId
-                    ? textReorder.getCanMove(selection.shape.props.textId).canMoveForward
-                    : false
-                }
-                canMoveBackward={
-                  selection.shape.props.textId
-                    ? textReorder.getCanMove(selection.shape.props.textId).canMoveBackward
-                    : false
-                }
-                onReorder={(action) => {
-                  const id = selection.shape.props.textId;
-                  if (id) void textReorder.reorder(id, action);
-                }}
-              />
-            ) : selection?.kind === 'line' && editor ? (
-              <PageLineInspector
-                key={selection.shape.id}
-                editor={editor}
-                shapeId={selection.shape.id}
-                shape={selection.shape}
-                canMoveForward={
-                  selection.shape.props.lineId
-                    ? lineReorder.getCanMove(selection.shape.props.lineId).canMoveForward
-                    : false
-                }
-                canMoveBackward={
-                  selection.shape.props.lineId
-                    ? lineReorder.getCanMove(selection.shape.props.lineId).canMoveBackward
-                    : false
-                }
-                onReorder={(action) => {
-                  const id = selection.shape.props.lineId;
-                  if (id) void lineReorder.reorder(id, action);
-                }}
+                shapeId={layer.shapeId}
+                order={layer.order}
               />
             ) : page ? (
               <PageInspector

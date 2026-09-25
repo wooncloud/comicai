@@ -1,17 +1,13 @@
 'use client';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, BookMarked } from 'lucide-react';
-import { api } from '@/lib/api';
-import { qk } from '@/lib/query-keys';
+import { useConsistency } from '@/lib/queries';
 import {
-  ApiPaths,
+  ENTITY_TYPES,
   ENTITY_TYPE_LABEL,
   type ConsistencyEntityDTO,
   type EntityType,
 } from '@comicai/types';
-
-const TYPES: EntityType[] = ['style', 'character', 'background', 'worldview'];
 
 /**
  * 프로젝트 화면 맨 위의 설정집 요약.
@@ -25,14 +21,9 @@ const TYPES: EntityType[] = ['style', 'character', 'background', 'worldview'];
  * "캐릭터는 등록했고 배경이 비었다" 를 안다.
  */
 export function SettingBookSummary({ projectId }: { projectId: string }) {
-  const { data: items } = useQuery<ConsistencyEntityDTO[]>({
-    queryKey: qk.consistency(projectId),
-    queryFn: () => api<ConsistencyEntityDTO[]>(ApiPaths.projectConsistency(projectId)),
-    enabled: !!projectId,
-    // 이 줄 하나를 못 읽었다고 프로젝트 화면 전체를 오류로 바꾸지 않는다.
-    // 페이지 목록은 멀쩡히 보여야 한다.
-    throwOnError: false,
-  });
+  // 이 줄 하나를 못 읽었다고 프로젝트 화면 전체를 오류로 바꾸지 않는다.
+  // 페이지 목록은 멀쩡히 보여야 한다.
+  const { data: items } = useConsistency(projectId, { throwOnError: false });
 
   return (
     <section className="mt-8 overflow-hidden rounded-lg border border-border">
@@ -50,7 +41,7 @@ export function SettingBookSummary({ projectId }: { projectId: string }) {
         </Link>
       </div>
       <ul className="grid grid-cols-2 divide-border sm:grid-cols-4 sm:divide-x">
-        {TYPES.map((type) => (
+        {ENTITY_TYPES.map((type) => (
           <li key={type} className="border-b border-border last:border-b-0 sm:border-b-0">
             <Link
               href={`/projects/${projectId}/consistency?type=${type}`}

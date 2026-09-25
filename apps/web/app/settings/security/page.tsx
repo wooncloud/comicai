@@ -4,6 +4,8 @@ import { Check } from 'lucide-react';
 import { api, API_BASE } from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '@/lib/query-keys';
+import { useMe } from '@/lib/queries';
+import { useResendVerification } from '@/lib/use-resend-verification';
 import {
   ApiPaths,
   PASSWORD_MIN_LENGTH,
@@ -30,10 +32,7 @@ export default function SecurityPage() {
    * `me` 는 상단바와 같은 캐시(`qk.me()`)를 쓴다. 프로필에서 이름을 바꾸면 여기도
    * 함께 최신이 된다 — 예전에는 이 화면만 동기화에서 빠져 옛 값을 계속 보여 줬다.
    */
-  const { data: me } = useQuery<SessionUser>({
-    queryKey: qk.me(),
-    queryFn: () => api<SessionUser>(ApiPaths.me),
-  });
+  const { data: me } = useMe();
   const { data: sessions } = useQuery<SessionInfo[]>({
     queryKey: qk.meSessions(),
     queryFn: () => api<SessionInfo[]>(ApiPaths.meSessions),
@@ -57,22 +56,7 @@ export default function SecurityPage() {
 }
 
 function EmailVerificationSection({ me }: { me: SessionUser | undefined }) {
-  const [pending, setPending] = useState(false);
-  const [done, setDone] = useState(false);
-  const toast = useToast();
-
-  async function resend() {
-    setPending(true);
-    try {
-      await api(ApiPaths.verifyEmailRequest, { method: 'POST' });
-      setDone(true);
-      toast.push('success', '인증 메일이 발송되었습니다.');
-    } catch (err) {
-      toast.push('error', errorMessage(err, '인증 메일을 발송'));
-    } finally {
-      setPending(false);
-    }
-  }
+  const { resend, pending, sent } = useResendVerification();
 
   if (!me) return null;
   /*
@@ -92,8 +76,8 @@ function EmailVerificationSection({ me }: { me: SessionUser | undefined }) {
             인증됨
           </span>
         ) : (
-          <Button variant="outline" size="sm" disabled={pending || done} onClick={resend}>
-            {done ? '발송됨' : pending ? '발송 중…' : '인증 메일 재발송'}
+          <Button variant="outline" size="sm" disabled={pending || sent} onClick={resend}>
+            {sent ? '발송됨' : pending ? '발송 중…' : '인증 메일 재발송'}
           </Button>
         )}
       </div>

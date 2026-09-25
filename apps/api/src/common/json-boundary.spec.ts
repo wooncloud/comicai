@@ -1,33 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_PAGE_SIZE,
   PAGE_TEXT_FONT_FAMILIES,
   coercePageTextFontFamily,
   defaultPageLineStyle,
   defaultPageTextStyle,
   defaultSpeechBubbleStyle,
 } from '@comicai/types';
+import { readPageSize } from './page-size';
 
 /**
  * Prisma 의 Json 컬럼은 `as` 캐스팅으로 읽는다 — 타입이 실제 값을 보장하지 않는다.
  * 형태가 깨진 행이 하나 있으면 그 값을 그대로 읽는 UI 가 죽으므로, 서비스가
  * DTO 로 바꿀 때 흡수해야 한다. 그 규칙을 여기서 고정한다.
  *
- * 구현은 각 서비스에 있고(pages.service.ts 의 toSize, page-texts.service.ts 의
- * normalizeStyle), 여기서는 같은 규칙을 재현해 계약을 문서화한다.
+ * 크기는 실제로 도는 함수(`readPageSize`)를 그대로 부른다. 예전에는 서비스 안의
+ * private 함수라 여기서 규칙을 베껴 시험했고, 그 사이 기본 크기가 바뀌어 **테스트는
+ * 옛 규칙을, 서비스는 또 다른 값을** 들고 있었다.
  */
-
-/** pages.service.ts 의 toSize 와 동일한 규칙. */
-function toSize(raw: unknown): { w: number; h: number } {
-  const s = raw as { w?: unknown; h?: unknown } | null | undefined;
-  return {
-    w: typeof s?.w === 'number' && s.w > 0 ? s.w : 800,
-    h: typeof s?.h === 'number' && s.h > 0 ? s.h : 1200,
-  };
-}
 
 describe('page.size Json 경계', () => {
   it('정상 값은 그대로 통과한다', () => {
-    expect(toSize({ w: 1024, h: 1536 })).toEqual({ w: 1024, h: 1536 });
+    expect(readPageSize({ w: 1024, h: 1536 })).toEqual({ w: 1024, h: 1536 });
   });
 
   it.each([
@@ -37,12 +31,12 @@ describe('page.size Json 경계', () => {
     ['배열(잘못된 형태)', []],
     ['문자열 값', { w: '800', h: '1200' }],
     ['음수', { w: -10, h: 0 }],
-  ])('%s 이면 기본 800×1200 으로 흡수한다', (_label, raw) => {
-    expect(toSize(raw)).toEqual({ w: 800, h: 1200 });
+  ])('%s 이면 새 페이지의 기본 크기로 흡수한다', (_label, raw) => {
+    expect(readPageSize(raw)).toEqual(DEFAULT_PAGE_SIZE);
   });
 
   it('한쪽만 깨져 있으면 그쪽만 채운다', () => {
-    expect(toSize({ w: 1024 })).toEqual({ w: 1024, h: 1200 });
+    expect(readPageSize({ w: 1024 })).toEqual({ w: 1024, h: DEFAULT_PAGE_SIZE.h });
   });
 });
 

@@ -200,7 +200,7 @@ describe('교차 테넌트 접근 (testcontainers)', () => {
     const patches: [string, string, object][] = [
       ['프로젝트', `/v1/projects/${o.projectId}`, { name: 'B 가 바꿈' }],
       ['페이지', `/v1/pages/${o.pageId}`, { name: 'B 가 바꿈' }],
-      ['컷', `/v1/panels/${o.panelId}`, { stroke: { strokeWidth: 9 } }],
+      ['컷', `/v1/panels/${o.panelId}`, { styleId: null }],
       ['말풍선', `/v1/speech-bubbles/${o.bubbleId}`, { style: { strokeWidth: 9 } }],
       ['텍스트', `/v1/page-texts/${o.textId}`, { text: 'B 가 바꿈' }],
       ['직선', `/v1/page-lines/${o.lineId}`, { style: { strokeWidth: 9 } }],

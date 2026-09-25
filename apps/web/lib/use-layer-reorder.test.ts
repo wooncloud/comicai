@@ -223,7 +223,7 @@ describe('useLayerReorder', () => {
     expect(apiMock).not.toHaveBeenCalled();
   });
 
-  it('getCanMove 가 올바른 이동 가능 여부를 반환한다', () => {
+  it('orderFor 가 올바른 이동 가능 여부를 반환한다', () => {
     const { result } = renderHook(() =>
       useLayerReorder({
         pageId: 'page-1',
@@ -234,25 +234,31 @@ describe('useLayerReorder', () => {
     );
 
     // item-1 (맨 뒤): 뒤로 갈 수 없고, 앞으로 갈 수 있음
-    expect(result.current.getCanMove('item-1')).toEqual({
+    expect(result.current.orderFor('item-1')).toMatchObject({
       canMoveForward: true,
       canMoveBackward: false,
     });
 
     // item-2 (중간): 앞뒤 모두 이동 가능
-    expect(result.current.getCanMove('item-2')).toEqual({
+    expect(result.current.orderFor('item-2')).toMatchObject({
       canMoveForward: true,
       canMoveBackward: true,
     });
 
     // item-3 (맨 앞): 앞으로 갈 수 없고, 뒤로 갈 수 있음
-    expect(result.current.getCanMove('item-3')).toEqual({
+    expect(result.current.orderFor('item-3')).toMatchObject({
       canMoveForward: false,
       canMoveBackward: true,
     });
 
     // 존재하지 않는 ID
-    expect(result.current.getCanMove('item-unknown')).toEqual({
+    expect(result.current.orderFor('item-unknown')).toMatchObject({
+      canMoveForward: false,
+      canMoveBackward: false,
+    });
+
+    // 아직 저장되지 않은 도형 — 서버에 순서가 없으니 버튼이 모두 꺼진다
+    expect(result.current.orderFor(null)).toMatchObject({
       canMoveForward: false,
       canMoveBackward: false,
     });

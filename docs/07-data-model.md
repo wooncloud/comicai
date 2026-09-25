@@ -117,7 +117,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 - `@@unique([id, projectId])` (`schema.prisma:147`)는 조회용이 아니라 **`pages` 가 복합 FK 를
   걸 수 있게** 하는 것이다. 다른 프로젝트의 화를 가리키는 페이지를 DB 가 막는다.
 - 프로젝트 생성은 화를 만들지 않는다. **첫 페이지를 넣을 때** 만들어진다
-  (`EpisodesService.ensureLast`, `apps/api/src/episodes/episodes.service.ts:69`) — 미리 만들면
+  (`EpisodesService.ensureLast`, `apps/api/src/episodes/episodes.service.ts:78`) — 미리 만들면
   "빈 화만 있는 프로젝트" 가 생긴다.
 - 마지막 화는 지울 수 없다. 화가 없으면 페이지가 갈 곳이 없어, 다음 '페이지 추가' 가
   조용히 새 화를 만들고 사용자는 지운 적 없는 화가 생겼다고 읽는다.
@@ -319,14 +319,14 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | IN_PROGRESS_RENDER_STATUSES | `queued, running`                                                    | `index.ts:115`                   |
 | TERMINAL_RENDER_STATUSES    | `succeeded, failed, timeout, canceled`                               | `index.ts:95-100`                |
 | PANEL_SHAPE_TYPES           | `rect, rounded, oval, diamond, parallelogram, polygon`               | `schemas.ts:342-349`             |
-| SPEECH_BUBBLE_VARIANTS      | `ellipse, rect, spike, polygon` (cloud/thought 제거됨)               | `schemas.ts:397`                 |
+| SPEECH_BUBBLE_VARIANTS      | `ellipse, rect, spike, polygon` (cloud/thought 제거됨)               | `schemas.ts:385`                 |
 | PAGE_TEXT_FONT_FAMILIES     | `sans-serif, serif, monospace`                                       | `schemas.ts:448`                 |
 | EntityType                  | `style, character, background, worldview`                            | `schemas.ts:482`                 |
 | ModelProvider               | `gemini, openai, mock`                                               | `index.ts:22`                    |
 | ModelId                     | `gemini-3.1-flash-image, gpt-image-2.5-flare, mock` (+ 기록용 옛 판) | `schemas.ts:102`                 |
 | OAUTH_PROVIDERS             | `google, github`                                                     | `index.ts:95`                    |
 | RenderErrorCategory         | `transient, auth, quota, safety, invalid, timeout`                   | `index.ts:566`                   |
-| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                                      | `schemas.ts:516`                 |
+| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                                      | `schemas.ts:504`                 |
 | TEXT_ALIGNS                 | `left, center, right`                                                | `schemas.ts:4`                   |
 
 **값 목록은 전부 `schemas.ts` 에만 있다.** `index.ts` 는 타입만 파생시킨다
@@ -364,9 +364,9 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 - 프로젝트: `ProjectCreateSchema`, `ProjectPatchSchema` (`schemas.ts:85-96`).
 - 페이지: `PageCreateSchema`, `PagePatchSchema`(`order` 없음 — 순서는 재정렬 전용), `PageSizeSchema`(한 변 4096 상한), `PageReorderSchema` (`schemas.ts:99-157`).
 - 패널: `PanelShapeSchema`(points 3–64, 좌표 ±8192), `PanelCreateSchema`, `PanelPatchSchema` (`schemas.ts:297-368`).
-  `PanelPatchSchema` 는 `shape`(전체 교체)와 `stroke`(테두리만) 두 갈래를 받는다. 인스펙터는
-  **반드시 `stroke` 를 쓴다** — `shape` 전체를 보내면 선택 시점의 낡은 좌표까지 함께 써서,
-  컷을 옮긴 직후 색을 바꾸면 이동이 취소된다. 좌표는 캔버스만 쓴다.
+  테두리(색·굵기)는 `shape` 안에 있고 캔버스가 셰이프와 함께 저장한다. 예전에는 테두리만
+  바꾸는 `stroke` 부분 갱신이 따로 있었는데, 같은 JSON 을 두 경로가 쓰다 보니 컷을 옮긴 직후
+  바꾼 색이 이어지는 셰이프 저장에 덮여 사라졌다.
 - 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`schemas.ts:357-399`).
 - 페이지 텍스트: `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`schemas.ts:387-418`).
 - 페이지 직선: `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`schemas.ts:489-519`).

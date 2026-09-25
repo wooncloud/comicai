@@ -58,7 +58,8 @@ export function PageInspector({ page, onPageUpdated, onExport }: Props) {
       </InspectorSection>
 
       <InspectorSection icon={Palette} title="배경 색">
-        <ColorField value={currentColor} onCommit={commitColor} ariaLabel="페이지 배경 색" />
+        {/* live 를 켜지 않는다 — 배경은 캔버스 도형이 아니라 곧장 PATCH 다. */}
+        <ColorField value={currentColor} onChange={commitColor} ariaLabel="페이지 배경 색" />
         {hasColor && (
           <button
             type="button"

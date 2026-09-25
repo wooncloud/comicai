@@ -1,8 +1,9 @@
 'use client';
-import { Layers, Slash } from 'lucide-react';
+import { Slash } from 'lucide-react';
 import type { Editor, TLShapeId } from 'tldraw';
 import { PAGE_LINE_STROKE_STYLES, type PageLineStrokeStyle } from '@comicai/types';
 import type { PageLineShape } from './tldraw/page-line-shape';
+import { useShapeProps } from './tldraw/use-shape-props';
 import { Field, InspectorSection } from './inspector-section';
 import { InspectorShell } from './inspector-shell';
 import { ColorField } from '@/components/ui/color-field';
@@ -14,16 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { LayerOrderControls } from './layer-order-controls';
-import type { LayerOrderAction } from '@/lib/use-layer-reorder';
+import { LayerOrderSection } from './layer-order-section';
+import type { LayerOrder } from '@/lib/use-layer-reorder';
 
 interface Props {
   editor: Editor;
   shapeId: TLShapeId;
-  shape: PageLineShape;
-  canMoveForward?: boolean;
-  canMoveBackward?: boolean;
-  onReorder?: (action: LayerOrderAction) => void;
+  order: LayerOrder;
 }
 
 const STROKE_STYLE_LABEL: Record<PageLineStrokeStyle, string> = {
@@ -31,26 +29,9 @@ const STROKE_STYLE_LABEL: Record<PageLineStrokeStyle, string> = {
   dashed: '점선',
 };
 
-export function PageLineInspector({
-  editor,
-  shapeId,
-  shape,
-  canMoveForward,
-  canMoveBackward,
-  onReorder,
-}: Props) {
-  const p = shape.props;
-
-  /*
-   * **바뀐 키만 넘긴다.** `updateShape` 는 props 를 부분 병합하므로 스프레드가
-   * 필요 없고, 스프레드하면 오히려 해롭다 — `shape` 는 선택 시점의 스냅샷이라
-   * 그 사이 서버가 채워 준 `lineId` 이 아직 null 인 낡은 값일 수 있다. 그걸
-   * 되쓰면 id 가 다시 null 이 되고, 그 뒤 이 도형의 모든 편집이 저장 큐에서
-   * "id 없음" 으로 걸러진다 — 색을 한 번 바꿨을 뿐인데 영구히 저장되지 않았다.
-   */
-  function patch(next: Partial<PageLineShape['props']>) {
-    editor.updateShape<PageLineShape>({ id: shapeId, type: 'page-line', props: next });
-  }
+export function PageLineInspector({ editor, shapeId, order }: Props) {
+  const { props: p, patch } = useShapeProps<PageLineShape>(editor, shapeId);
+  if (!p) return null;
 
   return (
     <InspectorShell
@@ -62,22 +43,16 @@ export function PageLineInspector({
         <Field label="색">
           <ColorField
             value={p.strokeColor}
-            onCommit={(v) => patch({ strokeColor: v })}
+            onChange={(v) => patch({ strokeColor: v })}
             ariaLabel="선 색"
-            variant="panel"
+            live
           />
         </Field>
 
         <Field label="굵기">
-          {/*
-            끄는 동안에도 셰이프를 고쳐 캔버스가 따라오게 한다. 서버 저장은 sync 훅이
-            1.5초 디바운스하므로 요청이 쌓이지 않는다 — 컷 테두리만 직접 PATCH 라
-            거기서는 미리보기와 저장을 갈라야 했다.
-          */}
           <StrokeWidthField
             value={p.strokeWidth}
-            onPreview={(v) => patch({ strokeWidth: v })}
-            onCommit={(v) => patch({ strokeWidth: v })}
+            onChange={(v) => patch({ strokeWidth: v })}
             ariaLabel="선 굵기"
           />
         </Field>
@@ -101,16 +76,7 @@ export function PageLineInspector({
         </Field>
       </InspectorSection>
 
-      {onReorder && (
-        <InspectorSection icon={Layers} title="순서">
-          <LayerOrderControls
-            canMoveForward={canMoveForward ?? false}
-            canMoveBackward={canMoveBackward ?? false}
-            onReorder={onReorder}
-            disabled={!p.lineId}
-          />
-        </InspectorSection>
-      )}
+      <LayerOrderSection order={order} />
     </InspectorShell>
   );
 }

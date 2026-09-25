@@ -1,16 +1,16 @@
 'use client';
-import { useState } from 'react';
+import { useState, type ButtonHTMLAttributes } from 'react';
 import Link from 'next/link';
 import { DndContext, closestCenter } from '@dnd-kit/core';
-import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { ChevronDown, ChevronRight, GripVertical, MoreHorizontal, Plus } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { ApiPaths, episodeLabel, pageLabel, type EpisodeDTO, type PageDTO } from '@comicai/types';
 import { api } from '@/lib/api';
 import { qk } from '@/lib/query-keys';
-import { usePageReorder } from '@/lib/use-page-reorder';
-import { useEpisodeReorder } from '@/lib/use-episode-reorder';
+import { useProjectEpisodes, useProjectPages } from '@/lib/queries';
+import { useAddPage } from '@/lib/use-add-page';
+import { useEpisodeReorder, usePageReorder, useSortableItem } from '@/lib/use-sortable-reorder';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -36,31 +36,18 @@ import { cn } from '@/lib/cn';
  */
 export function EpisodeList({ projectId }: { projectId: string }) {
   const toast = useToast();
-  const queryClient = useQueryClient();
-
-  const { data: episodes, isLoading } = useQuery<EpisodeDTO[]>({
-    queryKey: qk.projectEpisodes(projectId),
-    queryFn: () => api<EpisodeDTO[]>(ApiPaths.projectEpisodes(projectId)),
-    enabled: !!projectId,
-  });
-  const { data: pages } = useQuery<PageDTO[]>({
-    queryKey: qk.projectPages(projectId),
-    queryFn: () => api<PageDTO[]>(ApiPaths.projectPages(projectId)),
-    enabled: !!projectId,
-  });
+  const { data: episodes, isLoading } = useProjectEpisodes(projectId);
+  const { data: pages } = useProjectPages(projectId);
   const { sensors, onDragEnd } = useEpisodeReorder(projectId, episodes);
-
-  async function refresh() {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: qk.projectEpisodes(projectId) }),
-      queryClient.invalidateQueries({ queryKey: qk.projectPages(projectId) }),
-    ]);
-  }
+  const cache = useListCache(projectId);
 
   async function addEpisode() {
     try {
-      await api<EpisodeDTO>(ApiPaths.projectEpisodes(projectId), { method: 'POST', body: '{}' });
-      await refresh();
+      const created = await api<EpisodeDTO>(ApiPaths.projectEpisodes(projectId), {
+        method: 'POST',
+        body: '{}',
+      });
+      cache.setEpisodes((prev) => [...prev, created]);
       toast.push('success', '화를 추가했습니다.');
     } catch (err) {
       toast.push('error', errorMessage(err, '화를 추가'));
@@ -82,7 +69,7 @@ export function EpisodeList({ projectId }: { projectId: string }) {
         <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-12 text-center">
           <p className="text-body-sm text-muted-foreground">아직 화가 없습니다.</p>
           <p className="mt-1 text-caption text-muted-foreground">
-            페이지를 만들면 1화가 저절로 생깁니다.
+            화를 하나 만들면 그 안에 페이지를 더할 수 있습니다.
           </p>
           <Button className="mt-4" onClick={addEpisode} variant="outline" size="sm">
             첫 화 만들기
@@ -102,7 +89,6 @@ export function EpisodeList({ projectId }: { projectId: string }) {
                   episode={ep}
                   pages={(pages ?? []).filter((p) => p.episodeId === ep.id)}
                   onlyOne={(episodes ?? []).length <= 1}
-                  onChanged={refresh}
                 />
               ))}
             </ul>
@@ -113,44 +99,45 @@ export function EpisodeList({ projectId }: { projectId: string }) {
   );
 }
 
+/**
+ * 화·페이지 캐시를 응답으로 바로 고친다.
+ *
+ * 예전에는 무엇을 바꾸든 두 목록을 모두 무효화해 다시 받았다 — 화 제목 한 글자를
+ * 고쳐도 페이지 목록(썸네일 URL 서명 포함)까지 새로 왔다. 바뀐 것은 응답에 다 있다.
+ */
+function useListCache(projectId: string) {
+  const queryClient = useQueryClient();
+  return {
+    setEpisodes(fn: (prev: EpisodeDTO[]) => EpisodeDTO[]) {
+      queryClient.setQueryData<EpisodeDTO[]>(qk.projectEpisodes(projectId), (p) => p && fn(p));
+    },
+    setPages(fn: (prev: PageDTO[]) => PageDTO[]) {
+      queryClient.setQueryData<PageDTO[]>(qk.projectPages(projectId), (p) => p && fn(p));
+    },
+  };
+}
+
 function EpisodeCard({
   projectId,
   episode,
   pages,
   onlyOne,
-  onChanged,
 }: {
   projectId: string;
   episode: EpisodeDTO;
   pages: PageDTO[];
   /** 마지막 한 화인가 — 그러면 삭제를 내밀지 않는다. 서버도 거부한다. */
   onlyOne: boolean;
-  onChanged: () => void | Promise<void>;
 }) {
   const toast = useToast();
   const confirm = useConfirm();
+  const cache = useListCache(projectId);
   const [open, setOpen] = useState(true);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(episode.title ?? '');
-  const { sensors, onDragEnd } = usePageReorder(projectId, pages);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: episode.id,
-  });
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : undefined,
-  };
-
-  async function addPage() {
-    try {
-      await api(ApiPaths.episodePages(episode.id), { method: 'POST', body: '{}' });
-      await onChanged();
-      toast.push('success', '페이지가 추가되었습니다.');
-    } catch (err) {
-      toast.push('error', errorMessage(err, '페이지를 추가'));
-    }
-  }
+  const { sensors, onDragEnd } = usePageReorder(projectId, episode.id, pages);
+  const { addPage } = useAddPage(projectId);
+  const { setNodeRef, style, isDragging, handleProps } = useSortableItem(episode.id);
 
   async function rename() {
     const next = draft.trim();
@@ -158,11 +145,11 @@ function EpisodeCard({
     // 비우면 제목을 지운다 — 다시 "N화" 로 보인다.
     if ((next || null) === episode.title) return;
     try {
-      await api(ApiPaths.episode(episode.id), {
+      const updated = await api<EpisodeDTO>(ApiPaths.episode(episode.id), {
         method: 'PATCH',
         body: JSON.stringify({ title: next || null }),
       });
-      await onChanged();
+      cache.setEpisodes((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
     } catch (err) {
       setDraft(episode.title ?? '');
       toast.push('error', errorMessage(err, '화 제목을 변경'));
@@ -172,14 +159,16 @@ function EpisodeCard({
   async function remove() {
     const ok = await confirm({
       title: `'${episodeLabel(episode)}'을(를) 삭제할까요?`,
-      body: `이 화의 페이지 ${episode.pageCount}장과 그 안의 컷·말풍선이 함께 사라집니다. 되돌릴 수 없습니다.`,
+      body: `이 화의 페이지 ${pages.length}장과 그 안의 컷·말풍선이 함께 사라집니다. 되돌릴 수 없습니다.`,
       confirmLabel: '삭제',
       destructive: true,
     });
     if (!ok) return;
     try {
       await api(ApiPaths.episode(episode.id), { method: 'DELETE' });
-      await onChanged();
+      // 화의 페이지는 서버에서 함께 지워진다(FK cascade).
+      cache.setEpisodes((prev) => prev.filter((e) => e.id !== episode.id));
+      cache.setPages((prev) => prev.filter((p) => p.episodeId !== episode.id));
       toast.push('success', '화를 삭제했습니다.');
     } catch (err) {
       toast.push('error', errorMessage(err, '화를 삭제'));
@@ -196,15 +185,7 @@ function EpisodeCard({
       )}
     >
       <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-2 py-2">
-        <button
-          type="button"
-          aria-label={`${episodeLabel(episode)} 순서 변경`}
-          {...attributes}
-          {...listeners}
-          className="flex h-9 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground/60 hover:text-foreground active:cursor-grabbing touch:h-11"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+        <DragHandle label={`${episodeLabel(episode)} 순서 변경`} {...handleProps} />
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -244,7 +225,7 @@ function EpisodeCard({
           </button>
         )}
 
-        <span className="shrink-0 text-caption text-muted-foreground">{episode.pageCount}쪽</span>
+        <span className="shrink-0 text-caption text-muted-foreground">{pages.length}쪽</span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -258,7 +239,7 @@ function EpisodeCard({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
             <DropdownMenuItem onSelect={() => setRenaming(true)}>제목 변경</DropdownMenuItem>
-            <DropdownMenuItem onSelect={addPage}>페이지 추가</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => addPage(episode.id)}>페이지 추가</DropdownMenuItem>
             {/* 마지막 화는 지울 수 없다 — 페이지가 갈 곳이 없어진다. 서버도 거부한다. */}
             {!onlyOne && (
               <DropdownMenuItem className="text-destructive" onSelect={remove}>
@@ -281,14 +262,14 @@ function EpisodeCard({
               >
                 <ul className="divide-y divide-border">
                   {pages.map((p) => (
-                    <PageRow key={p.id} projectId={projectId} page={p} onChanged={onChanged} />
+                    <PageRow key={p.id} projectId={projectId} page={p} />
                   ))}
                 </ul>
               </SortableContext>
             </DndContext>
           )}
           <Button
-            onClick={addPage}
+            onClick={() => addPage(episode.id)}
             variant="ghost"
             size="sm"
             className="mt-1 w-full text-muted-foreground"
@@ -302,25 +283,11 @@ function EpisodeCard({
   );
 }
 
-function PageRow({
-  projectId,
-  page,
-  onChanged,
-}: {
-  projectId: string;
-  page: PageDTO;
-  onChanged: () => void | Promise<void>;
-}) {
+function PageRow({ projectId, page }: { projectId: string; page: PageDTO }) {
   const toast = useToast();
   const confirm = useConfirm();
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: page.id,
-  });
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : undefined,
-  };
+  const cache = useListCache(projectId);
+  const { setNodeRef, style, isDragging, handleProps } = useSortableItem(page.id);
 
   async function remove() {
     const ok = await confirm({
@@ -332,7 +299,7 @@ function PageRow({
     if (!ok) return;
     try {
       await api(ApiPaths.page(page.id), { method: 'DELETE' });
-      await onChanged();
+      cache.setPages((prev) => prev.filter((p) => p.id !== page.id));
       toast.push('success', '페이지를 삭제했습니다.');
     } catch (err) {
       toast.push('error', errorMessage(err, '페이지를 삭제'));
@@ -351,20 +318,7 @@ function PageRow({
         isDragging ? 'shadow-md' : 'hover:bg-muted/40',
       )}
     >
-      {/*
-        핸들은 항상 보인다. `reveal-on-hover` 였을 때는 hover 가 없는 기기에서 투명한
-        채로 남아, 터치로는 순서를 아예 바꿀 수 없었다. `touch-none` 은 dnd-kit 이
-        포인터 드래그를 받으려면 필수다 — 없으면 브라우저가 스크롤로 가로챈다.
-      */}
-      <button
-        type="button"
-        aria-label={`${label} 순서 변경`}
-        {...attributes}
-        {...listeners}
-        className="flex h-9 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground/60 hover:text-foreground active:cursor-grabbing touch:h-11"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
+      <DragHandle label={`${label} 순서 변경`} {...handleProps} />
 
       <Link
         href={`/projects/${projectId}/pages/${page.id}`}
@@ -401,5 +355,28 @@ function PageRow({
         </DropdownMenuContent>
       </DropdownMenu>
     </li>
+  );
+}
+
+/**
+ * 끌기 손잡이. 화와 페이지가 같은 것을 쓴다.
+ *
+ * 항상 보인다. `reveal-on-hover` 였을 때는 hover 가 없는 기기에서 투명한 채로 남아,
+ * 터치로는 순서를 아예 바꿀 수 없었다. `touch-none` 은 dnd-kit 이 포인터 드래그를
+ * 받으려면 필수다 — 없으면 브라우저가 스크롤로 가로챈다.
+ */
+function DragHandle({
+  label,
+  ...handleProps
+}: { label: string } & ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      {...handleProps}
+      className="flex h-9 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground/60 hover:text-foreground active:cursor-grabbing touch:h-11"
+    >
+      <GripVertical className="h-4 w-4" />
+    </button>
   );
 }

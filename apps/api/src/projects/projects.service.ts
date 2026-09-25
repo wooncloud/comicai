@@ -117,15 +117,20 @@ export class ProjectsService {
   async remove(userId: string, id: string): Promise<void> {
     await this.assertOwned(userId, id);
     // export 결과는 프로젝트가 아니라 사용자 아래에 있어서 프로젝트 prefix 로 안 잡힌다.
-    // 페이지가 사라지기 전에 id 를 모아 둔다.
-    const pages = await prisma.page.findMany({ where: { projectId: id }, select: { id: true } });
+    // 페이지·화가 사라지기 전에 id 를 모아 둔다.
+    const [pages, episodes] = await Promise.all([
+      prisma.page.findMany({ where: { projectId: id }, select: { id: true } }),
+      prisma.episode.findMany({ where: { projectId: id }, select: { id: true } }),
+    ]);
     // DB 를 먼저 지운다. 반대로 하면 S3 삭제 성공 뒤 DB 삭제가 실패했을 때, 화면에는 남아
     // 있는데 이미지가 전부 깨진 프로젝트가 된다.
     await prisma.project.delete({ where: { id } });
-    await this.storage.deleteByPrefix(StoragePrefix.project(id));
-    for (const page of pages) {
-      await this.storage.deleteByPrefix(StoragePrefix.pageExports(userId, page.id));
-    }
+    await this.storage.deleteByPrefixes([
+      // 컷·설정집·썸네일은 전부 이 아래다.
+      StoragePrefix.project(id),
+      ...pages.map((p) => StoragePrefix.pageExports(userId, p.id)),
+      ...episodes.map((e) => StoragePrefix.episodeExports(userId, e.id)),
+    ]);
   }
 
   async assertOwned(userId: string, id: string): Promise<{ thumbnail: string | null }> {

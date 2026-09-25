@@ -45,6 +45,15 @@ describe('저장 키와 삭제 prefix', () => {
     expect(key.startsWith(StoragePrefix.project('proj1'))).toBe(false);
   });
 
+  it('화 내보내기도 사용자 아래 — 화 prefix 로 지운다', () => {
+    const key = buildKey(
+      { kind: 'episode-export', userId: 'u1', episodeId: 'ep1' },
+      'application/zip',
+    );
+    expect(key.startsWith(StoragePrefix.episodeExports('u1', 'ep1'))).toBe(true);
+    expect(key.endsWith('.zip')).toBe(true);
+  });
+
   it('다른 프로젝트의 prefix 로는 지워지지 않는다', () => {
     const key = buildKey(
       { kind: 'render', projectId: 'proj1', panelId: 'panel1', renderJobId: 'job1' },

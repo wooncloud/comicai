@@ -3,10 +3,12 @@ import { newId, prisma } from '@comicai/db';
 import type { PageDTO, ImageRef } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
 import { EpisodesService } from '../episodes/episodes.service';
-import { StoragePrefix, StorageService } from '../storage/storage.service';
+import { StorageService } from '../storage/storage.service';
 import { isReorderPermutation } from '../common/reorder';
+import { pageObjectPrefixes } from '../common/page-objects';
 import { apiError } from '../common/api-error';
 import { jsonColumn } from '../common/json-column';
+import { readPageSize } from '../common/page-size';
 
 interface PageRow {
   id: string;
@@ -20,18 +22,6 @@ interface PageRow {
   createdAt: Date;
 }
 
-/**
- * size 는 Json 컬럼이라 타입 캐스팅이 실제 값을 보장하지 않는다. 형태가 깨진 행이
- * 하나 있으면 에디터가 통째로 죽으므로(page-size-select 가 value.w 를 그대로 읽는다)
- * 경계에서 흡수한다. PageCreateSchema 의 기본값과 같은 값을 쓴다.
- */
-function toSize(raw: unknown): { w: number; h: number } {
-  const s = raw as { w?: unknown; h?: unknown } | null | undefined;
-  const w = typeof s?.w === 'number' && s.w > 0 ? s.w : 800;
-  const h = typeof s?.h === 'number' && s.h > 0 ? s.h : 1200;
-  return { w, h };
-}
-
 function toDtoBase(row: PageRow): PageDTO {
   return {
     id: row.id,
@@ -39,7 +29,7 @@ function toDtoBase(row: PageRow): PageDTO {
     episodeId: row.episodeId,
     order: row.order,
     name: row.name,
-    size: toSize(row.size),
+    size: readPageSize(row.size),
     background: jsonColumn<ImageRef>(row.background),
     backgroundColor: row.backgroundColor,
     createdAt: row.createdAt.toISOString(),
@@ -150,14 +140,9 @@ export class PagesService {
 
   async remove(userId: string, id: string) {
     const owned = await this.findOwned(userId, id);
-    // 컷의 오브젝트(업로드·콘티·렌더 결과)는 컷 prefix 아래에 있다. 페이지에는 자기
-    // prefix 가 없으므로 사라지기 전에 컷 id 를 모아 둔다.
-    const panels = await prisma.panel.findMany({ where: { pageId: id }, select: { id: true } });
+    const prefixes = await pageObjectPrefixes(userId, owned.projectId, [id]);
     await prisma.page.delete({ where: { id } });
-    for (const panel of panels) {
-      await this.storage.deleteByPrefix(StoragePrefix.panel(owned.projectId, panel.id));
-    }
-    await this.storage.deleteByPrefix(StoragePrefix.pageExports(userId, id));
+    await this.storage.deleteByPrefixes(prefixes);
   }
 
   /**

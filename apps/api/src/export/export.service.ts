@@ -27,6 +27,7 @@ import { apiError } from '../common/api-error';
 import { planStitchSegments } from './stitch-plan';
 import { buildZip } from './zip';
 import { buildPdf } from './pdf';
+import { mapLimit } from '../common/map-limit';
 
 /*
  * 패널 합성을 몇 개씩 동시에 할 것인가.
@@ -453,26 +454,4 @@ function clampDimension(v: number): number {
   const n = Math.round(v);
   if (!Number.isFinite(n) || n < 1) return 1;
   return Math.min(n, MAX_PAGE_DIMENSION);
-}
-
-/**
- * 동시 실행 개수를 묶은 `Promise.all`. 결과 순서는 입력 순서 그대로다 —
- * 합성 순서가 곧 z-order 라 뒤섞이면 안 된다.
- */
-async function mapLimit<T, R>(
-  items: readonly T[],
-  limit: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const out: R[] = new Array<R>(items.length);
-  let next = 0;
-  const worker = async () => {
-    for (let i = next++; i < items.length; i = next++) {
-      const item = items[i];
-      if (item === undefined) continue;
-      out[i] = await fn(item);
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-  return out;
 }

@@ -44,7 +44,7 @@ API 계약의 단일 진실 소스. 변경 시 owner: A-Backend(`packages/types/
   export(SVG) 양쪽에서 실제로 해석되는 것만. `index.ts` 는 여기서 타입만 파생시킨다
   (`PageTextFontFamily`, `src/index.ts:274`). 값을 양쪽에 두면 지역 선언이 `export *` 를 가려
   **컴파일 에러 없이** 소비자와 Zod 검증기가 서로 다른 목록을 본다.
-- `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/schemas.ts:516`). PageLine 의 선 종류.
+- `PAGE_LINE_STROKE_STYLES = ['solid','dashed']` (`src/schemas.ts:504`). PageLine 의 선 종류.
   폰트와 같은 이유로 값은 `schemas.ts` 에만 있고, `index.ts:357` 은 타입만 파생시킨다.
 - `RenderErrorCategory = 'transient'|'auth'|'quota'|'safety'|'invalid'|'timeout'` (`src/index.ts:495`).
 - `EntityType = 'style'|'character'|'background'|'worldview'` — 값은 `ENTITY_TYPES` (`src/schemas.ts:484`), 타입은 `src/index.ts:188`. `packages/db` 의 `entityIdPrefix` 도 이걸 받아서, 타입이 늘면 그 switch 가 컴파일 에러로 걸린다.

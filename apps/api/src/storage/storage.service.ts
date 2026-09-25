@@ -13,6 +13,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import sharp from 'sharp';
 import { ulid } from 'ulid';
 import { isFlagOnByDefault, type ImageRef, type RenderStatus } from '@comicai/types';
+import { mapLimit } from '../common/map-limit';
 import { validateAndNormalizeImage } from './image-validator';
 
 export type ImageScope =
@@ -162,6 +163,11 @@ export class StorageService implements OnModuleInit {
    * 규모가 커지면 GC 큐로 미루는 편이 낫지만, 지금 한 프로젝트가 가진 오브젝트는
    * 수십~수백 개고 DeleteObjects 가 1000개씩 지우므로 왕복 몇 번이면 끝난다.
    */
+  /** 여러 prefix 를 4개씩 겹쳐 지운다. 12컷 페이지면 목록·삭제 왕복이 스물넷이라, 줄 세우면 사용자가 그만큼 기다린다. */
+  async deleteByPrefixes(prefixes: readonly string[]): Promise<void> {
+    await mapLimit(prefixes, 4, (p) => this.deleteByPrefix(p));
+  }
+
   async deleteByPrefix(prefix: string): Promise<number> {
     let deleted = 0;
     try {
@@ -278,23 +284,24 @@ export const StoragePrefix = {
 export function buildKey(scope: ImageScope, mimeType: string): string {
   const ext = extensionFor(mimeType);
   const id = ulid();
+  // 삭제 prefix 에서 만든다. 경로를 여기 따로 적으면 한쪽만 바뀌었을 때 삭제가 0건으로 "성공" 한다.
   switch (scope.kind) {
     case 'render':
-      return `projects/${scope.projectId}/panels/${scope.panelId}/renders/${scope.renderJobId}.${ext}`;
+      return `${StoragePrefix.panel(scope.projectId, scope.panelId)}renders/${scope.renderJobId}.${ext}`;
     case 'consistency-ref':
-      return `projects/${scope.projectId}/refs/${scope.entityId}/${id}.${ext}`;
+      return `${StoragePrefix.consistencyEntity(scope.projectId, scope.entityId)}${id}.${ext}`;
     case 'panel-upload':
-      return `projects/${scope.projectId}/panels/${scope.panelId}/upload/${id}.${ext}`;
+      return `${StoragePrefix.panel(scope.projectId, scope.panelId)}upload/${id}.${ext}`;
     case 'panel-conti':
-      return `projects/${scope.projectId}/panels/${scope.panelId}/conti/${id}.${ext}`;
+      return `${StoragePrefix.panel(scope.projectId, scope.panelId)}conti/${id}.${ext}`;
     case 'project-thumbnail':
-      return `projects/${scope.projectId}/thumbnail/${id}.${ext}`;
+      return `${StoragePrefix.project(scope.projectId)}thumbnail/${id}.${ext}`;
     case 'user-avatar':
       return `users/${scope.userId}/avatar/${id}.${ext}`;
     case 'export':
-      return `exports/${scope.userId}/${scope.pageId}/${id}.${ext}`;
+      return `${StoragePrefix.pageExports(scope.userId, scope.pageId)}${id}.${ext}`;
     case 'episode-export':
-      return `exports/${scope.userId}/episodes/${scope.episodeId}/${id}.${ext}`;
+      return `${StoragePrefix.episodeExports(scope.userId, scope.episodeId)}${id}.${ext}`;
   }
 }
 

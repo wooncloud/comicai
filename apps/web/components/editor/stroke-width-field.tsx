@@ -1,15 +1,11 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { clamp } from '@/lib/math';
+import { NumberField } from './number-field';
 
 interface Props {
   value: number;
-  /**
-   * 손잡이를 끄는 **동안** 매번. 화면에 바로 비추는 용도다 — 여기서 저장하면 안 된다.
-   * 주지 않으면 끄는 동안 캔버스는 그대로 있고 손을 뗄 때 한 번에 바뀐다.
-   */
-  onPreview?: (v: number) => void;
-  /** 손을 뗐을 때(또는 숫자를 확정했을 때) 한 번. 저장은 여기서. */
-  onCommit: (v: number) => void;
+  /** 손잡이를 끄는 동안에도 매번 부른다 — 아래 "끄는 동안" 참고. */
+  onChange: (v: number) => void;
   ariaLabel: string;
   min?: number;
   max?: number;
@@ -25,52 +21,14 @@ interface Props {
  * **왜 숫자 칸도 남기나.** 슬라이더만 두면 "7 로 맞춰 둔 것과 똑같이" 가 안 된다.
  * 키보드로 값을 넣는 길이기도 하다.
  *
- * **끄는 동안 저장하지 않는다.** 처음에는 `onChange` 마다 커밋했는데, 컷 테두리는
- * 그게 곧 `PATCH /v1/panels/:id` 라서 손잡이를 한 번 끌면 요청이 수십 개 나갔다.
- * 마지막 응답이 먼저 온 응답을 덮는 경합도 생긴다. 그래서 끄는 동안은 화면만 바꾸고
- * (`onPreview`), 손을 뗄 때 한 번 저장한다(`onCommit`).
- *
- * 키보드(방향키)로 바꿀 때는 `keyup` 이 끝이다. 마우스는 `pointerup`, 그 밖의 경우는
- * `blur` 가 받는다 — 어느 경로로 바꾸든 커밋이 정확히 한 번 나가야 한다.
+ * **끄는 동안.** 받는 쪽이 모두 캔버스 셰이프(`editor.updateShape`)라 매번 불러도
+ * 화면만 바뀌고, 저장은 sync 훅이 손을 뗀 뒤 한 번 한다. 예전에는 컷 테두리만 곧장
+ * `PATCH` 였어서 손잡이를 한 번 끌면 요청이 수십 개 나갔고, 그걸 막으려고 이 필드가
+ * "끄는 중" 과 "놓음" 을 따로 알려야 했다. 컷도 캔버스를 거치게 되며 그 구분이 사라졌다.
+ * 곧장 요청을 보내는 곳에 이 필드를 쓰려면 그 구분을 다시 들여와야 한다.
  */
-export function StrokeWidthField({
-  value,
-  onPreview,
-  onCommit,
-  ariaLabel,
-  min = 1,
-  max = 10,
-}: Props) {
-  const clamped = Math.max(min, Math.min(max, value));
-  /** 끄는 동안의 값. 놓으면 다시 `value` 를 따른다. */
-  const [dragging, setDragging] = useState<number | null>(null);
-  const [draft, setDraft] = useState(String(clamped));
-  const typing = useRef(false);
-
-  const shown = dragging ?? clamped;
-
-  useEffect(() => {
-    if (!typing.current) setDraft(String(Math.max(min, Math.min(max, value))));
-  }, [value, min, max]);
-
-  function clamp(raw: number): number {
-    return Math.max(min, Math.min(max, Math.round(raw) || min));
-  }
-
-  /** 끄는 동안. 화면만 바꾼다. */
-  function preview(next: number) {
-    setDragging(next);
-    setDraft(String(next));
-    if (next !== value) onPreview?.(next);
-  }
-
-  /** 손을 뗐다. 여기서만 저장한다. */
-  function commit(next: number) {
-    setDragging(null);
-    setDraft(String(next));
-    if (next !== value) onCommit(next);
-  }
-
+export function StrokeWidthField({ value, onChange, ariaLabel, min = 1, max = 10 }: Props) {
+  const shown = clamp(value, min, max);
   return (
     <div className="flex items-center gap-2">
       <input
@@ -80,10 +38,10 @@ export function StrokeWidthField({
         step={1}
         value={shown}
         aria-label={ariaLabel}
-        onChange={(e) => preview(clamp(Number(e.target.value)))}
-        onPointerUp={() => commit(shown)}
-        onKeyUp={() => commit(shown)}
-        onBlur={() => commit(shown)}
+        onChange={(e) => {
+          const n = Number(e.target.value);
+          if (n !== value) onChange(n);
+        }}
         className="range-track h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-full"
         style={{
           // 지나온 구간만 진하게. 배경 그라디언트라 JS 없이 따라온다.
@@ -92,24 +50,13 @@ export function StrokeWidthField({
           }%, hsl(var(--border)) 0%)`,
         }}
       />
-      <input
-        type="number"
-        inputMode="numeric"
+      <NumberField
+        value={shown}
         min={min}
         max={max}
         step={1}
-        value={draft}
-        aria-label={`${ariaLabel} (숫자)`}
-        onFocus={() => (typing.current = true)}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={(e) => {
-          typing.current = false;
-          commit(clamp(Number(e.target.value)));
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-        }}
-        className="h-8 w-14 shrink-0 rounded border border-border bg-card px-2 text-center text-body-sm tabular-nums"
+        onCommit={onChange}
+        ariaLabel={`${ariaLabel} (숫자)`}
       />
       <span className="shrink-0 text-caption text-muted-foreground">px</span>
     </div>

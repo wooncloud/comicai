@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '@/components/shell/app-shell';
 import { PageContainer } from '@/components/shell/page-container';
 import { api, ApiError } from '@/lib/api';
-import { ApiPaths, type AdminOverview, type AdminUserRow, type SessionUser } from '@comicai/types';
+import { ApiPaths, type AdminOverview, type AdminUserRow } from '@comicai/types';
+import { useMe } from '@/lib/queries';
 import { qk } from '@/lib/query-keys';
 import { PendingOrders } from '@/components/admin/pending-orders';
 import { TokenGrantDialog } from '@/components/admin/token-grant-dialog';
@@ -19,15 +20,7 @@ import { formatTokens } from '@/lib/tokens';
  * 우회해도 API 가 403 을 준다. 클라이언트 판정을 신뢰해서는 안 된다.
  */
 export default function AdminPage() {
-  const {
-    data: me,
-    isLoading: meLoading,
-    error: meError,
-  } = useQuery<SessionUser>({
-    queryKey: qk.me(),
-    queryFn: () => api<SessionUser>(ApiPaths.me),
-    retry: false,
-  });
+  const { data: me, isLoading: meLoading, error: meError } = useMe({ retry: false });
   const allowed = me?.isAdmin === true;
   // 401 은 오류 경계로 던지지 않기로 했으므로(`lib/api.ts` 가 /login 으로 보낸다) 여기까지
   // 온다. 구분하지 않으면 세션이 만료된 운영자에게 "권한이 없다" 고 말하게 된다.

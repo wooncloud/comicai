@@ -2,10 +2,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
 import { LogIn, UserPlus } from 'lucide-react';
-import { api } from '@/lib/api';
-import { ApiPaths, type SessionUser } from '@comicai/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,7 +18,7 @@ import { MobileNav } from '@/components/shell/mobile-nav';
 import { TokenBalance } from '@/components/shell/token-balance';
 import { cn } from '@/lib/cn';
 import { ADMIN_NAV, PRIMARY_NAV, useLogout } from '@/lib/nav';
-import { qk } from '@/lib/query-keys';
+import { useMe } from '@/lib/queries';
 
 /**
  * @param breadcrumb 지금 어디에 있는지. **상단바 안**에 놓인다.
@@ -74,9 +71,7 @@ interface TopbarProps {
 export function Topbar({ authed = false, nav, actions }: TopbarProps) {
   const path = usePathname();
   const logout = useLogout();
-  const { data: me } = useQuery<SessionUser>({
-    queryKey: qk.me(),
-    queryFn: () => api<SessionUser>(ApiPaths.me),
+  const { data: me } = useMe({
     retry: false,
     /*
      * 이 조회는 오류 경계로 던지지 않는다.

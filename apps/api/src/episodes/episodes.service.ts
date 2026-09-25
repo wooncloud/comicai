@@ -2,7 +2,9 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { newId, prisma } from '@comicai/db';
 import type { EpisodeDTO } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
+import { StoragePrefix, StorageService } from '../storage/storage.service';
 import { isReorderPermutation } from '../common/reorder';
+import { pageObjectPrefixes } from '../common/page-objects';
 import { apiError } from '../common/api-error';
 
 interface EpisodeRow {
@@ -14,13 +16,16 @@ interface EpisodeRow {
   updatedAt: Date;
 }
 
-function toDto(row: EpisodeRow, pageCount: number): EpisodeDTO {
+/**
+ * 페이지 수는 싣지 않는다. 화면은 그 화의 페이지 목록을 이미 들고 있어 거기서 센다 —
+ * DTO 에 수를 두면 페이지를 더하거나 지울 때마다 화 목록까지 다시 받아야 했다.
+ */
+function toDto(row: EpisodeRow): EpisodeDTO {
   return {
     id: row.id,
     projectId: row.projectId,
     order: row.order,
     title: row.title,
-    pageCount,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -28,16 +33,20 @@ function toDto(row: EpisodeRow, pageCount: number): EpisodeDTO {
 
 @Injectable()
 export class EpisodesService {
-  constructor(private readonly projects: ProjectsService) {}
+  constructor(
+    private readonly projects: ProjectsService,
+    private readonly storage: StorageService,
+  ) {}
 
   async list(userId: string, projectId: string): Promise<EpisodeDTO[]> {
     await this.projects.assertOwned(userId, projectId);
-    const rows = await prisma.episode.findMany({
-      where: { projectId },
-      orderBy: { order: 'asc' },
-      include: { _count: { select: { pages: true } } },
-    });
-    return rows.map((r) => toDto(r, r._count.pages));
+    return this.listOf(projectId);
+  }
+
+  /** 소유권을 이미 확인한 호출부용 — reorder 가 같은 확인을 두 번 하지 않게. */
+  private async listOf(projectId: string): Promise<EpisodeDTO[]> {
+    const rows = await prisma.episode.findMany({ where: { projectId }, orderBy: { order: 'asc' } });
+    return rows.map(toDto);
   }
 
   async create(userId: string, projectId: string, title?: string): Promise<EpisodeDTO> {
@@ -55,7 +64,7 @@ export class EpisodesService {
         title: title ?? null,
       },
     });
-    return toDto(row, 0);
+    return toDto(row);
   }
 
   /**
@@ -80,16 +89,12 @@ export class EpisodesService {
 
   async patch(userId: string, id: string, patch: { title?: string | null }): Promise<EpisodeDTO> {
     await this.findOwned(userId, id);
-    const row = await prisma.episode.update({
-      where: { id },
-      data: patch,
-      include: { _count: { select: { pages: true } } },
-    });
-    return toDto(row, row._count.pages);
+    return toDto(await prisma.episode.update({ where: { id }, data: patch }));
   }
 
   /**
-   * 화를 지운다. **그 안의 페이지도 함께 사라진다**(FK cascade).
+   * 화를 지운다. **그 안의 페이지도 함께 사라진다**(FK cascade). 저장소의 그림과
+   * 내보내기 결과는 cascade 가 닿지 않으므로 지우기 전에 모아 두었다가 따로 지운다.
    *
    * 마지막 화는 막는다. 화가 없으면 페이지를 넣을 곳이 없어, 다음 '페이지 추가' 가
    * 조용히 새 화를 만들게 된다 — 사용자는 지운 적 없는 화가 생겼다고 읽는다.
@@ -105,7 +110,17 @@ export class EpisodesService {
         }),
       );
     }
+    const pages = await prisma.page.findMany({ where: { episodeId: id }, select: { id: true } });
+    const prefixes = [
+      ...(await pageObjectPrefixes(
+        userId,
+        owned.projectId,
+        pages.map((p) => p.id),
+      )),
+      StoragePrefix.episodeExports(userId, id),
+    ];
     await prisma.episode.delete({ where: { id } });
+    await this.storage.deleteByPrefixes(prefixes);
   }
 
   async reorder(userId: string, projectId: string, episodeIds: string[]): Promise<EpisodeDTO[]> {
@@ -122,7 +137,7 @@ export class EpisodesService {
     await prisma.$transaction(
       episodeIds.map((id, order) => prisma.episode.update({ where: { id }, data: { order } })),
     );
-    return this.list(userId, projectId);
+    return this.listOf(projectId);
   }
 
   /** 소유권 확인 + 화 행. 남의 것도 없는 것도 404 — 존재 여부를 알려 주지 않는다. */

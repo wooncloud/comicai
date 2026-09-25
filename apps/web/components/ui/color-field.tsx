@@ -4,6 +4,7 @@ import { Check, Pipette } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/cn';
 import { hexToHsv, hsvToHex, isNearWhite, normalizeHex, type Hsv } from '@/lib/color';
+import { clamp } from '@/lib/math';
 
 /**
  * 만화에 쓰는 색 한 벌.
@@ -22,11 +23,14 @@ const PRESETS: readonly (readonly string[])[] = [
 
 interface Props {
   value: string;
-  /** 확정된 색만 올라온다. 손잡이를 끄는 동안에는 부르지 않는다. */
-  onCommit: (v: string) => void;
+  /** 색이 정해졌을 때. 기본은 판·띠에서 **손을 뗐을 때 한 번**이다. */
+  onChange: (v: string) => void;
+  /**
+   * 끄는 동안에도 부른다. 캔버스 도형처럼 **바꿔도 저장이 늦게 나가는** 대상만 켠다 —
+   * 곧장 요청을 보내는 곳(페이지 배경)에서 켜면 판을 한 번 끌 때 요청이 수십 개 나간다.
+   */
+  live?: boolean;
   ariaLabel: string;
-  /** 인스펙터(카드 배경) 위인가. 입력칸 배경을 주변과 맞춘다. */
-  variant?: 'page' | 'panel';
 }
 
 /**
@@ -42,14 +46,15 @@ interface Props {
  * 정렬도 보이지 않는다. 떠 있는 패널은 인스펙터 **왼쪽**(캔버스 위)으로 나가므로
  * 목록이 그대로 있고, 패널 폭도 인스펙터에 묶이지 않는다.
  */
-export function ColorField({ value, onCommit, ariaLabel, variant = 'page' }: Props) {
+export function ColorField({ value, onChange, live = false, ariaLabel }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
 
   useEffect(() => setDraft(value), [value]);
 
   const current = normalizeHex(value) ?? '#000000';
-  const bg = variant === 'panel' ? 'bg-card' : 'bg-background';
+  // 끄는 동안에는 아직 `value` 가 그대로일 수 있다(live 가 아니면). 견본은 손끝을 따라간다.
+  const shown = normalizeHex(draft) ?? current;
 
   function commit(next: string) {
     const n = normalizeHex(next);
@@ -58,7 +63,13 @@ export function ColorField({ value, onCommit, ariaLabel, variant = 'page' }: Pro
       return;
     }
     setDraft(n);
-    if (n !== current) onCommit(n);
+    if (n !== current) onChange(n);
+  }
+
+  /** 판·띠를 끄는 중. 보이는 값만 바꾸고, live 일 때만 올려 보낸다. */
+  function drag(hex: string) {
+    if (live) commit(hex);
+    else setDraft(hex);
   }
 
   return (
@@ -70,12 +81,11 @@ export function ColorField({ value, onCommit, ariaLabel, variant = 'page' }: Pro
             aria-label={ariaLabel}
             title={ariaLabel}
             className={cn(
-              'h-8 w-10 shrink-0 rounded border p-0.5 transition-colors',
+              'h-8 w-10 shrink-0 rounded border bg-card p-0.5 transition-colors',
               open ? 'border-foreground' : 'border-border hover:border-foreground/40',
-              bg,
             )}
           >
-            <Swatch color={current} className="h-full w-full rounded-sm" />
+            <Swatch color={shown} className="h-full w-full rounded-sm" />
           </button>
         </PopoverTrigger>
         {/*
@@ -115,7 +125,7 @@ export function ColorField({ value, onCommit, ariaLabel, variant = 'page' }: Pro
             ))}
           </div>
 
-          <CustomPicker value={current} onPick={commit} />
+          <CustomPicker value={current} onDrag={drag} onDone={commit} />
         </PopoverContent>
       </Popover>
 
@@ -128,10 +138,7 @@ export function ColorField({ value, onCommit, ariaLabel, variant = 'page' }: Pro
           if (e.key === 'Enter') commit((e.target as HTMLInputElement).value);
           else if (e.key === 'Escape') setDraft(value);
         }}
-        className={cn(
-          'h-8 min-w-0 flex-1 rounded border border-border px-2 font-mono text-caption',
-          bg,
-        )}
+        className="h-8 min-w-0 flex-1 rounded border border-border bg-card px-2 font-mono text-caption"
         aria-label={`${ariaLabel} (hex)`}
       />
     </div>
@@ -161,10 +168,34 @@ function Swatch({ color, className }: { color: string; className?: string }) {
  * 색상 띠를 `<input type="range">` 로 둔 이유: 방향키로 조절되고 스크린 리더가
  * 읽는다. 판은 그렇게 만들 수 없어 포인터로 집되, 띠에서 색상을 먼저 정하면
  * 키보드만으로도 원하는 계열까지는 닿는다.
+ *
+ * 끄는 동안은 `onDrag`, 손을 떼면 `onDone` 한 번. 굵기 손잡이와 같은 규칙이다 — 판은
+ * 포인터가 움직일 때마다 값이 나오므로, 그대로 저장하면 1초에 수십 번 저장된다.
+ * 방향키는 `keyup`, 그 밖의 경우는 `blur` 가 끝이다.
  */
-function CustomPicker({ value, onPick }: { value: string; onPick: (hex: string) => void }) {
+function CustomPicker({
+  value,
+  onDrag,
+  onDone,
+}: {
+  value: string;
+  onDrag: (hex: string) => void;
+  onDone: (hex: string) => void;
+}) {
   const areaRef = useRef<HTMLDivElement>(null);
   const [hsv, setHsv] = useState<Hsv>(() => hexToHsv(value) ?? { h: 0, s: 0, v: 0 });
+  /** 손을 뗄 때 보낼 값. 마지막 이동과 pointerup 사이에 렌더가 없을 수 있어 ref 로 든다. */
+  const latest = useRef(hsv);
+  useEffect(() => {
+    latest.current = hsv;
+  }, [hsv]);
+
+  function move(next: Hsv) {
+    latest.current = next;
+    setHsv(next);
+    onDrag(hsvToHex(next));
+  }
+  const done = () => onDone(hsvToHex(latest.current));
 
   /*
    * 밖에서 색이 바뀌면(프리셋을 눌렀을 때 등) 따라간다.
@@ -180,11 +211,9 @@ function CustomPicker({ value, onPick }: { value: string; onPick: (hex: string) 
   function pickFromPointer(e: React.PointerEvent<HTMLDivElement>) {
     const r = areaRef.current?.getBoundingClientRect();
     if (!r) return;
-    const s = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
-    const v = 1 - Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
-    const next = { ...hsv, s, v };
-    setHsv(next);
-    onPick(hsvToHex(next));
+    const s = clamp((e.clientX - r.left) / r.width, 0, 1);
+    const v = 1 - clamp((e.clientY - r.top) / r.height, 0, 1);
+    move({ ...hsv, s, v });
   }
 
   return (
@@ -203,6 +232,7 @@ function CustomPicker({ value, onPick }: { value: string; onPick: (hex: string) 
         onPointerMove={(e) => {
           if (e.buttons === 1) pickFromPointer(e);
         }}
+        onPointerUp={done}
         className="relative h-24 w-full cursor-crosshair rounded"
         style={{
           background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, hsl(${hsv.h} 100% 50%))`,
@@ -219,11 +249,10 @@ function CustomPicker({ value, onPick }: { value: string; onPick: (hex: string) 
         max={359}
         value={Math.round(hsv.h)}
         aria-label="색상"
-        onChange={(e) => {
-          const next = { ...hsv, h: Number(e.target.value) };
-          setHsv(next);
-          onPick(hsvToHex(next));
-        }}
+        onChange={(e) => move({ ...hsv, h: Number(e.target.value) })}
+        onPointerUp={done}
+        onKeyUp={done}
+        onBlur={done}
         className="hue-slider h-3 w-full cursor-pointer appearance-none rounded-full"
         style={{
           background:

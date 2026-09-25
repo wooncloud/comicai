@@ -476,18 +476,16 @@ export interface EpisodeDTO {
   order: number;
   /** 사용자 지정 제목. null 이면 `order` 로 "N화" 를 만든다. */
   title: string | null;
-  /** 이 화의 페이지 수. 목록이 매번 페이지를 다시 세지 않게 서버가 준다. */
-  pageCount: number;
   createdAt: string;
   updatedAt: string;
 }
 
-/** EpisodeDTO.title 과 order 에서 표시용 라벨. `pageLabel` 과 같은 규칙이다. */
 /** 화를 내보내는 방식. 값 목록은 `schemas.ts` 가 유일한 출처다. */
 export type EpisodeExportMode = (typeof EPISODE_EXPORT_MODES)[number];
 /** 만든 그림들을 어떻게 건네줄 것인가. `mode` 와 축이 다르다. */
 export type EpisodeExportBundle = (typeof EPISODE_EXPORT_BUNDLES)[number];
 
+/** EpisodeDTO.title 과 order 에서 표시용 라벨. `pageLabel` 과 같은 규칙이다. */
 export function episodeLabel(episode: { title: string | null; order: number }): string {
   return episode.title ?? `${episode.order + 1}화`;
 }

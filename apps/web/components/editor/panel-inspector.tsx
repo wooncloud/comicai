@@ -4,13 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, API_BASE, ApiError } from '@/lib/api';
 import { useDebounced } from '@/lib/use-debounced';
+import { useConsistency } from '@/lib/queries';
+import { useProject } from '@/lib/use-project';
 import {
   ApiPaths,
   DEFAULT_MODEL_ID,
-  type ConsistencyEntityDTO,
   type PanelDTO,
-  type PanelShape,
-  type ProjectDTO,
   type RenderJobDTO,
   type RenderStatus,
   type TipTapDoc,
@@ -28,6 +27,8 @@ const PanelTextEditor = dynamic(() => import('./panel-editor').then((m) => m.Pan
 import { PanelStatusBadge } from './panel-status-badge';
 import { Field, InspectorSection } from './inspector-section';
 import { InspectorShell } from './inspector-shell';
+import type { ComicPanelShape } from './tldraw/comic-panel-shape';
+import { useShapeProps } from './tldraw/use-shape-props';
 import { ColorField } from '@/components/ui/color-field';
 import { StrokeWidthField } from './stroke-width-field';
 import { HistoryTray } from './history-tray';
@@ -52,7 +53,7 @@ import { FEATURES } from '@/lib/features';
 
 interface Props {
   projectId: string;
-  /** 굵기를 끄는 동안 셰이프를 직접 고치기 위해. 좌표는 캔버스가 계속 쥔다. */
+  /** 테두리는 캔버스 셰이프를 직접 읽고 고친다 — 아래 `PanelStrokeEditor`. */
   editor: Editor;
   shapeId: TLShapeId;
   panel: PanelDTO;
@@ -101,21 +102,13 @@ export function PanelInspector({
    * **그 창 안의 편집이 그대로 사라진다.** 사이드 패널의 선택지 목록 하나를 못
    * 불러온 대가로 사용자의 그림을 잃는 것은 어떤 경우에도 맞지 않는다.
    */
-  const { data: project } = useQuery<ProjectDTO>({
-    queryKey: qk.project(projectId),
-    queryFn: () => api<ProjectDTO>(ApiPaths.project(projectId)),
-    throwOnError: false,
-  });
+  const project = useProject(projectId, { throwOnError: false });
   /*
    * 설정집 전체를 읽고 그림체만 거른다. 예전에는 `?type=style` 로 따로 읽어
    * **같은 데이터에 캐시가 둘**이었고, 설정집 화면에서 그림체를 고쳐도 여기 목록은
    * 옛 값이었다. 키를 하나로 두면 어느 화면에서 고치든 다 같이 따라온다.
    */
-  const { data: consistency } = useQuery<ConsistencyEntityDTO[]>({
-    queryKey: qk.consistency(projectId),
-    queryFn: () => api<ConsistencyEntityDTO[]>(ApiPaths.projectConsistency(projectId)),
-    throwOnError: false,
-  });
+  const { data: consistency } = useConsistency(projectId, { throwOnError: false });
   const styles = consistency?.filter((c) => c.type === 'style');
   const effectiveStyleId = panel.styleId ?? project?.defaultStyleId ?? null;
   const model: ModelId = userModel ?? project?.defaultModel ?? DEFAULT_MODEL_ID;
@@ -521,72 +514,30 @@ export function PanelInspector({
       </InspectorSection>
 
       {/* 테두리는 그림이 나온 뒤에 만지는 값이라 '그리기' 아래에 둔다. */}
-      <PanelStrokeEditor
-        shape={panel.shape}
-        onWidthChange={(strokeWidth) => {
-          /*
-           * 굵기는 **캔버스 셰이프를 직접** 고친다. 저장은 sync 훅이 1.5초 디바운스로
-           * 한 번만 하고, 좌표는 캔버스가 쥔 값이 그대로 나간다.
-           *
-           * DTO(`onPanelUpdated`)를 거치면 안 된다 — `panel.shape` 은 선택 시점의
-           * 스냅샷이라 그 사이 캔버스에서 옮긴 좌표가 없다. 그걸 되쓰면 컷을 옮긴
-           * 직후 굵기를 바꿀 때 **이동이 취소된다.** 아래 색 저장이 좌표를 빼고
-           * 보내는 것과 같은 이유다.
-           */
-          editor.updateShape({ id: shapeId, type: 'comic-panel', props: { strokeWidth } });
-        }}
-        onChange={async (stroke) => {
-          try {
-            /*
-             * 좌표를 실어 보내지 않는다. 예전에는 `{ shape: next }` 로 shape 전체를
-             * 보냈는데, `panel.shape` 은 선택 시점의 DTO 라 그 사이 캔버스에서 옮긴
-             * 좌표가 반영돼 있지 않다 — 컷을 옮긴 직후 색을 바꾸면 이동이 취소됐다.
-             */
-            const updated = await api<PanelDTO>(ApiPaths.panel(panel.id), {
-              method: 'PATCH',
-              body: JSON.stringify({ stroke }),
-            });
-            onPanelUpdated(updated);
-          } catch (err) {
-            if (err instanceof ApiError) toast.push('error', errorMessage(err, '컷 테두리를 저장'));
-          }
-        }}
-      />
+      <PanelStrokeEditor editor={editor} shapeId={shapeId} />
 
       <InspectorSection icon={History} title="생성 기록">
         <HistoryTray
           panelId={panel.id}
           currentRenderId={panel.currentRenderId}
-          onRestored={(p) => {
-            onPanelUpdated(p);
-          }}
+          onRestored={onPanelUpdated}
         />
       </InspectorSection>
     </InspectorShell>
   );
 }
 
-function PanelStrokeEditor({
-  shape,
-  onWidthChange,
-  onChange,
-}: {
-  shape: PanelShape;
-  /** 굵기. 캔버스 셰이프를 고치고, 저장은 sync 훅이 맡는다. */
-  onWidthChange: (strokeWidth: number) => void;
-  /** 색. 바뀐 필드만 넘긴다 — 좌표는 캔버스 소관이다. */
-  onChange: (next: { strokeColor?: string }) => void | Promise<void>;
-}) {
-  // 저장된 shape 은 읽을 때 파싱하지 않는다. 이 두 필드는 Zod 기본값이라 **쓰기
-  // 시점에만** 채워지므로, 필드가 생기기 전에 저장된 컷에는 아예 없다.
-  const { strokeColor, strokeWidth } = shape as Partial<PanelShape>;
-  const color = strokeColor ?? '#000000';
-  const width = strokeWidth ?? 2;
-
-  function commitColor(next: string) {
-    if (next === shape.strokeColor) return;
-    void onChange({ strokeColor: next });
-  }
+/**
+ * 컷 테두리. 색도 굵기도 **캔버스 셰이프를 고치고**, 저장은 sync 훅이 1.5초 디바운스로 한다.
+ *
+ * 예전에는 두 갈래였다. 굵기는 셰이프를, 색은 전용 `PATCH {stroke}` 를 썼고, 값은 선택
+ * 시점의 DTO 스냅샷에서 읽었다. 그래서 컷을 옮긴 직후 1.5초 안에 색을 바꾸면 이어서
+ * 나가는 셰이프 저장이 캔버스에 남은 옛 색으로 덮어 색 변경이 조용히 사라졌고, 굵기
+ * 손잡이는 놓는 순간 DTO 의 옛 값으로 튀었다가 돌아왔다. 한 경로로 모으면 둘 다 없다.
+ */
+function PanelStrokeEditor({ editor, shapeId }: { editor: Editor; shapeId: TLShapeId }) {
+  const { props, patch } = useShapeProps<ComicPanelShape>(editor, shapeId);
+  if (!props) return null;
 
   return (
     <InspectorSection icon={Square} title="컷 테두리">
@@ -595,13 +546,17 @@ function PanelStrokeEditor({
         있으면 팝오버가 굵기 손잡이를 덮는다 — 무엇에 딸린 값인지 흐려진다.
       */}
       <Field label="색">
-        <ColorField value={color} onCommit={commitColor} ariaLabel="컷 테두리 색" variant="panel" />
+        <ColorField
+          value={props.strokeColor}
+          onChange={(strokeColor) => patch({ strokeColor })}
+          ariaLabel="컷 테두리 색"
+          live
+        />
       </Field>
       <Field label="굵기">
         <StrokeWidthField
-          value={width}
-          onPreview={onWidthChange}
-          onCommit={onWidthChange}
+          value={props.strokeWidth}
+          onChange={(strokeWidth) => patch({ strokeWidth })}
           ariaLabel="컷 테두리 굵기"
         />
       </Field>

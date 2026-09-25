@@ -128,7 +128,6 @@ export class PanelsService {
     id: string,
     patch: {
       shape?: PanelShape;
-      stroke?: { strokeColor?: string; strokeWidth?: number };
       text?: unknown;
       styleId?: string | null;
     },
@@ -136,18 +135,6 @@ export class PanelsService {
     await this.assertOwned(userId, id);
     const data: Record<string, unknown> = {};
     if (patch.shape) data.shape = patch.shape;
-    /*
-     * 테두리만 바꾸는 경로. 저장된 shape 를 읽어 두 필드만 덮어쓴다.
-     *
-     * 인스펙터가 shape 전체를 보내던 때는 선택 시점의 낡은 좌표까지 같이 써서,
-     * 컷을 옮긴 직후 색을 바꾸면 이동이 취소됐다. 좌표는 캔버스가 쓰고, 테두리는
-     * 인스펙터가 쓰되 서로의 필드를 건드리지 않게 나눈다.
-     */
-    if (patch.stroke) {
-      const cur = await prisma.panel.findUnique({ where: { id }, select: { shape: true } });
-      if (!cur) throw new NotFoundException(apiError({ code: 'PANEL_NOT_FOUND' }));
-      data.shape = { ...(cur.shape as unknown as PanelShape), ...patch.stroke };
-    }
     if (patch.text) data.text = patch.text;
     if ('styleId' in patch) data.styleId = patch.styleId ?? null;
     const row = await prisma.panel.update({ where: { id }, data: data as never });

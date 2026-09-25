@@ -3,12 +3,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, ChevronRight, Plus, Pencil, Check, X, GripVertical } from 'lucide-react';
 import { DndContext, closestCenter } from '@dnd-kit/core';
-import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { api } from '@/lib/api';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { qk } from '@/lib/query-keys';
-import { usePageReorder } from '@/lib/use-page-reorder';
+import { useProjectEpisodes, useProjectPages } from '@/lib/queries';
+import { useAddPage } from '@/lib/use-add-page';
+import { usePageReorder, useSortableItem } from '@/lib/use-sortable-reorder';
 import { ApiPaths, episodeLabel, pageLabel, type EpisodeDTO, type PageDTO } from '@comicai/types';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
@@ -41,15 +42,10 @@ export function PageSidebar({
   currentPage,
   onCurrentPageUpdated,
 }: Props) {
-  const [adding, setAdding] = useState(false);
   const toast = useToast();
   const queryClient = useQueryClient();
-
-  const { data: episodes } = useQuery<EpisodeDTO[]>({
-    queryKey: qk.projectEpisodes(projectId),
-    queryFn: () => api<EpisodeDTO[]>(ApiPaths.projectEpisodes(projectId)),
-    enabled: !!projectId,
-  });
+  const { addPage, adding } = useAddPage(projectId);
+  const { data: episodes } = useProjectEpisodes(projectId);
 
   /*
    * 프로젝트 상세 화면과 **같은 캐시**를 본다. 예전에는 두 화면이 각자 로드해서,
@@ -59,11 +55,7 @@ export function PageSidebar({
    * 번역**하고 있었다 — 조회가 죽으면 사이드바가 빈 목록을 보여 주고, 사용자는 자기
    * 페이지가 사라진 줄 안다. 지금은 실패가 오류 경계로 간다.
    */
-  const { data: pages } = useQuery<PageDTO[]>({
-    queryKey: qk.projectPages(projectId),
-    queryFn: () => api<PageDTO[]>(ApiPaths.projectPages(projectId)),
-    enabled: !!projectId,
-  });
+  const { data: pages } = useProjectPages(projectId);
 
   /** 지금 보고 있는 화. 이 화만 펼친 채로 둔다. */
   const currentEpisodeId = currentPage?.episodeId ?? null;
@@ -99,23 +91,6 @@ export function PageSidebar({
       })),
     [episodes, pages],
   );
-
-  async function addPage(episodeId: string) {
-    setAdding(true);
-    try {
-      const created = await api<PageDTO>(ApiPaths.episodePages(episodeId), {
-        method: 'POST',
-        body: '{}',
-      });
-      setPages((prev) => [...prev, created]);
-      await queryClient.invalidateQueries({ queryKey: qk.projectEpisodes(projectId) });
-      toast.push('success', '페이지가 추가되었습니다.');
-    } catch (err) {
-      toast.push('error', errorMessage(err, '페이지를 추가'));
-    } finally {
-      setAdding(false);
-    }
-  }
 
   async function renamePage(id: string, name: string | null) {
     try {
@@ -197,7 +172,7 @@ function EpisodeGroup({
   onAddPage: () => void;
   onRename: (id: string, name: string | null) => Promise<void>;
 }) {
-  const { sensors, onDragEnd } = usePageReorder(projectId, pages);
+  const { sensors, onDragEnd } = usePageReorder(projectId, episode.id, pages);
 
   return (
     <div className="mb-0.5">
@@ -264,15 +239,8 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(page.name ?? '');
   const [busy, setBusy] = useState(false);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: page.id,
-  });
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : undefined,
-    opacity: isDragging ? 0.85 : undefined,
-  };
+  const { setNodeRef, style: sortStyle, isDragging, handleProps } = useSortableItem(page.id);
+  const style = { ...sortStyle, opacity: isDragging ? 0.85 : undefined };
 
   async function commit() {
     const trimmed = draft.trim();
@@ -345,8 +313,7 @@ function PageRow({ projectId, page, active, onRename }: RowProps) {
         <button
           type="button"
           aria-label="드래그하여 순서 변경"
-          {...attributes}
-          {...listeners}
+          {...handleProps}
           className="reveal-on-hover flex h-5 w-3 flex-none cursor-grab items-center justify-center text-muted-foreground/60 active:cursor-grabbing hover:text-foreground"
         >
           <GripVertical className="h-3 w-3" />

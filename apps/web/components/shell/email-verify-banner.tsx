@@ -1,14 +1,9 @@
 'use client';
-import { useState } from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
 import { MailWarning } from 'lucide-react';
-import { api } from '@/lib/api';
-import { ApiPaths, type SessionUser } from '@comicai/types';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/toast';
-import { errorMessage } from '@/lib/error-message';
-import { qk } from '@/lib/query-keys';
+import { useMe } from '@/lib/queries';
+import { useResendVerification } from '@/lib/use-resend-verification';
 
 /**
  * 이메일 인증이 아직인 사람에게만 보이는 한 줄.
@@ -24,32 +19,12 @@ import { qk } from '@/lib/query-keys';
  * 에디터는 `AppShell` 을 쓰지 않으므로 그림 그리는 동안에는 뜨지 않는다.
  */
 export function EmailVerifyBanner() {
-  const toast = useToast();
-  const [pending, setPending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const { data: me } = useQuery<SessionUser>({
-    queryKey: qk.me(),
-    queryFn: () => api<SessionUser>(ApiPaths.me),
-    retry: false,
-    // 잔액 배지와 같은 이유로 오류 경계로 던지지 않는다 — 이 줄 하나 때문에
-    // 화면 전체가 오류로 바뀌면 안 된다.
-    throwOnError: false,
-  });
+  const { resend, pending, sent } = useResendVerification();
+  // 잔액 배지와 같은 이유로 오류 경계로 던지지 않는다 — 이 줄 하나 때문에
+  // 화면 전체가 오류로 바뀌면 안 된다.
+  const { data: me } = useMe({ retry: false, throwOnError: false });
 
   if (!me || me.emailVerified) return null;
-
-  async function resend() {
-    setPending(true);
-    try {
-      await api(ApiPaths.verifyEmailRequest, { method: 'POST' });
-      setSent(true);
-      toast.push('success', '인증 메일을 다시 보냈습니다.');
-    } catch (err) {
-      toast.push('error', errorMessage(err, '인증 메일을 발송'));
-    } finally {
-      setPending(false);
-    }
-  }
 
   return (
     <div className="border-b border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">

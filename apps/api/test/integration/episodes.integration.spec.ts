@@ -52,7 +52,6 @@ describe('화와 페이지', () => {
     const list = await episodes.list(userId, projectId);
     expect(list).toHaveLength(1);
     expect(list[0]!.id).toBe(page.episodeId);
-    expect(list[0]!.pageCount).toBe(1);
   });
 
   it('제목이 없으면 순서로 부른다', async () => {

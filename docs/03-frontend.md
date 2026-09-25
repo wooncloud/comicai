@@ -133,12 +133,12 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 ### components/shell/app-shell.tsx
 
-`AppShell`(`app-shell.tsx:34`)은 `Topbar` + `<main>` 레이아웃. `Topbar`(`app-shell.tsx:74`)는 다음을 담당.
+`AppShell`(`app-shell.tsx:31`)은 `Topbar` + `<main>` 레이아웃. `Topbar`(`app-shell.tsx:74`)는 다음을 담당.
 
 **에디터도 이 `Topbar` 를 쓴다.** 예전에는 `app/projects/[id]/pages/[pageid]/page.tsx` 가
 자기 헤더를 따로 그려서, 그 화면에 들어가는 순간 로고·계정 메뉴·잔액이 사라지고 높이와
 색이 미묘하게 달랐다. 화면마다 다른 것은 두 슬롯뿐이다 — `nav`(가운데)와
-`actions`(잔액 앞, 에디터는 저장 상태·설정집 링크). `app-shell.tsx:148`, `app/projects/[id]/pages/[pageid]/page.tsx:346`.
+`actions`(잔액 앞, 에디터는 저장 상태·설정집 링크). `app-shell.tsx:143`, `app/projects/[id]/pages/[pageid]/page.tsx:346`.
 
 **경로(브레드크럼)는 전부 그 `nav` 슬롯에 있다.** `AppShell` 의 `breadcrumb` prop 으로
 받아 넘긴다(`app-shell.tsx:34`, `:43`). 예전에는 문서 화면들만 제목 바로 위에 따로
@@ -147,7 +147,10 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 띈다. 위계가 없는 화면(대시보드·설정)은 경로를 주지 않고, 그때 `nav` 는 `PRIMARY_NAV`
 링크로 되돌아간다.
 
-- `useQuery<SessionUser>({ queryKey: qk.me(), retry: false, throwOnError: false })` (`app-shell.tsx:55-71`)
+- `useMe({ retry: false, throwOnError: false })` (`app-shell.tsx:74`). 키와 요청 주소의 짝은
+  `lib/queries.ts` 한 곳에서 만든다(`useMe`, `lib/queries.ts:26` · `useProjectEpisodes` `:34` 등) —
+  예전에는 화 목록 세 곳, 설정집 세 곳, 내 정보 네 곳이 짝을 각자 적었다. 짝이 어긋나도 오류가
+  나지 않고 한 캐시에 다른 모양이 섞일 뿐이다. 오류 경계로 던질지는 호출부가 옵션으로 고른다
 - `EmailVerifyBanner` 가 같은 쿼리를 읽어 **인증 전 사용자에게만** 한 줄을 띄운다 (`components/shell/email-verify-banner.tsx`). `AppShell` 안에 있어 에디터에는 뜨지 않는다 — 그림 그리는 화면에 상주 경고를 두지 않기 위해서다
   — 던지지 않는다. Topbar 는 랜딩도 쓰므로, API 가 죽었을 때 여기서 던지면 처음 온
   비로그인 방문자에게 히어로 대신 오류 화면이 뜬다
@@ -176,7 +179,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 ### components/shell
 
 - `app-shell.tsx` — 위 참고. `AppShell`, `Topbar` 두 export
-- `token-balance.tsx` — 상단바의 잔액 배지. 아바타 바로 옆, **모든 화면에서** 그린다(`TokenBalance`, `app-shell.tsx:150`). 0 이하면 빨강(`empty`, `token-balance.tsx:30`), 누르면 충전 화면으로 간다(`Link`, `token-balance.tsx:27`). 못 읽었으면 아무것도 그리지 않는다(`return null`, `token-balance.tsx:22`)
+- `token-balance.tsx` — 상단바의 잔액 배지. 아바타 바로 옆, **모든 화면에서** 그린다(`TokenBalance`, `app-shell.tsx:145`). 0 이하면 빨강(`empty`, `token-balance.tsx:30`), 누르면 충전 화면으로 간다(`Link`, `token-balance.tsx:27`). 못 읽었으면 아무것도 그리지 않는다(`return null`, `token-balance.tsx:22`)
 - `mobile-nav.tsx` — 좁은 화면용 햄버거 + 사이드 드로어(`mobile-nav.tsx:23`). 드로어 맨 위는 로고이고, 높이를 상단바와 같은 `h-14` 로 맞춰 두어 드로어를 열어도 로고가 세로로 움직이지 않는다. `md` 미만에서만 트리거가 보이고, 그때 상단바 nav 와 아바타 드롭다운은 숨는다 — 같은 항목이 두 벌 존재하지 않게 하기 위해서다
 - `mobile-blocker.tsx` — 에디터를 쓸 수 없는 뷰포트를 풀스크린으로 차단하는 오버레이. CSS-only 라 JS 비활성·하이드레이션 전에도 걸린다
   - 조건은 `editor:hidden`(`mobile-blocker.tsx:25`) — **폭 768px 이상 AND 높이 600px 이상일 때만 숨긴다**(`tailwind.config.ts:24` 의 `editor` screen). 폭만 보던 예전 규칙으로는 폰을 가로로 눕혔을 때(iPhone 14 Pro Max = 932×430) 차단이 풀려서, 높이 430px 화면에 사이드바·툴바·인스펙터가 다 들어간 에디터가 그대로 열렸다. 600px 은 가장 작은 태블릿(iPad mini 가로 744px)과 가장 큰 폰(가로 430px) 사이를 가른다
@@ -191,7 +194,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 ### components/consistency
 
-- `setting-book-summary.tsx` — 프로젝트 화면 맨 위의 설정집 요약(`SettingBookSummary`, `setting-book-summary.tsx:27`). 갈래별 등록 이름을 배지로 보여 주고(`Names`, `:81`) `?type=` 으로 그 탭을 연다
+- `setting-book-summary.tsx` — 프로젝트 화면 맨 위의 설정집 요약(`SettingBookSummary`, `setting-book-summary.tsx:23`). 갈래별 등록 이름을 배지로 보여 주고(`Names`, `:72`) `?type=` 으로 그 탭을 연다
 - `entity-card.tsx` — 일관성 엔티티(캐릭터/배경/세계관/그림체) 카드와 인라인 편집 UI. style 탭에서는 `isDefault?`/`onSetDefault?` props로 대표 그림체 배지·"대표로 지정" 버튼 노출(`entity-card.tsx:12-15, 57-61, 85-88`). 목록 페이지는 `app/projects/[id]/consistency/page.tsx`에서 `useState`로 직접 관리(React Query 미사용)
 
 ### components/editor (TipTap 측 + 인스펙터 + 공용 입력)
@@ -208,7 +211,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
   - `speech-bubble-inspector.tsx` — `speech-bubble` shape 선택 시. variant/strokeWidth/strokeColor/fillColor 만 (텍스트 키 없음)
 - 공용 입력:
   - `number-field.tsx` — 디바운스 + 화살표 조정이 있는 숫자 입력. 인스펙터 전반에서 재사용
-  - `stroke-width-field.tsx` — 선 굵기(`StrokeWidthField`, `stroke-width-field.tsx:36`). 슬라이더 1~10 + 숫자 칸. 컷 테두리·말풍선 선·직선이 공유한다
+  - `stroke-width-field.tsx` — 선 굵기(`StrokeWidthField`, `stroke-width-field.tsx:30`). 슬라이더 1~10 + 숫자 칸. 컷 테두리·말풍선 선·직선이 공유한다
   - `align-toggle.tsx` — `TextAlign` 토글 (left/center/right). PageText/SpeechBubble 공유
   - `inspector-section.tsx` — 구역 껍데기(`InspectorSection`)와 한 줄(`Field`). 다섯 인스펙터가 공유
   - `resize-handle.tsx` — 패널 경계의 끌기 손잡이. 접기 버튼을 대신한다
@@ -282,15 +285,15 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 | `['token-history']`          | `lib/tokens.ts:93`                          | 토큰 사용/충전/조정 내역 (`qk.tokenHistory()`). 렌더 종료 시 `useRefreshTokens()` 로 무효화                                                 |
 | `['billing-packages']`       | `app/settings/billing/page.tsx:110`         | 충전 패키지 목록 및 입금 안내 (`qk.billingPackages()`). `notice === null` 이면 요청 버튼 미노출                                             |
 | `['billing-orders']`         | `lib/tokens.ts:73`                          | 내 충전 요청 주문 목록 (`qk.billingOrders()`). 요청 접수·취소 시 무효화                                                                     |
-| `['admin', 'overview']`      | `app/admin/page.tsx:37`                     | 운영 현황 집계 (`qk.adminOverview()`). `isAdmin` 참일 때만 조회                                                                             |
-| `['admin', 'users']`         | `app/admin/page.tsx:43`                     | 최근 가입자 및 사용자별 토큰 잔액 (`qk.adminUsers()`). 입금 확인·토큰 조정 시 무효화                                                        |
+| `['admin', 'overview']`      | `app/admin/page.tsx:30`                     | 운영 현황 집계 (`qk.adminOverview()`). `isAdmin` 참일 때만 조회                                                                             |
+| `['admin', 'users']`         | `app/admin/page.tsx:36`                     | 최근 가입자 및 사용자별 토큰 잔액 (`qk.adminUsers()`). 입금 확인·토큰 조정 시 무효화                                                        |
 | `['admin', 'orders']`        | `components/admin/pending-orders.tsx:28`    | 입금 확인 대기 주문 목록 (`qk.adminOrders()`). `markPaid` 성공 시 무효화                                                                    |
 | `['consistency', projectId]` | `app/projects/[id]/consistency/page.tsx:96` | 프로젝트의 설정집 **전체** (`qk.consistency(projectId)`). 갈래로 나누지 않는다 — 후술                                                       |
 
 뮤테이션은 화면과 상황에 맞게 `useMutation` 과 직접 `api()` 호출을 섞어 쓴다.
 
-- `panel-inspector.tsx:173` `startRender` — `POST /panels/:id/render` 후 `setQueryData(qk.renderJob(jobId), ...)` 로 낙관적 'queued' 상태를 캐시에 시드하고 `subscribeJob(jobId)` 로 SSE 연결
-- `panel-inspector.tsx:204` `cancelRender` — `POST /render-jobs/:id/cancel` 후 잡 상태 'canceled' 패치 및 SSE 연결 종료
+- `panel-inspector.tsx:166` `startRender` — `POST /panels/:id/render` 후 `setQueryData(qk.renderJob(jobId), ...)` 로 낙관적 'queued' 상태를 캐시에 시드하고 `subscribeJob(jobId)` 로 SSE 연결
+- `panel-inspector.tsx:197` `cancelRender` — `POST /render-jobs/:id/cancel` 후 잡 상태 'canceled' 패치 및 SSE 연결 종료
 - `history-tray.tsx:29` `restore` — `POST /render-jobs/:id/restore` 후 부모 콜백 + `qk.panelHistory(panelId)` 무효화
 - `charge-dialog.tsx:47` `create` — `POST /billing/orders` 후 `qk.billingOrders()` 무효화
 - `app/settings/billing/page.tsx:181` `cancel` — `DELETE /billing/orders/:id` 후 `qk.billingOrders()` 무효화
@@ -414,7 +417,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 #### 같은 종류 안의 레이어 순서(앞뒤)와 영속화
 
 말풍선·자유 텍스트·자유 직선의 순서는 `useLayerReorder`(`apps/web/lib/use-layer-reorder.ts:25`)가
-담당한다. 선택된 도형의 인스펙터(`LayerOrderControls`, `components/editor/layer-order-controls.tsx:15`)에
+담당한다. 선택된 도형의 인스펙터(`LayerOrderSection`, `components/editor/layer-order-section.tsx:21`)에
 "앞으로 · 뒤로 · 맨 앞으로 · 맨 뒤로" 네 동작을 제공하며, tldraw 단축키(`]`, `alt+]`, `alt+[`, `[`) 역시
 `comic-editor.tsx:91`의 `actions` 오버라이드를 통해 동일한 단일 경로로 수렴한다.
 순서 변경은 새 순열 ID 배열을 만들어 즉시 캔버스/상태를 낙관적 갱신하고(`use-layer-reorder.ts:50`),
@@ -423,16 +426,23 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 `IndexKey`를 계산·부여하여, 새로고침 후에도 z 순서가 정확히 복원되고 종류 사이의 층 규칙(`page-frame` 'a0' <
 `comic-panel` 'a1~a2' < `speech-bubble` 'a2~a3' < `page-text` 'a3~a4' < `page-line` 'a4~a5')이 절대로 깨지지 않는다.
 
-#### 인스펙터는 바뀐 키만 넘긴다
+#### 인스펙터는 자기 셰이프를 구독한다
 
-`page-line-inspector.tsx:42`·`page-text-inspector.tsx:38`·`speech-bubble-inspector.tsx:55` 의 `patch()` 는
-`updateShape` 에 **변경 키만** 준다. `updateShape` 는 props 를 부분 병합하므로 스프레드가 불필요하고,
-스프레드하면 해롭다 — `shape` 는 선택 시점의 스냅샷이라 그 사이 서버가 채워 준 id 가 아직 null 일 수
-있고, 그걸 되쓰면 그 뒤 이 도형의 모든 편집이 저장 큐에서 "id 없음" 으로 걸러진다. 색을 한 번
-바꿨을 뿐인데 영구히 저장되지 않았다.
+에디터 라우트의 선택 상태는 **무엇이 선택됐나**(종류·셰이프 id·서버 id)만 든다. 값은 인스펙터가
+`useShapeProps`(`components/editor/tldraw/use-shape-props.ts:22`)로 자기 셰이프의 `props` 를 직접
+읽는다. 예전에는 라우트가 셰이프 레코드를 통째로 state 에 들고 있어서, 말풍선 하나를 끄는 동안
+라우트 전체(상단바·사이드바·인스펙터)가 포인터 속도로 다시 그려졌다. tldraw 는 이동처럼 `props` 가
+없는 갱신이면 `props` 객체를 그대로 두므로, 이제 끄는 동안에는 아무것도 다시 그려지지 않는다.
+`useValue` 대신 `store.listen` + `useSyncExternalStore` 인 이유는 tldraw 런타임 import 가 라우트의
+초기 번들로 tldraw 전체를 끌어오기 때문이다(`ToolRail` 을 `dynamic` 으로 뺀 이유와 같다).
 
-컷 테두리는 아예 다른 경로를 쓴다 — `PATCH /v1/panels/:id` 의 `stroke` 필드(`panel-inspector.tsx:538`).
-`shape` 전체를 보내면 낡은 좌표까지 같이 써서 방금 옮긴 위치가 되돌아간다.
+같은 훅의 `patch()` 는 `updateShape` 에 **변경 키만** 준다. 전체를 스프레드하면 그 사이 서버가 채워
+준 id 가 null 이던 옛 값으로 되돌아갈 수 있고, 그러면 그 뒤 이 도형의 모든 편집이 저장 큐에서
+"id 없음" 으로 걸러진다. 색을 한 번 바꿨을 뿐인데 영구히 저장되지 않았다.
+
+컷 테두리도 이 경로다(`PanelStrokeEditor`, `panel-inspector.tsx:538`). 예전에는 굵기는 셰이프,
+색은 전용 `PATCH {stroke}` 로 갈라져 있었고 값은 선택 시점의 DTO 에서 읽었다. 그래서 컷을 옮긴 직후
+1.5초 안에 색을 바꾸면 이어지는 셰이프 저장이 옛 색으로 덮어 색 변경이 조용히 사라졌다.
 
 #### `use-page-frame.ts`
 
@@ -642,7 +652,7 @@ apps/web/
 (2026-09-25, 사장님이 밟음). 낙관적 갱신이 자기 캐시만 고치기 때문이다.
 
 - 키를 하나로 모았다(`lib/query-keys.ts:56`). 읽는 쪽이 `type` 으로 거른다
-  (`app/projects/[id]/consistency/page.tsx:101`, `styles`, `components/editor/panel-inspector.tsx:118`). 한 번의 `setQueryData` 가
+  (`app/projects/[id]/consistency/page.tsx:101`, `styles`, `components/editor/panel-inspector.tsx:112`). 한 번의 `setQueryData` 가
   세 화면에 모두 닿는다.
 - 갈래별로 나눠 읽던 원래 이유("탭을 바꿔도 이전 탭 카드가 남는다", "늦은 응답이 다른
   탭에 붙는다")는 **탭마다 따로 읽었기 때문에** 생긴 문제였다. 한 번에 다 읽으면
@@ -688,8 +698,13 @@ apps/web/
 - 페이지 드래그는 **화마다 `DndContext` 를 따로** 둔다. 다른 화로 끌리는 일이 아예
   없어야 한다 — 화를 옮기는 동작은 아직 없고, 없는 동작을 드래그로 시도하게 두면
   "왜 안 되지" 가 된다.
-- 순서 저장은 `usePageReorder`(`lib/use-page-reorder.ts`)가 끌어 놓은 페이지의 화만
-  다시 매긴다. 프로젝트 전체에 0..N-1 을 다시 매기면 다른 화의 순서까지 건드린다.
+- 순서 저장은 `usePageReorder`(`lib/use-sortable-reorder.ts:110`)가 그 화의 페이지만 보낸다.
+  프로젝트 전체에 0..N-1 을 다시 매기면 다른 화의 순서까지 건드린다. 캐시에는 **그 화 페이지들이
+  차지하던 자리에만** 새 순서를 채운다(`fillInPlace`, `:32`) — 처음에는 한 화의 목록으로 프로젝트
+  전체 캐시를 덮어써서, 한 화 안에서 순서를 바꾸면 다른 화의 페이지가 다시 불러올 때까지 사라졌다.
+  화 순서도 같은 훅(`useSortableReorder`, `:47`)을 쓴다.
+- 화·페이지를 더하거나 지우면 캐시를 응답으로 바로 고친다. 무엇을 바꾸든 두 목록을 다시 받던
+  것을 없앴고, 그래서 화 DTO 에 페이지 수를 싣지 않는다 — 화면이 그 화의 페이지 목록에서 센다.
 
 ### 인스펙터는 구역으로 나뉜다
 
@@ -753,7 +768,7 @@ Delete 키로 지울 수는 있었지만 **버튼이 컷에만 있었다.** 말�
 
 ### 굵기는 슬라이더로 — 숫자만으로는 정해지지 않는다
 
-컷 테두리·말풍선 선·직선의 굵기는 `StrokeWidthField`(`components/editor/stroke-width-field.tsx:36`)
+컷 테두리·말풍선 선·직선의 굵기는 `StrokeWidthField`(`components/editor/stroke-width-field.tsx:30`)
 하나를 쓴다. 범위는 1~10 이다.
 
 - **슬라이더인 이유**: 굵기는 "얼마나 굵은가" 가 눈으로 보여야 정해진다. 숫자 칸만
@@ -761,12 +776,11 @@ Delete 키로 지울 수는 있었지만 **버튼이 컷에만 있었다.** 말�
   넣기를 반복하게 된다. 끄는 동안(`onChange`) 바로 반영해 그 왕복을 없앤다.
 - **숫자 칸도 남기는 이유**: 슬라이더만 두면 "7 로 맞춰 둔 것과 똑같이" 가 안 된다.
   키보드로 값을 넣는 길이기도 하다.
-- **끄는 동안 저장하지 않는다.** 처음에는 `onChange` 마다 커밋했는데, 컷 테두리는
-  그게 곧 `PATCH /v1/panels/:id` 라서 손잡이를 한 번 끌면 요청이 수십 개 나갔다.
-  끄는 동안은 `onPreview`(화면만), 손을 뗄 때 `onCommit`(저장) 이다.
-  컷은 `onPreview` 가 **캔버스 셰이프를 직접** 고친다(`onWidthChange`, `panel-inspector.tsx:526`) —
-  DTO 를 거치면 선택 시점의 낡은 좌표가 되쓰여, 컷을 옮긴 직후 굵기를 바꿀 때
-  **이동이 취소된다.** 저장은 sync 훅의 1.5초 디바운스가 한 번만 한다.
+- **끄는 동안에도 매번 부른다.** 받는 쪽이 모두 캔버스 셰이프(`updateShape`)라 화면만
+  바뀌고, 저장은 sync 훅이 손을 뗀 뒤 1.5초 디바운스로 한 번 한다. 처음에는 컷 테두리만
+  곧장 `PATCH /v1/panels/:id` 라 손잡이를 한 번 끌면 요청이 수십 개 나갔고, 그걸 막으려고
+  "끄는 중" 과 "놓음" 을 따로 알렸다. 컷도 캔버스를 거치게 되며 그 구분이 사라졌다.
+  숫자 칸은 `NumberField` 를 그대로 쓴다.
 - 지나온 구간만 진하게 칠한다(인라인 배경 그라디언트). 손잡이 모양은
   `globals.css` 의 `.range-track::-webkit-slider-thumb`.
 - 예전 범위는 0~20/1~40 이었다. 0(테두리 없음)은 인스펙터에서 더 이상 집을 수 없다 —
@@ -791,7 +805,7 @@ Delete 키로 지울 수는 있었지만 **버튼이 컷에만 있었다.** 말�
 그때는 이미 토큰을 썼다.
 
 - 프로젝트에 그림체가 하나도 없으면 첫 생성 앞에서 한 번 묻는다
-  (`requestRender`, `components/editor/panel-inspector.tsx:162`). '설정집으로' 를 누르면
+  (`requestRender`, `components/editor/panel-inspector.tsx:155`). '설정집으로' 를 누르면
   `?type=style&from=<pageId>` 로 간다.
 - 목록을 아직 못 읽었으면(`undefined`) 막지 않는다. 조회 실패로 생성이 잠기면 사용자가
   할 수 있는 일이 없어진다.
@@ -813,7 +827,7 @@ id 를 쓰기 때문에 저장 없이는 붙일 수 없다.
 ### 색은 고를 값을 정해 준다 — `<input type="color">` 를 안 쓰는 이유
 
 인스펙터의 색 입력 여섯 자리(컷 테두리·말풍선 채움/선/글자·직선·페이지 배경)는 전부
-`ColorField`(`components/ui/color-field.tsx:42`) 하나를 쓴다. 예전에는 네이티브
+`ColorField`(`components/ui/color-field.tsx:46`) 하나를 쓴다. 예전에는 네이티브
 `<input type="color">` 였다.
 
 - 그건 **OS 색상 선택 창**을 띄운다. 창이 앱 밖에 떠서 어떤 칸을 고치는 중인지 잃고,
@@ -822,9 +836,12 @@ id 를 쓰기 때문에 저장 없이는 붙일 수 없다.
 - 그래서 **쓸 만한 색을 먼저 내민다**(`PRESETS`, `color-field.tsx:16`). 무채색 한 줄,
   따뜻한 색 한 줄, 차가운 색 한 줄. 컷 테두리는 거의 검정이고 말풍선은 흰색·미색이라
   무채색이 맨 위다.
-- 그래도 없으면 직접 집는다(`CustomPicker`, `color-field.tsx:165`). 채도·밝기 판과
+- 그래도 없으면 직접 집는다(`CustomPicker`, `color-field.tsx:176`). 채도·밝기 판과
   색상 띠 — 띠를 `<input type="range">` 로 둔 것은 방향키로 조절되고 스크린 리더가
   읽기 때문이다.
+- **판·띠에서 손을 뗄 때 한 번** 알린다. 판은 포인터가 움직일 때마다 값이 나오므로,
+  처음에는 페이지 배경을 한 번 끌면 `PATCH` 가 수십 개 나갔다(굵기 손잡이와 같은 결함).
+  캔버스 도형처럼 저장이 늦게 나가는 대상만 `live` 를 켜서 끄는 동안에도 반영한다.
 - **팝오버로 띄운다**(`components/ui/popover.tsx`, Radix). 처음에는 그 자리에서 아래로
   펼쳤는데, 폭 320px 인스펙터에서 팔레트가 펼쳐지면 아래 항목들이 한 화면 밖으로
   밀려났다 — 색을 고르는 동안 굵기도 정렬도 보이지 않는다. 떠 있는 패널은 인스펙터
@@ -846,13 +863,13 @@ id 를 쓰기 때문에 저장 없이는 붙일 수 없다.
 그런 게 있다는 것조차 몰랐다.
 
 - 프로젝트 화면 맨 위로 꺼냈다(`app/projects/[id]/page.tsx:88`). 링크만 두지 않고
-  갈래별로 등록된 이름을 배지로 같이 보여 준다(`Names`, `components/consistency/setting-book-summary.tsx:81`) —
+  갈래별로 등록된 이름을 배지로 같이 보여 준다(`Names`, `components/consistency/setting-book-summary.tsx:72`) —
   들어가 보지 않고도 "캐릭터는 넣었고 배경이 비었다" 를 안다. 한 줄이라 페이지 목록을
   밀어내지 않는다.
 - 이름은 **배지**다. 쉼표로 이은 한 줄은 어디서 하나가 끝나고 다음이 시작하는지 눈으로
   세어야 하고, 넘치면 `truncate` 가 마지막 이름을 반 토막 낸 채 `…` 로 끝난다 — 몇 개가
   더 있는지도, 잘린 게 이름인지도 알 수 없다. 그래서 `…` 대신 **`+N`** 이다
-  (`SHOWN`, `components/consistency/setting-book-summary.tsx:70`). "세 개가 더 있다" 는
+  (`SHOWN`, `components/consistency/setting-book-summary.tsx:61`). "세 개가 더 있다" 는
   셀 수 있는 정보다.
 - 갈래를 누르면 `?type=` 으로 그 탭이 열린다(`app/projects/[id]/consistency/page.tsx:30`).
   그냥 보내면 항상 그림체 탭이라, 배경을 누른 사람이 탭을 한 번 더 눌러야 했다.
@@ -1076,7 +1093,7 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 
 ### 상단바의 토큰 배지와 무중단 편집
 
-- **배치 이유 (`TokenBalance`, `components/shell/token-balance.tsx:20`)**: 아바타 바로 옆, **모든 화면에서** 보인다 (`app-shell.tsx:150`). 예전에는 에디터 헤더에만 있어서, "지금 몇 개 남았지" 를 보려면 설정 → 토큰까지 들어가야 했다. 폭으로 감추지 않는다 — 숫자 몇 글자라 좁은 화면에서도 자리를 다투지 않는다.
+- **배치 이유 (`TokenBalance`, `components/shell/token-balance.tsx:20`)**: 아바타 바로 옆, **모든 화면에서** 보인다 (`app-shell.tsx:145`). 예전에는 에디터 헤더에만 있어서, "지금 몇 개 남았지" 를 보려면 설정 → 토큰까지 들어가야 했다. 폭으로 감추지 않는다 — 숫자 몇 글자라 좁은 화면에서도 자리를 다투지 않는다.
 - **시각 상태**: 잔액이 0 이하(`empty`, `components/shell/token-balance.tsx:24`)이면 빨간색(`text-destructive`, `:30`), 1 이상이면 보조 텍스트 색상으로 렌더된다. 클릭하면 `/settings/billing` 으로 즉시 이동한다 (`Link`, `:27`).
 - **무중단 원칙 (`components/shell/token-balance.tsx:16-18`)**: 잔액 조회가 로딩 중이거나 실패하면(`!data`) '—' 나 오류를 띄우지 않고 **컴포넌트 자체를 렌더하지 않는다 (`return null`, `:22`)**. `useTokenBalance` 가 `throwOnError: false` (`lib/tokens.ts:53`)인 이유이기도 하다. 잔액을 못 읽었다고 모든 화면에 오류 배너를 띄우거나 캔버스를 튕겨내면 작업 중이던 만화를 잃는다. 잔액을 몰라도 할 일은 다 할 수 있다.
 
@@ -1084,13 +1101,13 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 
 `panel-inspector.tsx` 의 생성 영역(`생성하기`, `components/editor/panel-inspector.tsx:459`)은 모델별 토큰 단가와 부족 상태를 표시한다.
 
-- **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:495`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
-- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:506`, `lib/tokens.ts:151`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:508`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
+- **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:488`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
+- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:499`, `lib/tokens.ts:151`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:501`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
 - **버튼을 잠그지 않는 이유 (`components/editor/panel-inspector.tsx:468-471`)**:
   - 잔액이 부족해도 **생성하기 버튼을 비활성화(`disabled`)하지 않는다.**
   - 화면의 잔액은 캐시일 뿐이라 방금 운영자에게 지급받은 토큰이 아직 캐시에 도착하지 않았을 수 있다. 버튼을 잠그면 사용자는 새로고침 외에 아무것도 할 수 없게 된다.
   - 진짜 잔액 판정은 서버가 하며, 서버에서 거부되면 상세 메시지(`insufficientTokensMessage`, `lib/error-message.ts:130`)로 필요한 토큰과 현재 잔액을 정확히 알려 준다.
-  - 서버에서 토큰 부족 에러가 돌아오면 `components/editor/panel-inspector.tsx:199` 에서 즉시 `refreshTokens()` 를 호출해 캐시를 서버 잔액과 일치시킨다.
+  - 서버에서 토큰 부족 에러가 돌아오면 `components/editor/panel-inspector.tsx:192` 에서 즉시 `refreshTokens()` 를 호출해 캐시를 서버 잔액과 일치시킨다.
 - **빈 컷 안내 우선 (`docs/develop-docs/50-owner/02-verify.md` B-5)**: 컷 본문·콘티·참조 이미지가 모두 없는 빈 컷에서는 토큰 부족 문구 대신 컷 내용 입력 안내 오류가 우선한다. 사용자가 토큰을 충전하고 돌아와서야 컷이 비어 있다는 사실을 알게 되는 낭비를 방지한다.
 
 ### 운영자 화면 (/admin)과 권한 차단
@@ -1098,9 +1115,9 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 `AdminPage` (`app/admin/page.tsx:21`)는 서비스 전반의 지표 확인과 입금 확인, 토큰 조정을 담당하는 운영자 대시보드다.
 
 - **화면 차단과 서버 가드 분리 (`app/admin/page.tsx:17-20`)**:
-  - 화면에서 `me?.isAdmin === true` 를 검사하는 것은 **비인가자에게 화면을 숨기는 UI 처리일 뿐**이다 (`allowed`, `:31`).
+  - 화면에서 `me?.isAdmin === true` 를 검사하는 것은 **비인가자에게 화면을 숨기는 UI 처리일 뿐**이다 (`allowed`, `:24`).
   - 실제 보안 차단은 API 서버의 `AdminGuard` 가 전담하므로 클라이언트 검증을 우회하더라도 모든 API 요청이 403 Forbidden 으로 차단된다.
-  - 세션 만료(`sessionExpired`, `:34`)와 권한 없음을 분기하여(`:63-69`), 로그인 세션이 만료된 운영자에게 "권한이 없다" 고 잘못 안내하지 않고 "로그인이 만료되었습니다" 를 띄운다. 일반 사용자나 이메일 미인증 계정에게는 차단 화면만 노출되며 하위 컴포넌트나 통계 데이터는 일체 렌더되지 않는다.
+  - 세션 만료(`sessionExpired`, `:27`)와 권한 없음을 분기하여(`:51-64`), 로그인 세션이 만료된 운영자에게 "권한이 없다" 고 잘못 안내하지 않고 "로그인이 만료되었습니다" 를 띄운다. 일반 사용자나 이메일 미인증 계정에게는 차단 화면만 노출되며 하위 컴포넌트나 통계 데이터는 일체 렌더되지 않는다.
 - **입금 확인 대기 (`PendingOrders`, `components/admin/pending-orders.tsx:22`)**:
   - 운영자가 이 화면에 접속하는 주 목적이므로 지표 통계보다 위에 배치한다 (`:19-21`).
   - 운영자의 주 작업은 실제 계좌 입금 내역과 화면을 대조하는 것이므로, **입금자명(`depositorName`, `:80`)을 굵게 위로 두고 가입 이메일을 아래에 함께 표시**하여 한눈에 확인할 수 있게 한다.

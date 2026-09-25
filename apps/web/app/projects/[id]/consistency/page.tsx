@@ -6,6 +6,7 @@ import { AppShell } from '@/components/shell/app-shell';
 import { PageContainer } from '@/components/shell/page-container';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { api } from '@/lib/api';
+import { useConsistency } from '@/lib/queries';
 import { useProject } from '@/lib/use-project';
 import {
   ApiPaths,
@@ -117,11 +118,7 @@ function ConsistencyPage() {
     throwOnError: false,
   });
 
-  const { data: all, isLoading } = useQuery<ConsistencyEntityDTO[]>({
-    queryKey: qk.consistency(projectId),
-    queryFn: () => api<ConsistencyEntityDTO[]>(ApiPaths.projectConsistency(projectId)),
-    enabled: !!projectId,
-  });
+  const { data: all, isLoading } = useConsistency(projectId);
   const items = all?.filter((i) => i.type === tab);
 
   /** 낙관적 갱신은 부모가 캐시를 직접 고친다 — 이 저장소의 기존 패턴이다. */

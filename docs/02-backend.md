@@ -250,7 +250,7 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 호출부 문맥에 기대게 되는데, 도메인 코드는 그 자체로 안내가 된다.
 
 같은 이유로 `PanelsService.restoreRender` 의 "성공한 렌더만 복원" 거부도 403 에서 400 으로
-바꿨다 (`panels.service.ts:279`) — 403 인데 code 가 `CONFLICT` 라 상태 코드와 코드가 서로 다른
+바꿨다 (`panels.service.ts:266`) — 403 인데 code 가 `CONFLICT` 라 상태 코드와 코드가 서로 다른
 말을 하고 있었고, 같은 상황을 다루는 `RenderService.cancel` 은 이미 400 이다.
 
 ### 3.4 ConsistencyModule (`consistency/consistency.controller.ts`)
@@ -268,7 +268,7 @@ BYOK(Bring Your Own Key) 저장소. provider: `gemini | openai`.
 | POST   | `/v1/consistency/:id/images/attach`   | `attach` (`:111-114`) — `generate` 결과의 storageKey 를 refImages 에 등록 (key prefix 검증)                                                                         |
 
 `refImages` 에 이미지를 덧붙이는 세 경로(`appendImages` `consistency.service.ts:212`, `attachImage` `:341`,
-`PanelsService.appendUpload` `panels.service.ts:171-185`)는 **원자적 JSONB append** 를 쓴다
+`PanelsService.appendUpload` `panels.service.ts:158-172`)는 **원자적 JSONB append** 를 쓴다
 (`common/ref-images.ts`). 읽어서 `[...기존, 새것]` 으로 통째 덮어쓰면 동시 업로드가 유실된다 —
 12장을 한 번에 드래그하면 전부 같은 배열을 읽고 각자 덮어써서 마지막 1장만 남고 나머지는
 S3 고아가 된다. Prisma 에 JSON 배열 append 프리미티브가 없어 raw SQL 이며, 엔티티 쪽은
@@ -303,14 +303,20 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 | Method | Route                                | Handler                                                                         |
 | ------ | ------------------------------------ | ------------------------------------------------------------------------------- |
-| GET    | `/v1/projects/:pid/episodes`         | `list` (`episodes.controller.ts:24`) — `pageCount` 포함                         |
+| GET    | `/v1/projects/:pid/episodes`         | `list` (`episodes.controller.ts:24`)                                            |
 | POST   | `/v1/projects/:pid/episodes`         | `create` (`:30`) — `title?` (비우면 "N화")                                      |
 | POST   | `/v1/projects/:pid/episodes/reorder` | `reorder` (`:35`) — body `{ episodeIds: string[] }`                             |
 | PATCH  | `/v1/episodes/:id`                   | `patch` — `title?`. `null` 이면 제목을 지워 다시 "N화" 로 보인다                |
 | DELETE | `/v1/episodes/:id`                   | `remove` — 그 안의 페이지도 함께 사라진다. **마지막 화는 거부**(`EPISODE_LAST`) |
 
 프로젝트 생성은 화를 만들지 않는다. 첫 페이지를 넣을 때 만들어진다
-(`EpisodesService.ensureLast`, `episodes.service.ts:69`) — 미리 만들면 "빈 화만 있는 프로젝트" 가 생긴다.
+(`EpisodesService.ensureLast`, `episodes.service.ts:78`) — 미리 만들면 "빈 화만 있는 프로젝트" 가 생긴다.
+
+DTO 에 페이지 수를 싣지 않는다. 화면은 그 화의 페이지 목록을 이미 들고 있어 거기서 센다 —
+수를 두면 페이지를 더하거나 지울 때마다 화 목록까지 다시 받아야 했다.
+
+화를 지우면(`remove`, `episodes.service.ts:102`) 그 안 컷의 그림과 화·페이지 내보내기 결과도
+저장소에서 지운다. FK cascade 는 DB 행만 지우므로, 처음에는 화를 지우면 오브젝트가 전부 남았다.
 
 ### 3.6 PagesModule (`pages/pages.controller.ts`)
 
@@ -429,7 +435,7 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 | POST   | `/v1/pages/:id/export`    | `export` — `export.controller.ts:29`. 결과 한 장                                                   |
 | POST   | `/v1/episodes/:id/export` | `exportEpisode` — `export.controller.ts:35`. body 에 `mode`·`bundle`. 결과가 **여러 장일 수 있다** |
 
-**화 단위 내보내기는 두 가지다** (`exportEpisode`, `export.service.ts:265`).
+**화 단위 내보내기는 두 가지다** (`exportEpisode`, `export.service.ts:266`).
 
 - `stitch` — 페이지를 **세로로 이어 붙인다**. 웹툰은 한 화가 끊김 없이 흐르는 한
   덩어리라, 한 장씩 받으면 올릴 때 다시 이어 붙여야 한다.
@@ -471,7 +477,7 @@ STORE(무압축)로 넣는다. 안에 들어가는 것이 이미 압축된 PNG/J
 CI 안에서 확인할 방법이 없다. 픽셀을 포인트로 바꾸는 환산(`scale = 72 / dpi`)만 우리 몫이다 —
 150dpi 로 그린 1240×1754 는 595×842pt, 곧 A4 다.
 
-`renderPage` (`export.service.ts:107`)는 픽셀만 만들고 **올리지 않는다.** 올리는 일과
+`renderPage` (`export.service.ts:108`)는 픽셀만 만들고 **올리지 않는다.** 올리는 일과
 그리는 일이 갈려 있어야 화 단위가 같은 그림을 여러 장 모아 이어 붙일 수 있다 —
 예전에는 한 함수 안에 붙어 있어 화를 내보내려면 페이지마다 S3 왕복이 한 번씩 더 생겼다.
 
@@ -493,11 +499,11 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
 `size:{w:50000,h:50000}` 한 행으로 sharp 가 10GB 할당을 시도하다 프로세스가 죽고, 같은 컨테이너의
 다른 사용자 요청까지 함께 끊긴다.
 
-**패널 합성은 4개씩 끊어 돈다** — `mapLimit` (`export.service.ts:460`) +
-`PANEL_COMPOSITE_CONCURRENCY` (`:33`). 예전에는 `Promise.all` 로 전부 한꺼번에 돌려서
+**패널 합성은 4개씩 끊어 돈다** — `mapLimit` (`common/map-limit.ts:5`) +
+`PANEL_COMPOSITE_CONCURRENCY` (`export.service.ts:42`). 예전에는 `Promise.all` 로 전부 한꺼번에 돌려서
 **N개의 원본 바이트와 N개의 마스킹된 PNG 버퍼가 동시에 살아 있었다** — 1536×1024 RGBA 기준
 패널당 약 6MB 라 12컷 페이지면 마스킹본만 ~75MB 에 원본이 더 붙는다. 원본은
-`maskedPanelImage` (`:69`) 안에서만 살아 마스킹본과 겹쳐 붙들리지 않는다. 결과 순서는 입력
+`maskedPanelImage` (`:71`) 안에서만 살아 마스킹본과 겹쳐 붙들리지 않는다. 결과 순서는 입력
 순서를 유지한다 — 합성 순서가 곧 z-order 다.
 
 ### 3.10 HealthController / MetricsController
@@ -768,7 +774,9 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 - 환경 변수: `S3_ENDPOINT(=http://localhost:9000)`, `S3_PUBLIC_ENDPOINT`, `S3_REGION(=us-east-1)`, `S3_BUCKET(=comicai)`, `S3_ACCESS_KEY(=minioadmin)`, `S3_SECRET_KEY(=minioadmin)` — `:41-48`
 - 부팅 시 `HeadBucketCommand` → 없으면 `CreateBucketCommand`. `STORAGE_AUTO_CREATE_BUCKET` 은 **기본이 켜짐**인 플래그라 `isFlagOnByDefault` 로 읽는다 — `:70`
 - presign TTL: 15분 — `:23`
-- 키 스킴 (`buildKey`, `:183-202`) — **prefix 로 지울 수 있게 전부 소유 리소스로 묶는다**:
+- 키 스킴 (`buildKey`, `:284`) — **prefix 로 지울 수 있게 전부 소유 리소스로 묶는다**. 경로를
+  따로 적지 않고 `StoragePrefix` 에서 만든다 — 화 내보내기가 생길 때 키만 따로 적고 prefix 는 쓰지
+  않아, 삭제가 그 종류를 놓친 채 0건으로 "성공" 했다:
   - `projects/{projectId}/panels/{panelId}/renders/{renderJobId}.{ext}` — render 결과. 예전에는
     `projects/_/renders/{jobId}` 라 projectId 자리가 뭉개져 있어서, 프로젝트를 지울 때 그
     프로젝트의 렌더 결과만 골라낼 방법이 없었다. **컷 아래**에 두는 이유는 그래야
@@ -783,16 +791,20 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
   - `projects/{projectId}/thumbnail/{ulid}.{ext}` — 프로젝트 썸네일 (POST `/v1/projects/:id/thumbnail`)
   - `users/{userId}/avatar/{ulid}.{ext}` — 사용자 아바타 자체 업로드 (POST `/v1/me/avatar`)
   - `exports/{userId}/{pageId}/{ulid}.{ext}` — 페이지 내보내기
-- 삭제 (`deleteByPrefix`, `:161` / `deleteKeys`, `:199`) — **둘 다 던지지 않는다.** 호출부는
+  - `exports/{userId}/episodes/{episodeId}/{ulid}.{ext}` — 화 내보내기(이어 붙인 것·ZIP·PDF)
+- 삭제 (`deleteByPrefix`, `:171` / `deleteKeys`, `:209`) — **둘 다 던지지 않는다.** 호출부는
   전부 "DB 행을 이미 지운 뒤" 라, 여기서 던지면 사용자는 삭제에 성공했는데 500 을 받고 다시
   눌러도 지울 대상이 없어 계속 실패한다. 실패는 로그로 남기고 넘어간다 — 남은 오브젝트는
   예전과 같은 미아일 뿐이다. `deleteKeys` 는 파생 썸네일(`{key}.thumb.webp`)도 같이 지운다.
-- 삭제 prefix 는 `StoragePrefix` (`storage.service.ts:251`) 에 모여 있고 **`buildKey` 와 같은 파일에 있다.**
+- 삭제 prefix 는 `StoragePrefix` (`storage.service.ts:259`) 에 모여 있고 **`buildKey` 와 같은 파일에 있다.**
   키 규칙과 삭제 규칙이 떨어져 있으면 키만 바꿨을 때 삭제가 조용히 0건이 된다 —
   실패가 아니라 성공으로 보인다. 그 불변식은 `storage-keys.spec.ts` 가 고정한다.
-- 삭제가 걸린 지점: 프로젝트(`projects.service.ts:94`, prefix + 페이지별 export),
-  페이지(`pages.service.ts:110`, 컷별 prefix + export), 컷(`panels.service.ts:160`),
-  일관성 엔티티(`consistency.service.ts:188`), 프로젝트 썸네일 교체(`projects.service.ts:89`),
+- 삭제가 걸린 지점: 프로젝트(`projects.service.ts:117`, prefix + 페이지·화별 export),
+  화(`episodes.service.ts:102`)와 페이지(`pages.service.ts:141`) — 둘 다 컷별 prefix + export 를
+  `pageObjectPrefixes`(`common/page-objects.ts:13`)로 모은다. 컷 행은 페이지와 함께 cascade 로
+  사라지므로 **DB 에서 지우기 전에** 모아야 한다. 여러 prefix 는 `deleteByPrefixes`(`storage.service.ts:167`)가
+  4개씩 겹쳐 지운다. 컷(`panels.service.ts:150`),
+  일관성 엔티티(`consistency.service.ts:192`), 프로젝트 썸네일 교체(`projects.service.ts:89`),
   아바타 업로드·삭제·해제(`me.controller.ts:143`, `:157`, `:120`).
   **DB 를 먼저 지우고 그다음 S3 다** — 반대 순서면 S3 삭제 성공 뒤 DB 삭제가 실패했을 때
   화면에는 남아 있는데 이미지가 전부 깨진 리소스가 된다.
