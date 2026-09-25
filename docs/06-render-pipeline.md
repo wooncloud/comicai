@@ -176,7 +176,7 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 `apps/web/components/editor/panel-inspector.tsx:185-244`
 
 - `new EventSource(`${API_BASE}${ApiPaths.renderJobEvents(jobId)}`, { withCredentials: true })`.
-- `'status'` 리스너 (`:223`):
+- `'status'` 리스너 (`:229`):
   - React Query 캐시 `['render-job', jobId]`에 status 즉시 반영 (`:221`).
   - `succeeded` → `GET /render-jobs/:id`로 최종 DTO(presigned URL 포함) 재요청 →
     `patchRender({ currentRenderStatus:'succeeded', currentRenderImageUrl })` →
@@ -184,7 +184,7 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
   - `failed`/`canceled`/`timeout` → 토스트 + invalidate + close (`:242-259`). 이 경로는 **환급이
     끝난 뒤**라 토큰 잔액도 다시 읽는다 (`:221`).
   - 그 외(`queued`/`running`) → `patchRender` 로 status만 반영 (`:238-240`).
-- `'error'` 리스너 (`:270`): payload 의 `error.category` 를 한국어 문구로 바꿔 인스펙터 상단 배너에 표시한다(`lib/error-message.ts` 의 `renderCategoryMessage`). 서버 원문(`no gemini key` 등)은 화면에 내보내지 않는다.
+- `'error'` 리스너 (`:276`): payload 의 `error.category` 를 한국어 문구로 바꿔 인스펙터 상단 배너에 표시한다(`lib/error-message.ts` 의 `renderCategoryMessage`). 서버 원문(`no gemini key` 등)은 화면에 내보내지 않는다.
 
 ---
 
@@ -319,7 +319,7 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 - SSE 측은 컨트롤러가 취소 시점에 `canceled` 이벤트를 발행하지는 않는다. 다만 **재연결하면
   스냅샷으로 현재 상태가 온다**(위 §2.4) — 취소된 잡도 그때 `canceled` 로 관찰된다.
 
-UI에서 취소 버튼은 생성 중(`queued`/`running`)일 때 panel-inspector에 노출된다 (`apps/web/components/editor/panel-inspector.tsx:469-487`).
+UI에서 취소 버튼은 생성 중(`queued`/`running`)일 때 panel-inspector에 노출된다 (`apps/web/components/editor/panel-inspector.tsx:493-511`).
 `cancelRender` mutation (`:166-183`)이 경로 헬퍼 `ApiPaths.renderJobCancel` (`packages/types/src/paths.ts:61`)을 호출하여 잡을 취소한다.
 
 ---
@@ -368,10 +368,10 @@ interface RenderError {
 2. **DB**: `RenderJob.error` JSON 컬럼에 에러(`error`) 저장 (`:209-212`, `finalizeOrphan` `:83-86`).
 3. **GET /render-jobs/:id 응답**: `RenderJobDTO.error`로 노출 (`render.service.ts:216`).
 4. **UI**:
-   - `panel-inspector.tsx:206-211` `'error'` 이벤트 리스너가 `setError(payload.error.message)`로
+   - `panel-inspector.tsx:212-217` `'error'` 이벤트 리스너가 `setError(payload.error.message)`로
      배너 표시 (`:305-309`).
    - `'status'` 이벤트의 terminal 도달 시 토스트:
-     `failed` → "렌더 실패", `canceled` → "렌더 취소됨" (`:194-199`).
+     `failed` → "렌더 실패", `canceled` → "렌더 취소됨" (`:200-205`).
    - PanelStatusBadge가 색상으로 상태 시각화.
 
 ### 6.4 컨트롤러 단의 동기 에러

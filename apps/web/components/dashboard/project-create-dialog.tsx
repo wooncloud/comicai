@@ -53,14 +53,16 @@ export function ProjectCreateDialog({ open, onOpenChange, onCreated }: Props) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>새 프로젝트</DialogTitle>
-          <DialogDescription>프로젝트 이름을 입력하세요.</DialogDescription>
+          <DialogDescription>
+            작품 제목을 적어 주세요. 프로젝트 설정에서 언제든 바꿀 수 있습니다.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <Input
             autoFocus
             required
             aria-label="프로젝트 이름"
-            placeholder="예: 우주 학교"
+            placeholder="예: 물에 잠긴 도시"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />

@@ -20,6 +20,11 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  ENTITY_ALIAS_EXAMPLE,
+  ENTITY_DESCRIPTION_EXAMPLE,
+  ENTITY_NAME_EXAMPLE,
+} from '@/lib/entity-examples';
 import { EntityCard } from '@/components/consistency/entity-card';
 import { EntityImageDialog } from '@/components/consistency/entity-image-dialog';
 import { useToast } from '@/components/ui/toast';
@@ -283,20 +288,20 @@ function ConsistencyPage() {
               ref={nameRef}
               required
               aria-label={`${tabLabel} 이름`}
-              placeholder={`${tabLabel} 이름`}
+              placeholder={ENTITY_NAME_EXAMPLE[tab]}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
             <Input
               aria-label="별칭"
-              placeholder="별칭 (쉼표로 구분)"
+              placeholder={`별칭 — ${ENTITY_ALIAS_EXAMPLE[tab]}`}
               value={form.aliases}
               onChange={(e) => setForm({ ...form, aliases: e.target.value })}
             />
             <textarea
               aria-label="설명"
-              placeholder="생김새·성격·분위기 등을 적어 두면 그림에 반영됩니다"
-              rows={4}
+              placeholder={ENTITY_DESCRIPTION_EXAMPLE[tab]}
+              rows={7}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-body-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"

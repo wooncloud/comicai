@@ -208,7 +208,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
   - `speech-bubble-inspector.tsx` — `speech-bubble` shape 선택 시. variant/strokeWidth/strokeColor/fillColor 만 (텍스트 키 없음)
 - 공용 입력:
   - `number-field.tsx` — 디바운스 + 화살표 조정이 있는 숫자 입력. 인스펙터 전반에서 재사용
-  - `stroke-width-field.tsx` — 선 굵기(`StrokeWidthField`, `stroke-width-field.tsx:27`). 슬라이더 1~10 + 숫자 칸. 컷 테두리·말풍선 선·직선이 공유한다
+  - `stroke-width-field.tsx` — 선 굵기(`StrokeWidthField`, `stroke-width-field.tsx:36`). 슬라이더 1~10 + 숫자 칸. 컷 테두리·말풍선 선·직선이 공유한다
   - `align-toggle.tsx` — `TextAlign` 토글 (left/center/right). PageText/SpeechBubble 공유
   - `section-label.tsx` — 아이콘 + 캡션 섹션 헤더
   - `collapse-button.tsx` / `collapse-rail.tsx` — 좌/우 사이드바 접기/펴기
@@ -248,7 +248,8 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 - `dialog.tsx:3-9` — `@radix-ui/react-dialog` 래퍼 (Overlay/Content/Header/Footer/Title/Description/Close)
 - `dropdown-menu.tsx`, `select.tsx`, `avatar.tsx`, `radio-group.tsx`, `tooltip.tsx` — 동명 Radix 패키지 래퍼
 - `input.tsx`, `breadcrumb.tsx` — 순수 컴포넌트 (Radix 미사용)
-- `color-field.tsx` — 색 고르개(`ColorField`, `color-field.tsx:42`). 인스펙터의 모든 색 입력이 쓴다. 후술
+- `color-field.tsx` — 색 고르개(`ColorField`). 인스펙터의 모든 색 입력이 쓴다. 후술
+- `popover.tsx` — `@radix-ui/react-popover` 래퍼. 메뉴 시맨틱이 없어 슬라이더·색 판을 넣어도 싸우지 않는다
 - `toast.tsx` — 후술 (sonner 래퍼)
 
 ### components/billing
@@ -276,7 +277,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 | `['projects']`               | `app/dashboard/page.tsx:16`                 | 프로젝트 목록 (`qk.projects()`). 생성/패치/삭제는 모두 `queryClient.setQueryData<ProjectDTO[]>(...)`로 옵티미스틱 갱신 (`:21-35`)           |
 | `['project', id]`            | `lib/use-project.ts:9`                      | 단일 프로젝트 (`qk.project(id)`). `enabled: !!projectId`                                                                                    |
 | `['panel-history', panelId]` | `components/editor/history-tray.tsx:22`     | 패널의 렌더 잡 목록 (`qk.panelHistory(panelId)`). `restore` mutation 성공 시 `invalidateQueries` (`:34`)                                    |
-| `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:84`  | 단일 렌더 잡 (`qk.renderJob(jobId)`). `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치                            |
+| `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:90`  | 단일 렌더 잡 (`qk.renderJob(jobId)`). `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치                            |
 | `['token-balance']`          | `lib/tokens.ts:51`                          | 현재 사용자 토큰 잔액 (`qk.tokenBalance()`). 상단바 배지와 충전 화면이 공유. `throwOnError: false`                                          |
 | `['token-history']`          | `lib/tokens.ts:93`                          | 토큰 사용/충전/조정 내역 (`qk.tokenHistory()`). 렌더 종료 시 `useRefreshTokens()` 로 무효화                                                 |
 | `['billing-packages']`       | `app/settings/billing/page.tsx:110`         | 충전 패키지 목록 및 입금 안내 (`qk.billingPackages()`). `notice === null` 이면 요청 버튼 미노출                                             |
@@ -288,8 +289,8 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 뮤테이션은 화면과 상황에 맞게 `useMutation` 과 직접 `api()` 호출을 섞어 쓴다.
 
-- `panel-inspector.tsx:167` `startRender` — `POST /panels/:id/render` 후 `setQueryData(qk.renderJob(jobId), ...)` 로 낙관적 'queued' 상태를 캐시에 시드하고 `subscribeJob(jobId)` 로 SSE 연결
-- `panel-inspector.tsx:198` `cancelRender` — `POST /render-jobs/:id/cancel` 후 잡 상태 'canceled' 패치 및 SSE 연결 종료
+- `panel-inspector.tsx:173` `startRender` — `POST /panels/:id/render` 후 `setQueryData(qk.renderJob(jobId), ...)` 로 낙관적 'queued' 상태를 캐시에 시드하고 `subscribeJob(jobId)` 로 SSE 연결
+- `panel-inspector.tsx:204` `cancelRender` — `POST /render-jobs/:id/cancel` 후 잡 상태 'canceled' 패치 및 SSE 연결 종료
 - `history-tray.tsx:29` `restore` — `POST /render-jobs/:id/restore` 후 부모 콜백 + `qk.panelHistory(panelId)` 무효화
 - `charge-dialog.tsx:47` `create` — `POST /billing/orders` 후 `qk.billingOrders()` 무효화
 - `app/settings/billing/page.tsx:181` `cancel` — `DELETE /billing/orders/:id` 후 `qk.billingOrders()` 무효화
@@ -430,7 +431,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 있고, 그걸 되쓰면 그 뒤 이 도형의 모든 편집이 저장 큐에서 "id 없음" 으로 걸러진다. 색을 한 번
 바꿨을 뿐인데 영구히 저장되지 않았다.
 
-컷 테두리는 아예 다른 경로를 쓴다 — `PATCH /v1/panels/:id` 의 `stroke` 필드(`panel-inspector.tsx:314`).
+컷 테두리는 아예 다른 경로를 쓴다 — `PATCH /v1/panels/:id` 의 `stroke` 필드(`panel-inspector.tsx:338`).
 `shape` 전체를 보내면 낡은 좌표까지 같이 써서 방금 옮긴 위치가 되돌아간다.
 
 #### `use-page-frame.ts`
@@ -439,7 +440,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 #### 속성 창 껍데기는 `inspector-shell.tsx` 하나다
 
-`InspectorShell`(`components/editor/inspector-shell.tsx:26`) — 다섯 인스펙터(컷·말풍선·
+`InspectorShell`(`components/editor/inspector-shell.tsx:34`) — 다섯 인스펙터(컷·말풍선·
 텍스트·직선·페이지)가 같은 `<aside>` 와 헤더를 각자 적고 있었는데, **폭이 `w-96`/`w-80`×3/
 `w-72` 로 갈려 있었다.** 그래서 선택을 옮길 때마다 캔버스 폭이 튀었다. 페이지 인스펙터만
 `min-h-0` 도 빠져 있어 내용이 길면 스크롤 대신 늘어났다. 폭은 `w-80` 으로 통일했다 —
@@ -617,6 +618,17 @@ apps/web/
   을 돌려준다(오전/오후만 영어). 컨테이너 이미지의 ICU 판본에 따라 갈리는 어긋남이라
   배포한 뒤에야 보인다. 브라우저에서 찍는 다른 화면들은 이 함수가 필요 없다.
 
+### 입력칸의 보기는 **실제로 쓸 길이**로 적는다
+
+설정집 설명칸의 안내는 "생김새·성격·분위기 등을 적어 두면 그림에 반영됩니다" 한 줄이었다.
+틀린 말은 아니지만, 처음 온 사람은 그걸 읽고도 두 단어짜리 설명을 쓴다 — **얼마나
+자세히** 써야 하는지가 안 적혀 있기 때문이다. 그림 품질은 거기서 갈린다.
+
+그래서 보기를 실제로 쓸 법한 길이와 밀도로 적는다(`lib/entity-examples.ts`). 갈래마다
+봐야 할 것이 다르다 — 그림체는 선과 채색, 캐릭터는 생김새와 버릇, 배경은 공간과 빛,
+세계관은 규칙과 사람들의 형편. 이름·별칭 칸도 갈래별 보기를 쓴다. 새 프로젝트
+다이얼로그도 같은 이유로 문구를 고쳤다(`components/dashboard/project-create-dialog.tsx`).
+
 ### 설정집 캐시는 하나다 — 같은 데이터를 세 벌로 들고 있던 것
 
 설정집은 세 화면이 읽는다: 설정집 화면(`app/projects/[id]/consistency/page.tsx:96`),
@@ -629,16 +641,39 @@ apps/web/
 (2026-09-25, 사장님이 밟음). 낙관적 갱신이 자기 캐시만 고치기 때문이다.
 
 - 키를 하나로 모았다(`lib/query-keys.ts:56`). 읽는 쪽이 `type` 으로 거른다
-  (`app/projects/[id]/consistency/page.tsx:101`, `styles`, `components/editor/panel-inspector.tsx:112`). 한 번의 `setQueryData` 가
+  (`app/projects/[id]/consistency/page.tsx:101`, `styles`, `components/editor/panel-inspector.tsx:118`). 한 번의 `setQueryData` 가
   세 화면에 모두 닿는다.
 - 갈래별로 나눠 읽던 원래 이유("탭을 바꿔도 이전 탭 카드가 남는다", "늦은 응답이 다른
   탭에 붙는다")는 **탭마다 따로 읽었기 때문에** 생긴 문제였다. 한 번에 다 읽으면
   사라지고, 덤으로 탭 전환이 즉시가 된다. 프로젝트 하나의 설정집은 수십 개 규모라
   네 번 나눠 읽을 이유가 없다.
 
+### 삭제 버튼은 인스펙터 껍데기가 그린다
+
+Delete 키로 지울 수는 있었지만 **버튼이 컷에만 있었다.** 말풍선을 고르고 인스펙터를
+훑은 사람은 지우는 방법이 없다고 읽는다 — 단축키는 화면 어디에도 적혀 있지 않다.
+자리도 인스펙터마다 다르면 매번 찾아야 한다.
+
+그래서 `InspectorShell` 이 `onDelete`/`deleteLabel` 을 받아 **맨 아래 같은 자리**에
+그린다(`components/editor/inspector-shell.tsx:34`). 컷·말풍선·텍스트·직선이 모두 쓴다.
+컷만 확인을 묻는다 — 생성 기록이 함께 사라지기 때문이다. 나머지는 Delete 키와 같게
+바로 지우고, 되돌리기는 tldraw 가 받는다.
+
+### 꼬리와 몸통은 한 덩어리로 — 세 번 그린다
+
+꼬리를 따로 그리면 몸통 테두리가 꼬리를 가로질러 **둘 사이에 선이 한 줄** 남는다.
+만화의 말풍선은 이어진 한 덩어리다. 그래서 `BUBBLE_DRAW_ORDER`(`packages/types/src/bubble-path.ts`)
+대로 세 번 그린다 — 꼬리(선+채움) → 몸통(선+채움) → **꼬리(채움만, 선 없이)**.
+마지막 채움이 몸통 테두리가 꼬리를 지나는 구간을 덮는다.
+
+캔버스(`components/editor/tldraw/speech-bubble-shape.tsx`)와 export
+(`apps/api/src/export/speech-bubble.render.ts`)가 같은 순서를 지켜야 결과가 같다.
+채움이 불투명할 때만 통하는 방법이다 — 투명한 풍선에서는 꼬리 밑변 자체가 보이므로
+어차피 한 덩어리로 그릴 수 없고, 진짜 합집합 경로는 몸통 네 모양마다 따로 풀어야 한다.
+
 ### 굵기는 슬라이더로 — 숫자만으로는 정해지지 않는다
 
-컷 테두리·말풍선 선·직선의 굵기는 `StrokeWidthField`(`components/editor/stroke-width-field.tsx:27`)
+컷 테두리·말풍선 선·직선의 굵기는 `StrokeWidthField`(`components/editor/stroke-width-field.tsx:36`)
 하나를 쓴다. 범위는 1~10 이다.
 
 - **슬라이더인 이유**: 굵기는 "얼마나 굵은가" 가 눈으로 보여야 정해진다. 숫자 칸만
@@ -646,6 +681,12 @@ apps/web/
   넣기를 반복하게 된다. 끄는 동안(`onChange`) 바로 반영해 그 왕복을 없앤다.
 - **숫자 칸도 남기는 이유**: 슬라이더만 두면 "7 로 맞춰 둔 것과 똑같이" 가 안 된다.
   키보드로 값을 넣는 길이기도 하다.
+- **끄는 동안 저장하지 않는다.** 처음에는 `onChange` 마다 커밋했는데, 컷 테두리는
+  그게 곧 `PATCH /v1/panels/:id` 라서 손잡이를 한 번 끌면 요청이 수십 개 나갔다.
+  끄는 동안은 `onPreview`(화면만), 손을 뗄 때 `onCommit`(저장) 이다.
+  컷은 `onPreview` 가 **캔버스 셰이프를 직접** 고친다(`onWidthChange`, `panel-inspector.tsx:325`) —
+  DTO 를 거치면 선택 시점의 낡은 좌표가 되쓰여, 컷을 옮긴 직후 굵기를 바꿀 때
+  **이동이 취소된다.** 저장은 sync 훅의 1.5초 디바운스가 한 번만 한다.
 - 지나온 구간만 진하게 칠한다(인라인 배경 그라디언트). 손잡이 모양은
   `globals.css` 의 `.range-track::-webkit-slider-thumb`.
 - 예전 범위는 0~20/1~40 이었다. 0(테두리 없음)은 인스펙터에서 더 이상 집을 수 없다 —
@@ -670,7 +711,7 @@ apps/web/
 그때는 이미 토큰을 썼다.
 
 - 프로젝트에 그림체가 하나도 없으면 첫 생성 앞에서 한 번 묻는다
-  (`requestRender`, `components/editor/panel-inspector.tsx:156`). '설정집으로' 를 누르면
+  (`requestRender`, `components/editor/panel-inspector.tsx:162`). '설정집으로' 를 누르면
   `?type=style&from=<pageId>` 로 간다.
 - 목록을 아직 못 읽었으면(`undefined`) 막지 않는다. 조회 실패로 생성이 잠기면 사용자가
   할 수 있는 일이 없어진다.
@@ -701,11 +742,13 @@ id 를 쓰기 때문에 저장 없이는 붙일 수 없다.
 - 그래서 **쓸 만한 색을 먼저 내민다**(`PRESETS`, `color-field.tsx:16`). 무채색 한 줄,
   따뜻한 색 한 줄, 차가운 색 한 줄. 컷 테두리는 거의 검정이고 말풍선은 흰색·미색이라
   무채색이 맨 위다.
-- 그래도 없으면 직접 집는다(`CustomPicker`, `color-field.tsx:172`). 채도·밝기 판과
+- 그래도 없으면 직접 집는다(`CustomPicker`, `color-field.tsx:165`). 채도·밝기 판과
   색상 띠 — 띠를 `<input type="range">` 로 둔 것은 방향키로 조절되고 스크린 리더가
   읽기 때문이다.
-- 팝오버가 아니라 **그 자리에서 아래로** 펼친다. 이 고르개는 폭 320px 인스펙터 안에만
-  사는데, 좁은 칸에 띄우는 팝오버는 어디에 놓아도 무언가를 가린다.
+- **팝오버로 띄운다**(`components/ui/popover.tsx`, Radix). 처음에는 그 자리에서 아래로
+  펼쳤는데, 폭 320px 인스펙터에서 팔레트가 펼쳐지면 아래 항목들이 한 화면 밖으로
+  밀려났다 — 색을 고르는 동안 굵기도 정렬도 보이지 않는다. 떠 있는 패널은 인스펙터
+  **왼쪽**(캔버스 위)으로 나가므로 목록이 그대로 있고, 폭도 인스펙터에 묶이지 않는다.
 - 색과 굵기를 한 줄에 두지 않는다(`panel-inspector.tsx`, `speech-bubble-inspector.tsx`).
   색칸이 펼쳐지면 그 줄 전체가 높아지면서 굵기 칸이 팔레트 옆에 떠, 무엇에 딸린 값인지
   흐려진다.
@@ -961,13 +1004,13 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 
 `panel-inspector.tsx` 의 생성 영역(`생성하기`, `components/editor/panel-inspector.tsx:459`)은 모델별 토큰 단가와 부족 상태를 표시한다.
 
-- **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:507`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
-- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:518`, `lib/tokens.ts:151`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:520`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
+- **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:531`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
+- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:542`, `lib/tokens.ts:151`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:544`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
 - **버튼을 잠그지 않는 이유 (`components/editor/panel-inspector.tsx:468-471`)**:
   - 잔액이 부족해도 **생성하기 버튼을 비활성화(`disabled`)하지 않는다.**
   - 화면의 잔액은 캐시일 뿐이라 방금 운영자에게 지급받은 토큰이 아직 캐시에 도착하지 않았을 수 있다. 버튼을 잠그면 사용자는 새로고침 외에 아무것도 할 수 없게 된다.
   - 진짜 잔액 판정은 서버가 하며, 서버에서 거부되면 상세 메시지(`insufficientTokensMessage`, `lib/error-message.ts:130`)로 필요한 토큰과 현재 잔액을 정확히 알려 준다.
-  - 서버에서 토큰 부족 에러가 돌아오면 `components/editor/panel-inspector.tsx:193` 에서 즉시 `refreshTokens()` 를 호출해 캐시를 서버 잔액과 일치시킨다.
+  - 서버에서 토큰 부족 에러가 돌아오면 `components/editor/panel-inspector.tsx:199` 에서 즉시 `refreshTokens()` 를 호출해 캐시를 서버 잔액과 일치시킨다.
 - **빈 컷 안내 우선 (`docs/develop-docs/50-owner/02-verify.md` B-5)**: 컷 본문·콘티·참조 이미지가 모두 없는 빈 컷에서는 토큰 부족 문구 대신 컷 내용 입력 안내 오류가 우선한다. 사용자가 토큰을 충전하고 돌아와서야 컷이 비어 있다는 사실을 알게 되는 낭비를 방지한다.
 
 ### 운영자 화면 (/admin)과 권한 차단
