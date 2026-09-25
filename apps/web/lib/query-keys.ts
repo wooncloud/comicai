@@ -32,7 +32,10 @@ export const qk = {
   /** 단일 렌더 잡. SSE 로 상태가 갱신된다. */
   renderJob: (jobId: string | null) => ['render-job', jobId] as const,
 
-  /** 프로젝트의 페이지 목록. 상세 화면과 에디터 사이드바가 공유한다. */
+  /** 프로젝트의 화 목록. 상세 화면과 에디터 사이드바가 공유한다. */
+  projectEpisodes: (projectId: string) => ['project-episodes', projectId] as const,
+
+  /** 프로젝트의 페이지 목록(모든 화). 상세 화면과 에디터 사이드바가 공유한다. */
   projectPages: (projectId: string) => ['project-pages', projectId] as const,
 
   /** 페이지 한 장. 설정집이 '돌아갈 페이지' 이름을 읽을 때 쓴다. */

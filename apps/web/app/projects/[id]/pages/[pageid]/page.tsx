@@ -3,7 +3,9 @@ import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import type { Editor, TLShapeId } from 'tldraw';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { qk } from '@/lib/query-keys';
 import { useProject } from '@/lib/use-project';
 import Link from 'next/link';
 import { BookMarked } from 'lucide-react';
@@ -14,7 +16,9 @@ import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/error-message';
 import {
   ApiPaths,
+  episodeLabel,
   pageLabel,
+  type EpisodeDTO,
   type PageDTO,
   type PageLineDTO,
   type PageTextDTO,
@@ -79,6 +83,19 @@ export default function PageEditor() {
   const params = useParams<{ id: string; pageid: string }>();
   const { id: projectId, pageid: pageId } = params;
   const project = useProject(projectId);
+  /*
+   * 브레드크럼에 화를 한 칸 넣는다. 페이지만 보여 주면 "3화의 2쪽" 인지 "1화의 2쪽"
+   * 인지 알 수 없다 — 페이지 이름은 화마다 다시 1쪽부터 시작하기 때문이다.
+   *
+   * 목록 전체를 읽는다. 사이드바가 이미 같은 캐시를 쓰므로 왕복이 늘지 않는다.
+   */
+  const { data: episodes } = useQuery<EpisodeDTO[]>({
+    queryKey: qk.projectEpisodes(projectId),
+    queryFn: () => api<EpisodeDTO[]>(ApiPaths.projectEpisodes(projectId)),
+    enabled: !!projectId,
+    // 브레드크럼 한 칸 때문에 에디터를 오류 화면으로 바꾸지 않는다.
+    throwOnError: false,
+  });
   const [page, setPage] = useState<PageDTO | null>(null);
   const [panels, setPanels] = useState<PanelDTO[]>([]);
   const [bubbles, setBubbles] = useState<SpeechBubbleDTO[]>([]);
@@ -161,6 +178,8 @@ export default function PageEditor() {
       cancelled = true;
     };
   }, [pageId, reloadKey]);
+
+  const currentEpisode = episodes?.find((e) => e.id === page?.episodeId) ?? null;
 
   const onSavingChange = useCallback((v: boolean) => {
     setSaveState((prev) => (v ? 'saving' : prev === 'error' ? 'error' : 'idle'));
@@ -377,6 +396,14 @@ export default function PageEditor() {
               items={[
                 { label: '대시보드', href: '/dashboard' },
                 { label: project?.name ?? '…', href: `/projects/${projectId}` },
+                ...(currentEpisode
+                  ? [
+                      {
+                        label: episodeLabel(currentEpisode),
+                        href: `/projects/${projectId}`,
+                      },
+                    ]
+                  : []),
                 { label: page ? pageLabel(page) : '…' },
               ]}
             />
