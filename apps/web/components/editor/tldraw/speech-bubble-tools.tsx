@@ -48,15 +48,24 @@ function defaultBubbleProps(): Omit<SpeechBubbleShape['props'], 'variant' | 'w' 
 function openEditingAfterDrag(editor: Editor, id: TLShapeId): void {
   const run = () => {
     window.removeEventListener('pointerup', run, true);
-    // 리사이즈 상태가 정리된 다음 프레임에 연다.
-    requestAnimationFrame(() => {
-      if (!editor.getShape(id)) return;
-      editor.select(id);
-      editor.setEditingShape(id);
-      editor.setCurrentTool('select.editing_shape');
-    });
+    openEditingNextFrame(editor, id);
   };
   window.addEventListener('pointerup', run, true);
+}
+
+/**
+ * 도구가 `select` 로 돌아간 **다음 프레임**에 편집을 연다.
+ *
+ * 다각형은 꼭짓점을 다 찍은 순간 동기적으로 만들어지는데, 그 직후 베이스가
+ * `setCurrentTool('select')` 로 덮는다. 같은 틱에 편집을 열면 그 호출에 지워진다.
+ */
+function openEditingNextFrame(editor: Editor, id: TLShapeId): void {
+  requestAnimationFrame(() => {
+    if (!editor.getShape(id)) return;
+    editor.select(id);
+    editor.setEditingShape(id);
+    editor.setCurrentTool('select.editing_shape');
+  });
 }
 
 class BubbleBoxIdle extends StateNode {
@@ -167,8 +176,9 @@ class BubblePolygonTool extends PolygonDrawingTool {
   static override initial = 'bubble-polygon';
 
   protected commitPolygon({ bbox, normalized }: PolygonCommitArgs): void {
+    const id = createShapeId();
     this.editor.createShape<SpeechBubbleShape>({
-      id: createShapeId(),
+      id,
       type: 'speech-bubble',
       x: bbox.x,
       y: bbox.y,
@@ -180,6 +190,8 @@ class BubblePolygonTool extends PolygonDrawingTool {
         polygonPoints: normalized,
       },
     });
+    // 다른 풍선과 같게 — 다 찍고 나면 바로 대사를 쓴다.
+    openEditingNextFrame(this.editor, id);
   }
 }
 

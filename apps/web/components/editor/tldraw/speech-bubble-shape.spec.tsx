@@ -54,4 +54,11 @@ describe('드래그로 새로 그리면 바로 쓸 수 있다', () => {
   it('드래그 도중 취소되어 도형이 없으면 아무것도 하지 않는다', () => {
     for (const src of TOOLS) expect(src).toContain('if (!editor.getShape(id)) return;');
   });
+
+  it('다각형 풍선도 다 찍고 나면 편집이 열린다 — 커밋이 동기라 다음 프레임에', () => {
+    const src = read('components/editor/tldraw/speech-bubble-tools.tsx');
+    const body = src.slice(src.indexOf('protected commitPolygon'));
+    expect(body).toContain('openEditingNextFrame(this.editor, id)');
+    expect(src).toContain('requestAnimationFrame(() => {');
+  });
 });
