@@ -5,6 +5,8 @@ import { http, HttpResponse } from 'msw';
 import {
   API_PREFIX,
   ApiPaths,
+  MODEL_TOKEN_COST,
+  type ModelId,
   type TokenBalanceDTO,
   type TokenLedgerEntryDTO,
   type TokenOrderDTO,
@@ -13,6 +15,19 @@ import { server } from '../mocks/server';
 import { TokenBalance } from '@/components/shell/token-balance';
 import { useBillingOrders, useTokenBalance, useTokenHistory } from './tokens';
 import type { ReactNode } from 'react';
+
+/*
+ * 모델 목록은 늘어난다. 픽스처에 id 를 손으로 적으면 모델이 하나 추가될 때마다 이
+ * 파일이 컴파일 에러로 막는데, 이 테스트가 보는 것은 재조회 타이밍이지 모델 목록이 아니다.
+ */
+function affordableFrom(balance: number): Record<ModelId, number | null> {
+  return Object.fromEntries(
+    (Object.keys(MODEL_TOKEN_COST) as ModelId[]).map((m) => [
+      m,
+      MODEL_TOKEN_COST[m] > 0 ? Math.floor(balance / MODEL_TOKEN_COST[m]) : null,
+    ]),
+  ) as Record<ModelId, number | null>;
+}
 
 const ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 const url = (p: string) => `${ORIGIN}${API_PREFIX}${p}`;
@@ -59,12 +74,8 @@ describe('토큰 쿼리 포커스 복귀 갱신 (refetchOnWindowFocus: always)',
         return HttpResponse.json({
           data: {
             balance,
-            costs: { 'gemini-3.1-flash-image-preview': 1, 'gpt-image-2': 4, mock: 0 },
-            affordable: {
-              'gemini-3.1-flash-image-preview': balance,
-              'gpt-image-2': Math.floor(balance / 4),
-              mock: null,
-            },
+            costs: MODEL_TOKEN_COST,
+            affordable: affordableFrom(balance),
           } satisfies TokenBalanceDTO,
         });
       }),
@@ -175,12 +186,8 @@ describe('토큰 쿼리 포커스 복귀 갱신 (refetchOnWindowFocus: always)',
         return HttpResponse.json({
           data: {
             balance,
-            costs: { 'gemini-3.1-flash-image-preview': 1, 'gpt-image-2': 4, mock: 0 },
-            affordable: {
-              'gemini-3.1-flash-image-preview': balance,
-              'gpt-image-2': Math.floor(balance / 4),
-              mock: null,
-            },
+            costs: MODEL_TOKEN_COST,
+            affordable: affordableFrom(balance),
           } satisfies TokenBalanceDTO,
         });
       }),
@@ -303,8 +310,8 @@ describe('입금 대기(pending) 주문 존재 시 주기 조회 (가짜 타이�
         return HttpResponse.json({
           data: {
             balance: 10,
-            costs: { 'gemini-3.1-flash-image-preview': 1, 'gpt-image-2': 4, mock: 0 },
-            affordable: { 'gemini-3.1-flash-image-preview': 10, 'gpt-image-2': 2, mock: null },
+            costs: MODEL_TOKEN_COST,
+            affordable: affordableFrom(10),
           } satisfies TokenBalanceDTO,
         });
       }),

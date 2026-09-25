@@ -13,6 +13,7 @@ import {
 import { api } from '@/lib/api';
 import {
   ApiPaths,
+  DEFAULT_MODEL_ID,
   type ConsistencyEntityDTO,
   type EntityType,
   type ImageRef,
@@ -38,7 +39,7 @@ export function EntityImageDialog({ open, onOpenChange, entityId, entityType, on
   const aiAllowed = entityType !== 'style';
   const [tab, setTab] = useState<Tab>(aiAllowed ? 'ai' : 'upload');
 
-  const [model, setModel] = useState<ModelId>('gemini-3.1-flash-image-preview');
+  const [model, setModel] = useState<ModelId>(DEFAULT_MODEL_ID);
   const [prompt, setPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);

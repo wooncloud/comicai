@@ -89,7 +89,36 @@ export type ApiKeyCreate = z.infer<typeof ApiKeyCreateSchema>;
  * `RenderModelSchema`, `ProjectPatchSchema.defaultModel` 세 곳에 같은 문자열이 적혀 있었다 —
  * 하나만 늘리면 나머지가 조용히 거부한다.
  */
-export const MODEL_IDS = ['gemini-3.1-flash-image-preview', 'gpt-image-2', 'mock'] as const;
+/**
+ * 이 앱이 아는 모든 모델 id — **지금 쓰는 것과 지난 기록에만 남아 있는 것 둘 다.**
+ *
+ * 모델 id 는 `projects.default_model` 과 `render_jobs.model` 에 문자열로 저장된다.
+ * 그래서 새 판으로 갈아탈 때 옛 id 를 목록에서 빼면, 이미 저장된 행이 검증에 걸리고
+ * `MODEL_LABEL[id]` 는 undefined 가 되며 `costs[id]` 는 NaN 이 된다 — 지난 생성 기록이
+ * 깨지고, 그 모델로 설정해 둔 프로젝트는 열리지 않는다. 그래서 **id 는 지우지 않는다.**
+ *
+ * 고를 수 있는 것은 `SELECTABLE_MODEL_IDS` 다.
+ */
+export const MODEL_IDS = [
+  // 지금 쓰는 것
+  'gemini-3.1-flash-image',
+  'gpt-image-2.5-flare',
+  // 지난 기록에만 남아 있는 것. 새로 고를 수는 없고, 옛 행을 읽기 위해 남긴다.
+  'gemini-3.1-flash-image-preview',
+  'gpt-image-2',
+  // 개발용
+  'mock',
+] as const;
+
+/**
+ * 사용자가 **지금 고를 수 있는** 모델. 화면의 선택지와 서버의 기본값이 이걸 본다.
+ *
+ * `mock` 은 개발용이라, 옛 판들은 기록용이라 빠진다.
+ */
+export const SELECTABLE_MODEL_IDS = ['gemini-3.1-flash-image', 'gpt-image-2.5-flare'] as const;
+
+/** 프로젝트가 따로 정하지 않았을 때 쓰는 모델. */
+export const DEFAULT_MODEL_ID = 'gemini-3.1-flash-image' as const;
 
 // ─── 프로젝트 ─────────────────────────────────
 export const ProjectCreateSchema = z.object({

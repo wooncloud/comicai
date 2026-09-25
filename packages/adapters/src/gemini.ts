@@ -3,7 +3,12 @@ import type { AdapterContext, ModelAdapter } from './index';
 import { selectReferences } from './priority';
 import { classifyModelHttpError, ModelHttpError } from './http-error';
 
-const GEMINI_MODEL = 'gemini-3.1-flash-image-preview';
+/*
+ * Nano Banana 2 의 **정식판**. 예전에는 `-preview` 를 썼다 — 같은 모델이지만 preview
+ * 엔드포인트는 예고 없이 닫힐 수 있고, 닫히면 컷이 한 장도 안 그려진다.
+ * 허용 비율은 정식판도 아래 목록과 같다(2026-09-25, 400 응답으로 직접 확인).
+ */
+const GEMINI_MODEL = 'gemini-3.1-flash-image';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 interface GeminiPart {
   text?: string;
@@ -86,7 +91,7 @@ const BLOCKED_FINISH_REASONS = new Set([
 ]);
 
 export const GeminiAdapter: ModelAdapter = {
-  id: 'gemini-3.1-flash-image-preview',
+  id: GEMINI_MODEL,
 
   buildRequest(ir: RenderIR, apiKey: string): GeminiRequest {
     const parts: GeminiPart[] = [];

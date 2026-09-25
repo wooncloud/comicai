@@ -31,10 +31,31 @@ export type ModelId = (typeof MODEL_IDS)[number];
  * Record 라서 ModelId 가 늘면 여기서 컴파일 에러가 난다.
  */
 export const MODEL_PROVIDER: Record<ModelId, ModelProvider> = {
+  'gemini-3.1-flash-image': 'gemini',
+  'gpt-image-2.5-flare': 'openai',
   'gemini-3.1-flash-image-preview': 'gemini',
   'gpt-image-2': 'openai',
   mock: 'mock',
 };
+
+/**
+ * 옛 모델 id → 같은 제공자의 지금 모델.
+ *
+ * 프로젝트가 예전 판으로 설정돼 있어도 새로 그릴 때는 지금 모델을 쓴다. 화면이
+ * 내미는 이름은 'Gemini'·'OpenAI' 뿐이라(`MODEL_LABEL`), 사용자에게는 고른 것이
+ * 그대로 유지되는 것으로 보인다 — 바뀌는 것은 그 이름 뒤의 판번호다.
+ *
+ * 지난 **기록**에는 손대지 않는다. 그때 정말로 쓴 모델이 무엇이었는지가 남아야 한다.
+ */
+const MODEL_SUPERSEDED_BY: Partial<Record<ModelId, ModelId>> = {
+  'gemini-3.1-flash-image-preview': 'gemini-3.1-flash-image',
+  'gpt-image-2': 'gpt-image-2.5-flare',
+};
+
+/** 새 생성에 실제로 쓸 모델. 옛 id 면 같은 제공자의 지금 판으로 올린다. */
+export function resolveModelId(model: ModelId): ModelId {
+  return MODEL_SUPERSEDED_BY[model] ?? model;
+}
 
 /**
  * 그림 한 장에 드는 토큰.
@@ -48,6 +69,10 @@ export const MODEL_PROVIDER: Record<ModelId, ModelProvider> = {
  * 조용히 공짜가 되는 일은 없다.
  */
 export const MODEL_TOKEN_COST: Record<ModelId, number> = {
+  'gemini-3.1-flash-image': 1,
+  'gpt-image-2.5-flare': 4,
+  // 옛 판은 같은 제공자의 지금 판과 같은 값을 쓴다 — 단가가 같고(2026-09-25 확인),
+  // 지난 기록의 숫자가 갑자기 달라지면 원장과 화면이 어긋난다.
   'gemini-3.1-flash-image-preview': 1,
   'gpt-image-2': 4,
   mock: 0,
@@ -682,11 +707,14 @@ export interface TokenOrderDTO {
 /**
  * 화면 및 원장 표기에 사용할 AI 모델 이름.
  *
- * `ModelId` 원문('gemini-3.1-flash-image-preview')은 내부 식별자다.
+ * `ModelId` 원문('gemini-3.1-flash-image')은 내부 식별자다.
  * 화면 인스펙터 선택지뿐 아니라 사용자 토큰 내역('그림 생성 (Gemini)') 등 서버 라벨 생성에서도
  * 공통으로 사용하므로 `@comicai/types` 에 단일 진실 공급원으로 둔다.
  */
 export const MODEL_LABEL: Record<ModelId, string> = {
+  'gemini-3.1-flash-image': 'Gemini',
+  'gpt-image-2.5-flare': 'OpenAI',
+  // 옛 판도 같은 이름으로 보인다. 지난 기록에서 제공자를 알아볼 수 있어야 한다.
   'gemini-3.1-flash-image-preview': 'Gemini',
   'gpt-image-2': 'OpenAI',
   // 개발용 어댑터. 선택지에는 넣지 않지만, 지난 기록에 남아 있을 수 있어 이름은 준비해 둔다.

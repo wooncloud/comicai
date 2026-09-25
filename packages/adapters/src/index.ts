@@ -21,8 +21,17 @@ import { MockAdapter } from './mock';
 import { GeminiAdapter } from './gemini';
 import { OpenAIAdapter } from './openai';
 
+/*
+ * 옛 id 도 **같은 제공자의 지금 어댑터**로 보낸다.
+ *
+ * 보통은 `resolveModelId` 가 잡을 만들기 전에 올려 주지만, 재시도처럼 DB 의 문자열을
+ * 그대로 들고 오는 경로가 있다. 여기까지 옛 id 가 내려오면 "unknown model" 로 죽는
+ * 대신 지금 판으로 그린다.
+ */
 const REGISTRY: Record<ModelId, ModelAdapter> = {
   mock: MockAdapter,
+  'gemini-3.1-flash-image': GeminiAdapter,
+  'gpt-image-2.5-flare': OpenAIAdapter,
   'gemini-3.1-flash-image-preview': GeminiAdapter,
   'gpt-image-2': OpenAIAdapter,
 };

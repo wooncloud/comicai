@@ -732,8 +732,9 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 
 - 패키지: `packages/adapters` — `index.ts:36-46`에 `REGISTRY` 정의.
   - `mock` → `MockAdapter`
-  - `gemini-3.1-flash-image-preview` → `GeminiAdapter`
-  - `gpt-image-2` → `OpenAIAdapter`
+  - `gemini-3.1-flash-image` → `GeminiAdapter`
+  - `gpt-image-2.5-flare` → `OpenAIAdapter`
+  - 옛 판(`gemini-3.1-flash-image-preview`, `gpt-image-2`)도 같은 제공자의 지금 어댑터로 간다
 - 인터페이스 `ModelAdapter` — `packages/adapters/src/index.ts:8-13`:
   - `buildRequest(ir, apiKey)` → unknown
   - `call(req, signal, ctx)` → `Promise<AdapterImage>`

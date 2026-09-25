@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { nearestGeminiAspectRatio } from './gemini';
 
 /**
- * Gemini 가 실제로 돌려준 허용 목록 (2026-09-25, gemini-3.1-flash-image-preview).
+ * Gemini 가 실제로 돌려준 허용 목록. `-preview` 와 정식판 `gemini-3.1-flash-image`
+ * 둘 다 같은 목록을 돌려준다(2026-09-25, 잘못된 비율을 보내 400 본문으로 확인).
  * 여기 없는 값을 보내면 400 이라 컷이 한 장도 안 그려진다.
  */
 const ALLOWED = new Set([

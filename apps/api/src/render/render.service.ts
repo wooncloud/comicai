@@ -9,6 +9,7 @@ import { randomBytes } from 'node:crypto';
 import { prisma, Prisma } from '@comicai/db';
 import {
   IN_PROGRESS_RENDER_STATUSES,
+  resolveModelId,
   type ImageRef,
   type ModelId,
   type RenderError,
@@ -73,9 +74,19 @@ export class RenderService {
   async startRender(
     userId: string,
     panelId: string,
-    model: ModelId,
+    requestedModel: ModelId,
     seed?: number,
   ): Promise<{ jobId: string }> {
+    /*
+     * 옛 판으로 설정된 프로젝트도 **새로 그릴 때는 지금 판**을 쓴다.
+     *
+     * 모델 id 는 `projects.default_model` 에 문자열로 남는데, 화면이 내미는 이름은
+     * 'Gemini'·'OpenAI' 뿐이라 사용자에게는 고른 것이 그대로 유지되는 것으로 보인다.
+     * 여기서 올려 두면 **기록에도 실제로 쓴 모델**이 남는다 — 어댑터 안에서 몰래
+     * 바꾸면 원장과 히스토리가 쓰지 않은 모델 이름을 말하게 된다.
+     */
+    const model = resolveModelId(requestedModel);
+
     /*
      * 소유권 확인과 잔액 조회는 서로를 기다릴 이유가 없다. 그리고 잔액 검사는 **IR 을
      * 만들기 전에** 해야 한다 — IR 빌드가 이 핸들러에서 가장 비싼 일인데, 토큰이 없는

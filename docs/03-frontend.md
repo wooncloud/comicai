@@ -744,7 +744,7 @@ API 도메인의 JSON 에러 화면에 떨어졌다 — 거기서는 앱으로 �
   들어가는 링크가 "캐릭터·설정 관리" 라서 같은 곳인지 알 수 없었다. 입구 라벨
   (`components/consistency/setting-book-summary.tsx:42`)과 도착 제목은 **글자 그대로 같아야 한다.**
 - 그 화면의 본문은 탭 이름을 쓴다(`app/projects/[id]/consistency/page.tsx:55` 의 `tabLabel`).
-  갈래 이름은 `packages/types/src/index.ts:171` 의 `ENTITY_TYPE_LABEL` 한 곳에서 나온다 —
+  갈래 이름은 `packages/types/src/index.ts:196` 의 `ENTITY_TYPE_LABEL` 한 곳에서 나온다 —
   요약과 탭이 같은 것을 두 이름으로 부르면 안 된다.
   전부 "항목" 이라 부르면 캐릭터 탭에서 "항목이 없습니다" 가 무엇을 만들라는 건지 모른다.
 - 내부 식별자는 화면에 내보내지 않는다. `pageLabel()` 의 폴백이 `p1` 이었고

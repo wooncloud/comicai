@@ -15,7 +15,7 @@ ComicAI는 **AI가 만화의 일관성(캐릭터·배경·세계관·그림체)�
 - 패널 렌더 큐(BullMQ) + 어댑터(mock/Gemini/OpenAI) + SSE 진행률 스트리밍 (`apps/api/src/render`, `packages/adapters`, `packages/events`)
 - 페이지 내보내기 (`apps/api/src/export` — `panel-mask.ts`로 패널 알파 마스크 합성)
 
-`packages/types/src/schemas.ts` 의 `MODEL_IDS` 에 현재 `'gemini-3.1-flash-image-preview' | 'gpt-image-2' | 'mock'` 세 가지가 등록되어 있다(`index.ts` 의 `ModelId` 는 여기서 파생된다).
+`packages/types/src/schemas.ts` 의 `MODEL_IDS`(`:102`)가 모델 id 의 유일한 출처다(`index.ts` 의 `ModelId` 는 여기서 파생된다). 지금 고를 수 있는 것은 `SELECTABLE_MODEL_IDS`(`:118`) 의 `'gemini-3.1-flash-image'`(Nano Banana 2)와 `'gpt-image-2.5-flare'` 둘이고, 옛 판 id 는 지난 기록을 읽기 위해 `MODEL_IDS` 에 남겨 둔다.
 
 ## 2. 최상위 레이아웃
 

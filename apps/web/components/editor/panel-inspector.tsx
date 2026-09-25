@@ -6,6 +6,7 @@ import { api, API_BASE, ApiError } from '@/lib/api';
 import { useDebounced } from '@/lib/use-debounced';
 import {
   ApiPaths,
+  DEFAULT_MODEL_ID,
   type ConsistencyEntityDTO,
   type PanelDTO,
   type PanelShape,
@@ -111,7 +112,7 @@ export function PanelInspector({
   });
   const styles = consistency?.filter((c) => c.type === 'style');
   const effectiveStyleId = panel.styleId ?? project?.defaultStyleId ?? null;
-  const model: ModelId = userModel ?? project?.defaultModel ?? 'gemini-3.1-flash-image-preview';
+  const model: ModelId = userModel ?? project?.defaultModel ?? DEFAULT_MODEL_ID;
   const { data: tokens } = useTokenBalance();
   const refreshTokens = useRefreshTokens();
   const { cost, short } = affordability(tokens, model);

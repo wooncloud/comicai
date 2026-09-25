@@ -72,8 +72,8 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
    `panel.styleId ?? project.defaultStyleId`를 `effectiveStyleId`로 자동 주입하며 멘션 대상이 아님
    (`apps/api/src/render/ir.builder.ts:21, 35, 62-64`).
 3. 입력 검증 — 본문/콘티/참조 중 하나도 없으면
-   `BadRequestException({ code: 'RENDER_INVALID_INPUT' })` (`:89-96`).
-   3-b. **잔액 검사**(`assertAffordable`, `:103`). 입력 검증 **뒤**에 있는 것이 중요하다 —
+   `BadRequestException({ code: 'RENDER_INVALID_INPUT' })` (`:100-107`).
+   3-b. **잔액 검사**(`assertAffordable`, `:114`). 입력 검증 **뒤**에 있는 것이 중요하다 —
    앞에 두면 빈 컷을 가진 잔액 0 사용자가 "토큰이 부족합니다" 를 보고 충전하러 갔다가,
    돌아와서야 컷이 비었다는 걸 안다. 고칠 수 있는 문제를 뒤로 숨기게 된다.
    비용은 `ModelCredentials.previewCost` 가 정한다(`model-credentials.ts:48`) — 자기 키를 넣은 사용자는 0 이라
@@ -366,9 +366,9 @@ interface RenderError {
 1. **워커 → SSE**: `{ type:'error', error: RenderError }`(`render.worker.ts:214`) +
    `{ type:'status', status:'failed'|'timeout' }` (`:215`).
 2. **DB**: `RenderJob.error` JSON 컬럼에 에러(`error`) 저장 (`:209-212`, `finalizeOrphan` `:83-86`).
-3. **GET /render-jobs/:id 응답**: `RenderJobDTO.error`로 노출 (`render.service.ts:205`).
+3. **GET /render-jobs/:id 응답**: `RenderJobDTO.error`로 노출 (`render.service.ts:216`).
 4. **UI**:
-   - `panel-inspector.tsx:178-183` `'error'` 이벤트 리스너가 `setError(payload.error.message)`로
+   - `panel-inspector.tsx:179-184` `'error'` 이벤트 리스너가 `setError(payload.error.message)`로
      배너 표시 (`:305-309`).
    - `'status'` 이벤트의 terminal 도달 시 토스트:
      `failed` → "렌더 실패", `canceled` → "렌더 취소됨" (`:167-172`).
@@ -376,11 +376,11 @@ interface RenderError {
 
 ### 6.4 컨트롤러 단의 동기 에러
 
-- `RENDER_INVALID_INPUT` (`render.service.ts:94`) — 본문/콘티/참조 비어있음. HTTP 400.
-- `RENDER_ENQUEUE_FAILED` (`render.service.ts:190`) — BullMQ enqueue 실패. HTTP 503.
+- `RENDER_INVALID_INPUT` (`render.service.ts:105`) — 본문/콘티/참조 비어있음. HTTP 400.
+- `RENDER_ENQUEUE_FAILED` (`render.service.ts:201`) — BullMQ enqueue 실패. HTTP 503.
   행은 `failed`(category `transient`)로 마감된 뒤라 좀비가 남지 않는다.
 - `RESOURCE_NOT_FOUND` (`render.service.ts:150, 175; panels.service.ts:243`).
-- `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:237-241`),
+- `CONFLICT` — 이미 종결된 작업 cancel 시도(`render.service.ts:248-252`),
   성공 아닌 잡 restore 시도(`panels.service.ts:245-249`).
 - `PANEL_NOT_FOUND` — `panels.service.ts:308-310`. 소유권 실패도 같은 404 다(존재 여부가 새지 않도록).
 
@@ -405,8 +405,8 @@ API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생�
 | API 경로 헬퍼                                    | `packages/types/src/paths.ts:48,56-60`                    |
 | 컨트롤러 (POST render/get/cancel/restore/events) | `apps/api/src/render/render.controller.ts:25,31,36,42,47` |
 | `RenderService.startRender`                      | `apps/api/src/render/render.service.ts:73`                |
-| `RenderService.getJob`                           | `apps/api/src/render/render.service.ts:205`               |
-| `RenderService.cancel`                           | `apps/api/src/render/render.service.ts:227`               |
+| `RenderService.getJob`                           | `apps/api/src/render/render.service.ts:216`               |
+| `RenderService.cancel`                           | `apps/api/src/render/render.service.ts:238`               |
 | BullMQ enqueue & idempotency                     | `apps/api/src/render/render.queue.ts:34,56`               |
 | Worker process loop                              | `apps/api/src/render/render.worker.ts:96`                 |
 | Adapter 디스패치                                 | `packages/adapters/src/index.ts:30`                       |

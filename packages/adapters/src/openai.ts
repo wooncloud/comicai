@@ -5,13 +5,21 @@ import { classifyModelHttpError, ModelHttpError } from './http-error';
 
 const OPENAI_GEN_URL = 'https://api.openai.com/v1/images/generations';
 const OPENAI_EDIT_URL = 'https://api.openai.com/v1/images/edits';
-const OPENAI_MODEL = 'gpt-image-2';
+/*
+ * GPT Image 2.5 Flare(2026-09-08). `gpt-image-2` 보다 빠르고(운영 키로 재 보니 16.6초 →
+ * 14.0초) 단가는 같다($30/1M 이미지 출력 토큰, 2026-09-25 확인). 같은 요청 모양
+ * (`size`, `n`, `quality`)을 그대로 받는다 — 세 후보 모두 운영 키로 실제 생성까지 확인했다.
+ *
+ * `-sunburst` 는 더 정밀한 대신 느리다. 만화 한 컷은 장수가 많아 속도가 곧 사용성이라
+ * Flare 를 쓴다.
+ */
+const OPENAI_MODEL = 'gpt-image-2.5-flare';
 interface OpenAIRequest {
   apiKey: string;
   prompt: string;
   size: string;
   referenceKeys: string[];
-  /** gpt-image-2 quality: low/medium/high/auto. 미지정 시 모델이 auto. */
+  /** quality: low/medium/high/xhigh/max/auto. 미지정 시 모델이 auto. */
   quality?: 'low' | 'medium' | 'high' | 'auto';
 }
 
@@ -19,7 +27,7 @@ export const OpenAIAdapter: ModelAdapter = {
   id: OPENAI_MODEL,
 
   buildRequest(ir: RenderIR, apiKey: string): OpenAIRequest {
-    // docs 에 gpt-image-2 명시 상한이 없어 Gemini 와 같은 값을 쓴다. 초과·거부 응답이
+    // docs 에 명시 상한이 없어 Gemini 와 같은 값을 쓴다. 초과·거부 응답이
     // 오면 classifyError 가 invalid 로 분류한다.
     const refs = selectReferences(ir);
     return {
@@ -125,7 +133,7 @@ function buildPrompt(ir: RenderIR): string {
 }
 
 function aspectToSize(aspect: string): string {
-  // gpt-image-2 허용 사이즈: 1024x1024, 1024x1536, 1536x1024.
+  // 허용 사이즈: 1024x1024, 1024x1536, 1536x1024.
   const parts = aspect.split(':').map((x) => Number(x) || 1);
   const w = parts[0] ?? 1;
   const h = parts[1] ?? 1;
