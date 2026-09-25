@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { ApiPaths, type PageDTO } from '@comicai/types';
 import { PageSizeSelect } from './page-size-select';
 import { Button } from '@/components/ui/button';
-import { SectionLabel } from './section-label';
+import { InspectorSection } from './inspector-section';
 import { InspectorShell } from './inspector-shell';
 import { ColorField } from '@/components/ui/color-field';
 import { useToast } from '@/components/ui/toast';
@@ -15,15 +15,13 @@ interface Props {
   onPageUpdated: (page: PageDTO) => void;
   /** 내보내기 다이얼로그를 연다. 다이얼로그 자체는 에디터가 들고 있다(컷 목록이 필요하다). */
   onExport: () => void;
-  /** 호출 시 인스펙터를 접는다. */
-  onCollapse?: () => void;
 }
 
 /**
  * 패널이 선택되지 않았을 때 우측에 노출되는 페이지 단위 인스펙터.
  * 페이지 크기·배경색·내보내기 — 이 페이지 한 장에 대한 것들.
  */
-export function PageInspector({ page, onPageUpdated, onExport, onCollapse }: Props) {
+export function PageInspector({ page, onPageUpdated, onExport }: Props) {
   const toast = useToast();
   const currentColor = page.backgroundColor ?? '#ffffff';
   const hasColor = !!page.backgroundColor;
@@ -54,14 +52,12 @@ export function PageInspector({ page, onPageUpdated, onExport, onCollapse }: Pro
   }
 
   return (
-    <InspectorShell title="페이지" onCollapse={onCollapse}>
-      <div className="space-y-2">
-        <SectionLabel icon={Ruler}>페이지 크기</SectionLabel>
+    <InspectorShell title="페이지">
+      <InspectorSection icon={Ruler} title="페이지 크기">
         <PageSizeSelect value={page.size} onChange={(size) => void patch({ size })} />
-      </div>
+      </InspectorSection>
 
-      <div className="space-y-2">
-        <SectionLabel icon={Palette}>배경 색</SectionLabel>
+      <InspectorSection icon={Palette} title="배경 색">
         <ColorField value={currentColor} onCommit={commitColor} ariaLabel="페이지 배경 색" />
         {hasColor && (
           <button
@@ -75,19 +71,18 @@ export function PageInspector({ page, onPageUpdated, onExport, onCollapse }: Pro
         <p className="text-caption text-muted-foreground">
           내보내기 시 컷이 없는 영역에 적용됩니다.
         </p>
-      </div>
+      </InspectorSection>
 
       {/*
         내보내기는 **이 페이지 한 장**을 내보낸다. 예전에는 헤더 오른쪽 끝에 있었는데,
         거기는 앱 전체에 대한 자리라 "작품 전부" 로 읽혔다. 크기·배경색과 나란히 두면
         무엇이 나가는지가 버튼 위치로 드러난다.
       */}
-      <div className="space-y-2">
-        <SectionLabel icon={Download}>내보내기</SectionLabel>
+      <InspectorSection icon={Download} title="내보내기">
         <Button variant="outline" onClick={onExport} className="w-full">
           이 페이지 내보내기
         </Button>
-      </div>
+      </InspectorSection>
     </InspectorShell>
   );
 }

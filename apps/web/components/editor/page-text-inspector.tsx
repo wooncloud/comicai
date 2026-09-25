@@ -1,5 +1,5 @@
 'use client';
-import { Type } from 'lucide-react';
+import { Layers, Type } from 'lucide-react';
 import type { Editor, TLShapeId } from 'tldraw';
 import {
   PAGE_TEXT_FONT_FAMILIES,
@@ -7,7 +7,7 @@ import {
   type PageTextFontFamily,
 } from '@comicai/types';
 import type { PageTextShape } from './tldraw/page-text-shape';
-import { SectionLabel } from './section-label';
+import { Field, InspectorSection } from './inspector-section';
 import { InspectorShell } from './inspector-shell';
 import { ColorField } from '@/components/ui/color-field';
 import { NumberField } from './number-field';
@@ -29,7 +29,6 @@ interface Props {
   canMoveForward?: boolean;
   canMoveBackward?: boolean;
   onReorder?: (action: LayerOrderAction) => void;
-  onCollapse?: () => void;
 }
 
 export function PageTextInspector({
@@ -39,7 +38,6 @@ export function PageTextInspector({
   canMoveForward,
   canMoveBackward,
   onReorder,
-  onCollapse,
 }: Props) {
   const p = shape.props;
 
@@ -57,15 +55,11 @@ export function PageTextInspector({
   return (
     <InspectorShell
       title={`텍스트${p.textId ? '' : ' · 저장 중…'}`}
-      onCollapse={onCollapse}
       onDelete={() => editor.deleteShapes([shapeId])}
       deleteLabel="텍스트 삭제"
     >
-      <div className="space-y-2">
-        <SectionLabel icon={Type}>텍스트</SectionLabel>
-
-        <div className="space-y-1">
-          <div className="text-caption text-muted-foreground">폰트</div>
+      <InspectorSection icon={Type} title="텍스트">
+        <Field label="폰트">
           <Select
             value={p.fontFamily}
             onValueChange={(v) => patch({ fontFamily: v as PageTextFontFamily })}
@@ -81,15 +75,13 @@ export function PageTextInspector({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <div className="text-caption text-muted-foreground">정렬</div>
+        <Field label="정렬">
           <AlignToggle value={p.textAlign} onChange={(v) => patch({ textAlign: v })} />
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <div className="text-caption text-muted-foreground">크기</div>
+        <Field label="크기">
           <div className="flex items-center gap-2">
             <NumberField
               value={p.fontSize}
@@ -101,27 +93,28 @@ export function PageTextInspector({
             />
             <span className="text-caption text-muted-foreground">px</span>
           </div>
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <div className="text-caption text-muted-foreground">색</div>
+        <Field label="색">
           <ColorField
             value={p.color}
             onCommit={(v) => patch({ color: v })}
             ariaLabel="글자 색"
             variant="panel"
           />
-        </div>
+        </Field>
+      </InspectorSection>
 
-        {onReorder && (
+      {onReorder && (
+        <InspectorSection icon={Layers} title="순서">
           <LayerOrderControls
             canMoveForward={canMoveForward ?? false}
             canMoveBackward={canMoveBackward ?? false}
             onReorder={onReorder}
             disabled={!p.textId}
           />
-        )}
-      </div>
+        </InspectorSection>
+      )}
     </InspectorShell>
   );
 }

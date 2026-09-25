@@ -1,9 +1,9 @@
 'use client';
-import { Slash } from 'lucide-react';
+import { Layers, Slash } from 'lucide-react';
 import type { Editor, TLShapeId } from 'tldraw';
 import { PAGE_LINE_STROKE_STYLES, type PageLineStrokeStyle } from '@comicai/types';
 import type { PageLineShape } from './tldraw/page-line-shape';
-import { SectionLabel } from './section-label';
+import { Field, InspectorSection } from './inspector-section';
 import { InspectorShell } from './inspector-shell';
 import { ColorField } from '@/components/ui/color-field';
 import { StrokeWidthField } from './stroke-width-field';
@@ -24,7 +24,6 @@ interface Props {
   canMoveForward?: boolean;
   canMoveBackward?: boolean;
   onReorder?: (action: LayerOrderAction) => void;
-  onCollapse?: () => void;
 }
 
 const STROKE_STYLE_LABEL: Record<PageLineStrokeStyle, string> = {
@@ -39,7 +38,6 @@ export function PageLineInspector({
   canMoveForward,
   canMoveBackward,
   onReorder,
-  onCollapse,
 }: Props) {
   const p = shape.props;
 
@@ -57,25 +55,20 @@ export function PageLineInspector({
   return (
     <InspectorShell
       title={`직선${p.lineId ? '' : ' · 저장 중…'}`}
-      onCollapse={onCollapse}
       onDelete={() => editor.deleteShapes([shapeId])}
       deleteLabel="직선 삭제"
     >
-      <div className="space-y-2">
-        <SectionLabel icon={Slash}>선</SectionLabel>
-
-        <div className="space-y-1">
-          <div className="text-caption text-muted-foreground">색</div>
+      <InspectorSection icon={Slash} title="선">
+        <Field label="색">
           <ColorField
             value={p.strokeColor}
             onCommit={(v) => patch({ strokeColor: v })}
             ariaLabel="선 색"
             variant="panel"
           />
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <div className="text-caption text-muted-foreground">굵기</div>
+        <Field label="굵기">
           {/*
             끄는 동안에도 셰이프를 고쳐 캔버스가 따라오게 한다. 서버 저장은 sync 훅이
             1.5초 디바운스하므로 요청이 쌓이지 않는다 — 컷 테두리만 직접 PATCH 라
@@ -87,10 +80,9 @@ export function PageLineInspector({
             onCommit={(v) => patch({ strokeWidth: v })}
             ariaLabel="선 굵기"
           />
-        </div>
+        </Field>
 
-        <div className="space-y-1">
-          <div className="text-caption text-muted-foreground">종류</div>
+        <Field label="종류">
           <Select
             value={p.strokeStyle}
             onValueChange={(v) => patch({ strokeStyle: v as PageLineStrokeStyle })}
@@ -106,17 +98,19 @@ export function PageLineInspector({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
+      </InspectorSection>
 
-        {onReorder && (
+      {onReorder && (
+        <InspectorSection icon={Layers} title="순서">
           <LayerOrderControls
             canMoveForward={canMoveForward ?? false}
             canMoveBackward={canMoveBackward ?? false}
             onReorder={onReorder}
             disabled={!p.lineId}
           />
-        )}
-      </div>
+        </InspectorSection>
+      )}
     </InspectorShell>
   );
 }

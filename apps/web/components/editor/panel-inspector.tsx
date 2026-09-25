@@ -16,7 +16,7 @@ import {
   type TipTapDoc,
   type ModelId,
 } from '@comicai/types';
-import { PencilRuler, Brush, Sparkles, Square } from 'lucide-react';
+import { History, PencilLine, PencilRuler, Sparkles, Square } from 'lucide-react';
 import type { Editor, TLShapeId } from 'tldraw';
 /*
  * tiptap + prosemirror 는 50kB(gzip)인데, 이 에디터는 컷이 선택됐을 때만 그려진다.
@@ -26,7 +26,7 @@ const PanelTextEditor = dynamic(() => import('./panel-editor').then((m) => m.Pan
   ssr: false,
 });
 import { PanelStatusBadge } from './panel-status-badge';
-import { SectionLabel } from './section-label';
+import { Field, InspectorSection } from './inspector-section';
 import { InspectorShell } from './inspector-shell';
 import { ColorField } from '@/components/ui/color-field';
 import { StrokeWidthField } from './stroke-width-field';
@@ -58,8 +58,6 @@ interface Props {
   panel: PanelDTO;
   onPanelUpdated: (p: PanelDTO) => void;
   onPanelDeleted: () => void;
-  /** 호출 시 인스펙터를 접는다. 부재 시 토글 버튼 미노출. */
-  onCollapse?: () => void;
 }
 
 export function PanelInspector({
@@ -69,7 +67,6 @@ export function PanelInspector({
   panel,
   onPanelUpdated,
   onPanelDeleted,
-  onCollapse,
 }: Props) {
   const [doc, setDoc] = useState<TipTapDoc>(panel.text);
   // null이면 프로젝트 대표 모델(없으면 Gemini)을 사용.
@@ -304,53 +301,22 @@ export function PanelInspector({
   return (
     <InspectorShell
       title="컷"
-      onCollapse={onCollapse}
       badge={<PanelStatusBadge status={status} />}
       onDelete={onDelete}
       deleteLabel="컷 삭제"
     >
-      <PanelTextEditor
-        projectId={projectId}
-        initial={doc}
-        onChange={setDoc}
-        onSubmit={() => {
-          // 진행 중이거나 mutation pending이면 무시.
-          if (status === 'queued' || status === 'running' || startRender.isPending) return;
-          void requestRender();
-        }}
-      />
-
-      <PanelStrokeEditor
-        shape={panel.shape}
-        onWidthChange={(strokeWidth) => {
-          /*
-           * 굵기는 **캔버스 셰이프를 직접** 고친다. 저장은 sync 훅이 1.5초 디바운스로
-           * 한 번만 하고, 좌표는 캔버스가 쥔 값이 그대로 나간다.
-           *
-           * DTO(`onPanelUpdated`)를 거치면 안 된다 — `panel.shape` 은 선택 시점의
-           * 스냅샷이라 그 사이 캔버스에서 옮긴 좌표가 없다. 그걸 되쓰면 컷을 옮긴
-           * 직후 굵기를 바꿀 때 **이동이 취소된다.** 아래 색 저장이 좌표를 빼고
-           * 보내는 것과 같은 이유다.
-           */
-          editor.updateShape({ id: shapeId, type: 'comic-panel', props: { strokeWidth } });
-        }}
-        onChange={async (stroke) => {
-          try {
-            /*
-             * 좌표를 실어 보내지 않는다. 예전에는 `{ shape: next }` 로 shape 전체를
-             * 보냈는데, `panel.shape` 은 선택 시점의 DTO 라 그 사이 캔버스에서 옮긴
-             * 좌표가 반영돼 있지 않다 — 컷을 옮긴 직후 색을 바꾸면 이동이 취소됐다.
-             */
-            const updated = await api<PanelDTO>(ApiPaths.panel(panel.id), {
-              method: 'PATCH',
-              body: JSON.stringify({ stroke }),
-            });
-            onPanelUpdated(updated);
-          } catch (err) {
-            if (err instanceof ApiError) toast.push('error', errorMessage(err, '컷 테두리를 저장'));
-          }
-        }}
-      />
+      <InspectorSection icon={PencilLine} title="장면 설명">
+        <PanelTextEditor
+          projectId={projectId}
+          initial={doc}
+          onChange={setDoc}
+          onSubmit={() => {
+            // 진행 중이거나 mutation pending이면 무시.
+            if (status === 'queued' || status === 'running' || startRender.isPending) return;
+            void requestRender();
+          }}
+        />
+      </InspectorSection>
 
       {/*
         콘티는 화면에서 내렸다(`FEATURES.conti`). 컷 하나를 그리려고 스케치를 따로
@@ -361,7 +327,10 @@ export function PanelInspector({
         <>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <SectionLabel icon={PencilRuler}>콘티 (구도 스케치)</SectionLabel>
+              <span className="flex items-center gap-1.5 text-caption font-semibold">
+                <PencilRuler className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                콘티 (구도 스케치)
+              </span>
               {panel.conti && (
                 <button
                   type="button"
@@ -445,59 +414,54 @@ export function PanelInspector({
         </div>
       )}
 
-      <div className="space-y-2">
-        <SectionLabel icon={Brush}>
-          그림체
-          {panel.styleId == null && project?.defaultStyleId && (
-            <span className="ml-1 text-caption font-normal text-muted-foreground">
-              (프로젝트 대표)
-            </span>
-          )}
-        </SectionLabel>
-        <Select
-          value={effectiveStyleId ?? '__none__'}
-          onValueChange={async (v) => {
-            const next = v === '__none__' ? null : v;
-            try {
-              const updated = await api<PanelDTO>(ApiPaths.panel(panel.id), {
-                method: 'PATCH',
-                body: JSON.stringify({ styleId: next }),
-              });
-              onPanelUpdated(updated);
-            } catch (err) {
-              toast.push('error', errorMessage(err, '그림체를 저장'));
-            }
-          }}
+      <InspectorSection icon={Sparkles} title="그리기">
+        <Field
+          label={`그림체${panel.styleId == null && project?.defaultStyleId ? ' (프로젝트 대표)' : ''}`}
         >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="그림체 선택" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">(없음)</SelectItem>
-            {(styles ?? []).map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-                {s.id === project?.defaultStyleId ? ' · 대표' : ''}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+          <Select
+            value={effectiveStyleId ?? '__none__'}
+            onValueChange={async (v) => {
+              const next = v === '__none__' ? null : v;
+              try {
+                const updated = await api<PanelDTO>(ApiPaths.panel(panel.id), {
+                  method: 'PATCH',
+                  body: JSON.stringify({ styleId: next }),
+                });
+                onPanelUpdated(updated);
+              } catch (err) {
+                toast.push('error', errorMessage(err, '그림체를 저장'));
+              }
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="그림체 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">(없음)</SelectItem>
+              {(styles ?? []).map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                  {s.id === project?.defaultStyleId ? ' · 대표' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
 
-      <div className="space-y-2">
-        <SectionLabel icon={Sparkles}>AI 서비스</SectionLabel>
-        <Select value={model} onValueChange={(v) => setUserModel(v as ModelId)}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MODEL_OPTIONS.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Field label="AI 서비스">
+          <Select value={model} onValueChange={(v) => setUserModel(v as ModelId)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MODEL_OPTIONS.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
         {status === 'queued' || status === 'running' ? (
           /*
             생성 중에는 취소를 내보낸다. 취소 API 는 원래 있었는데 부르는 곳이
@@ -554,15 +518,50 @@ export function PanelInspector({
             ) : null}
           </div>
         )}
-      </div>
+      </InspectorSection>
 
-      <HistoryTray
-        panelId={panel.id}
-        currentRenderId={panel.currentRenderId}
-        onRestored={(p) => {
-          onPanelUpdated(p);
+      {/* 테두리는 그림이 나온 뒤에 만지는 값이라 '그리기' 아래에 둔다. */}
+      <PanelStrokeEditor
+        shape={panel.shape}
+        onWidthChange={(strokeWidth) => {
+          /*
+           * 굵기는 **캔버스 셰이프를 직접** 고친다. 저장은 sync 훅이 1.5초 디바운스로
+           * 한 번만 하고, 좌표는 캔버스가 쥔 값이 그대로 나간다.
+           *
+           * DTO(`onPanelUpdated`)를 거치면 안 된다 — `panel.shape` 은 선택 시점의
+           * 스냅샷이라 그 사이 캔버스에서 옮긴 좌표가 없다. 그걸 되쓰면 컷을 옮긴
+           * 직후 굵기를 바꿀 때 **이동이 취소된다.** 아래 색 저장이 좌표를 빼고
+           * 보내는 것과 같은 이유다.
+           */
+          editor.updateShape({ id: shapeId, type: 'comic-panel', props: { strokeWidth } });
+        }}
+        onChange={async (stroke) => {
+          try {
+            /*
+             * 좌표를 실어 보내지 않는다. 예전에는 `{ shape: next }` 로 shape 전체를
+             * 보냈는데, `panel.shape` 은 선택 시점의 DTO 라 그 사이 캔버스에서 옮긴
+             * 좌표가 반영돼 있지 않다 — 컷을 옮긴 직후 색을 바꾸면 이동이 취소됐다.
+             */
+            const updated = await api<PanelDTO>(ApiPaths.panel(panel.id), {
+              method: 'PATCH',
+              body: JSON.stringify({ stroke }),
+            });
+            onPanelUpdated(updated);
+          } catch (err) {
+            if (err instanceof ApiError) toast.push('error', errorMessage(err, '컷 테두리를 저장'));
+          }
         }}
       />
+
+      <InspectorSection icon={History} title="생성 기록">
+        <HistoryTray
+          panelId={panel.id}
+          currentRenderId={panel.currentRenderId}
+          onRestored={(p) => {
+            onPanelUpdated(p);
+          }}
+        />
+      </InspectorSection>
     </InspectorShell>
   );
 }
@@ -590,22 +589,22 @@ function PanelStrokeEditor({
   }
 
   return (
-    <div className="space-y-2">
-      <SectionLabel icon={Square}>컷 테두리</SectionLabel>
+    <InspectorSection icon={Square} title="컷 테두리">
       {/*
-        색과 굵기를 한 줄에 두지 않는다. 색칸이 펼쳐지면 그 줄 전체가 높아지면서
-        굵기 칸이 팔레트 옆에 떠 버린다 — 무엇에 딸린 값인지 흐려진다.
+        색과 굵기를 한 줄에 두지 않는다. 색칸을 누르면 팝오버가 뜨는데, 한 줄에 같이
+        있으면 팝오버가 굵기 손잡이를 덮는다 — 무엇에 딸린 값인지 흐려진다.
       */}
-      <ColorField value={color} onCommit={commitColor} ariaLabel="컷 테두리 색" variant="panel" />
-      <div className="space-y-1">
-        <div className="text-caption text-muted-foreground">굵기</div>
+      <Field label="색">
+        <ColorField value={color} onCommit={commitColor} ariaLabel="컷 테두리 색" variant="panel" />
+      </Field>
+      <Field label="굵기">
         <StrokeWidthField
           value={width}
           onPreview={onWidthChange}
           onCommit={onWidthChange}
           ariaLabel="컷 테두리 굵기"
         />
-      </div>
-    </div>
+      </Field>
+    </InspectorSection>
   );
 }

@@ -210,8 +210,8 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
   - `number-field.tsx` — 디바운스 + 화살표 조정이 있는 숫자 입력. 인스펙터 전반에서 재사용
   - `stroke-width-field.tsx` — 선 굵기(`StrokeWidthField`, `stroke-width-field.tsx:36`). 슬라이더 1~10 + 숫자 칸. 컷 테두리·말풍선 선·직선이 공유한다
   - `align-toggle.tsx` — `TextAlign` 토글 (left/center/right). PageText/SpeechBubble 공유
-  - `section-label.tsx` — 아이콘 + 캡션 섹션 헤더
-  - `collapse-button.tsx` / `collapse-rail.tsx` — 좌/우 사이드바 접기/펴기
+  - `inspector-section.tsx` — 구역 껍데기(`InspectorSection`)와 한 줄(`Field`). 다섯 인스펙터가 공유
+  - `resize-handle.tsx` — 패널 경계의 끌기 손잡이. 접기 버튼을 대신한다
   - `tool-rail.tsx` — 캔버스 좌측 도구 레일(`select`/`hand`/`comic-panel`/`page-text`/`page-line`/말풍선 진입). 한글 IME 안전을 위해 `KeyboardEvent.code` 매핑(예: `KeyL` → `page-line`)
   - `conti-dialog.tsx` — 콘티 업로드/제거 다이얼로그 (POST/DELETE `/v1/panels/:id/conti`)
 - `history-tray.tsx` — 패널별 렌더 히스토리 그리드. 후술
@@ -431,7 +431,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 있고, 그걸 되쓰면 그 뒤 이 도형의 모든 편집이 저장 큐에서 "id 없음" 으로 걸러진다. 색을 한 번
 바꿨을 뿐인데 영구히 저장되지 않았다.
 
-컷 테두리는 아예 다른 경로를 쓴다 — `PATCH /v1/panels/:id` 의 `stroke` 필드(`panel-inspector.tsx:338`).
+컷 테두리는 아예 다른 경로를 쓴다 — `PATCH /v1/panels/:id` 의 `stroke` 필드(`panel-inspector.tsx:538`).
 `shape` 전체를 보내면 낡은 좌표까지 같이 써서 방금 옮긴 위치가 되돌아간다.
 
 #### `use-page-frame.ts`
@@ -574,7 +574,7 @@ apps/web/
 │   │   ├── placeholder-extension.ts  # 빈 칸 안내(ProseMirror Decoration)
 │   │   ├── mention-{extension,suggestion}.{ts,tsx}
 │   │   ├── conti-dialog.tsx          # 콘티 업/다운/삭제
-│   │   ├── (number-field|align-toggle|section-label|collapse-button|collapse-rail|tool-rail).tsx
+│   │   ├── (number-field|stroke-width-field|align-toggle|inspector-section|resize-handle|tool-rail).tsx
 │   │   ├── (page-sidebar|page-size-select|export-dialog|save-status|panel-status-badge).tsx
 │   │   └── tldraw/             # comic-editor, comic-panel-{shape,tool},
 │   │                           # polygon-{panel-tool,preview,state}, polygon-tool-base,
@@ -648,6 +648,43 @@ apps/web/
   사라지고, 덤으로 탭 전환이 즉시가 된다. 프로젝트 하나의 설정집은 수십 개 규모라
   네 번 나눠 읽을 이유가 없다.
 
+### 인스펙터는 구역으로 나뉜다
+
+예전에는 구역 제목과 입력들이 같은 흐름에 세로로 쭉 이어졌다. 말풍선 인스펙터를 열면
+채움·선·꼬리·폰트·정렬·크기·글자 색·순서가 **경계 없이** 한 줄기로 흘러, 어디까지가
+'말풍선' 이고 어디부터가 '대사' 인지 매번 읽어 봐야 했다.
+
+`InspectorSection`(`components/editor/inspector-section.tsx:16`)이 테두리와 제목 줄로
+눈에 보이는 경계를 준다. 한 줄은 `Field`(`:44`) — 라벨 위, 입력 아래다(라벨을 왼쪽에
+두면 좁은 인스펙터에서 입력 폭이 줄마다 달라진다).
+
+**탭으로 가르지 않은 이유**: 구역이 두세 개뿐이고 서로 같이 보면서 맞추는 값들이다 —
+풍선 색을 고르면서 글자 색을 본다. 탭은 그 둘을 동시에 못 보게 만든다.
+
+컷 인스펙터는 순서도 바꿨다: 장면 설명 → 그리기(그림체·AI·생성) → 컷 테두리 →
+생성 기록. 테두리는 그림이 나온 뒤에 만지는 값이라 생성 버튼보다 위에 있을 이유가 없었다.
+
+### 사이드 패널은 끌어서 넓힌다 — 접기 버튼은 없앴다
+
+패널마다 접기 버튼과, 접혔을 때 펼치는 레일이 따로 있었다. 버튼은 늘 화면에 있으면서
+정작 하는 일은 0/100 둘 중 하나였다 — "조금만 좁히고 싶다" 는 할 수 없었고, 버튼
+자체가 좁은 헤더의 자리를 먹었다.
+
+- 경계의 `ResizeHandle`(`components/editor/resize-handle.tsx:26`)을 끌어 폭을 정한다.
+  방향키로도 조절되고(5px 손잡이를 마우스로만 잡게 두면 키보드 사용자에게는 없는
+  기능이다), 더블클릭·Enter 는 접기/펼치기다.
+- **너무 좁게 끌면 접힌다**(`hideBelow`). 접힌 자리에 남은 얇은 띠가 다시 꺼내는
+  길이라, 그때만 가운데에 손잡이 표시를 띄운다.
+- **세 패널의 한계는 각자 다르다**(`app/projects/[id]/pages/[pageid]/page.tsx:99`).
+  페이지 목록은 이름 한 줄(144 / 120~320), 도구 레일은 아이콘 한 줄(48 / 44~96),
+  인스펙터는 색·슬라이더·선택 상자가 들어가 가장 넓다(320 / 260~560). 한 값으로
+  묶으면 어느 하나는 늘 어색해진다.
+- 폭은 브라우저에 남긴다. **`useState` 초기화 함수에서 읽으면 안 된다** — 서버가 그린
+  HTML(기본 폭)과 값이 달라지는데 React 는 하이드레이션 때 어긋난 **속성을 고치지
+  않는다.** `style="width:144px"` 가 그대로 남아 저장된 폭이 조용히 무시됐다
+  (2026-09-25). 그래서 붙은 뒤 `useEffect` 에서 읽어 적용한다
+  (`lib/use-panel-width.ts:32`).
+
 ### 삭제 버튼은 인스펙터 껍데기가 그린다
 
 Delete 키로 지울 수는 있었지만 **버튼이 컷에만 있었다.** 말풍선을 고르고 인스펙터를
@@ -684,7 +721,7 @@ Delete 키로 지울 수는 있었지만 **버튼이 컷에만 있었다.** 말�
 - **끄는 동안 저장하지 않는다.** 처음에는 `onChange` 마다 커밋했는데, 컷 테두리는
   그게 곧 `PATCH /v1/panels/:id` 라서 손잡이를 한 번 끌면 요청이 수십 개 나갔다.
   끄는 동안은 `onPreview`(화면만), 손을 뗄 때 `onCommit`(저장) 이다.
-  컷은 `onPreview` 가 **캔버스 셰이프를 직접** 고친다(`onWidthChange`, `panel-inspector.tsx:325`) —
+  컷은 `onPreview` 가 **캔버스 셰이프를 직접** 고친다(`onWidthChange`, `panel-inspector.tsx:526`) —
   DTO 를 거치면 선택 시점의 낡은 좌표가 되쓰여, 컷을 옮긴 직후 굵기를 바꿀 때
   **이동이 취소된다.** 저장은 sync 훅의 1.5초 디바운스가 한 번만 한다.
 - 지나온 구간만 진하게 칠한다(인라인 배경 그라디언트). 손잡이 모양은
@@ -1004,8 +1041,8 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 
 `panel-inspector.tsx` 의 생성 영역(`생성하기`, `components/editor/panel-inspector.tsx:459`)은 모델별 토큰 단가와 부족 상태를 표시한다.
 
-- **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:531`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
-- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:542`, `lib/tokens.ts:151`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:544`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
+- **비용 표기**: 모델 비용이 0보다 크면 버튼에 `· N토큰` (`formatTokens`, `:495`)을 표시한다. BYOK 사용자는 비용이 0이므로 아무 숫자도 붙지 않는다.
+- **부족 시 사전 안내**: 잔액이 부족하면(`short`, `:506`, `lib/tokens.ts:151`) 버튼 바로 아래에 안내(`토큰이 모자랍니다`, `components/editor/panel-inspector.tsx:508`)를 띄운다. 누르기 전에 미리 알려 주어 헛수고를 줄인다.
 - **버튼을 잠그지 않는 이유 (`components/editor/panel-inspector.tsx:468-471`)**:
   - 잔액이 부족해도 **생성하기 버튼을 비활성화(`disabled`)하지 않는다.**
   - 화면의 잔액은 캐시일 뿐이라 방금 운영자에게 지급받은 토큰이 아직 캐시에 도착하지 않았을 수 있다. 버튼을 잠그면 사용자는 새로고침 외에 아무것도 할 수 없게 된다.

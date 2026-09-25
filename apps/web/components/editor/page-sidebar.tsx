@@ -12,7 +12,6 @@ import { usePageReorder } from '@/lib/use-page-reorder';
 import { ApiPaths, DEFAULT_PAGE_SIZE, pageLabel, type PageDTO } from '@comicai/types';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
-import { CollapseButton } from './collapse-button';
 import { cn } from '@/lib/cn';
 import { errorMessage } from '@/lib/error-message';
 
@@ -27,8 +26,6 @@ interface Props {
    */
   currentPage: PageDTO | null;
   onCurrentPageUpdated: (page: PageDTO) => void;
-  /** 호출 시 사이드바를 접는다. 부재 시 토글 버튼 미노출. */
-  onCollapse?: () => void;
 }
 
 export function PageSidebar({
@@ -36,7 +33,6 @@ export function PageSidebar({
   currentPageId,
   currentPage,
   onCurrentPageUpdated,
-  onCollapse,
 }: Props) {
   const [adding, setAdding] = useState(false);
   const toast = useToast();
@@ -116,24 +112,19 @@ export function PageSidebar({
   }
 
   return (
-    <aside className="flex w-36 flex-col border-r border-border bg-card">
+    <aside className="flex min-w-0 flex-1 flex-col border-r border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-2 py-1.5">
         <span className="text-xs uppercase tracking-wide text-muted-foreground">페이지</span>
-        <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            onClick={addPage}
-            disabled={adding}
-            title="페이지 추가"
-            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="sr-only">페이지 추가</span>
-          </button>
-          {onCollapse && (
-            <CollapseButton side="left" onClick={onCollapse} title="페이지 목록 접기" />
-          )}
-        </div>
+        <button
+          type="button"
+          onClick={addPage}
+          disabled={adding}
+          title="페이지 추가"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="sr-only">페이지 추가</span>
+        </button>
       </div>
       <ul className="flex-1 overflow-auto p-1">
         {/* 세 상태는 서로 배타적이다. 삼항으로 쓰면 배타성을 손으로 지킬 필요가 없다. */}

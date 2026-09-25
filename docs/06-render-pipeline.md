@@ -319,7 +319,7 @@ SSE wire format은 `packages/events/src/index.ts:25` `formatSseEvent`:
 - SSE 측은 컨트롤러가 취소 시점에 `canceled` 이벤트를 발행하지는 않는다. 다만 **재연결하면
   스냅샷으로 현재 상태가 온다**(위 §2.4) — 취소된 잡도 그때 `canceled` 로 관찰된다.
 
-UI에서 취소 버튼은 생성 중(`queued`/`running`)일 때 panel-inspector에 노출된다 (`apps/web/components/editor/panel-inspector.tsx:493-511`).
+UI에서 취소 버튼은 생성 중(`queued`/`running`)일 때 panel-inspector에 노출된다 (`apps/web/components/editor/panel-inspector.tsx:465-483`).
 `cancelRender` mutation (`:166-183`)이 경로 헬퍼 `ApiPaths.renderJobCancel` (`packages/types/src/paths.ts:61`)을 호출하여 잡을 취소한다.
 
 ---

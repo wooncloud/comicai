@@ -39,7 +39,7 @@ export function ToolRail({ editor }: Props) {
 
   return (
     <TooltipProvider delayDuration={0} skipDelayDuration={0}>
-      <nav className="flex w-12 flex-none flex-col items-center gap-1 border-r border-border bg-card py-2">
+      <nav className="flex min-w-0 flex-1 flex-col items-center gap-1 border-r border-border bg-card py-2">
         {TOOL_GROUPS.map(({ primary: t, subModes }) => {
           const Icon = t.icon;
           // 하위 모드가 켜져 있어도 1차 도구는 활성으로 보여야 한다.
