@@ -63,3 +63,35 @@ describe('드래그로 새로 그리면 바로 쓸 수 있다', () => {
     expect(src).toContain('requestAnimationFrame(() => {');
   });
 });
+
+/**
+ * 꼬리는 데이터와 렌더가 처음부터 있었는데 만들 방법이 없었다 — 항상 null 이라
+ * 아무도 쓸 수 없었다. 2026-09-25 에 손잡이와 버튼을 붙였다.
+ */
+describe('말풍선 꼬리', () => {
+  const INSPECTOR = read('components/editor/speech-bubble-inspector.tsx');
+
+  it('손잡이 하나를 내준다 — 없으면 create, 있으면 vertex', () => {
+    expect(BUBBLE).toContain('override getHandles');
+    expect(BUBBLE).toContain("id: 'tail'");
+    expect(BUBBLE).toContain("has ? 'vertex' : 'create'");
+  });
+
+  it('손잡이를 끌면 끝점이 바뀐다', () => {
+    expect(BUBBLE).toContain('override onHandleDrag');
+    expect(BUBBLE).toContain('tailX: handle.x, tailY: handle.y');
+  });
+
+  it('꼬리를 몸통보다 먼저 그린다 — 밑변이 풍선 안에서 보이면 안 된다', () => {
+    const tail = BUBBLE.indexOf('d={tailPath}');
+    const body = BUBBLE.indexOf('d={bodyPath}');
+    expect(tail).toBeGreaterThan(0);
+    expect(tail).toBeLessThan(body);
+  });
+
+  it('인스펙터에서 달고 없앨 수 있다 — 손잡이만으로는 발견되지 않는다', () => {
+    expect(INSPECTOR).toContain('꼬리 달기');
+    expect(INSPECTOR).toContain('꼬리 없애기');
+    expect(INSPECTOR).toContain('tailX: null, tailY: null');
+  });
+});

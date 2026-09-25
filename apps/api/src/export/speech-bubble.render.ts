@@ -46,8 +46,9 @@ function buildBubbleFragment(b: BubbleInput): string {
   const tailD = b.shape.tail ? bubbleTailPath(b.shape.tail.x, b.shape.tail.y, W, H) : null;
   return `<g transform="translate(${x} ${y})">
   <g fill="${safeColor(style.fillColor, defaults.fillColor)}" stroke="${safeColor(style.strokeColor, defaults.strokeColor)}" stroke-width="${style.strokeWidth}" stroke-linejoin="round">
-    <path d="${bodyD}" />
+    <!-- 꼬리를 먼저 깐다. 풍선 몸통이 그 위를 덮어 삼각형 밑변이 풍선 안에서 보이지 않는다. -->
     ${tailD ? `<path d="${tailD}" />` : ''}
+    <path d="${bodyD}" />
   </g>
   ${bubbleTextFragment(b, W, H)}
 </g>`;

@@ -26,6 +26,15 @@ export function bubbleBodyPath(
   }
 }
 
+/**
+ * 꼬리를 처음 달 때의 기본 끝점 — 풍선 아래 바깥.
+ *
+ * 만화에서 말하는 사람은 대개 풍선 아래에 있다. 여기서 시작해 사용자가 끌어 옮긴다.
+ */
+export function defaultTailPoint(w: number, h: number): { x: number; y: number } {
+  return { x: w / 2, y: h + Math.max(24, h * 0.35) };
+}
+
 export function bubbleTailPath(tx: number, ty: number, w: number, h: number): string {
   const cx = w / 2;
   const cy = h / 2;

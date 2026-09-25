@@ -7,11 +7,16 @@ import {
   type RecordProps,
   T,
   type TLBaseShape,
+  type IndexKey,
+  type TLHandle,
+  type TLHandleDragInfo,
+  type TLShapePartial,
 } from 'tldraw';
 import {
   bubbleBodyPath,
   bubbleTailPath,
   bubbleTextBox,
+  defaultTailPoint,
   defaultPageTextStyle,
   defaultSpeechBubbleStyle,
   PAGE_TEXT_FONT_FAMILIES,
@@ -106,6 +111,40 @@ export class SpeechBubbleShapeUtil extends BaseBoxShapeUtil<SpeechBubbleShape> {
       text: '',
       ...textProps(defaultPageTextStyle()),
     };
+  }
+
+  /**
+   * 꼬리 손잡이 하나.
+   *
+   * 꼬리는 데이터와 렌더가 처음부터 있었는데 **만들 방법이 없었다** — 항상 null 이라
+   * 아무도 쓸 수 없는 기능이었다. 여기서 손잡이를 내준다.
+   *
+   * 아직 꼬리가 없으면 `create` 손잡이(비어 있는 작은 점)를 풍선 아래에 둔다. 끌면
+   * 그 자리에 꼬리가 생긴다. 이미 있으면 `vertex` 로 끝점을 잡아 옮긴다.
+   */
+  override getHandles(shape: SpeechBubbleShape): TLHandle[] {
+    const { w, h, tailX, tailY } = shape.props;
+    const has = tailX !== null && tailY !== null;
+    const at = has ? { x: tailX, y: tailY } : defaultTailPoint(w, h);
+    return [
+      {
+        id: 'tail',
+        type: has ? 'vertex' : 'create',
+        index: 'a1' as IndexKey,
+        x: at.x,
+        y: at.y,
+        label: '말풍선 꼬리',
+        canSnap: false,
+      },
+    ];
+  }
+
+  override onHandleDrag(
+    _shape: SpeechBubbleShape,
+    { handle }: TLHandleDragInfo<SpeechBubbleShape>,
+  ): TLShapePartial<SpeechBubbleShape> | void {
+    if (handle.id !== 'tail') return;
+    return { id: _shape.id, type: 'speech-bubble', props: { tailX: handle.x, tailY: handle.y } };
   }
 
   override component(shape: SpeechBubbleShape) {
@@ -205,14 +244,10 @@ function SpeechBubbleBody({
         viewBox={`0 0 ${w} ${h}`}
         style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}
       >
-        <path
-          d={bodyPath}
-          fill={fillColor}
-          stroke={strokeColor}
-          strokeWidth={strokeWidth}
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-        />
+        {/*
+          꼬리를 먼저 깐다. 풍선 몸통이 그 위를 덮어야 삼각형 밑변이 풍선 안에서
+          보이지 않는다. 반대로 그리면 풍선 한가운데를 선 두 줄이 가로지른다.
+        */}
         {tailPath && (
           <path
             d={tailPath}
@@ -223,6 +258,14 @@ function SpeechBubbleBody({
             vectorEffect="non-scaling-stroke"
           />
         )}
+        <path
+          d={bodyPath}
+          fill={fillColor}
+          stroke={strokeColor}
+          strokeWidth={strokeWidth}
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
       </svg>
       <div
         ref={editableRef}

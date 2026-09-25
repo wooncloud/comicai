@@ -208,7 +208,8 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 - `panel-geometry.ts` — `clipPathFor` / `outlinePathFor` / `NormalizedPoint` 헬퍼
 - `use-panel-sync.ts` — 패널 ↔ tldraw 양방향 동기화 훅 (후술)
 - `use-page-frame.ts` — 페이지 frame 자동 생성/갱신 훅 (후술)
-- `speech-bubble-shape.tsx` — `BaseBoxShapeUtil` 기반 `speech-bubble` shape. **텍스트 편집 모드 제거됨** (텍스트는 PageText 로 분리). variant `ellipse/rect/spike/polygon` 별 SVG path(`@comicai/types`의 `bubbleBodyPath`) + 꼬리(tail) 옵션
+- `speech-bubble-shape.tsx` — `BaseBoxShapeUtil` 기반 `speech-bubble` shape. variant `ellipse/rect/spike/polygon` 별 SVG path(`@comicai/types`의 `bubbleBodyPath`). **대사를 직접 갖는다** — 더블클릭으로 풍선 안에서 편집(`canEdit()=true`).
+- 꼬리는 손잡이 하나로 만든다 (`getHandles`). 꼬리가 없으면 `create` 손잡이가 풍선 아래에 서 있고, 끌면 생긴다. **꼬리를 몸통보다 먼저 그린다** — 반대로 그리면 삼각형 밑변이 풍선 한가운데를 가로지른다.
 - `speech-bubble-tools.tsx` — variant별 box 도구 3종(ellipse/rect/spike, 자체 `StateNode` + Idle/Pointing children — click은 default 160×100, drag는 사용자 bbox)과 `BubblePolygonTool`(polygon-tool-base 공유). tldraw `BaseBoxShapeTool`은 click-only 경로에서 `onCreate`를 호출하지 않아 variant 패치가 누락되므로 사용하지 않는다
 - `use-speech-bubble-sync.ts` — 말풍선 ↔ tldraw 양방향 동기화 (use-panel-sync 패턴, 1.5초 디바운스, mergeRemoteChanges 보호)
 - `page-text-shape.tsx` — `BaseBoxShapeUtil` 기반 `page-text` shape. props: w, h, textId, text, fontSize, fontFamily, color, textAlign. `canEdit()=true` 로 더블클릭 시 inline 텍스트 편집(IME 안전 처리)
@@ -400,7 +401,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 #### 인스펙터는 바뀐 키만 넘긴다
 
-`page-line-inspector.tsx:42`·`page-text-inspector.tsx:38`·`speech-bubble-inspector.tsx:49` 의 `patch()` 는
+`page-line-inspector.tsx:42`·`page-text-inspector.tsx:38`·`speech-bubble-inspector.tsx:55` 의 `patch()` 는
 `updateShape` 에 **변경 키만** 준다. `updateShape` 는 props 를 부분 병합하므로 스프레드가 불필요하고,
 스프레드하면 해롭다 — `shape` 는 선택 시점의 스냅샷이라 그 사이 서버가 채워 준 id 가 아직 null 일 수
 있고, 그걸 되쓰면 그 뒤 이 도형의 모든 편집이 저장 큐에서 "id 없음" 으로 걸러진다. 색을 한 번

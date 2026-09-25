@@ -1,7 +1,8 @@
 'use client';
 import { MessageSquare, Type } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { Editor, TLShapeId } from 'tldraw';
-import { PAGE_TEXT_FONT_FAMILIES, type PageTextFontFamily } from '@comicai/types';
+import { PAGE_TEXT_FONT_FAMILIES, defaultTailPoint, type PageTextFontFamily } from '@comicai/types';
 import type { SpeechBubbleShape } from './tldraw/speech-bubble-shape';
 import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
@@ -38,6 +39,7 @@ export function SpeechBubbleInspector({
   onCollapse,
 }: Props) {
   const p = shape.props;
+  const hasTail = p.tailX !== null && p.tailY !== null;
 
   /*
    * **바뀐 키만 넘긴다.** `updateShape` 는 props 를 부분 병합하므로 스프레드가
@@ -84,6 +86,36 @@ export function SpeechBubbleInspector({
             />
             <span className="text-caption text-muted-foreground">px</span>
           </div>
+        </div>
+
+        {/*
+          꼬리는 캔버스에서 손잡이를 끌어 옮긴다. 버튼을 둔 이유는 두 가지다 —
+          손잡이만 있으면 꼬리를 달 수 있다는 걸 모르고, hover 가 없는 기기에서는
+          빈 손잡이가 잘 안 보인다. 없애는 길도 캔버스에는 없다.
+        */}
+        <div className="space-y-1">
+          <div className="text-caption text-muted-foreground">꼬리</div>
+          {hasTail ? (
+            <Button variant="outline" size="sm" onClick={() => patch({ tailX: null, tailY: null })}>
+              꼬리 없애기
+            </Button>
+          ) : (
+            <div className="space-y-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const at = defaultTailPoint(p.w, p.h);
+                  patch({ tailX: at.x, tailY: at.y });
+                }}
+              >
+                꼬리 달기
+              </Button>
+              <p className="text-caption text-muted-foreground">
+                달고 나서 끝을 끌어 말하는 사람 쪽으로 향하게 하세요.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
