@@ -39,7 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { errorMessage, renderErrorMessage } from '@/lib/error-message';
+import { errorMessage, renderCategoryMessage, renderErrorMessage } from '@/lib/error-message';
 import { qk } from '@/lib/query-keys';
 import { MODEL_OPTIONS } from '@/lib/model-options';
 import { affordability, formatTokens, useRefreshTokens, useTokenBalance } from '@/lib/tokens';
@@ -237,8 +237,10 @@ export function PanelInspector({
     });
     es.addEventListener('error', (e) => {
       try {
-        const payload = JSON.parse((e as MessageEvent).data) as { error: { message: string } };
-        setError(payload.error.message);
+        const payload = JSON.parse((e as MessageEvent).data) as {
+          error: { category?: string };
+        };
+        setError(renderCategoryMessage(payload.error.category));
       } catch {}
     });
   }

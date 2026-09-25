@@ -751,8 +751,11 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 - `BY_CODE` 는 `Record<ErrorCode | 'HTTP_ERROR', string | null>` (`lib/error-message.ts:21`) 이라
   `packages/types` 에 코드가 추가되면 **컴파일 에러**로 잡힌다. `null` 은 "코드만으로는 안내할
   내용이 없음" 이고, 그때만 호출부가 넘긴 문맥을 쓴다.
-- `renderErrorMessage`(`:151`) 는 워커가 실어 보내는 `RenderError.category` 를, `oauthErrorMessage`(`:175`)
+- `renderErrorMessage`(`:163`) 는 워커가 실어 보내는 `RenderError.category` 를, `oauthErrorMessage`(`:187`)
   는 OAuth 콜백 쿼리 파라미터를 각각 다룬다.
+- `renderCategoryMessage`(`:158`) 는 렌더 잡이 SSE 로 알려 온 실패를 분류만 보고 문장으로 바꾼다.
+  **서버가 같이 보내는 `message` 는 쓰지 않는다** — 개발자용 문자열이라 `no gemini key` 가 그대로
+  인스펙터 붉은 상자에 떴다(2026-09-25). 호출부는 `panel-inspector.tsx:243`.
 - `adminTokenErrorMessage`(`lib/error-message.ts:140`) 는 운영자의 토큰 지급·회수 실패를 다룬다. 일반 문구를 쓰면 회수 한도 초과 시 운영자에게 "충전 후 다시 시도해 주세요" 가 나가므로, 운영자 맥락에 맞게 "회수할 수 있는 것보다 많습니다 (요청 N, 잔액 M)." 로 분기한다(`required`, `:144`).
 - 이렇게 모으기 전에는 `저장 실패: ${err.code}` 로 영문 enum 이, `(err as Error).message` 로 NestJS
   기본 영문 메시지가 화면에 노출됐고 스윕할 때마다 몇 곳씩 놓쳤다.

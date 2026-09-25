@@ -148,6 +148,18 @@ export function adminTokenErrorMessage(err: unknown): string {
 }
 
 /** 이미지 생성 실패. category 가 실려 오면 그 사유를, 아니면 코드/문맥 기반 문구를 쓴다. */
+/**
+ * 렌더 잡이 SSE 로 알려 온 실패를 사용자 문장으로 바꾼다.
+ *
+ * **서버가 보낸 `message` 는 쓰지 않는다.** 그건 개발자용 문자열이라
+ * `no gemini key` 처럼 그대로 화면에 뜨면 사용자가 읽을 수도, 할 수도 없는 말이 된다
+ * (2026-09-25 에 실제로 그렇게 보였다). 분류만 믿고, 모르는 분류면 일반 문장으로 떨어진다.
+ */
+export function renderCategoryMessage(category: string | undefined): string {
+  const hint = category ? BY_RENDER_CATEGORY[category] : undefined;
+  return hint ? `${hint}` : '이미지를 만들지 못했습니다. 잠시 후 다시 시도해 주세요';
+}
+
 export function renderErrorMessage(err: unknown, action: string): string {
   if (err instanceof ApiError) {
     if (err.code === 'INSUFFICIENT_TOKENS') {
