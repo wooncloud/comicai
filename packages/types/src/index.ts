@@ -2,6 +2,7 @@
 
 import {
   type ENTITY_TYPES,
+  type EPISODE_EXPORT_MODES,
   type MODEL_IDS,
   type PAGE_LINE_STROKE_STYLES,
   PAGE_TEXT_FONT_FAMILIES,
@@ -481,6 +482,9 @@ export interface EpisodeDTO {
 }
 
 /** EpisodeDTO.title 과 order 에서 표시용 라벨. `pageLabel` 과 같은 규칙이다. */
+/** 화를 내보내는 방식. 값 목록은 `schemas.ts` 가 유일한 출처다. */
+export type EpisodeExportMode = (typeof EPISODE_EXPORT_MODES)[number];
+
 export function episodeLabel(episode: { title: string | null; order: number }): string {
   return episode.title ?? `${episode.order + 1}화`;
 }

@@ -56,6 +56,7 @@ const BY_CODE: Record<Code, string | null> = {
   PAGE_NOT_FOUND: '페이지를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
   EPISODE_NOT_FOUND: '화를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
   EPISODE_LAST: '마지막 화는 삭제할 수 없습니다. 페이지는 어떤 화 안에 있어야 합니다.',
+  EPISODE_EMPTY: '이 화에는 페이지가 없습니다. 페이지를 먼저 만들어 주세요.',
   API_KEY_NOT_FOUND: '지금은 그림을 만들 수 없습니다. 잠시 후 다시 시도해 주세요.',
   API_KEY_VERIFY_FAILED: '키 검증에 실패했습니다. 키가 올바른지 확인해 주세요.',
   CONSISTENCY_NOT_FOUND: '항목을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',

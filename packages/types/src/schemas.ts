@@ -298,6 +298,32 @@ export const ExportRequestSchema = z.object({
 });
 export type ExportRequest = z.infer<typeof ExportRequestSchema>;
 
+/**
+ * 화를 통째로 내보내는 두 가지 방식.
+ *
+ * - `stitch` — 페이지를 **세로로 이어 붙인다**. 웹툰은 한 화가 끊김 없이 흐르는
+ *   한 덩어리라, 한 장씩 받으면 올릴 때 다시 이어 붙여야 한다.
+ * - `pages` — 페이지마다 한 장씩. 인스타처럼 넘겨 보는 형식과 출판이 이쪽이다.
+ *
+ * 둘 다 결과가 **여러 장일 수 있다.** `stitch` 도 너무 길어지면 나눈다 — 한 파일이
+ * 수만 픽셀이면 올리는 쪽도 보는 쪽도 감당하지 못한다.
+ */
+export const EPISODE_EXPORT_MODES = ['stitch', 'pages'] as const;
+export const EpisodeExportSchema = z.object({
+  format: ExportFormatSchema,
+  dpi: z.number().int().min(72).max(600).default(150).optional(),
+  mode: z.enum(EPISODE_EXPORT_MODES).default('stitch'),
+});
+
+/**
+ * 이어 붙인 한 파일의 세로 상한.
+ *
+ * 페이지 경계에서만 끊는다 — 그림 한가운데를 자르는 것보다 파일이 하나 느는 편이 낫다.
+ * 16384 는 브라우저·디코더가 무리 없이 다루는 크기이고, 폭 800 기준 RGBA 로 약 52MB 다.
+ * 페이지 한 장이 이보다 길면 그 한 장이 통째로 한 파일이 된다.
+ */
+export const MAX_STITCH_HEIGHT = 16384;
+
 // ─── 패널 ─────────────────────────────────────
 /**
  * 패널 좌표 허용 범위. 페이지 좌표계 절대값이고, 편집 중 페이지 밖으로 조금 밀어 두는 것은

@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import sharp from 'sharp';
 import { prisma } from '@comicai/db';
 import {
   isHexColor,
   MAX_PAGE_DIMENSION,
+  MAX_STITCH_HEIGHT,
+  type EpisodeExportMode,
   type ImageRef,
   type PageLineStyle,
   type PageTextStyle,
@@ -14,12 +16,14 @@ import {
   shapeBoundingBox,
 } from '@comicai/types';
 import { PagesService } from '../pages/pages.service';
-import { StorageService } from '../storage/storage.service';
+import { EpisodesService } from '../episodes/episodes.service';
+import { StorageService, type ImageScope } from '../storage/storage.service';
 import { buildPanelMaskSvg, buildPanelStrokeSvg } from './panel-mask';
 import { renderSpeechBubbleLayer } from './speech-bubble.render';
 import { renderPageTextLayer } from './page-text.render';
 import { renderPageLineLayer } from './page-line.render';
 import { apiError } from '../common/api-error';
+import { planStitchSegments } from './stitch-plan';
 
 /*
  * 패널 합성을 몇 개씩 동시에 할 것인가.
@@ -32,6 +36,15 @@ import { apiError } from '../common/api-error';
  * 4개면 S3 왕복 지연은 충분히 가려지면서 상주 메모리에 상한이 생긴다.
  */
 const PANEL_COMPOSITE_CONCURRENCY = 4;
+
+/** 아직 올리지 않은 페이지 한 장. 이어 붙이기가 이걸 모아 쓴다. */
+interface RenderedPage {
+  bytes: Buffer;
+  width: number;
+  height: number;
+  /** 이어 붙일 때 빈 자리를 칠할 색. 페이지가 정한 바탕색이거나 형식 기본값이다. */
+  baseColor: string | { r: number; g: number; b: number; alpha: number };
+}
 
 export interface ExportResult {
   storageKey: string;
@@ -46,6 +59,7 @@ export interface ExportResult {
 export class ExportService {
   constructor(
     private readonly pages: PagesService,
+    private readonly episodes: EpisodesService,
     private readonly storage: StorageService,
   ) {}
 
@@ -76,8 +90,27 @@ export class ExportService {
     dpi = 150,
   ): Promise<ExportResult> {
     const owned = await this.pages.findOwned(userId, pageId);
+    const rendered = await this.renderPage(owned.id, format, dpi);
+    return this.upload({ kind: 'export', userId, pageId: owned.id }, rendered, format);
+  }
+
+  /**
+   * 페이지 한 장을 픽셀로 만든다. **올리지는 않는다.**
+   *
+   * 화 단위 내보내기가 같은 그림을 여러 장 만들어 이어 붙이려면, 올리는 일과
+   * 그리는 일이 갈려 있어야 한다. 예전에는 한 함수 안에 붙어 있어서 화를 내보내려면
+   * 페이지마다 S3 왕복이 한 번씩 더 생겼다.
+   *
+   * 소유권은 **호출부가 이미 확인했다고 본다** — 여기서 다시 확인하면 화 내보내기가
+   * 페이지 수만큼 같은 질의를 반복한다.
+   */
+  private async renderPage(
+    pageId: string,
+    format: 'png' | 'jpg',
+    dpi: number,
+  ): Promise<RenderedPage> {
     const page = await prisma.page.findUnique({
-      where: { id: owned.id },
+      where: { id: pageId },
       include: {
         // 나머지 셋과 같이 정렬해야 한다. 정렬이 없으면 Postgres 힙 순서가 나오고,
         // 그 순서는 UPDATE 마다 바뀔 수 있어 **같은 페이지를 두 번 내보내면 겹친 컷의
@@ -216,13 +249,87 @@ export class ExportService {
       .composite(composites);
     canvas = format === 'jpg' ? canvas.jpeg({ quality: 92 }) : canvas.png();
 
-    const bytes = await canvas.toBuffer();
+    return { bytes: await canvas.toBuffer(), width: canvasW, height: canvasH, baseColor };
+  }
+
+  /**
+   * 화 한 편을 내보낸다.
+   *
+   * `stitch` — 페이지를 **세로로 이어 붙인다**. 웹툰은 한 화가 끊김 없이 흐르는 한
+   * 덩어리라, 한 장씩 받으면 올릴 때 다시 이어 붙여야 한다. 너무 길어지면 나누되
+   * **페이지 경계에서만** 끊는다 — 그림 한가운데를 자르는 것보다 파일이 하나 느는
+   * 편이 낫다.
+   *
+   * `pages` — 페이지마다 한 장씩. 인스타처럼 넘겨 보는 형식과 출판이 이쪽이다.
+   */
+  async exportEpisode(
+    userId: string,
+    episodeId: string,
+    format: 'png' | 'jpg',
+    dpi = 150,
+    mode: EpisodeExportMode = 'stitch',
+  ): Promise<ExportResult[]> {
+    const episode = await this.episodes.findOwned(userId, episodeId);
+    const pages = await prisma.page.findMany({
+      where: { episodeId: episode.id },
+      orderBy: { order: 'asc' },
+      select: { id: true },
+    });
+    if (pages.length === 0) {
+      throw new BadRequestException(
+        apiError({ code: 'EPISODE_EMPTY', message: '이 화에는 페이지가 없습니다.' }),
+      );
+    }
+
+    const scope = { kind: 'episode-export', userId, episodeId: episode.id } as const;
+
+    if (mode === 'pages') {
+      const out: ExportResult[] = [];
+      for (const p of pages) {
+        // 한 장씩 차례로. 병렬로 돌리면 페이지 수만큼의 캔버스가 동시에 메모리에 산다.
+        out.push(await this.upload(scope, await this.renderPage(p.id, format, dpi), format));
+      }
+      return out;
+    }
+
+    /*
+     * 이어 붙이기.
+     *
+     * 어디서 끊을지는 **페이지 크기만 보고** 먼저 정한다(`planStitchSegments`) — 그림을
+     * 그리기 전에 알 수 있는 값이고, 정작 틀리기 쉬운 곳이라 따로 떼어 테스트로 묶었다.
+     *
+     * 그린 것은 한 파일 분량만 들고 있는다. 화 전체를 먼저 그려 두고 나누면 페이지
+     * 10장이면 그것만으로 수백 MB 가 동시에 메모리에 산다.
+     */
+    const sizes = await prisma.page.findMany({
+      where: { episodeId: episode.id },
+      orderBy: { order: 'asc' },
+      select: { size: true },
+    });
+    const heights = sizes.map((p) => clampDimension((p.size as { h: number }).h));
+    const segments = planStitchSegments(heights, MAX_STITCH_HEIGHT);
+
+    const out: ExportResult[] = [];
+    for (const indices of segments) {
+      const rendered: RenderedPage[] = [];
+      for (const i of indices) rendered.push(await this.renderPage(pages[i]!.id, format, dpi));
+      out.push(await this.upload(scope, stitch(rendered, dpi, format), format));
+    }
+    return out;
+  }
+
+  private async upload(
+    scope: ImageScope,
+    rendered: RenderedPage | Promise<RenderedPage>,
+    format: 'png' | 'jpg',
+  ): Promise<ExportResult> {
+    const { bytes, width, height } = await rendered;
     const ref = await this.storage.putImage(
-      { kind: 'export', userId, pageId: page.id },
+      scope,
       Uint8Array.from(bytes),
       format === 'jpg' ? 'image/jpeg' : 'image/png',
-      canvasW,
-      canvasH,
+      width,
+      height,
     );
     const presigned = await this.storage.presignDownload(ref.storageKey);
     return {
@@ -234,6 +341,40 @@ export class ExportService {
       mimeType: ref.mimeType,
     };
   }
+}
+
+/**
+ * 페이지 여러 장을 세로로 이어 붙인다.
+ *
+ * 폭이 다르면 **가장 넓은 폭에 맞춰 가운데**에 놓는다. 왼쪽에 붙이면 좁은 페이지가
+ * 한쪽으로 쏠려 이어 읽을 때 눈에 띈다. 바탕은 첫 페이지의 바탕색을 쓴다 — 페이지마다
+ * 다를 수 있지만, 이어 붙인 한 장의 바탕은 하나여야 한다.
+ */
+async function stitch(
+  pages: readonly RenderedPage[],
+  dpi: number,
+  format: 'png' | 'jpg',
+): Promise<RenderedPage> {
+  const first = pages[0]!;
+  if (pages.length === 1) return first;
+
+  const width = Math.max(...pages.map((p) => p.width));
+  const height = pages.reduce((sum, p) => sum + p.height, 0);
+
+  let top = 0;
+  const composites: sharp.OverlayOptions[] = pages.map((p) => {
+    const item = { input: p.bytes, left: Math.round((width - p.width) / 2), top };
+    top += p.height;
+    return item;
+  });
+
+  let canvas = sharp({
+    create: { width, height, channels: 4, background: first.baseColor as never },
+  })
+    .withMetadata({ density: dpi })
+    .composite(composites);
+  canvas = format === 'jpg' ? canvas.jpeg({ quality: 92 }) : canvas.png();
+  return { bytes: await canvas.toBuffer(), width, height, baseColor: first.baseColor };
 }
 
 /** 저장된 페이지 크기를 sharp 가 감당할 범위로 묶는다. 0·음수·NaN 도 여기서 걸러진다. */

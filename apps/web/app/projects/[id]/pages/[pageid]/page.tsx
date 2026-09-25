@@ -433,6 +433,8 @@ export default function PageEditor() {
         open={exportOpen}
         onOpenChange={setExportOpen}
         pageId={pageId}
+        episodeId={page?.episodeId ?? null}
+        episodeName={currentEpisode ? episodeLabel(currentEpisode) : '이 화'}
         panels={panels}
       />
 

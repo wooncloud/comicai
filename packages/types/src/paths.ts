@@ -55,6 +55,7 @@ export const ApiPaths = {
   episode: (id: string) => `/episodes/${id}`,
   episodePages: (id: string) => `/episodes/${id}/pages`,
   episodePagesReorder: (id: string) => `/episodes/${id}/pages/reorder`,
+  episodeExport: (id: string) => `/episodes/${id}/export`,
   projectConsistency: (pid: string) => `/projects/${pid}/consistency`,
   consistency: (id: string) => `/consistency/${id}`,
   consistencyImages: (id: string) => `/consistency/${id}/images`,

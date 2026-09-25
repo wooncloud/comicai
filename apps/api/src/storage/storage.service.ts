@@ -22,7 +22,9 @@ export type ImageScope =
   | { kind: 'panel-conti'; projectId: string; panelId: string }
   | { kind: 'project-thumbnail'; projectId: string }
   | { kind: 'user-avatar'; userId: string }
-  | { kind: 'export'; userId: string; pageId: string };
+  | { kind: 'export'; userId: string; pageId: string }
+  /** 화 단위 내보내기. 페이지 하나가 아니라 여러 장을 이어 붙인 결과가 여기 쌓인다. */
+  | { kind: 'episode-export'; userId: string; episodeId: string };
 
 const PRESIGN_TTL_SECONDS = 15 * 60;
 
@@ -255,6 +257,7 @@ export const StoragePrefix = {
     `projects/${projectId}/refs/${entityId}/`,
   /** export 결과는 프로젝트가 아니라 사용자 아래에 있다(`exports/{userId}/{pageId}/`). */
   pageExports: (userId: string, pageId: string) => `exports/${userId}/${pageId}/`,
+  episodeExports: (userId: string, episodeId: string) => `exports/${userId}/episodes/${episodeId}/`,
 } as const;
 
 /*
@@ -290,6 +293,8 @@ export function buildKey(scope: ImageScope, mimeType: string): string {
       return `users/${scope.userId}/avatar/${id}.${ext}`;
     case 'export':
       return `exports/${scope.userId}/${scope.pageId}/${id}.${ext}`;
+    case 'episode-export':
+      return `exports/${scope.userId}/episodes/${scope.episodeId}/${id}.${ext}`;
   }
 }
 

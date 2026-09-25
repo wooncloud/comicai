@@ -424,9 +424,33 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 
 ### 3.9 ExportModule (`export/export.controller.ts`)
 
-| Method | Route                  | Handler                                 |
-| ------ | ---------------------- | --------------------------------------- |
-| POST   | `/v1/pages/:id/export` | `export` — `export.controller.ts:17-20` |
+| Method | Route                     | Handler                                                                                   |
+| ------ | ------------------------- | ----------------------------------------------------------------------------------------- |
+| POST   | `/v1/pages/:id/export`    | `export` — `export.controller.ts:22`. 결과 한 장                                          |
+| POST   | `/v1/episodes/:id/export` | `exportEpisode` — `export.controller.ts:29`. body 에 `mode`. 결과가 **여러 장일 수 있다** |
+
+**화 단위 내보내기는 두 가지다** (`exportEpisode`, `export.service.ts:265`).
+
+- `stitch` — 페이지를 **세로로 이어 붙인다**. 웹툰은 한 화가 끊김 없이 흐르는 한
+  덩어리라, 한 장씩 받으면 올릴 때 다시 이어 붙여야 한다.
+- `pages` — 페이지마다 한 장씩. 인스타처럼 넘겨 보는 형식과 출판이 이쪽이다.
+
+프로젝트마다 형식을 미리 정해 두지 않았다 — 같은 작품을 웹툰으로도 인스타로도
+내보내는 일이 실제로 있기 때문이다. 고르는 것은 내보낼 때다.
+
+**어디서 끊을지는 그리기 전에 정한다** (`planStitchSegments`, `export/stitch-plan.ts`).
+한 파일이 수만 픽셀이면 올리는 쪽도 보는 쪽도 감당하지 못하므로 `MAX_STITCH_HEIGHT`
+(16384)를 넘으면 나누되, **페이지 경계에서만** 끊는다 — 그림 한가운데를 자르는 것보다
+파일이 하나 느는 편이 낫다. 한 장이 이미 상한보다 길면 그 한 장이 통째로 한 파일이 된다.
+순수 함수로 떼어 둔 이유는 실제 이어 붙이기가 sharp 와 S3 를 거쳐 테스트가 무겁기
+때문이다 — 정작 틀리기 쉬운 것은 "언제 끊는가" 하나뿐이다(`stitch-plan.spec.ts`).
+
+그린 것은 **한 파일 분량만** 들고 있는다. 화 전체를 먼저 그려 두고 나누면 페이지
+10장이면 그것만으로 수백 MB 가 동시에 메모리에 산다.
+
+`renderPage` (`export.service.ts:107`)는 픽셀만 만들고 **올리지 않는다.** 올리는 일과
+그리는 일이 갈려 있어야 화 단위가 같은 그림을 여러 장 모아 이어 붙일 수 있다 —
+예전에는 한 함수 안에 붙어 있어 화를 내보내려면 페이지마다 S3 왕복이 한 번씩 더 생겼다.
 
 **SVG 조립은 `export/svg.ts` 한 곳이다.** 문서 래퍼(`<svg xmlns … viewBox>`)가 다섯 벌,
 레이어 껍데기(빈 배열→null → map → join → Buffer)가 세 벌로 흩어져 있던 것을
@@ -440,17 +464,17 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
 
 각 패널의 `currentRender` 결과를 패널 shape 마스크(SVG)로 잘라 `composite` — `export/export.service.ts:113-153`. 그 위로 말풍선(`renderSpeechBubbleLayer`, `:165-174`) → 자유 텍스트(`:169-181`) → 자유 직선(`:184-195`) 레이어가 순서대로 쌓인다. `sharp`로 캔버스(페이지 size, alpha)를 만들어 전체를 합성하며 dpi는 `withMetadata({ density: dpi })`(기본 150)로 박힌다 — `:197-208`. 결과는 S3에 `exports/{userId}/{pageId}/{ulid}.{ext}` 키로 업로드 후 presign URL 반환 — `:210-218`.
 
-**캔버스 크기는 방어적으로 묶는다** — `clampDimension` (`export.service.ts:238`) 이 페이지 크기를
-`MAX_PAGE_DIMENSION`(4096) 이하로, 패널 bounding box 도 캔버스 크기로 자른다 (`shapeBoundingBox`, `:124-128`).
+**캔버스 크기는 방어적으로 묶는다** — `clampDimension` (`export.service.ts:381`) 이 페이지 크기를
+`MAX_PAGE_DIMENSION`(4096) 이하로, 패널 bounding box 도 캔버스 크기로 자른다 (`shapeBoundingBox`, `:157-161`).
 `PageSizeSchema` 가 이제 상한을 걸지만 **이미 저장된 행은 그 검증을 거치지 않는다**. 묶지 않으면
 `size:{w:50000,h:50000}` 한 행으로 sharp 가 10GB 할당을 시도하다 프로세스가 죽고, 같은 컨테이너의
 다른 사용자 요청까지 함께 끊긴다.
 
-**패널 합성은 4개씩 끊어 돈다** — `mapLimit` (`export.service.ts:248`) +
+**패널 합성은 4개씩 끊어 돈다** — `mapLimit` (`export.service.ts:389`) +
 `PANEL_COMPOSITE_CONCURRENCY` (`:33`). 예전에는 `Promise.all` 로 전부 한꺼번에 돌려서
 **N개의 원본 바이트와 N개의 마스킹된 PNG 버퍼가 동시에 살아 있었다** — 1536×1024 RGBA 기준
 패널당 약 6MB 라 12컷 페이지면 마스킹본만 ~75MB 에 원본이 더 붙는다. 원본은
-`maskedPanelImage` (`:52`) 안에서만 살아 마스킹본과 겹쳐 붙들리지 않는다. 결과 순서는 입력
+`maskedPanelImage` (`:66`) 안에서만 살아 마스킹본과 겹쳐 붙들리지 않는다. 결과 순서는 입력
 순서를 유지한다 — 합성 순서가 곧 z-order 다.
 
 ### 3.10 HealthController / MetricsController
