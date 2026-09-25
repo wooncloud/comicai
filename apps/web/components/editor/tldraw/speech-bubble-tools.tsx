@@ -1,6 +1,6 @@
 'use client';
 import { StateNode, createShapeId, type TLStateNodeConstructor } from 'tldraw';
-import type { SpeechBubbleVariant } from '@comicai/types';
+import { defaultSpeechBubbleStyle, type SpeechBubbleVariant } from '@comicai/types';
 import type { SpeechBubbleShape } from './speech-bubble-shape';
 import { PolygonDrawingTool, type PolygonCommitArgs } from './polygon-tool-base';
 
@@ -16,9 +16,7 @@ function defaultBubbleProps(): Omit<SpeechBubbleShape['props'], 'variant' | 'w' 
     polygonPoints: null,
     tailX: null,
     tailY: null,
-    strokeWidth: 2,
-    strokeColor: '#000000',
-    fillColor: '#ffffff',
+    ...defaultSpeechBubbleStyle(),
   };
 }
 
