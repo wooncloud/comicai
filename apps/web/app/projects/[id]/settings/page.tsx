@@ -119,18 +119,21 @@ export default function ProjectSettingsPage() {
   }
 
   return (
-    <AppShell>
+    <AppShell
+      breadcrumb={
+        <Breadcrumb
+          items={[
+            { label: '대시보드', href: '/dashboard' },
+            { label: project?.name ?? '…', href: `/projects/${projectId}` },
+            { label: '설정' },
+          ]}
+        />
+      }
+    >
       <PageContainer>
         {/* 바깥 폭은 다른 화면과 같게 두고, 읽기 좋은 줄 길이는 안쪽에서 잡는다. */}
         <div className="max-w-2xl">
-          <Breadcrumb
-            items={[
-              { label: '대시보드', href: '/dashboard' },
-              { label: project?.name ?? '…', href: `/projects/${projectId}` },
-              { label: '설정' },
-            ]}
-          />
-          <h1 className="mt-2 text-title-lg font-semibold sm:text-display-md">프로젝트 설정</h1>
+          <h1 className="text-title-lg font-semibold sm:text-display-md">프로젝트 설정</h1>
 
           <section className="mt-10 space-y-2">
             <h2 className="text-title-md font-medium">이름</h2>

@@ -191,8 +191,8 @@ function ConsistencyPage() {
   }
 
   return (
-    <AppShell>
-      <PageContainer>
+    <AppShell
+      breadcrumb={
         <Breadcrumb
           items={[
             { label: '대시보드', href: '/dashboard' },
@@ -200,7 +200,10 @@ function ConsistencyPage() {
             { label: '설정집' },
           ]}
         />
-        <h1 className="mt-2 text-title-lg font-semibold sm:text-display-md">설정집</h1>
+      }
+    >
+      <PageContainer>
+        <h1 className="text-title-lg font-semibold sm:text-display-md">설정집</h1>
         <p className="mt-2 text-body-sm text-muted-foreground">
           등장인물·배경·세계관은 컷 설명에서 @로 불러 씁니다. 그림체는 컷 설정에서 고릅니다. 한 번
           등록해 두면 컷이 바뀌어도 같은 모습으로 그려집니다.

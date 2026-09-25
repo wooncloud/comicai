@@ -24,10 +24,23 @@ import { cn } from '@/lib/cn';
 import { ADMIN_NAV, PRIMARY_NAV, useLogout } from '@/lib/nav';
 import { qk } from '@/lib/query-keys';
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+/**
+ * @param breadcrumb 지금 어디에 있는지. **상단바 안**에 놓인다.
+ *
+ * 예전에는 화면마다 제목 바로 위에 따로 그렸다. 그런데 에디터는 헤더에 있어서,
+ * 프로젝트 → 페이지로 넘어가는 순간 같은 경로가 화면 위에서 아래로 자리를 옮겼다.
+ * 한 줄기로 이어진 화면들이라 그 이동이 특히 눈에 띈다. 전부 헤더로 모은다.
+ */
+export function AppShell({
+  breadcrumb,
+  children,
+}: {
+  breadcrumb?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <Topbar authed />
+      <Topbar authed nav={breadcrumb ? <div className="min-w-0">{breadcrumb}</div> : undefined} />
       <EmailVerifyBanner />
       <main className="flex-1">{children}</main>
       {/*

@@ -133,12 +133,19 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 ### components/shell/app-shell.tsx
 
-`AppShell`(`app-shell.tsx:27`)은 `Topbar` + `<main>` + 푸터 레이아웃. `Topbar`(`app-shell.tsx:67`)는 다음을 담당.
+`AppShell`(`app-shell.tsx:34`)은 `Topbar` + `<main>` + 푸터 레이아웃. `Topbar`(`app-shell.tsx:80`)는 다음을 담당.
 
 **에디터도 이 `Topbar` 를 쓴다.** 예전에는 `app/projects/[id]/pages/[pageid]/page.tsx` 가
 자기 헤더를 따로 그려서, 그 화면에 들어가는 순간 로고·계정 메뉴·잔액이 사라지고 높이와
-색이 미묘하게 달랐다. 화면마다 다른 것은 두 슬롯뿐이다 — `nav`(가운데, 에디터는 브레드크럼)와
-`actions`(잔액 앞, 에디터는 저장 상태·설정집 링크). `app-shell.tsx:141`, `app/projects/[id]/pages/[pageid]/page.tsx:346`.
+색이 미묘하게 달랐다. 화면마다 다른 것은 두 슬롯뿐이다 — `nav`(가운데)와
+`actions`(잔액 앞, 에디터는 저장 상태·설정집 링크). `app-shell.tsx:154`, `app/projects/[id]/pages/[pageid]/page.tsx:346`.
+
+**경로(브레드크럼)는 전부 그 `nav` 슬롯에 있다.** `AppShell` 의 `breadcrumb` prop 으로
+받아 넘긴다(`app-shell.tsx:34`, `:43`). 예전에는 문서 화면들만 제목 바로 위에 따로
+그렸는데, 에디터는 헤더에 있어서 **프로젝트 → 페이지로 넘어가는 순간 같은 경로가
+화면 위에서 아래로 자리를 옮겼다.** 한 줄기로 이어진 화면들이라 그 이동이 특히 눈에
+띈다. 위계가 없는 화면(대시보드·설정)은 경로를 주지 않고, 그때 `nav` 는 `PRIMARY_NAV`
+링크로 되돌아간다.
 
 - `useQuery<SessionUser>({ queryKey: qk.me(), retry: false, throwOnError: false })` (`app-shell.tsx:55-71`)
 - `EmailVerifyBanner` 가 같은 쿼리를 읽어 **인증 전 사용자에게만** 한 줄을 띄운다 (`components/shell/email-verify-banner.tsx`). `AppShell` 안에 있어 에디터에는 뜨지 않는다 — 그림 그리는 화면에 상주 경고를 두지 않기 위해서다
@@ -150,7 +157,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
   잠깐 비친다
 - Avatar 드롭다운으로 설정·로그아웃 메뉴 노출
 
-푸터(`app-shell.tsx:39`)는 `FooterLinks`(`components/shell/footer-links.tsx:19`) 하나만 담는다.
+푸터(`app-shell.tsx:52`)는 `FooterLinks`(`components/shell/footer-links.tsx:19`) 하나만 담는다.
 **약관·개인정보 처리방침은 로그인한 뒤에도 닿아야 한다** — 랜딩 푸터에만 두었더니 이미 가입한
 사람은 다시 볼 방법이 없었다. 랜딩(`app/page.tsx`)과 `AppShell` 이 같은 컴포넌트를 쓰므로 목록이
 갈라지지 않는다. 링크는 `prefetch={false}` 다: 클릭률이 낮은데 기본 프리페치는 푸터가 화면에
@@ -162,7 +169,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 ### components/shell
 
 - `app-shell.tsx` — 위 참고. `AppShell`, `Topbar` 두 export
-- `token-balance.tsx` — 상단바의 잔액 배지. 아바타 바로 옆, **모든 화면에서** 그린다(`TokenBalance`, `app-shell.tsx:143`). 0 이하면 빨강(`empty`, `token-balance.tsx:30`), 누르면 충전 화면으로 간다(`Link`, `token-balance.tsx:27`). 못 읽었으면 아무것도 그리지 않는다(`return null`, `token-balance.tsx:22`)
+- `token-balance.tsx` — 상단바의 잔액 배지. 아바타 바로 옆, **모든 화면에서** 그린다(`TokenBalance`, `app-shell.tsx:156`). 0 이하면 빨강(`empty`, `token-balance.tsx:30`), 누르면 충전 화면으로 간다(`Link`, `token-balance.tsx:27`). 못 읽었으면 아무것도 그리지 않는다(`return null`, `token-balance.tsx:22`)
 - `mobile-nav.tsx` — 좁은 화면용 햄버거 + 사이드 드로어(`mobile-nav.tsx:23`). 드로어 맨 위는 로고이고, 높이를 상단바와 같은 `h-14` 로 맞춰 두어 드로어를 열어도 로고가 세로로 움직이지 않는다. `md` 미만에서만 트리거가 보이고, 그때 상단바 nav 와 아바타 드롭다운은 숨는다 — 같은 항목이 두 벌 존재하지 않게 하기 위해서다
 - `mobile-blocker.tsx` — 에디터를 쓸 수 없는 뷰포트를 풀스크린으로 차단하는 오버레이. CSS-only 라 JS 비활성·하이드레이션 전에도 걸린다
   - 조건은 `editor:hidden`(`mobile-blocker.tsx:25`) — **폭 768px 이상 AND 높이 600px 이상일 때만 숨긴다**(`tailwind.config.ts:24` 의 `editor` screen). 폭만 보던 예전 규칙으로는 폰을 가로로 눕혔을 때(iPhone 14 Pro Max = 932×430) 차단이 풀려서, 높이 430px 화면에 사이드바·툴바·인스펙터가 다 들어간 에디터가 그대로 열렸다. 600px 은 가장 작은 태블릿(iPad mini 가로 744px)과 가장 큰 폰(가로 430px) 사이를 가른다
@@ -741,7 +748,7 @@ AppShell 화면의 h1 은 `text-title-lg sm:text-display-md` 로 통일한다. �
   늘어놓으면 같은 목적지가 한 화면에 두 번 있는 셈이다. 드로어에는 그대로 둔다.
 - `SETTINGS_NAV`(`:52`) — 계정 설정 하위. `app/settings/layout.tsx` 의 탭과 드로어가 공유.
   활성 판정은 **정확 일치**다. `startsWith` 를 쓰면 하위 경로가 생기는 순간 두 탭이 동시에 켜진다.
-- `useLogout()`(`:71`) — 드롭다운과 드로어가 같은 함수를 쓴다. 두 벌로 두면
+- `useLogout()`(`lib/nav.ts:71`) — 드롭다운과 드로어가 같은 함수를 쓴다. 두 벌로 두면
   `setQueryData(qk.me(), null)` 같은 뒷정리를 한쪽에서만 빠뜨리기 쉽다.
 - 좁은 화면에서는 드로어 하나만 남긴다(`app-shell.tsx:83`, `:106`). 상단바 nav 와 아바타
   드롭다운은 `md` 미만에서 숨는다 — 같은 항목이 화면 양쪽에 두 벌 있으면 안 된다.
@@ -840,7 +847,7 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
 
 ### 상단바의 토큰 배지와 무중단 편집
 
-- **배치 이유 (`TokenBalance`, `components/shell/token-balance.tsx:20`)**: 아바타 바로 옆, **모든 화면에서** 보인다 (`app-shell.tsx:143`). 예전에는 에디터 헤더에만 있어서, "지금 몇 개 남았지" 를 보려면 설정 → 토큰까지 들어가야 했다. 폭으로 감추지 않는다 — 숫자 몇 글자라 좁은 화면에서도 자리를 다투지 않는다.
+- **배치 이유 (`TokenBalance`, `components/shell/token-balance.tsx:20`)**: 아바타 바로 옆, **모든 화면에서** 보인다 (`app-shell.tsx:156`). 예전에는 에디터 헤더에만 있어서, "지금 몇 개 남았지" 를 보려면 설정 → 토큰까지 들어가야 했다. 폭으로 감추지 않는다 — 숫자 몇 글자라 좁은 화면에서도 자리를 다투지 않는다.
 - **시각 상태**: 잔액이 0 이하(`empty`, `components/shell/token-balance.tsx:24`)이면 빨간색(`text-destructive`, `:30`), 1 이상이면 보조 텍스트 색상으로 렌더된다. 클릭하면 `/settings/billing` 으로 즉시 이동한다 (`Link`, `:27`).
 - **무중단 원칙 (`components/shell/token-balance.tsx:16-18`)**: 잔액 조회가 로딩 중이거나 실패하면(`!data`) '—' 나 오류를 띄우지 않고 **컴포넌트 자체를 렌더하지 않는다 (`return null`, `:22`)**. `useTokenBalance` 가 `throwOnError: false` (`lib/tokens.ts:53`)인 이유이기도 하다. 잔액을 못 읽었다고 모든 화면에 오류 배너를 띄우거나 캔버스를 튕겨내면 작업 중이던 만화를 잃는다. 잔액을 몰라도 할 일은 다 할 수 있다.
 

@@ -64,12 +64,15 @@ export default function ProjectDetail() {
   }
 
   return (
-    <AppShell>
-      <PageContainer>
+    <AppShell
+      breadcrumb={
         <Breadcrumb
           items={[{ label: '대시보드', href: '/dashboard' }, { label: project?.name ?? '…' }]}
         />
-        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      }
+    >
+      <PageContainer>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="min-w-0 break-words text-title-lg font-semibold [text-wrap:balance] sm:text-display-md">
             {/* 제목 자리가 비면 레이아웃이 흔들리므로 자리는 지키되, 아직 이름이
                 아닌 것을 제목 크기로 외치지 않는다. */}
