@@ -97,6 +97,29 @@ function PageTextBody({ shape, util }: { shape: PageTextShape; util: PageTextSha
     }
   }, [text, isEditing]);
 
+  /*
+   * 편집이 시작되면 **실제로 캐럿을 준다.**
+   *
+   * tldraw 는 "이 도형이 편집 중" 이라는 상태만 바꾼다. 어느 요소에 포커스를 둘지는
+   * 도형이 정하는데, 그걸 아무도 안 하고 있었다. 그래서 `contentEditable` 이 켜져도
+   * 키 입력이 아무 데도 안 들어갔다 — 더블클릭해서 편집을 열어도 글자가 안 쳐지고,
+   * 사용자는 상자를 한 번 더 클릭해야 한다는 걸 스스로 알아내야 했다.
+   *
+   * 캐럿은 끝에 둔다. 이미 쓰던 글을 고치려고 연 경우 앞으로 튀면 안 된다.
+   */
+  useLayoutEffect(() => {
+    if (!isEditing) return;
+    const el = editableRef.current;
+    if (!el) return;
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }, [isEditing]);
+
   function commit(next: string) {
     const sliced = next.slice(0, 2000);
     if (sliced === shape.props.text) return;
