@@ -15,6 +15,7 @@ export const handlers = [
       email: 'test@example.com',
       displayName: '테스터',
       avatarUrl: null,
+      emailVerified: true,
     }),
   ),
 

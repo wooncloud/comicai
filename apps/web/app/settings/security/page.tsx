@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { Check } from 'lucide-react';
 import { api, API_BASE } from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '@/lib/query-keys';
@@ -74,15 +75,33 @@ function EmailVerificationSection({ me }: { me: SessionUser | undefined }) {
   }
 
   if (!me) return null;
+  /*
+   * 인증 여부를 말해 준다.
+   *
+   * 예전에는 상태 없이 "인증 메일 재발송" 버튼만 있었다. 이미 인증한 사람에게도
+   * 똑같이 보여서, 자기가 끝냈는지 확인할 방법이 이 화면에 없었다.
+   */
   return (
     <section className="space-y-3">
       <h2 className="text-title-lg font-semibold">이메일</h2>
       <div className="flex flex-wrap items-center gap-3 text-body-sm">
         <span className="min-w-0 break-all">{me.email}</span>
-        <Button variant="outline" size="sm" disabled={pending || done} onClick={resend}>
-          {done ? '발송됨' : pending ? '발송 중…' : '인증 메일 재발송'}
-        </Button>
+        {me.emailVerified ? (
+          <span className="inline-flex items-center gap-1 text-caption text-muted-foreground">
+            <Check className="h-3.5 w-3.5" aria-hidden />
+            인증됨
+          </span>
+        ) : (
+          <Button variant="outline" size="sm" disabled={pending || done} onClick={resend}>
+            {done ? '발송됨' : pending ? '발송 중…' : '인증 메일 재발송'}
+          </Button>
+        )}
       </div>
+      {!me.emailVerified && (
+        <p className="text-caption text-muted-foreground">
+          가입할 때 보낸 메일의 링크를 누르면 끝납니다. 받은 편지함에 없으면 스팸함도 확인해 주세요.
+        </p>
+      )}
     </section>
   );
 }

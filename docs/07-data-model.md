@@ -152,7 +152,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | updatedAt | DateTime  | no       | `@updatedAt`                                                   |
 
 - 인덱스: `@@index([pageId, order])` (`:165`).
-- DTO 매핑: `PageTextDTO` (`packages/types/src/index.ts:268-288`), 스타일 헬퍼 `defaultPageTextStyle()` (`index.ts:259-266`).
+- DTO 매핑: `PageTextDTO` (`packages/types/src/index.ts:276-296`), 스타일 헬퍼 `defaultPageTextStyle()` (`index.ts:267-274`).
 
 ### 2.10 PageLine — `page_lines` (`schema.prisma:195-212`)
 
@@ -170,7 +170,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | updatedAt | DateTime  | no       | `@updatedAt`                                                                      |
 
 - 인덱스: `@@index([pageId, order])` (`:184`).
-- DTO 매핑: `PageLineDTO` (`packages/types/src/index.ts:302-322`), 스타일 헬퍼 `defaultPageLineStyle()` (`index.ts:294-300`).
+- DTO 매핑: `PageLineDTO` (`packages/types/src/index.ts:310-330`), 스타일 헬퍼 `defaultPageLineStyle()` (`index.ts:302-308`).
 - tldraw 측은 BaseBoxShape 패턴으로 표현: bbox(x/y/w/h) + bbox 내 두 끝점 normalized 좌표(x1Norm/y1Norm/x2Norm/y2Norm). DB ↔ shape 변환은 `apps/web/components/editor/tldraw/use-page-line-sync.ts`.
 
 ### 2.11 Panel — `panels` (`schema.prisma:198-219`)
@@ -202,10 +202,10 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | panelId     | String                | no       | FK→panels (cascade, `schema.prisma:241`)    |
 | userId      | String                | no       | FK→users (cascade)                          |
 | model       | String                | no       | `RenderModelSchema` enum (`schemas.ts:176`) |
-| ir          | Json                  | no       | `RenderIR` (`index.ts:491`)                 |
+| ir          | Json                  | no       | `RenderIR` (`index.ts:499`)                 |
 | status      | String                | no       | `RENDER_STATUSES` (`index.ts:73`)           |
 | resultImage | Json (`result_image`) | yes      | `ImageRef`                                  |
-| error       | Json                  | yes      | `RenderError` (`index.ts:467`)              |
+| error       | Json                  | yes      | `RenderError` (`index.ts:475`)              |
 | attempts    | Int                   | no       | `0`                                         |
 | createdAt   | DateTime              | no       | `now()`                                     |
 | finishedAt  | DateTime              | yes      | —                                           |
@@ -292,12 +292,12 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | ModelProvider               | `gemini, openai, mock`                                  | `index.ts:21`                    |
 | ModelId                     | `gemini-3.1-flash-image-preview, gpt-image-2, mock`     | `schemas.ts:92`                  |
 | OAUTH_PROVIDERS             | `google, github`                                        | `index.ts:69`                    |
-| RenderErrorCategory         | `transient, auth, quota, safety, invalid, timeout`      | `index.ts:467`                   |
+| RenderErrorCategory         | `transient, auth, quota, safety, invalid, timeout`      | `index.ts:475`                   |
 | PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                         | `schemas.ts:343`                 |
 | TEXT_ALIGNS                 | `left, center, right`                                   | `schemas.ts:4`                   |
 
 **값 목록은 전부 `schemas.ts` 에만 있다.** `index.ts` 는 타입만 파생시킨다
-(`ModelId` `index.ts:22`, `EntityType` `:154`). 예전에는 같은 문자열이 두세 곳에 적혀 있었고,
+(`ModelId` `index.ts:22`, `EntityType` `:162`). 예전에는 같은 문자열이 두세 곳에 적혀 있었고,
 `index.ts` 의 지역 선언이 `export * from './schemas'` 를 가리기 때문에 **컴파일 에러 없이**
 소비자와 Zod 검증기가 다른 목록을 볼 수 있었다 — 폰트 목록에서 실제로 일어난 일이다.
 `RENDER_STATUSES` 의 두 부분집합은 `satisfies` 로 묶이고, "빠짐없이 덮는가" 는
@@ -313,14 +313,14 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 | --------------------------------- | ---------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | User                              | `SessionUser`          | `index.ts:124` | DTO에는 `passwordHash`, `emailVerifiedAt`, `createdAt`/`updatedAt`, `avatarStorageKey` 없음. `oauthProviders`는 DB Json → DTO `('google'\|'github')[]`.                                       |
 | ApiKey                            | `ApiKeySummary`        | `index.ts:115` | `ciphertext`/`nonce`는 DTO 미노출. `provider` DTO는 `ModelProvider`(mock 포함)이지만 Zod 생성 스키마(`ApiKeyCreateSchema`, `schemas.ts:77`)는 `'gemini'\|'openai'`만 허용 — 약간의 불일치.    |
-| Project                           | `ProjectDTO`           | `index.ts:401` | `defaultStyleId` / `defaultModel` / `thumbnailUrl`(파생, presigned URL) 포함.                                                                                                                 |
-| ConsistencyEntity                 | `ConsistencyEntityDTO` | `index.ts:156` | DB `refImages`(Json) → DTO `ImageRef[]`. DTO에 **`refImageUrls`(presigned URL 배열)** 가 추가됨 — 응답 직전에 생성되는 파생 필드.                                                             |
-| Page                              | `PageDTO`              | `index.ts:379` | DB `size`(Json) → `{w,h}`. `name` 동일. `pageLabel()` 헬퍼가 `name ?? '페이지 {order+1}'` 라벨 산출 (`index.ts:385-389`). 파생 필드: `backgroundUrl`(presign). `backgroundColor`는 동일 노출. |
-| SpeechBubble                      | `SpeechBubbleDTO`      | `index.ts:232` | DB에 `text` 컬럼 없음 — 텍스트는 [[page-text]] 로 분리됨. `style` 은 모양/선/채움 3필드만.                                                                                                    |
-| PageText                          | `PageTextDTO`          | `index.ts:273` | DB 컬럼과 거의 1:1. style 은 `defaultPageTextStyle()` 머지로 정규화.                                                                                                                          |
-| PageLine                          | `PageLineDTO`          | `index.ts:307` | DB 두 끝점 절대좌표(x1/y1/x2/y2) 와 1:1. tldraw 측은 bbox+normalized 좌표로 표현(`page-line-shape.tsx`). style 은 `defaultPageLineStyle()` 머지로 정규화.                                     |
-| Panel                             | `PanelDTO`             | `index.ts:184` | DB `text`(Json) → `TipTapDoc`. DTO에는 **`currentRenderStatus`, `currentRenderImageUrl`, `contiUrl`** 가 추가됨 (presigned). DTO `conti`/`refImages`는 `ImageRef` 구조로 강타입.              |
-| RenderJob                         | `RenderJobDTO`         | `index.ts:514` | DTO에 `ir` 필드 **없음** — IR은 워커 내부 데이터, 응답에 노출되지 않음. `model`은 DB String → DTO `ModelId`. `resultImageUrl`(presigned)은 history 엔드포인트에서만 채워짐.                   |
+| Project                           | `ProjectDTO`           | `index.ts:409` | `defaultStyleId` / `defaultModel` / `thumbnailUrl`(파생, presigned URL) 포함.                                                                                                                 |
+| ConsistencyEntity                 | `ConsistencyEntityDTO` | `index.ts:164` | DB `refImages`(Json) → DTO `ImageRef[]`. DTO에 **`refImageUrls`(presigned URL 배열)** 가 추가됨 — 응답 직전에 생성되는 파생 필드.                                                             |
+| Page                              | `PageDTO`              | `index.ts:387` | DB `size`(Json) → `{w,h}`. `name` 동일. `pageLabel()` 헬퍼가 `name ?? '페이지 {order+1}'` 라벨 산출 (`index.ts:393-397`). 파생 필드: `backgroundUrl`(presign). `backgroundColor`는 동일 노출. |
+| SpeechBubble                      | `SpeechBubbleDTO`      | `index.ts:240` | DB에 `text` 컬럼 없음 — 텍스트는 [[page-text]] 로 분리됨. `style` 은 모양/선/채움 3필드만.                                                                                                    |
+| PageText                          | `PageTextDTO`          | `index.ts:281` | DB 컬럼과 거의 1:1. style 은 `defaultPageTextStyle()` 머지로 정규화.                                                                                                                          |
+| PageLine                          | `PageLineDTO`          | `index.ts:315` | DB 두 끝점 절대좌표(x1/y1/x2/y2) 와 1:1. tldraw 측은 bbox+normalized 좌표로 표현(`page-line-shape.tsx`). style 은 `defaultPageLineStyle()` 머지로 정규화.                                     |
+| Panel                             | `PanelDTO`             | `index.ts:192` | DB `text`(Json) → `TipTapDoc`. DTO에는 **`currentRenderStatus`, `currentRenderImageUrl`, `contiUrl`** 가 추가됨 (presigned). DTO `conti`/`refImages`는 `ImageRef` 구조로 강타입.              |
+| RenderJob                         | `RenderJobDTO`         | `index.ts:522` | DTO에 `ir` 필드 **없음** — IR은 워커 내부 데이터, 응답에 노출되지 않음. `model`은 DB String → DTO `ModelId`. `resultImageUrl`(presigned)은 history 엔드포인트에서만 채워짐.                   |
 | EmailVerification / PasswordReset | (DTO 없음)             | —              | 토큰은 hash만 저장, 외부 노출 없음.                                                                                                                                                           |
 
 ### Zod 입력 스키마 (생성/수정 페이로드)
@@ -343,8 +343,8 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 
 ### 미디어 공통
 
-- `ImageRef` (`index.ts:138`): `{ storageKey, width, height, mimeType }` — DB `Json` 컬럼에 저장되는 표준 구조.
-- `AdapterImage` (`index.ts:146`): 어댑터→워커 전달용 raw bytes (영속화되지 않음).
+- `ImageRef` (`index.ts:146`): `{ storageKey, width, height, mimeType }` — DB `Json` 컬럼에 저장되는 표준 구조.
+- `AdapterImage` (`index.ts:154`): 어댑터→워커 전달용 raw bytes (영속화되지 않음).
 
 ---
 
@@ -387,6 +387,6 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 3. **`ApiKey.provider` 범위 불일치**: DB는 자유 텍스트, Zod 생성 스키마는 `gemini|openai`, DTO `ApiKeySummary.provider`는 `ModelProvider`(mock 포함). 실사용 경로에서는 mock provider의 키를 만들 수 없으나, 타입은 허용.
 4. **`Panel.history`는 String[]**: 순서 의미가 있음 (history 순). 별도 RenderHistory 테이블 없음.
 5. **파생 필드는 DTO에만 존재**: `refImageUrls`, `currentRenderStatus`, `currentRenderImageUrl`, `contiUrl`, `resultImageUrl`, `thumbnailUrl`, `backgroundUrl`은 모두 응답 직전에 채워지는 presigned URL/조인 필드이며 DB에는 없음.
-6. **`text` 컬럼 기본값 `{}`** (`schema.prisma:208`): DTO `TipTapDoc`은 `{type:'doc', content:[...]}` 형태이므로 신규 패널 생성 시 `emptyDoc()` (`index.ts:334-336`)으로 정규화 필요.
+6. **`text` 컬럼 기본값 `{}`** (`schema.prisma:208`): DTO `TipTapDoc`은 `{type:'doc', content:[...]}` 형태이므로 신규 패널 생성 시 `emptyDoc()` (`index.ts:342-344`)으로 정규화 필요.
 7. **`Project.defaultStyleId` / `Panel.styleId` / `Project.defaultModel` FK·enum 부재**(`schema.prisma:83, 84, 176`): 셋 다 외부 참조이나 FK/enum 강제 없음. 엔티티 삭제·모델 ID 변경 시 dangling 값이 남을 수 있으며 cleanup·정합성은 애플리케이션 레벨에서 처리. `ir.builder.ts` 의 effectiveStyleId 결정 로직과 함께 본다.
 8. **SpeechBubble.text 제거**(2026-05-19 migration): 캔버스 텍스트는 [[page-text]] (`page_texts` 테이블)로 이전. 옛 클라이언트가 SpeechBubble.text 를 PATCH 로 보내도 백엔드 스키마(`SpeechBubblePatchSchema`)가 거부한다.

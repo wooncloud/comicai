@@ -86,6 +86,7 @@ export class MeController {
       displayName: u.displayName,
       avatarUrl,
       oauthProviders: jsonColumn<('google' | 'github')[]>(u.oauthProviders) ?? [],
+      emailVerified: u.emailVerifiedAt != null,
       // 서버에서만 계산한다. 클라이언트는 이 값을 화면 숨김에만 쓰고,
       // 실제 차단은 AdminGuard 가 한다.
       isAdmin: isAdmin(u.email, u.emailVerifiedAt),

@@ -135,7 +135,8 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 `AppShell`(`app-shell.tsx:26`)은 `Topbar` + `<main>` + 푸터 레이아웃. `Topbar`(`app-shell.tsx:51`)는 다음을 담당.
 
-- `useQuery<SessionUser>({ queryKey: qk.me(), retry: false, throwOnError: false })` (`app-shell.tsx:54-70`)
+- `useQuery<SessionUser>({ queryKey: qk.me(), retry: false, throwOnError: false })` (`app-shell.tsx:55-71`)
+- `EmailVerifyBanner` 가 같은 쿼리를 읽어 **인증 전 사용자에게만** 한 줄을 띄운다 (`components/shell/email-verify-banner.tsx`). `AppShell` 안에 있어 에디터에는 뜨지 않는다 — 그림 그리는 화면에 상주 경고를 두지 않기 위해서다
   — 던지지 않는다. Topbar 는 랜딩도 쓰므로, API 가 죽었을 때 여기서 던지면 처음 온
   비로그인 방문자에게 히어로 대신 오류 화면이 뜬다
 - 로그아웃은 `POST /logout` 후 `queryClient.clear()` (`lib/nav.ts:77`). `setQueryData(qk.me(), null)`
@@ -635,7 +636,7 @@ API 도메인의 JSON 에러 화면에 떨어졌다 — 거기서는 앱으로 �
 - 그 화면의 본문은 탭 이름을 쓴다(`app/projects/[id]/consistency/page.tsx:39` 의 `tabLabel`).
   전부 "항목" 이라 부르면 캐릭터 탭에서 "항목이 없습니다" 가 무엇을 만들라는 건지 모른다.
 - 내부 식별자는 화면에 내보내지 않는다. `pageLabel()` 의 폴백이 `p1` 이었고
-  (`packages/types/src/index.ts:353`), 생성 기록 캡션에 job id 6자리와 모델 ID 원문
+  (`packages/types/src/index.ts:361`), 생성 기록 캡션에 job id 6자리와 모델 ID 원문
   (`gemini-3.1-flash-image-preview`)이 찍혔으며, 엔티티 카드에 내부 `version` 이 배지로
   붙어 있었다. 모델 표시 이름은 `lib/model-options.ts` 한 곳에서 나온다 — 예전에는
   같은 목록이 세 파일에 복붙돼 있었다.

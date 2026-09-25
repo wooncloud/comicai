@@ -128,6 +128,14 @@ export interface SessionUser {
   avatarUrl?: string | null;
   oauthProviders?: ('google' | 'github')[];
   /**
+   * 이메일 인증을 끝냈는가.
+   *
+   * 이게 없어서 화면은 인증 여부를 **전혀 몰랐다.** 가입하면 인증 메일이 나가는데
+   * (`auth.controller.ts`) 아무 데서도 그 사실을 말해 주지 않았고, 설정 화면은
+   * 이미 인증한 사람에게도 "인증 메일 재발송" 만 내밀었다.
+   */
+  emailVerified: boolean;
+  /**
    * 관리자인가. **서버가 계산해서 내려준다** — 클라이언트가 만들어내지 않는다.
    * 화면을 숨기는 용도일 뿐이고, 실제 차단은 서버 가드가 한다.
    */

@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { EmailVerifyBanner } from '@/components/shell/email-verify-banner';
 import { FooterLinks } from '@/components/shell/footer-links';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { cn } from '@/lib/cn';
@@ -26,6 +27,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <Topbar authed />
+      <EmailVerifyBanner />
       <main className="flex-1">{children}</main>
       {/*
         약관·개인정보 처리방침은 로그인한 뒤에도 닿아야 한다. 랜딩 푸터에만
