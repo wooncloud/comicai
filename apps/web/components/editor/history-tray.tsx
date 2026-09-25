@@ -97,11 +97,21 @@ export function HistoryTray({ panelId, currentRenderId, onRestored }: Props) {
                     현재
                   </div>
                 )}
+                {/*
+                  복원 버튼은 **항상 보인다.**
+
+                  예전에는 `reveal-on-hover` 로 카드 전체를 덮는 오버레이였다. hover 가
+                  없는 기기(이 화면은 태블릿도 지원 대상이다)에서는 아예 닿을 수 없었고,
+                  데스크톱에서도 마우스를 올려 보기 전에는 되돌릴 수 있다는 걸 알 길이
+                  없었다. 생성이 틀어졌을 때 되돌리는 길이 곧 안전망인데, 그 안전망이
+                  숨어 있었다. 프로젝트 목록의 순서 핸들도 같은 이유로 항상 보이게 바꿨다.
+                */}
                 {canRestore && (
                   <button
                     onClick={() => restore.mutate(j.id)}
                     disabled={isBusy}
-                    className="reveal-on-hover absolute inset-0 flex items-center justify-center bg-black/60 text-caption font-medium text-white disabled:opacity-100"
+                    title="이 결과로 복원"
+                    className="absolute inset-x-1 bottom-1 rounded bg-foreground/80 px-2 py-1 text-[10px] font-medium text-background transition-colors hover:bg-foreground disabled:opacity-70"
                   >
                     {isBusy ? '복원 중…' : '이 결과로 복원'}
                   </button>
