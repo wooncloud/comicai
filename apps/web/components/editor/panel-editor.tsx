@@ -58,11 +58,19 @@ export function PanelTextEditor({ projectId, initial, onChange, onSubmit }: Prop
 
   useEffect(() => () => editor?.destroy(), [editor]);
 
+  /*
+   * 칸이 한 줄 높이로 시작했다. 장면 설명은 보통 두세 문장이라, 쓰는 동안 칸이
+   * 아래로 자라면서 밑에 있던 것들을 계속 밀어냈다 — 어디까지 썼는지 보려고
+   * 스크롤을 오르내려야 했다. 처음부터 몇 줄 자리를 잡아 두고, 길어지면 이 칸
+   * 안에서 스크롤한다(밖으로 자라지 않는다).
+   *
+   * 안쪽 여백은 줄였다. 폭 320px 인스펙터에서 12px 여백은 글자가 쓸 폭을 그만큼 뺏는다.
+   */
   return (
-    <div className="rounded-md border border-border bg-background p-3">
+    <div className="rounded-md border border-border bg-background px-2 py-1.5">
       <EditorContent
         editor={editor}
-        className="prose-sm max-w-none text-body-sm focus:outline-none [&_p]:my-1 [&_*:focus]:outline-none"
+        className="prose-sm max-h-64 min-h-[6.5rem] max-w-none overflow-y-auto text-body-sm focus:outline-none [&_p]:my-1 [&_*:focus]:outline-none [&_.ProseMirror]:min-h-[6.5rem]"
       />
     </div>
   );
