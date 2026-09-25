@@ -1,5 +1,6 @@
 'use client';
 import { BaseBoxShapeUtil, HTMLContainer, type RecordProps, T, type TLBaseShape } from 'tldraw';
+import { DEFAULT_PAGE_SIZE } from '@comicai/types';
 
 export type PageFrameShape = TLBaseShape<
   'page-frame',
@@ -41,7 +42,7 @@ export class PageFrameShapeUtil extends BaseBoxShapeUtil<PageFrameShape> {
   }
 
   getDefaultProps(): PageFrameShape['props'] {
-    return { w: 800, h: 1200, label: 'page' };
+    return { ...DEFAULT_PAGE_SIZE, label: 'page' };
   }
 
   override component(shape: PageFrameShape) {

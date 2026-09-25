@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/cn';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_DIMENSION } from '@comicai/types';
 
 interface Props {
   value: { w: number; h: number };
@@ -18,16 +19,24 @@ interface Props {
   disabled?: boolean;
 }
 
+/**
+ * 자주 쓰는 크기.
+ *
+ * 한 단계씩 올렸다 — 예전 기본값 800×1200 은 내보낸 PNG 가 작아서 인쇄하거나
+ * 확대하면 테두리와 대사가 흐렸다. 세로는 2:3(`DEFAULT_PAGE_SIZE` 와 같은 비율)로
+ * 맞춘다. 페이지 크기는 캔버스와 내보내기 해상도만 정하고 그림 생성 비용과는 무관하다.
+ */
 const PRESETS: { label: string; w: number; h: number }[] = [
-  { label: '세로 작게', w: 600, h: 900 },
-  { label: '세로 기본', w: 800, h: 1200 },
-  { label: '세로 큼', w: 1024, h: 1536 },
-  { label: '가로 기본', w: 1200, h: 800 },
-  { label: '정사각', w: 1024, h: 1024 },
+  { label: '세로 작게', w: 800, h: 1200 },
+  { label: '세로 기본', w: DEFAULT_PAGE_SIZE.w, h: DEFAULT_PAGE_SIZE.h },
+  { label: '세로 큼', w: 1400, h: 2100 },
+  { label: '가로 기본', w: 1536, h: 1024 },
+  { label: '정사각', w: 1200, h: 1200 },
 ];
 
 const MIN = 200;
-const MAX = 4096;
+// 서버의 상한과 같은 값을 쓴다 — 화면이 더 관대하면 저장할 때만 튕긴다.
+const MAX = MAX_PAGE_DIMENSION;
 
 export function PageSizeSelect({ value, onChange, disabled }: Props) {
   const [open, setOpen] = useState(false);

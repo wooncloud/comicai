@@ -109,7 +109,10 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 ### 2.7 Page — `pages` (`schema.prisma:121-139`)
 
 - 필드: id, projectId, order(Int), name?(String), size(Json `{w,h}`), background?(Json `ImageRef`), backgroundColor?(String, `#RRGGBB[AA]`), createdAt.
-- `backgroundColor` (`schema.prisma:131`): 페이지 단색 배경. null이면 투명. `background` 이미지가 있을 땐 그 아래에 깔린다. 검증은 `PagePatchSchema.backgroundColor` (`schemas.ts:163-167`).
+- `backgroundColor` (`schema.prisma:131`): 페이지 단색 배경. null이면 투명. `background` 이미지가 있을 땐 그 아래에 깔린다. 검증은 `PagePatchSchema.backgroundColor` (`schemas.ts:175-179`).
+- 새 페이지는 `DEFAULT_PAGE_SIZE`(1024×1536, `schemas.ts:141`)로 만들어진다. 800×1200 이었는데
+  내보낸 PNG 가 작아 인쇄하거나 확대하면 테두리와 대사가 흐렸다. 비율(2:3)은 그대로다.
+  페이지 크기는 캔버스와 내보내기 해상도만 정하고 그림 생성 비용과는 무관하다.
 - `size` 는 한 변이 `MAX_PAGE_DIMENSION`(4096) 이하여야 한다 (`schemas.ts:125`). 취향이 아니라
   **메모리 상한**이다 — export 가 이 값으로 sharp 캔버스를 잡으므로, 상한 없이 저장된 거대 페이지
   하나가 export 프로세스를 죽이고 같은 컨테이너의 다른 요청까지 끊는다.
@@ -208,7 +211,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | id          | String PK             | no       | —                                           |
 | panelId     | String                | no       | FK→panels (cascade, `schema.prisma:245`)    |
 | userId      | String                | no       | FK→users (cascade)                          |
-| model       | String                | no       | `RenderModelSchema` enum (`schemas.ts:176`) |
+| model       | String                | no       | `RenderModelSchema` enum (`schemas.ts:188`) |
 | ir          | Json                  | no       | `RenderIR` (`index.ts:532`)                 |
 | status      | String                | no       | `RENDER_STATUSES` (`index.ts:74`)           |
 | resultImage | Json (`result_image`) | yes      | `ImageRef`                                  |
@@ -293,14 +296,14 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | IN_PROGRESS_RENDER_STATUSES | `queued, running`                                       | `index.ts:90`                    |
 | TERMINAL_RENDER_STATUSES    | `succeeded, failed, timeout, canceled`                  | `index.ts:93-98`                 |
 | PANEL_SHAPE_TYPES           | `rect, rounded, oval, diamond, parallelogram, polygon`  | `schemas.ts:206-213`             |
-| SPEECH_BUBBLE_VARIANTS      | `ellipse, rect, spike, polygon` (cloud/thought 제거됨)  | `schemas.ts:249`                 |
-| PAGE_TEXT_FONT_FAMILIES     | `sans-serif, serif, monospace`                          | `schemas.ts:300`                 |
+| SPEECH_BUBBLE_VARIANTS      | `ellipse, rect, spike, polygon` (cloud/thought 제거됨)  | `schemas.ts:261`                 |
+| PAGE_TEXT_FONT_FAMILIES     | `sans-serif, serif, monospace`                          | `schemas.ts:312`                 |
 | EntityType                  | `style, character, background, worldview`               | `schemas.ts:391`                 |
 | ModelProvider               | `gemini, openai, mock`                                  | `index.ts:22`                    |
 | ModelId                     | `gemini-3.1-flash-image-preview, gpt-image-2, mock`     | `schemas.ts:92`                  |
 | OAUTH_PROVIDERS             | `google, github`                                        | `index.ts:70`                    |
 | RenderErrorCategory         | `transient, auth, quota, safety, invalid, timeout`      | `index.ts:508`                   |
-| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                         | `schemas.ts:368`                 |
+| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                         | `schemas.ts:380`                 |
 | TEXT_ALIGNS                 | `left, center, right`                                   | `schemas.ts:4`                   |
 
 **값 목록은 전부 `schemas.ts` 에만 있다.** `index.ts` 는 타입만 파생시킨다
@@ -344,8 +347,8 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 - 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`schemas.ts:250-292`).
 - 페이지 텍스트: `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`schemas.ts:334-365`).
 - 페이지 직선: `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`schemas.ts:369-399`).
-- 렌더: `RenderModelSchema`, `RenderStartSchema` (`schemas.ts:176-182`).
-- 내보내기: `ExportFormatSchema`, `ExportRequestSchema` (`schemas.ts:184-190`).
+- 렌더: `RenderModelSchema`, `RenderStartSchema` (`schemas.ts:188-194`).
+- 내보내기: `ExportFormatSchema`, `ExportRequestSchema` (`schemas.ts:196-202`).
 - 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`, `ConsistencyAttachSchema` (`schemas.ts:402-421`).
 
 ### 미디어 공통

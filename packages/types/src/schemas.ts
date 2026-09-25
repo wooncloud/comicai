@@ -128,8 +128,20 @@ export const PageSizeSchema = z.object({
   w: z.number().int().positive().max(MAX_PAGE_DIMENSION),
   h: z.number().int().positive().max(MAX_PAGE_DIMENSION),
 });
+
+/**
+ * 새 페이지의 기본 크기. **여기 한 곳에서만 정한다** — 서버 기본값, 화면의
+ * '페이지 추가', 캔버스 프레임의 폴백이 각자 숫자를 들고 있으면 한 군데만 고쳤을 때
+ * 만드는 경로마다 크기가 달라진다.
+ *
+ * 800×1200 이었다. 화면에서 보기엔 멀쩡했지만 내보낸 PNG 가 작아서, 인쇄하거나
+ * 확대해 보면 컷 테두리와 대사가 흐렸다. 비율(2:3)은 그대로 두고 한 단계 키운다 —
+ * 페이지 크기는 캔버스와 내보내기 해상도만 정하고 그림 생성 비용과는 무관하다.
+ */
+export const DEFAULT_PAGE_SIZE = { w: 1024, h: 1536 } as const;
+
 export const PageCreateSchema = z.object({
-  size: PageSizeSchema.default({ w: 800, h: 1200 }),
+  size: PageSizeSchema.default(DEFAULT_PAGE_SIZE),
 });
 export const HEX_COLOR_REGEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 export function isHexColor(v: unknown): v is string {

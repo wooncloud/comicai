@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '@/lib/query-keys';
 import { usePageReorder } from '@/lib/use-page-reorder';
-import { ApiPaths, pageLabel, type PageDTO } from '@comicai/types';
+import { ApiPaths, DEFAULT_PAGE_SIZE, pageLabel, type PageDTO } from '@comicai/types';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { CollapseButton } from './collapse-button';
@@ -80,7 +80,7 @@ export function PageSidebar({
     try {
       const created = await api<PageDTO>(ApiPaths.projectPages(projectId), {
         method: 'POST',
-        body: JSON.stringify({ size: { w: 800, h: 1200 } }),
+        body: JSON.stringify({ size: DEFAULT_PAGE_SIZE }),
       });
       setPages((prev) => [...prev, created]);
       toast.push('success', '페이지가 추가되었습니다.');

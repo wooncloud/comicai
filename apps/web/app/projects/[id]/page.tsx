@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useProject } from '@/lib/use-project';
 import { qk } from '@/lib/query-keys';
 import { usePageReorder } from '@/lib/use-page-reorder';
-import { ApiPaths, pageLabel, type PageDTO } from '@comicai/types';
+import { ApiPaths, DEFAULT_PAGE_SIZE, pageLabel, type PageDTO } from '@comicai/types';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,7 +54,7 @@ export default function ProjectDetail() {
     try {
       await api(ApiPaths.projectPages(projectId), {
         method: 'POST',
-        body: JSON.stringify({ size: { w: 800, h: 1200 } }),
+        body: JSON.stringify({ size: DEFAULT_PAGE_SIZE }),
       });
       await loadPages();
       toast.push('success', '페이지가 추가되었습니다.');

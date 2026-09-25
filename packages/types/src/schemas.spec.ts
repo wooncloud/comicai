@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   CredentialsSchema,
+  DEFAULT_PAGE_SIZE,
   ExportRequestSchema,
   MAX_PAGE_DIMENSION,
   MAX_PANEL_COORD,
@@ -55,7 +56,7 @@ describe('PageCreateSchema', () => {
   it('applies default size when omitted', () => {
     const r = PageCreateSchema.safeParse({});
     expect(r.success).toBe(true);
-    if (r.success) expect(r.data.size).toEqual({ w: 800, h: 1200 });
+    if (r.success) expect(r.data.size).toEqual(DEFAULT_PAGE_SIZE);
   });
 });
 
