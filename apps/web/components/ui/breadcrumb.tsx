@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 export interface Crumb {
@@ -25,7 +26,13 @@ export function Breadcrumb({ items }: { items: Crumb[] }) {
                 {c.label}
               </span>
             )}
-            {!last && <span className="shrink-0 text-muted-foreground/60">/</span>}
+            {/*
+              슬래시가 아니라 꺾쇠다. 슬래시는 날짜·분수·경로에도 쓰여 "다음 단계" 라는
+              뜻이 약하고, 작품 이름에 슬래시가 들어가면 어디가 구분자인지 흐려진다.
+            */}
+            {!last && (
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" aria-hidden />
+            )}
           </span>
         );
       })}
