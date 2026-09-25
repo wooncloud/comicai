@@ -46,11 +46,14 @@ function testId(prefix: string): string {
 /** 렌더 잡을 매달 컷 하나. 잡에는 FK 가 걸려 있다. */
 async function seedPanel(userId: string): Promise<string> {
   const project = testId('proj');
+  const episode = testId('ep');
   const page = testId('page');
   const panel = testId('panel');
   await ctx.prisma.project.create({ data: { id: project, userId, name: 't' } });
+  // 페이지는 반드시 어떤 화 안에 있다(복합 FK).
+  await ctx.prisma.episode.create({ data: { id: episode, projectId: project, order: 0 } });
   await ctx.prisma.page.create({
-    data: { id: page, projectId: project, order: 0, size: { w: 800, h: 1200 } },
+    data: { id: page, projectId: project, episodeId: episode, order: 0, size: { w: 800, h: 1200 } },
   });
   await ctx.prisma.panel.create({
     data: { id: panel, pageId: page, shape: {}, order: 0 },

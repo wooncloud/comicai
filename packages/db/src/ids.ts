@@ -7,6 +7,7 @@ export type IdPrefix =
   | 'apikey'
   | 'proj'
   | 'page'
+  | 'ep'
   | 'panel'
   | 'render'
   | 'char'

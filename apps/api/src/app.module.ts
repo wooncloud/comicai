@@ -18,6 +18,7 @@ import { ApiKeysModule } from './api-keys/api-keys.module';
 import { AdminModule } from './admin/admin.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ConsistencyModule } from './consistency/consistency.module';
+import { EpisodesModule } from './episodes/episodes.module';
 import { PagesModule } from './pages/pages.module';
 import { PanelsModule } from './panels/panels.module';
 import { SpeechBubblesModule } from './speech-bubbles/speech-bubbles.module';
@@ -75,6 +76,7 @@ import { ExportModule } from './export/export.module';
     AdminModule,
     ProjectsModule,
     ConsistencyModule,
+    EpisodesModule,
     PagesModule,
     PanelsModule,
     SpeechBubblesModule,

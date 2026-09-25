@@ -9,7 +9,7 @@ ComicAI는 **AI가 만화의 일관성(캐릭터·배경·세계관·그림체)�
 코드상 실제로 동작하는 핵심 흐름은 다음과 같다.
 
 - 인증/세션 + 사용자 BYOK API 키 관리 (`apps/api/src/auth`, `apps/api/src/api-keys`)
-- 프로젝트 → 페이지 → 패널 트리 CRUD (`apps/api/src/projects` `pages` `panels`)
+- 프로젝트 → 화(話) → 페이지 → 패널 트리 CRUD (`apps/api/src/projects` `episodes` `pages` `panels`)
 - "일관성 엔티티"(스타일/캐릭터/배경/세계관) CRUD + 참조 이미지 업로드 (`apps/api/src/consistency`)
 - tldraw 기반 패널 캔버스 + TipTap 멘션 텍스트 에디터 (`apps/web/components/editor`)
 - 패널 렌더 큐(BullMQ) + 어댑터(mock/Gemini/OpenAI) + SSE 진행률 스트리밍 (`apps/api/src/render`, `packages/adapters`, `packages/events`)
@@ -70,21 +70,21 @@ NestJS 10 기반 단일 프로세스로 두 가지 엔트리포인트를 가진�
 
 `AppModule` (`apps/api/src/app.module.ts`) 에 등록된 기능 모듈:
 
-| 모듈                                              | 위치                           | 역할                                                         |
-| ------------------------------------------------- | ------------------------------ | ------------------------------------------------------------ |
-| `MetricsModule`                                   | `metrics/`                     | prom-client 기반 `/metrics`                                  |
-| `HealthController`                                | `health/`                      | `/healthz`                                                   |
-| `AuthModule` + `OAuthModule`                      | `auth/`, `auth/oauth/`         | 세션/쿠키, Google·GitHub OAuth, 이메일 인증, 비밀번호 재설정 |
-| `EmailModule`                                     | `email/`                       | 발신                                                         |
-| `MeModule`                                        | `me/`                          | `/me`, 비밀번호 변경, 세션 목록                              |
-| `ApiKeysModule`                                   | `api-keys/`                    | BYOK 키 등록·검증(argon2/AES)                                |
-| `ProjectsModule` / `PagesModule` / `PanelsModule` | `projects/` `pages/` `panels/` | 작품 트리 CRUD                                               |
-| `SpeechBubblesModule`                             | `speech-bubbles/`              | 페이지 직속 말풍선 CRUD                                      |
-| `PageTextsModule`                                 | `page-texts/`                  | 페이지 직속 자유 텍스트 CRUD                                 |
-| `PageLinesModule`                                 | `page-lines/`                  | 페이지 직속 자유 직선 CRUD                                   |
-| `ConsistencyModule`                               | `consistency/`                 | 일관성 엔티티 + 참조 이미지 업로드                           |
-| `RenderModule`                                    | `render/`                      | IR 빌더, BullMQ 큐, 워커, SSE 허브                           |
-| `ExportModule`                                    | `export/`                      | 페이지 PNG/JPG 내보내기, 패널 마스크 + 오버레이 레이어 합성  |
+| 모듈                                                                 | 위치                                       | 역할                                                         |
+| -------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------ |
+| `MetricsModule`                                                      | `metrics/`                                 | prom-client 기반 `/metrics`                                  |
+| `HealthController`                                                   | `health/`                                  | `/healthz`                                                   |
+| `AuthModule` + `OAuthModule`                                         | `auth/`, `auth/oauth/`                     | 세션/쿠키, Google·GitHub OAuth, 이메일 인증, 비밀번호 재설정 |
+| `EmailModule`                                                        | `email/`                                   | 발신                                                         |
+| `MeModule`                                                           | `me/`                                      | `/me`, 비밀번호 변경, 세션 목록                              |
+| `ApiKeysModule`                                                      | `api-keys/`                                | BYOK 키 등록·검증(argon2/AES)                                |
+| `ProjectsModule` / `EpisodesModule` / `PagesModule` / `PanelsModule` | `projects/` `episodes/` `pages/` `panels/` | 작품 트리 CRUD. 화(話)가 프로젝트와 페이지 사이에 있다       |
+| `SpeechBubblesModule`                                                | `speech-bubbles/`                          | 페이지 직속 말풍선 CRUD                                      |
+| `PageTextsModule`                                                    | `page-texts/`                              | 페이지 직속 자유 텍스트 CRUD                                 |
+| `PageLinesModule`                                                    | `page-lines/`                              | 페이지 직속 자유 직선 CRUD                                   |
+| `ConsistencyModule`                                                  | `consistency/`                             | 일관성 엔티티 + 참조 이미지 업로드                           |
+| `RenderModule`                                                       | `render/`                                  | IR 빌더, BullMQ 큐, 워커, SSE 허브                           |
+| `ExportModule`                                                       | `export/`                                  | 페이지 PNG/JPG 내보내기, 패널 마스크 + 오버레이 레이어 합성  |
 
 지원 디렉토리: `common/` (예외 필터, Zod 파이프, 응답 envelope 인터셉터, CSRF, 업로드 유틸), `storage/` (S3/MinIO + 이미지 검증).
 

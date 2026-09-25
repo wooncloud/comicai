@@ -32,7 +32,6 @@ export const ApiPaths = {
   projectThumbnail: (id: string) => `/projects/${id}/thumbnail`,
 
   projectPages: (pid: string) => `/projects/${pid}/pages`,
-  projectPagesReorder: (pid: string) => `/projects/${pid}/pages/reorder`,
   page: (id: string) => `/pages/${id}`,
   pageExport: (id: string) => `/pages/${id}/export`,
   pagePanels: (id: string) => `/pages/${id}/panels`,
@@ -51,6 +50,11 @@ export const ApiPaths = {
   panelConti: (id: string) => `/panels/${id}/conti`,
   panelRender: (id: string) => `/panels/${id}/render`,
 
+  projectEpisodes: (pid: string) => `/projects/${pid}/episodes`,
+  projectEpisodesReorder: (pid: string) => `/projects/${pid}/episodes/reorder`,
+  episode: (id: string) => `/episodes/${id}`,
+  episodePages: (id: string) => `/episodes/${id}/pages`,
+  episodePagesReorder: (id: string) => `/episodes/${id}/pages/reorder`,
   projectConsistency: (pid: string) => `/projects/${pid}/consistency`,
   consistency: (id: string) => `/consistency/${id}`,
   consistencyImages: (id: string) => `/consistency/${id}/images`,

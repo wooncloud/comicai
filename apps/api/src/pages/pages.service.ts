@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { newId, prisma } from '@comicai/db';
 import type { PageDTO, ImageRef } from '@comicai/types';
 import { ProjectsService } from '../projects/projects.service';
+import { EpisodesService } from '../episodes/episodes.service';
 import { StoragePrefix, StorageService } from '../storage/storage.service';
 import { isReorderPermutation } from '../common/reorder';
 import { apiError } from '../common/api-error';
@@ -10,6 +11,7 @@ import { jsonColumn } from '../common/json-column';
 interface PageRow {
   id: string;
   projectId: string;
+  episodeId: string;
   order: number;
   name: string | null;
   size: unknown;
@@ -34,6 +36,7 @@ function toDtoBase(row: PageRow): PageDTO {
   return {
     id: row.id,
     projectId: row.projectId,
+    episodeId: row.episodeId,
     order: row.order,
     name: row.name,
     size: toSize(row.size),
@@ -47,26 +50,67 @@ function toDtoBase(row: PageRow): PageDTO {
 export class PagesService {
   constructor(
     private readonly projects: ProjectsService,
+    private readonly episodes: EpisodesService,
     private readonly storage: StorageService,
   ) {}
 
+  /**
+   * 프로젝트의 **모든** 페이지. 화 순서 → 화 안의 순서로 정렬한다.
+   *
+   * 화가 생기기 전에는 `order` 하나로 충분했다. 이제 페이지 순서는 화 안에서만
+   * 의미가 있으므로, 프로젝트 전체를 한 줄로 볼 때는 화부터 본다.
+   */
   async list(userId: string, projectId: string): Promise<PageDTO[]> {
     await this.projects.assertOwned(userId, projectId);
     const rows = await prisma.page.findMany({
       where: { projectId },
+      orderBy: [{ episode: { order: 'asc' } }, { order: 'asc' }],
+    });
+    return Promise.all(rows.map((r) => this.withBackgroundUrl(r)));
+  }
+
+  /** 한 화의 페이지. */
+  async listByEpisode(userId: string, episodeId: string): Promise<PageDTO[]> {
+    await this.episodes.findOwned(userId, episodeId);
+    const rows = await prisma.page.findMany({
+      where: { episodeId },
       orderBy: { order: 'asc' },
     });
     return Promise.all(rows.map((r) => this.withBackgroundUrl(r)));
   }
 
+  /**
+   * 프로젝트에 페이지를 더한다 — **마지막 화의 뒤**에 붙는다.
+   *
+   * 화를 고르지 않는 경로다. 연재를 시작하기 전(화가 하나뿐일 때)에는 이게 자연스럽고,
+   * 화가 여럿이면 화 화면에서 그 화에 직접 더한다(`createInEpisode`).
+   */
   async create(
     userId: string,
     projectId: string,
     size: { w: number; h: number },
   ): Promise<PageDTO> {
-    await this.projects.assertOwned(userId, projectId);
+    const episode = await this.episodes.ensureLast(userId, projectId);
+    return this.appendTo(episode.id, projectId, size);
+  }
+
+  /** 지정한 화의 끝에 페이지를 더한다. */
+  async createInEpisode(
+    userId: string,
+    episodeId: string,
+    size: { w: number; h: number },
+  ): Promise<PageDTO> {
+    const episode = await this.episodes.findOwned(userId, episodeId);
+    return this.appendTo(episode.id, episode.projectId, size);
+  }
+
+  private async appendTo(
+    episodeId: string,
+    projectId: string,
+    size: { w: number; h: number },
+  ): Promise<PageDTO> {
     const last = await prisma.page.findFirst({
-      where: { projectId },
+      where: { episodeId },
       orderBy: { order: 'desc' },
       select: { order: true },
     });
@@ -74,8 +118,9 @@ export class PagesService {
       data: {
         id: newId('page'),
         projectId,
+        episodeId,
         order: (last?.order ?? -1) + 1,
-        size: size,
+        size,
       },
     });
     return this.withBackgroundUrl(row);
@@ -116,34 +161,31 @@ export class PagesService {
   }
 
   /**
-   * 프로젝트 내 페이지를 한 번에 재정렬한다.
-   * - pageIds는 새 order(0..N-1) 순서.
-   * - 누락된 페이지가 있거나 외부 ID가 섞이면 거부.
-   * - PK 제약은 (id) 단일이므로 충돌 우회용 임시 order는 불필요하지만,
-   *   동시 reorder 두 건이 섞일 가능성을 줄이려 단일 트랜잭션으로 처리.
+   * **한 화 안에서** 페이지를 재정렬한다.
+   *
+   * 예전에는 프로젝트 전체가 대상이었다. 화가 생긴 뒤로 페이지 순서는 화 안에서만
+   * 의미가 있다 — 프로젝트 전체에 0..N-1 을 다시 매기면 다른 화의 순서까지 건드린다.
+   *
+   * - pageIds 는 새 order(0..N-1) 순서.
+   * - 누락된 페이지가 있거나 다른 화의 ID 가 섞이면 거부.
+   * - 동시 reorder 두 건이 섞이지 않게 단일 트랜잭션으로 처리.
    */
-  async reorder(userId: string, projectId: string, pageIds: string[]): Promise<PageDTO[]> {
-    await this.projects.assertOwned(userId, projectId);
-    const current = await prisma.page.findMany({
-      where: { projectId },
-      select: { id: true },
-    });
+  async reorder(userId: string, episodeId: string, pageIds: string[]): Promise<PageDTO[]> {
+    await this.episodes.findOwned(userId, episodeId);
+    const current = await prisma.page.findMany({ where: { episodeId }, select: { id: true } });
     const currentIds = new Set(current.map((p) => p.id));
     if (!isReorderPermutation(pageIds, currentIds)) {
       throw new BadRequestException(
         apiError({
           code: 'PAGE_REORDER_MISMATCH',
-          message: '프로젝트의 모든 페이지를 순서대로 지정해야 합니다.',
+          message: '이 화의 모든 페이지를 순서대로 지정해야 합니다.',
         }),
       );
     }
     await prisma.$transaction(
       pageIds.map((id, order) => prisma.page.update({ where: { id }, data: { order } })),
     );
-    const rows = await prisma.page.findMany({
-      where: { projectId },
-      orderBy: { order: 'asc' },
-    });
+    const rows = await prisma.page.findMany({ where: { episodeId }, orderBy: { order: 'asc' } });
     return Promise.all(rows.map((r) => this.withBackgroundUrl(r)));
   }
 

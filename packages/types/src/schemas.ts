@@ -169,6 +169,22 @@ export const PageSizeSchema = z.object({
  */
 export const DEFAULT_PAGE_SIZE = { w: 1024, h: 1536 } as const;
 
+/**
+ * 화(話) — 프로젝트와 페이지 사이의 단위.
+ *
+ * 제목은 비워 둘 수 있다. 비면 순서로 "N화" 를 만든다(`episodeLabel`).
+ */
+export const EpisodeCreateSchema = z.object({
+  title: z.string().min(1).max(120).optional(),
+});
+export const EpisodePatchSchema = z.object({
+  // null 은 "제목을 지운다" — 그러면 다시 "N화" 로 보인다.
+  title: z.string().min(1).max(120).nullable().optional(),
+});
+export const EpisodeReorderSchema = z.object({
+  episodeIds: z.array(z.string().min(1)).min(1),
+});
+
 export const PageCreateSchema = z.object({
   size: PageSizeSchema.default(DEFAULT_PAGE_SIZE),
 });

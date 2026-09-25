@@ -33,9 +33,21 @@ export class PagesController {
     return this.svc.create(req.user.id, pid, body.size);
   }
 
-  @Post('projects/:pid/pages/reorder')
-  reorder(@Req() req: AuthedRequest, @Param('pid') pid: string, @Body() body: ReorderDto) {
-    return this.svc.reorder(req.user.id, pid, body.pageIds);
+  @Get('episodes/:id/pages')
+  listByEpisode(@Req() req: AuthedRequest, @Param('id') id: string) {
+    return this.svc.listByEpisode(req.user.id, id);
+  }
+
+  @Post('episodes/:id/pages')
+  @HttpCode(201)
+  createInEpisode(@Req() req: AuthedRequest, @Param('id') id: string, @Body() body: CreateDto) {
+    return this.svc.createInEpisode(req.user.id, id, body.size);
+  }
+
+  /** 순서는 **화 안에서만** 의미가 있다 — 프로젝트 전체를 다시 매기지 않는다. */
+  @Post('episodes/:id/pages/reorder')
+  reorder(@Req() req: AuthedRequest, @Param('id') id: string, @Body() body: ReorderDto) {
+    return this.svc.reorder(req.user.id, id, body.pageIds);
   }
 
   @Get('pages/:id')

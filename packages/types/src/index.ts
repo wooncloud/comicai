@@ -447,6 +447,8 @@ export function textToTipTapDoc(text: string): TipTapDoc {
 export interface PageDTO {
   id: string;
   projectId: string;
+  /** 이 페이지가 속한 화. 페이지는 반드시 어떤 화 안에 있다. */
+  episodeId: string;
   order: number;
   /** 사용자 지정 이름. null이면 '페이지 {order+1}' 형식의 기본 라벨 사용. */
   name: string | null;
@@ -457,6 +459,30 @@ export interface PageDTO {
   /** 페이지 단색 배경 (예: '#ffffff'). null이면 투명. background 이미지가 있을 땐 그 아래에 깔린다. */
   backgroundColor?: string | null;
   createdAt: string;
+}
+
+/**
+ * 화(話) — 프로젝트가 연재물일 때 페이지를 묶는 단위.
+ *
+ * 번호를 따로 들지 않는다. `order` 가 순서이고 제목이 비면 "N화" 로 보인다 —
+ * 프롤로그·외전·8.5화처럼 순서와 이름이 어긋나는 편이 실제로 생기기 때문에,
+ * 번호를 저장하면 둘을 손으로 맞춰야 한다.
+ */
+export interface EpisodeDTO {
+  id: string;
+  projectId: string;
+  order: number;
+  /** 사용자 지정 제목. null 이면 `order` 로 "N화" 를 만든다. */
+  title: string | null;
+  /** 이 화의 페이지 수. 목록이 매번 페이지를 다시 세지 않게 서버가 준다. */
+  pageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** EpisodeDTO.title 과 order 에서 표시용 라벨. `pageLabel` 과 같은 규칙이다. */
+export function episodeLabel(episode: { title: string | null; order: number }): string {
+  return episode.title ?? `${episode.order + 1}화`;
 }
 
 /** PageDTO.name과 order에서 표시용 라벨 추출. */

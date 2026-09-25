@@ -96,6 +96,7 @@ model Project {
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episodes Episode[]
   pages    Page[]
   entities ConsistencyEntity[]
 
@@ -121,9 +122,37 @@ model ConsistencyEntity {
   @@map("consistency_entities")
 }
 
+/// 한 편(話). 프로젝트가 연재물일 때 페이지를 묶는 단위다.
+///
+/// 프로젝트 하나에 페이지가 한 줄로 늘어서 있었다. 단편이면 괜찮지만 연재를
+/// 시작하는 순간 40장이 평평하게 쌓여, 3화를 고치려면 목록을 세어야 했다.
+///
+/// 번호를 따로 두지 않는다. `order` 가 순서이고 `title` 이 비면 "N화" 로 보인다 —
+/// 프롤로그·외전·8.5화처럼 순서와 이름이 어긋나는 편이 실제로 생기기 때문에,
+/// 번호를 저장하면 둘을 손으로 맞춰야 한다.
+model Episode {
+  id        String   @id
+  projectId String   @map("project_id")
+  order     Int
+  /// 사용자 지정 제목. null 이면 `order` 로 "N화" 를 만든다.
+  title     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pages   Page[]
+
+  /// `Page` 가 (episodeId, projectId) 쌍으로 걸 수 있게 한다 — 그래야 다른 프로젝트의
+  /// 화에 페이지가 붙는 상태를 **DB 가 막는다**. 주석으로만 약속하면 언젠가 깨진다.
+  @@unique([id, projectId])
+  @@index([projectId, order])
+  @@map("episodes")
+}
+
 model Page {
   id              String   @id
   projectId       String   @map("project_id")
+  episodeId       String   @map("episode_id")
   order           Int
   name            String?
   size            Json
@@ -131,12 +160,18 @@ model Page {
   backgroundColor String?  @map("background_color")
   createdAt       DateTime @default(now()) @map("created_at")
 
-  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// 복합 참조다. `projectId` 가 양쪽에 걸려 있어, 다른 프로젝트의 화를 가리키는 페이지는
+  /// 만들어지지 않는다. `projectId` 를 페이지에 남겨 둔 이유이기도 하다 — 소유권 검사와
+  /// S3 키(`projects/{projectId}/...`)가 이미 그 값을 쓴다.
+  episode Episode @relation(fields: [episodeId, projectId], references: [id, projectId], onDelete: Cascade)
+
   panels        Panel[]
   speechBubbles SpeechBubble[]
   pageTexts     PageText[]
   pageLines     PageLine[]
 
+  @@index([episodeId, order])
   @@index([projectId, order])
   @@map("pages")
 }

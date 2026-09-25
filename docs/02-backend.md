@@ -297,18 +297,35 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 `ApiKeyBreaker.recordAuthFailure` 로 차단기 카운터도 누적된다 — 예전에는 이 경로가
 `resolved.id` 를 버려서 차단기와 `render_attempts_total` 을 함께 우회했다.
 
-### 3.5 PagesModule (`pages/pages.controller.ts`)
+### 3.5 EpisodesModule (`episodes/episodes.controller.ts`)
 
-| Method | Route                             | Handler                                                                                                                                        |
-| ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/v1/projects/:pid/pages`         | `list` (`pages.controller.ts:25-28`)                                                                                                           |
-| POST   | `/v1/projects/:pid/pages`         | `create` (`:43-47`)                                                                                                                            |
-| POST   | `/v1/projects/:pid/pages/reorder` | `reorder` (`:49-52`) — body `{ pageIds: string[] }`로 페이지 순서 갱신. **순서를 바꾸는 유일한 경로다** (`PagePatchSchema` 에 `order` 가 없다) |
-| GET    | `/v1/pages/:id`                   | `get` (`:54-57`)                                                                                                                               |
-| PATCH  | `/v1/pages/:id`                   | `patch` (`:46-49`) — `size?`, `name?`, `backgroundColor?`                                                                                      |
-| DELETE | `/v1/pages/:id`                   | `remove` (`:51-55`)                                                                                                                            |
+화(話)는 프로젝트와 페이지 사이의 단위다. 연재물에서 페이지 40장이 평평하게 쌓이던 것을 묶는다.
 
-### 3.6 PanelsModule (`panels/panels.controller.ts`)
+| Method | Route                                | Handler                                                                         |
+| ------ | ------------------------------------ | ------------------------------------------------------------------------------- |
+| GET    | `/v1/projects/:pid/episodes`         | `list` (`episodes.controller.ts:24`) — `pageCount` 포함                         |
+| POST   | `/v1/projects/:pid/episodes`         | `create` (`:30`) — `title?` (비우면 "N화")                                      |
+| POST   | `/v1/projects/:pid/episodes/reorder` | `reorder` (`:35`) — body `{ episodeIds: string[] }`                             |
+| PATCH  | `/v1/episodes/:id`                   | `patch` — `title?`. `null` 이면 제목을 지워 다시 "N화" 로 보인다                |
+| DELETE | `/v1/episodes/:id`                   | `remove` — 그 안의 페이지도 함께 사라진다. **마지막 화는 거부**(`EPISODE_LAST`) |
+
+프로젝트 생성은 화를 만들지 않는다. 첫 페이지를 넣을 때 만들어진다
+(`EpisodesService.ensureLast`, `episodes.service.ts:69`) — 미리 만들면 "빈 화만 있는 프로젝트" 가 생긴다.
+
+### 3.6 PagesModule (`pages/pages.controller.ts`)
+
+| Method | Route                            | Handler                                                                                                                                                 |
+| ------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/projects/:pid/pages`        | `list` (`pages.controller.ts:26`) — 프로젝트의 **모든** 페이지. 화 순서 → 화 안의 순서                                                                  |
+| POST   | `/v1/projects/:pid/pages`        | `create` (`:32`) — **마지막 화**의 뒤에 붙는다. 화가 없으면 만든다                                                                                      |
+| GET    | `/v1/episodes/:id/pages`         | `listByEpisode` (`:37`)                                                                                                                                 |
+| POST   | `/v1/episodes/:id/pages`         | `createInEpisode` (`:43`)                                                                                                                               |
+| POST   | `/v1/episodes/:id/pages/reorder` | `reorder` (`:49`) — body `{ pageIds: string[] }`. **순서는 화 안에서만** 의미가 있다. 순서를 바꾸는 유일한 경로다(`PagePatchSchema` 에 `order` 가 없다) |
+| GET    | `/v1/pages/:id`                  | `get`                                                                                                                                                   |
+| PATCH  | `/v1/pages/:id`                  | `patch` — `size?`, `name?`, `backgroundColor?`                                                                                                          |
+| DELETE | `/v1/pages/:id`                  | `remove`                                                                                                                                                |
+
+### 3.7 PanelsModule (`panels/panels.controller.ts`)
 
 | Method | Route                      | Handler                                                                               |
 | ------ | -------------------------- | ------------------------------------------------------------------------------------- |
@@ -325,7 +342,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 리스트 응답은 currentRender의 presign URL + 콘티의 `contiUrl`을 동봉 — `panels/panels.service.ts`.
 
-### 3.6b SpeechBubblesModule (`speech-bubbles/*`)
+### 3.7b SpeechBubblesModule (`speech-bubbles/*`)
 
 페이지 직속 말풍선의 CRUD + reorder. 패널과 독립이며 렌더에는 영향 없고 export 합성에서만 사용된다. **말풍선은 자기 대사(`text`·`textStyle`)를 갖는다**(2026-09-25) — 풍선을 옮기면 글자도 따라온다. 효과음·내레이션처럼 풍선과 무관한 글자는 여전히 [[page-text]] 다.
 
@@ -339,7 +356,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 소유 검증은 `page→project→userId` 체인을 `PagesService.findOwned` (`pages.service.ts:154`) 와 자체 `assertOwned`로 처리 — `panels.service.ts` 패턴과 동일. `findOwned` 는 **페이지 행 전체**를 돌려준다: 예전에는 id/projectId 만 읽어서 `PagesService.get` 이 곧바로 같은 행을 다시 읽었고(에디터가 페이지를 열 때마다 왕복 2회), 페이지 행은 작으므로 소유권만 필요한 호출부가 조금 더 읽는 비용보다 왕복 하나를 없애는 쪽이 낫다.
 
-### 3.6c PageTextsModule (`page-texts/*`)
+### 3.7c PageTextsModule (`page-texts/*`)
 
 페이지 직속 자유 텍스트 박스 (만화 효과음/자막/내레이션 등). 말풍선과 마찬가지로 패널·렌더와 독립이며, export 단계에서 말풍선 위·자유 직선 아래 레이어로 합성된다(`apps/api/src/export/page-text.render.ts`).
 
@@ -355,7 +372,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 `text` 는 단순 평문(줄바꿈만 보존, TipTap 미사용), `style` 은 `PageTextStyle` (fontSize/fontFamily/color/textAlign) 의 partial 머지로 정규화 — `page-texts.service.ts:67-89` (`create`) / `:91-105` (`patch`). 소유 검증은 `PagesService.findOwned` 와 자체 `assertOwned`로 동일 패턴.
 
-### 3.6d PageLinesModule (`page-lines/*`)
+### 3.7d PageLinesModule (`page-lines/*`)
 
 페이지 직속 자유 직선 (가이드선/말풍선 연결선/패널 구분선 등). 패널·렌더와 독립이며, export 단계에서 최상단(말풍선·자유 텍스트 위) 레이어로 합성된다(`apps/api/src/export/page-line.render.ts`).
 
@@ -391,7 +408,7 @@ Prisma 델리게이트는 모델마다 다른 제네릭 타입이라 셋을 한 
 
 좌표는 페이지 좌표계 절대값 두 점(x1/y1/x2/y2)으로 저장된다. tldraw 측은 BaseBoxShape 패턴(bbox + bbox 내 normalized 두 끝점)으로 표현하며, sync hook(`apps/web/components/editor/tldraw/use-page-line-sync.ts`)이 두 표현을 양방향 변환한다. `style` 은 `PageLineStyle` (`strokeWidth/strokeColor/strokeStyle='solid'|'dashed'`) 의 partial 머지로 정규화 — `page-lines.service.ts:63-84` (`create`) / `:86-99` (`patch`).
 
-### 3.7 RenderModule (`render/*`)
+### 3.8 RenderModule (`render/*`)
 
 RenderModule import: `AuthModule, PanelsModule, StorageModule, ApiKeysModule` — `render/render.module.ts:12-13`.
 
@@ -405,7 +422,7 @@ RenderModule import: `AuthModule, PanelsModule, StorageModule, ApiKeysModule` �
 
 SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재구독 시 누락 분 재전송, 30초마다 ping — `render.controller.ts:51-59`.
 
-### 3.8 ExportModule (`export/export.controller.ts`)
+### 3.9 ExportModule (`export/export.controller.ts`)
 
 | Method | Route                  | Handler                                 |
 | ------ | ---------------------- | --------------------------------------- |
@@ -436,7 +453,7 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
 `maskedPanelImage` (`:52`) 안에서만 살아 마스킹본과 겹쳐 붙들리지 않는다. 결과 순서는 입력
 순서를 유지한다 — 합성 순서가 곧 z-order 다.
 
-### 3.9 HealthController / MetricsController
+### 3.10 HealthController / MetricsController
 
 - `GET /healthz` (글로벌 prefix 제외) — `health/health.controller.ts:44`. 응답은 `{ ok, at }` 뿐이다.
   **어떤 의존성이 죽었는지는 응답이 아니라 로그로 나간다** (`:79`) — 인증 없이 열린 엔드포인트라
@@ -460,14 +477,14 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
   - 스크레이핑: `curl -H "Authorization: Bearer $METRICS_TOKEN" .../v1/metrics`
 - Prometheus 메트릭: `http_requests_total`, `http_request_duration_seconds`, `render_attempts_total{model,outcome}`, `render_duration_seconds{model}` + `comicai_` 프리픽스의 default metrics — `metrics/metrics.service.ts:15-46`
 
-### 3.10 EmailModule
+### 3.11 EmailModule
 
 - `@Global()` 모듈. `ConsoleEmailProvider`가 기본(프로덕션에서 경고 로그) — `email/email.module.ts:4-21`
 - `EmailService.sendVerification / sendPasswordReset`는 `${WEB_ORIGIN}/verify-email/{token}` 또는 `${WEB_ORIGIN}/reset-password?token=...`로 링크 구성 — `email/email.provider.ts:37-53`
 
 ---
 
-### 3.10b 모델 자격 증명 (`render/model-credentials.ts`)
+### 3.11b 모델 자격 증명 (`render/model-credentials.ts`)
 
 그림 생성에 쓸 키를 고르는 곳. 예전에는 이 로직이 렌더 워커와 일관성 서비스에
 **두 벌로 복제**돼 있어서, 한쪽만 고치면 컷 렌더는 되는데 참조 이미지 생성만 죽었다.
@@ -491,7 +508,7 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
   워커(`render.worker.ts:163`)와 참조 이미지 생성(`consistency.service.ts:277`)이 같은
   함수를 쓴다.
 
-### 3.10c EmailModule (`email/email.module.ts`)
+### 3.11c EmailModule (`email/email.module.ts`)
 
 `RESEND_API_KEY` 가 있으면 Resend HTTP API 로 실제 발송하고, 없으면 콘솔에 찍는다
 (`email.module.ts:17`). SDK 를 넣지 않은 이유는 요청이 POST 하나뿐이라 `fetch` 로
@@ -503,7 +520,7 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
 키가 없는 채로 프로덕션이면 부팅 시 `error` 레벨로 경고한다 — 그 상태에서는
 이메일 인증과 비밀번호 재설정을 끝낼 수 없다.
 
-### 3.11 AdminModule (`admin/admin.controller.ts`)
+### 3.12 AdminModule (`admin/admin.controller.ts`)
 
 운영자용 **읽기 전용** 현황. 쓰기 동작은 일부러 넣지 않았다 — 운영 화면에서 지울 수 있게
 만드는 순간 실수 한 번의 대가가 커진다.
@@ -536,7 +553,7 @@ hex 폴백을 갖고 있었고 말풍선·텍스트·직선은 저장된 문자�
 - 사용자 목록에 비밀번호 해시·API 키·아바타 저장 키는 넣지 않는다. 운영 화면에서 볼 이유가
   없고, 한 번 응답에 실리면 브라우저 캐시·로그·스크린샷을 타고 퍼진다.
 
-### 3.12 TokensModule / BillingModule (`tokens/*`, `billing/*`)
+### 3.13 TokensModule / BillingModule (`tokens/*`, `billing/*`)
 
 그림 생성의 대가를 받는 곳. 잔액(`token_accounts`)과 원장(`token_ledger`) 두 테이블을 쓴다.
 

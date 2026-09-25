@@ -54,6 +54,8 @@ const BY_CODE: Record<Code, string | null> = {
   PROJECT_NOT_FOUND: '프로젝트를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
   PANEL_NOT_FOUND: '컷을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
   PAGE_NOT_FOUND: '페이지를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
+  EPISODE_NOT_FOUND: '화를 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
+  EPISODE_LAST: '마지막 화는 삭제할 수 없습니다. 페이지는 어떤 화 안에 있어야 합니다.',
   API_KEY_NOT_FOUND: '지금은 그림을 만들 수 없습니다. 잠시 후 다시 시도해 주세요.',
   API_KEY_VERIFY_FAILED: '키 검증에 실패했습니다. 키가 올바른지 확인해 주세요.',
   CONSISTENCY_NOT_FOUND: '항목을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.',
@@ -68,6 +70,7 @@ const BY_CODE: Record<Code, string | null> = {
   // 화면이 목록을 통째로 보내므로, 어긋났다면 다른 탭에서 이미 바뀐 것이다.
   INVALID_REORDER: '순서가 이미 바뀌었습니다. 새로고침한 뒤 다시 시도해 주세요.',
   PAGE_REORDER_MISMATCH: '순서가 이미 바뀌었습니다. 새로고침한 뒤 다시 시도해 주세요.',
+  EPISODE_REORDER_MISMATCH: '순서가 이미 바뀌었습니다. 새로고침한 뒤 다시 시도해 주세요.',
 
   // ── 이미지 생성 ─────────────────────────────────
   RENDER_QUOTA_EXCEEDED: '오늘 만들 수 있는 그림 수를 다 썼습니다. 내일 다시 시도해 주세요.',

@@ -44,15 +44,31 @@ export function usePageReorder(projectId: string, pages: PageDTO[] | undefined) 
     const newIndex = pages.findIndex((p) => p.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
 
+    /*
+     * 순서는 **화 안에서만** 의미가 있다.
+     *
+     * 예전에는 프로젝트 전체에 0..N-1 을 다시 매겼다. 화가 생긴 뒤로 그렇게 하면
+     * 다른 화의 순서까지 건드린다. 그래서 끌어 놓은 페이지가 속한 화만 다시 매기고,
+     * 다른 화로 끌면 아무 일도 하지 않는다 — 화를 옮기는 동작은 아직 없다.
+     */
+    const episodeId = pages[oldIndex]!.episodeId;
+    if (pages[newIndex]!.episodeId !== episodeId) return;
+
     const prev = pages;
-    const next = arrayMove(pages, oldIndex, newIndex).map((p, i) => ({ ...p, order: i }));
+    const moved = arrayMove(pages, oldIndex, newIndex);
+    // 이 화의 페이지만 골라 0..N-1 을 다시 매긴다. 나머지는 그대로 둔다.
+    let order = 0;
+    const next = moved.map((p) => (p.episodeId === episodeId ? { ...p, order: order++ } : p));
+    const pageIds = next.filter((p) => p.episodeId === episodeId).map((p) => p.id);
     setPages(next);
     try {
-      const fresh = await api<PageDTO[]>(ApiPaths.projectPagesReorder(projectId), {
+      const fresh = await api<PageDTO[]>(ApiPaths.episodePagesReorder(episodeId), {
         method: 'POST',
-        body: JSON.stringify({ pageIds: next.map((p) => p.id) }),
+        body: JSON.stringify({ pageIds }),
       });
-      setPages(fresh);
+      // 응답은 그 화의 페이지만이다. 나머지 화는 손대지 않은 값을 그대로 쓴다.
+      const byId = new Map(fresh.map((p) => [p.id, p]));
+      setPages(next.map((p) => byId.get(p.id) ?? p));
     } catch (err) {
       setPages(prev);
       toast.push('error', errorMessage(err, '순서를 저장'));
