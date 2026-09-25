@@ -44,11 +44,17 @@ function buildBubbleFragment(b: BubbleInput): string {
   const style = { ...defaults, ...b.style };
   const bodyD = bubbleBodyPath(b.variant, W, H, b.shape.points ?? null);
   const tailD = b.shape.tail ? bubbleTailPath(b.shape.tail.x, b.shape.tail.y, W, H) : null;
+  const fill = safeColor(style.fillColor, defaults.fillColor);
+  const stroke = safeColor(style.strokeColor, defaults.strokeColor);
+  /*
+   * 순서는 `BUBBLE_DRAW_ORDER` — 꼬리, 몸통, 꼬리 채움.
+   * 마지막 채움이 몸통 테두리가 꼬리를 가로지르는 구간을 덮어, 둘이 한 덩어리가 된다.
+   */
   return `<g transform="translate(${x} ${y})">
-  <g fill="${safeColor(style.fillColor, defaults.fillColor)}" stroke="${safeColor(style.strokeColor, defaults.strokeColor)}" stroke-width="${style.strokeWidth}" stroke-linejoin="round">
-    <!-- 꼬리를 먼저 깐다. 풍선 몸통이 그 위를 덮어 삼각형 밑변이 풍선 안에서 보이지 않는다. -->
+  <g fill="${fill}" stroke="${stroke}" stroke-width="${style.strokeWidth}" stroke-linejoin="round">
     ${tailD ? `<path d="${tailD}" />` : ''}
     <path d="${bodyD}" />
+    ${tailD ? `<path d="${tailD}" stroke="none" />` : ''}
   </g>
   ${bubbleTextFragment(b, W, H)}
 </g>`;

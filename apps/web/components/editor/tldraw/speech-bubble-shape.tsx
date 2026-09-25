@@ -244,10 +244,8 @@ function SpeechBubbleBody({
         viewBox={`0 0 ${w} ${h}`}
         style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}
       >
-        {/*
-          꼬리를 먼저 깐다. 풍선 몸통이 그 위를 덮어야 삼각형 밑변이 풍선 안에서
-          보이지 않는다. 반대로 그리면 풍선 한가운데를 선 두 줄이 가로지른다.
-        */}
+        {/* 순서는 `BUBBLE_DRAW_ORDER` — 꼬리, 몸통, 꼬리 채움. 셋째가 몸통 테두리가
+            꼬리를 가로지르는 구간을 덮어 둘이 한 덩어리로 보인다. */}
         {tailPath && (
           <path
             d={tailPath}
@@ -266,6 +264,7 @@ function SpeechBubbleBody({
           strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"
         />
+        {tailPath && <path d={tailPath} fill={fillColor} stroke="none" />}
       </svg>
       <div
         ref={editableRef}
