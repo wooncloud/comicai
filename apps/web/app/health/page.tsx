@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
+import { API_ORIGIN } from '@/lib/api';
+import { cn } from '@/lib/cn';
 import { formatKoreanDateTime } from '@/lib/datetime';
 
 export const metadata: Metadata = {
@@ -26,8 +28,7 @@ interface Check {
  */
 async function checkApi(): Promise<{ verdict: Verdict; at: string | null }> {
   // 서버 사이드 fetch 는 컨테이너 네트워크에서 나가므로 INTERNAL_API_URL 우선.
-  const base =
-    process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+  const base = process.env.INTERNAL_API_URL ?? API_ORIGIN;
   try {
     const res = await fetch(`${base}/healthz`, { cache: 'no-store' });
     if (!res.ok) return { verdict: 'down', at: null };
@@ -125,14 +126,17 @@ export default async function HealthPage() {
 function StatusDot({ ok, className }: { ok: boolean; className?: string }) {
   const color = ok ? 'bg-emerald-500' : 'bg-destructive';
   return (
-    <span className={`relative inline-flex ${className}`}>
+    <span className={cn('relative inline-flex', className)}>
       {ok && (
         <span
-          className={`absolute inline-flex h-full w-full rounded-full ${color} opacity-60 motion-safe:animate-ping`}
+          className={cn(
+            'absolute inline-flex h-full w-full rounded-full opacity-60 motion-safe:animate-ping',
+            color,
+          )}
           aria-hidden
         />
       )}
-      <span className={`relative inline-flex h-full w-full rounded-full ${color}`} aria-hidden />
+      <span className={cn('relative inline-flex h-full w-full rounded-full', color)} aria-hidden />
     </span>
   );
 }
@@ -147,11 +151,12 @@ const VERDICT_LABEL: Record<Verdict, string> = {
 function VerdictLabel({ verdict }: { verdict: Verdict }) {
   return (
     <span
-      className={`shrink-0 rounded-full px-2 py-0.5 text-caption font-medium ${
+      className={cn(
+        'shrink-0 rounded-full px-2 py-0.5 text-caption font-medium',
         verdict === 'ok'
           ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-          : 'bg-destructive/10 text-destructive'
-      }`}
+          : 'bg-destructive/10 text-destructive',
+      )}
     >
       {VERDICT_LABEL[verdict]}
     </span>

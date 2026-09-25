@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { Coins } from 'lucide-react';
 import { formatTokens, useTokenBalance } from '@/lib/tokens';
+import { cn } from '@/lib/cn';
 
 /**
  * 상단바의 잔액 — 아바타 바로 옆, 모든 화면에서.
@@ -26,9 +27,10 @@ export function TokenBalance() {
     <Link
       href="/settings/billing"
       title="토큰 잔액 · 충전"
-      className={`flex shrink-0 items-center gap-1 rounded px-2 py-1 text-caption tabular-nums transition-colors hover:bg-muted touch:min-h-11 ${
-        empty ? 'text-destructive' : 'text-muted-foreground hover:text-foreground'
-      }`}
+      className={cn(
+        'flex shrink-0 items-center gap-1 rounded px-2 py-1 text-caption tabular-nums transition-colors hover:bg-muted touch:min-h-11',
+        empty ? 'text-destructive' : 'text-muted-foreground hover:text-foreground',
+      )}
     >
       <Coins className="h-3.5 w-3.5" aria-hidden />
       <span>{formatTokens(data.balance)}</span>

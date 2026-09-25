@@ -254,7 +254,7 @@ export function isHexColor(v: unknown): v is string {
  * 보이는데 어느 쪽도 오류를 내지 않는다 — 사용자는 "왜 내보낸 그림만 다르지" 만 알게 된다.
  * (SVG 주입은 아니다. `escapeAttr` 이 따로 막는다.)
  *
- * 웹은 이미 같은 정규식으로 막고 있다(`hex-color-field.tsx` 의 `isHexColor`).
+ * 웹 색 고르개는 이 모양으로 정규화한 값만 올린다(`normalizeHex`, `apps/web/lib/color.ts`).
  * 서버만 그 계약을 강제하지 않고 있었다.
  */
 const ColorStringSchema = z

@@ -31,8 +31,8 @@ import { PageSidebar } from '@/components/editor/page-sidebar';
 import { SaveStatus } from '@/components/editor/save-status';
 import { ExportDialog } from '@/components/editor/export-dialog';
 import { PageInspector } from '@/components/editor/page-inspector';
-import { ResizeHandle } from '@/components/editor/resize-handle';
-import { usePanelWidth } from '@/lib/use-panel-width';
+import { SidePanel } from '@/components/editor/side-panel';
+import type { PanelWidthSpec } from '@/lib/use-panel-width';
 import { usePanelSync } from '@/components/editor/tldraw/use-panel-sync';
 import { useSpeechBubbleSync } from '@/components/editor/tldraw/use-speech-bubble-sync';
 import { usePageTextSync } from '@/components/editor/tldraw/use-page-text-sync';
@@ -97,6 +97,17 @@ function selectionOf(shape: TLShape | undefined): Selection {
   }
 }
 
+/*
+ * 세 패널의 폭은 각자 정한다.
+ *
+ * 페이지 목록은 이름 한 줄이 들어갈 만큼만 있으면 되고, 도구 레일은 아이콘 한 줄이라
+ * 넓힐 이유가 거의 없으며, 인스펙터는 색·슬라이더·선택 상자가 들어가 가장 넓다.
+ * 한 값으로 묶으면 어느 하나는 늘 어색해진다.
+ */
+const PAGES_PANEL: PanelWidthSpec = { defaultWidth: 144, min: 120, max: 320, hideBelow: 96 };
+const TOOLS_PANEL: PanelWidthSpec = { defaultWidth: 48, min: 44, max: 96, hideBelow: 36 };
+const INSPECTOR_PANEL: PanelWidthSpec = { defaultWidth: 320, min: 260, max: 560, hideBelow: 200 };
+
 /** 말풍선·텍스트·직선 인스펙터는 모양이 같다 — 셰이프 id 와 순서 한 벌. */
 const LAYER_INSPECTORS = {
   bubble: SpeechBubbleInspector,
@@ -134,31 +145,6 @@ export default function PageEditor() {
   const [exportOpen, setExportOpen] = useState(false);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
-  /*
-   * 세 패널의 폭은 각자 정한다.
-   *
-   * 페이지 목록은 이름 한 줄이 들어갈 만큼만 있으면 되고, 도구 레일은 아이콘 한 줄이라
-   * 넓힐 이유가 거의 없으며, 인스펙터는 색·슬라이더·선택 상자가 들어가 가장 넓다.
-   * 한 값으로 묶으면 어느 하나는 늘 어색해진다.
-   */
-  const left = usePanelWidth('editor.width.pages', {
-    defaultWidth: 144,
-    min: 120,
-    max: 320,
-    hideBelow: 96,
-  });
-  const rail = usePanelWidth('editor.width.tools', {
-    defaultWidth: 48,
-    min: 44,
-    max: 96,
-    hideBelow: 36,
-  });
-  const right = usePanelWidth('editor.width.inspector', {
-    defaultWidth: 320,
-    min: 260,
-    max: 560,
-    hideBelow: 200,
-  });
   const [loadError, setLoadError] = useState<unknown>(null);
   /** "다시 시도" 가 로드 이펙트를 다시 돌리게 하는 값. */
   const [reloadKey, setReloadKey] = useState(0);
@@ -447,82 +433,63 @@ export default function PageEditor() {
           화면에 있으면서 좁은 헤더의 자리를 먹었다. 너무 좁게 끌면 접히고, 접힌
           자리에 남은 띠를 다시 끌어내면 돌아온다.
         */}
-        {!left.hidden && (
-          <div style={{ width: left.width }} className="flex min-w-0 shrink-0">
-            <PageSidebar
-              projectId={projectId}
-              currentPageId={pageId}
-              currentPage={page}
-              onCurrentPageUpdated={setPage}
-            />
-          </div>
-        )}
-        <ResizeHandle
+        <SidePanel
+          storageKey="editor.width.pages"
+          spec={PAGES_PANEL}
           side="left"
           label="페이지 목록 너비"
-          width={left.width}
-          spec={left.spec}
-          onResize={left.resize}
-        />
-        {!rail.hidden && (
-          <div style={{ width: rail.width }} className="flex min-w-0 shrink-0">
-            <ToolRail editor={editor} />
-          </div>
-        )}
-        <ResizeHandle
-          side="left"
-          label="도구 너비"
-          width={rail.width}
-          spec={rail.spec}
-          onResize={rail.resize}
-        />
+        >
+          <PageSidebar
+            projectId={projectId}
+            currentPageId={pageId}
+            currentPage={page}
+            onCurrentPageUpdated={setPage}
+          />
+        </SidePanel>
+        <SidePanel storageKey="editor.width.tools" spec={TOOLS_PANEL} side="left" label="도구 너비">
+          <ToolRail editor={editor} />
+        </SidePanel>
         <div className="relative flex-1 bg-muted/40">
           <ComicEditor onMount={setEditor} onReorderAction={onReorderAction} />
         </div>
-        <ResizeHandle
+        <SidePanel
+          storageKey="editor.width.inspector"
+          spec={INSPECTOR_PANEL}
           side="right"
           label="속성 창 너비"
-          width={right.width}
-          spec={right.spec}
-          onResize={right.resize}
-        />
-        {right.hidden ? null : (
-          <div style={{ width: right.width }} className="flex min-w-0 shrink-0">
-            {selection && selectedPanel && editor ? (
-              <PanelInspector
-                key={selectedPanel.id}
-                projectId={projectId}
-                editor={editor}
-                shapeId={selection.shapeId}
-                panel={selectedPanel}
-                onPanelUpdated={(p) =>
-                  setPanels((prev) => prev.map((x) => (x.id === p.id ? p : x)))
-                }
-                onPanelDeleted={() => {
-                  setPanels((prev) => prev.filter((x) => x.id !== selectedPanel.id));
-                  setSelection(null);
-                }}
-              />
-            ) : layer && editor ? (
-              <layer.Inspector
-                key={layer.shapeId}
-                editor={editor}
-                shapeId={layer.shapeId}
-                order={layer.order}
-              />
-            ) : page ? (
-              <PageInspector
-                page={page}
-                onPageUpdated={setPage}
-                onExport={() => setExportOpen(true)}
-              />
-            ) : (
-              // 아무것도 선택하지 않았을 때의 빈 자리. 폭이 인스펙터와 같아야
-              // 선택할 때 캔버스가 흔들리지 않는다.
-              <aside className="flex-1 border-l border-border bg-card" />
-            )}
-          </div>
-        )}
+        >
+          {selection && selectedPanel && editor ? (
+            <PanelInspector
+              key={selectedPanel.id}
+              projectId={projectId}
+              editor={editor}
+              shapeId={selection.shapeId}
+              panel={selectedPanel}
+              onPanelUpdated={(p) => setPanels((prev) => prev.map((x) => (x.id === p.id ? p : x)))}
+              onPanelDeleted={() => {
+                setPanels((prev) => prev.filter((x) => x.id !== selectedPanel.id));
+                setSelection(null);
+              }}
+            />
+          ) : layer && editor ? (
+            <layer.Inspector
+              key={layer.shapeId}
+              editor={editor}
+              shapeId={layer.shapeId}
+              order={layer.order}
+            />
+          ) : page ? (
+            <PageInspector
+              page={page}
+              onPageUpdated={setPage}
+              onExport={() => setExportOpen(true)}
+            />
+          ) : (
+            // 아무것도 선택하지 않았을 때의 빈 자리. 폭이 인스펙터와 같아야
+            // 선택할 때 캔버스가 흔들리지 않는다.
+            <aside className="flex-1 border-l border-border bg-card" />
+          )}
+        </SidePanel>
       </div>
     </div>
   );

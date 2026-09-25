@@ -61,7 +61,10 @@ export function usePanelWidth(storageKey: string, spec: PanelWidthSpec) {
   useEffect(() => {
     // 읽기 전에 쓰면 저장된 값을 기본값으로 덮어쓴다.
     if (!loaded) return;
-    window.localStorage.setItem(storageKey, String(width));
+    // 끄는 동안에는 폭이 포인터 속도로 바뀐다. 멈춘 뒤 한 번만 남긴다 — localStorage 는
+    // 동기라, 매번 쓰면 끄는 내내 메인 스레드에서 디스크 쓰기가 돈다.
+    const t = window.setTimeout(() => window.localStorage.setItem(storageKey, String(width)), 300);
+    return () => window.clearTimeout(t);
   }, [storageKey, width, loaded]);
 
   /** 끄는 동안의 폭. 지정된 한계와 숨김 문턱을 여기서 적용한다. */

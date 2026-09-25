@@ -630,7 +630,7 @@ apps/web/
   중 무엇이 죽었는지를 응답에 담지 않는다(`apps/api/src/health/health.controller.ts`).
   운영자는 로그를 본다. 이 화면이 말할 수 있는 것은 "되느냐" 까지다.
 - 서버가 "문제 있다" 고 답한 것(`점검 중`)과 아예 답이 없는 것(`응답 없음`)을 가른다
-  (`VERDICT_LABEL`, `app/health/page.tsx:140`). 원인이 다르면 사용자가 할 일도 다르다.
+  (`VERDICT_LABEL`, `app/health/page.tsx:144`). 원인이 다르면 사용자가 할 일도 다르다.
 - 시각은 `formatKoreanDateTime`(`lib/datetime.ts:19`)으로 찍는다. **서버 컴포넌트라서**
   필요한 함수다 — Node 의 ICU 는 `toLocaleString('ko-KR')` 에 `2026년 9월 25일 PM 9:00`
   을 돌려준다(오전/오후만 영어). 컨테이너 이미지의 ICU 판본에 따라 갈리는 어긋남이라
@@ -740,7 +740,11 @@ apps/web/
   기능이다), 더블클릭·Enter 는 접기/펼치기다.
 - **너무 좁게 끌면 접힌다**(`hideBelow`). 접힌 자리에 남은 얇은 띠가 다시 꺼내는
   길이라, 그때만 가운데에 손잡이 표시를 띄운다.
-- **세 패널의 한계는 각자 다르다**(`app/projects/[id]/pages/[pageid]/page.tsx:99`).
+- 패널 하나는 `SidePanel`(`components/editor/side-panel.tsx:25`) — 내용과 손잡이 한 짝. **폭은
+  패널이 든다.** 라우트가 들고 있던 때는 경계를 끄는 동안 라우트 전체가 포인터 속도로 다시 그려졌다.
+  폭은 끄기를 멈춘 뒤 한 번만 브라우저에 남긴다(`lib/use-panel-width.ts:66`) — localStorage 는
+  동기라 매번 쓰면 끄는 내내 메인 스레드에서 디스크 쓰기가 돈다.
+- **세 패널의 한계는 각자 다르다**(`app/projects/[id]/pages/[pageid]/page.tsx:107`).
   페이지 목록은 이름 한 줄(144 / 120~320), 도구 레일은 아이콘 한 줄(48 / 44~96),
   인스펙터는 색·슬라이더·선택 상자가 들어가 가장 넓다(320 / 260~560). 한 값으로
   묶으면 어느 하나는 늘 어색해진다.

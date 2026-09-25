@@ -44,7 +44,7 @@ export const qk = {
   /** 로그인된 기기 목록. */
   meSessions: () => ['me-sessions'] as const,
 
-  /** 토큰 잔액. 에디터 헤더와 충전 화면이 공유한다 — 렌더가 끝나면 둘 다 갱신돼야 한다. */
+  /** 토큰 잔액. 모든 화면의 상단바와 충전 화면이 공유한다 — 렌더가 끝나면 둘 다 갱신돼야 한다. */
   tokenBalance: () => ['token-balance'] as const,
   tokenHistory: () => ['token-history'] as const,
   billingPackages: () => ['billing-packages'] as const,

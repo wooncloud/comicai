@@ -16,14 +16,13 @@ import { MAX_PAGE_DIMENSION, PAGE_SIZE_GROUPS } from '@comicai/types';
 interface Props {
   value: { w: number; h: number };
   onChange: (size: { w: number; h: number }) => void;
-  disabled?: boolean;
 }
 
 const MIN = 200;
 // 서버의 상한과 같은 값을 쓴다 — 화면이 더 관대하면 저장할 때만 튕긴다.
 const MAX = MAX_PAGE_DIMENSION;
 
-export function PageSizeSelect({ value, onChange, disabled }: Props) {
+export function PageSizeSelect({ value, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const [w, setW] = useState(String(value.w));
   const [h, setH] = useState(String(value.h));
@@ -35,12 +34,9 @@ export function PageSizeSelect({ value, onChange, disabled }: Props) {
     }
   }, [open, value.w, value.h]);
 
-  function applyPreset(p: { w: number; h: number }) {
-    if (p.w === value.w && p.h === value.h) {
-      setOpen(false);
-      return;
-    }
-    onChange({ w: p.w, h: p.h });
+  /** 같은 크기면 요청 없이 닫기만 한다. */
+  function apply(next: { w: number; h: number }) {
+    if (next.w !== value.w || next.h !== value.h) onChange(next);
     setOpen(false);
   }
 
@@ -49,23 +45,12 @@ export function PageSizeSelect({ value, onChange, disabled }: Props) {
     const nh = Math.round(Number(h));
     if (!Number.isFinite(nw) || !Number.isFinite(nh)) return;
     if (nw < MIN || nh < MIN || nw > MAX || nh > MAX) return;
-    if (nw === value.w && nh === value.h) {
-      setOpen(false);
-      return;
-    }
-    onChange({ w: nw, h: nh });
-    setOpen(false);
+    apply({ w: nw, h: nh });
   }
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={disabled}
-        onClick={() => setOpen(true)}
-        className="gap-1.5"
-      >
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)} className="gap-1.5">
         <Maximize2 className="h-3.5 w-3.5" />
         {value.w}×{value.h}
       </Button>
@@ -92,7 +77,7 @@ export function PageSizeSelect({ value, onChange, disabled }: Props) {
                     return (
                       <button
                         key={`${p.w}x${p.h}`}
-                        onClick={() => applyPreset(p)}
+                        onClick={() => apply(p)}
                         className={cn(
                           'flex flex-col items-start rounded border px-3 py-2 text-left transition-colors',
                           active

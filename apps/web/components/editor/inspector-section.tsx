@@ -1,6 +1,5 @@
 'use client';
 import type { LucideIcon } from 'lucide-react';
-import { cn } from '@/lib/cn';
 
 /**
  * 인스펙터 안의 한 구역.
@@ -17,15 +16,13 @@ export function InspectorSection({
   icon: Icon,
   title,
   children,
-  className,
 }: {
   icon: LucideIcon;
   title: string;
   children: React.ReactNode;
-  className?: string;
 }) {
   return (
-    <section className={cn('overflow-hidden rounded-md border border-border', className)}>
+    <section className="overflow-hidden rounded-md border border-border">
       <h3 className="flex items-center gap-1.5 border-b border-border bg-muted/40 px-3 py-2 text-caption font-semibold text-foreground">
         <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
         {title}
