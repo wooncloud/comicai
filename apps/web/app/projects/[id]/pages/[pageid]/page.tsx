@@ -287,7 +287,18 @@ export default function PageEditor() {
       prev = next;
       setSelection(next);
     };
-    const unsub = editor.store.listen(sync, { source: 'user' });
+    /*
+     * source 를 'user' 로 좁히지 않는다.
+     *
+     * 방금 그린 컷은 `panelId` 가 null 로 태어나고, 저장이 끝난 뒤 sync 훅이
+     * **remote 변경으로** 그 값을 채운다. source: 'user' 로 걸어 두면 그 순간에
+     * 리스너가 안 깨어나서, 컷을 그려 놓고도 인스펙터가 '페이지' 인 채로 남는다 —
+     * 사용자는 선택 도구로 방금 그린 컷을 **다시 클릭해야** 했다.
+     *
+     * 위 주석의 성능 걱정은 pointer 레코드 때문인데 그건 원래 'user' 라 이미 들어와
+     * 있었다. remote 는 디바운스된 저장 뒤에만 오므로 빈도가 낮다.
+     */
+    const unsub = editor.store.listen(sync);
     sync();
     return () => unsub();
   }, [editor]);
