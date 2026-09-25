@@ -10,7 +10,7 @@ import {
   type TokenOrderDTO,
 } from '@comicai/types';
 import { server } from '../mocks/server';
-import { TokenBalance } from '@/components/editor/token-balance';
+import { TokenBalance } from '@/components/shell/token-balance';
 import { useBillingOrders, useTokenBalance, useTokenHistory } from './tokens';
 import type { ReactNode } from 'react';
 

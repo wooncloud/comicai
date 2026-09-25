@@ -133,7 +133,12 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 ### components/shell/app-shell.tsx
 
-`AppShell`(`app-shell.tsx:26`)은 `Topbar` + `<main>` + 푸터 레이아웃. `Topbar`(`app-shell.tsx:51`)는 다음을 담당.
+`AppShell`(`app-shell.tsx:27`)은 `Topbar` + `<main>` + 푸터 레이아웃. `Topbar`(`app-shell.tsx:67`)는 다음을 담당.
+
+**에디터도 이 `Topbar` 를 쓴다.** 예전에는 `app/projects/[id]/pages/[pageid]/page.tsx` 가
+자기 헤더를 따로 그려서, 그 화면에 들어가는 순간 로고·계정 메뉴·잔액이 사라지고 높이와
+색이 미묘하게 달랐다. 화면마다 다른 것은 두 슬롯뿐이다 — `nav`(가운데, 에디터는 브레드크럼)와
+`actions`(잔액 앞, 에디터는 저장 상태·설정집 링크). `app-shell.tsx:141`, `app/projects/[id]/pages/[pageid]/page.tsx:346`.
 
 - `useQuery<SessionUser>({ queryKey: qk.me(), retry: false, throwOnError: false })` (`app-shell.tsx:55-71`)
 - `EmailVerifyBanner` 가 같은 쿼리를 읽어 **인증 전 사용자에게만** 한 줄을 띄운다 (`components/shell/email-verify-banner.tsx`). `AppShell` 안에 있어 에디터에는 뜨지 않는다 — 그림 그리는 화면에 상주 경고를 두지 않기 위해서다
@@ -145,7 +150,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
   잠깐 비친다
 - Avatar 드롭다운으로 설정·로그아웃 메뉴 노출
 
-푸터(`app-shell.tsx:37`)는 `FooterLinks`(`components/shell/footer-links.tsx:19`) 하나만 담는다.
+푸터(`app-shell.tsx:39`)는 `FooterLinks`(`components/shell/footer-links.tsx:19`) 하나만 담는다.
 **약관·개인정보 처리방침은 로그인한 뒤에도 닿아야 한다** — 랜딩 푸터에만 두었더니 이미 가입한
 사람은 다시 볼 방법이 없었다. 랜딩(`app/page.tsx`)과 `AppShell` 이 같은 컴포넌트를 쓰므로 목록이
 갈라지지 않는다. 링크는 `prefetch={false}` 다: 클릭률이 낮은데 기본 프리페치는 푸터가 화면에
@@ -157,6 +162,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 ### components/shell
 
 - `app-shell.tsx` — 위 참고. `AppShell`, `Topbar` 두 export
+- `token-balance.tsx` — 상단바의 잔액 배지. 아바타 바로 옆, **모든 화면에서** 그린다(`TokenBalance`, `app-shell.tsx:143`). 0 이하면 빨강(`empty`, `token-balance.tsx:30`), 누르면 충전 화면으로 간다(`Link`, `token-balance.tsx:27`). 못 읽었으면 아무것도 그리지 않는다(`return null`, `token-balance.tsx:22`)
 - `mobile-nav.tsx` — 좁은 화면용 햄버거 + 사이드 드로어(`mobile-nav.tsx:23`). 드로어 맨 위는 로고이고, 높이를 상단바와 같은 `h-14` 로 맞춰 두어 드로어를 열어도 로고가 세로로 움직이지 않는다. `md` 미만에서만 트리거가 보이고, 그때 상단바 nav 와 아바타 드롭다운은 숨는다 — 같은 항목이 두 벌 존재하지 않게 하기 위해서다
 - `mobile-blocker.tsx` — 에디터를 쓸 수 없는 뷰포트를 풀스크린으로 차단하는 오버레이. CSS-only 라 JS 비활성·하이드레이션 전에도 걸린다
   - 조건은 `editor:hidden`(`mobile-blocker.tsx:25`) — **폭 768px 이상 AND 높이 600px 이상일 때만 숨긴다**(`tailwind.config.ts:24` 의 `editor` screen). 폭만 보던 예전 규칙으로는 폰을 가로로 눕혔을 때(iPhone 14 Pro Max = 932×430) 차단이 풀려서, 높이 430px 화면에 사이드바·툴바·인스펙터가 다 들어간 에디터가 그대로 열렸다. 600px 은 가장 작은 태블릿(iPad mini 가로 744px)과 가장 큰 폰(가로 430px) 사이를 가른다
@@ -194,8 +200,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
   - `tool-rail.tsx` — 캔버스 좌측 도구 레일(`select`/`hand`/`comic-panel`/`page-text`/`page-line`/말풍선 진입). 한글 IME 안전을 위해 `KeyboardEvent.code` 매핑(예: `KeyL` → `page-line`)
   - `conti-dialog.tsx` — 콘티 업로드/제거 다이얼로그 (POST/DELETE `/v1/panels/:id/conti`)
 - `history-tray.tsx` — 패널별 렌더 히스토리 그리드. 후술
-- `panel-status-badge.tsx`, `save-status.tsx`, `page-sidebar.tsx`, `page-size-select.tsx`, `export-dialog.tsx` — 보조 UI
-- `token-balance.tsx` — 에디터 헤더(`pages/[pageid]/page.tsx:339`)에 잔액 표시. 잔액 0 이하면 빨강, 1 이상이면 회색, 클릭 시 `/settings/billing` 이동. 잔액 조회가 실패하면 아무것도 그리지 않아(`token-balance.tsx:19`) 캔버스 작업을 방해하지 않는다
+- `panel-status-badge.tsx`, `save-status.tsx`, `page-sidebar.tsx`, `page-size-select.tsx`, `export-dialog.tsx` — 보조 UI. 내보내기 다이얼로그는 에디터가 들고 있고, 여는 버튼은 페이지 인스펙터에 있다(`page-inspector.tsx:89`)
 
 ### components/editor/tldraw (tldraw 측)
 
@@ -256,7 +261,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 | `['project', id]`            | `lib/use-project.ts:9`                     | 단일 프로젝트 (`qk.project(id)`). `enabled: !!projectId`                                                                                    |
 | `['panel-history', panelId]` | `components/editor/history-tray.tsx:22`    | 패널의 렌더 잡 목록 (`qk.panelHistory(panelId)`). `restore` mutation 성공 시 `invalidateQueries` (`:34`)                                    |
 | `['render-job', jobId]`      | `components/editor/panel-inspector.tsx:81` | 단일 렌더 잡 (`qk.renderJob(jobId)`). `enabled: !!activeJobId`. SSE 이벤트가 도착할 때마다 `setQueryData`로 패치                            |
-| `['token-balance']`          | `lib/tokens.ts:51`                         | 현재 사용자 토큰 잔액 (`qk.tokenBalance()`). 에디터 헤더와 충전 화면이 공유. `throwOnError: false`                                          |
+| `['token-balance']`          | `lib/tokens.ts:51`                         | 현재 사용자 토큰 잔액 (`qk.tokenBalance()`). 상단바 배지와 충전 화면이 공유. `throwOnError: false`                                          |
 | `['token-history']`          | `lib/tokens.ts:93`                         | 토큰 사용/충전/조정 내역 (`qk.tokenHistory()`). 렌더 종료 시 `useRefreshTokens()` 로 무효화                                                 |
 | `['billing-packages']`       | `app/settings/billing/page.tsx:110`        | 충전 패키지 목록 및 입금 안내 (`qk.billingPackages()`). `notice === null` 이면 요청 버튼 미노출                                             |
 | `['billing-orders']`         | `lib/tokens.ts:73`                         | 내 충전 요청 주문 목록 (`qk.billingOrders()`). 요청 접수·취소 시 무효화                                                                     |
@@ -284,7 +289,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 대신 토큰 관련 쿼리(`useTokenBalance`, `useBillingOrders`, `useTokenHistory`)에만 다음 두 가지 정책을 적용해 F5 새로고침 없이도 화면이 갱신되도록 해결했다 (`docs/develop-docs/50-owner/02-verify.md` E-1).
 
 1. **포커스 복귀 즉시 갱신 (`refetchOnWindowFocus: 'always'`)**:
-   모바일 뱅킹 송금 등 외부 작업을 마치고 ComicAI 탭으로 돌아왔을 때, 30초 staleTime 만료 여부와 무관하게 즉시 잔액(`useTokenBalance`, `lib/tokens.ts:49`), 충전 요청(`useBillingOrders`, `:71`), 사용 내역(`useTokenHistory`, `:91`)을 다시 읽는다. 에디터 헤더(`TokenBalance`, `components/editor/token-balance.tsx:17`) 역시 포커스 복귀 시 새 잔액으로 즉시 동기화된다.
+   모바일 뱅킹 송금 등 외부 작업을 마치고 ComicAI 탭으로 돌아왔을 때, 30초 staleTime 만료 여부와 무관하게 즉시 잔액(`useTokenBalance`, `lib/tokens.ts:49`), 충전 요청(`useBillingOrders`, `:71`), 사용 내역(`useTokenHistory`, `:91`)을 다시 읽는다. 상단바 배지(`TokenBalance`, `components/shell/token-balance.tsx:20`) 역시 포커스 복귀 시 새 잔액으로 즉시 동기화된다.
 2. **입금 대기(pending) 주문 시 60초 주기 조회**:
    `/settings/billing` (`app/settings/billing/page.tsx:25`) 에 입금 확인 대기(`pending`, `:28`) 중인 주문이 있을 때만 60초 주기로 주문 목록·잔액·내역을 자동 폴링한다 (`pollInterval`, `:30`). 사용자가 탭을 띄워 둔 채 기다려도 운영자의 승인이 반영되며, 대기 주문이 없으면 주기 조회를 멈춰 불필요한 요청을 방지한다. React Query 기본값(`refetchIntervalInBackground: false`)에 따라 백그라운드 탭에서는 주기가 일시 정지된다. 또한 대기 주문이 완료/취소 상태로 전이되면 `useEffect` (`:33-40`) 에서 잔액과 내역 캐시를 즉시 무효화해 화면에 반영한다.
 
@@ -532,7 +537,8 @@ apps/web/
 │   ├── (login|signup|forgot-password|reset-password|verify-email)/
 │   └── health/                 # 서버 컴포넌트
 ├── components/
-│   ├── shell/app-shell.tsx     # Topbar + useQuery(['me'])
+│   ├── shell/app-shell.tsx     # Topbar(nav/actions 슬롯) + useQuery(['me'])
+│   ├── shell/token-balance.tsx # 상단바 잔액 배지
 │   ├── shell/mobile-nav.tsx    # 햄버거 + 사이드 드로어(md 미만)
 │   ├── shell/mobile-blocker.tsx
 │   ├── dashboard/              # project-row, project-create-dialog
@@ -541,7 +547,6 @@ apps/web/
 │   ├── admin/                  # pending-orders, token-grant-dialog
 │   ├── editor/
 │   │   ├── panel-inspector.tsx       # SSE ↔ React Query 브리지
-│   │   ├── token-balance.tsx         # 헤더 잔액 배지
 │   │   ├── page-inspector.tsx        # 페이지 단위(크기/배경색)
 │   │   ├── page-text-inspector.tsx   # PageText shape
 │   │   ├── page-line-inspector.tsx   # PageLine shape
@@ -700,12 +705,15 @@ AppShell 화면의 h1 은 `text-title-lg sm:text-display-md` 로 통일한다. �
 겉보기에 다른 항목도 실은 같은 곳이었다 — `/projects` 는 `/dashboard` 로,
 `/settings` 는 `/settings/profile` 로 redirect 한다.
 
-- `PRIMARY_NAV`(`lib/nav.ts:22`) — 최상위. 데스크톱 상단바와 모바일 드로어가 공유한다.
+- `PRIMARY_NAV`(`lib/nav.ts:30`) — 최상위. 데스크톱 상단바와 모바일 드로어가 공유한다.
   각 항목이 `match(path)` 를 직접 들고 있다: `/projects/*` 안에서도 "내 프로젝트" 가
   켜져야 하는데, 단순 `startsWith(href)` 로는 표현되지 않는다.
-- `SETTINGS_NAV`(`:42`) — 계정 설정 하위. `app/settings/layout.tsx` 의 탭과 드로어가 공유.
+  `account: true` 는 **아바타 메뉴에 이미 있는 항목**이라는 표시다(`lib/nav.ts:42` 의 '설정').
+  상단바는 그것을 걸러 낸다(`app-shell.tsx:119`) — 아바타를 누르면 나오는 걸 옆에 또
+  늘어놓으면 같은 목적지가 한 화면에 두 번 있는 셈이다. 드로어에는 그대로 둔다.
+- `SETTINGS_NAV`(`:52`) — 계정 설정 하위. `app/settings/layout.tsx` 의 탭과 드로어가 공유.
   활성 판정은 **정확 일치**다. `startsWith` 를 쓰면 하위 경로가 생기는 순간 두 탭이 동시에 켜진다.
-- `useLogout()`(`:61`) — 드롭다운과 드로어가 같은 함수를 쓴다. 두 벌로 두면
+- `useLogout()`(`:71`) — 드롭다운과 드로어가 같은 함수를 쓴다. 두 벌로 두면
   `setQueryData(qk.me(), null)` 같은 뒷정리를 한쪽에서만 빠뜨리기 쉽다.
 - 좁은 화면에서는 드로어 하나만 남긴다(`app-shell.tsx:83`, `:106`). 상단바 nav 와 아바타
   드롭다운은 `md` 미만에서 숨는다 — 같은 항목이 화면 양쪽에 두 벌 있으면 안 된다.
@@ -802,11 +810,11 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
   - 최근 30건 중 기본 8건을 보여주고 '더 보기' 로 펼친다 (`rows`, `:256`, `setExpanded`, `:296`).
   - 행 라벨(`e.label`, `:271`)은 **서버가 정제한 문자열**을 그대로 쓴다 (T-02). 과거 충전 내역에 내부 상품 ID가 노출되거나(`충전 starter 충전 +50`), 운영자 조정 시 운영자 계정 ID(`by user_...`)와 내부 메모가 사용자 화면에 노출되던 문제를 서버 DTO 정제로 차단했다. 화면은 양수 초록색(`+N`), 음수 일반색과 잔액(`balanceAfter`, `:287`)만 포맷해 찍는다.
 
-### 편집기 헤더의 토큰 배지와 무중단 편집
+### 상단바의 토큰 배지와 무중단 편집
 
-- **헤더 배치 이유 (`TokenBalance`, `components/editor/token-balance.tsx:17`)**: 인스펙터가 아니라 헤더 우측(`TokenBalance`, `app/projects/[id]/pages/[pageid]/page.tsx:339`)에 배치한다 (`:9-12`). 특정 컷을 선택하기 전에도 잔액을 확인할 수 있어야 하고, 사용자가 이미 저장 상태(`SaveStatus`)를 보기 위해 시선을 두는 자리이기 때문이다.
-- **시각 상태**: 잔액이 0 이하(`empty`, `components/editor/token-balance.tsx:21`)이면 빨간색(`text-destructive`, `:27`), 1 이상이면 보조 텍스트 색상으로 렌더된다. 클릭하면 `/settings/billing` 으로 즉시 이동한다 (`Link`, `:23`).
-- **무중단 원칙 (`components/editor/token-balance.tsx:13-16`)**: 잔액 조회가 로딩 중이거나 실패하면(`!data`) '—' 나 오류를 띄우지 않고 **컴포넌트 자체를 렌더하지 않는다 (`return null`, `:19`)**. `useTokenBalance` 가 `throwOnError: false` (`lib/tokens.ts:53`)인 이유이기도 하다. 잔액을 못 읽었다고 캔버스에 오류 배너를 띄우거나 화면을 튕겨내면 작업 중이던 만화를 잃는다. 잔액을 몰라도 캔버스 편집은 멀쩡히 계속할 수 있어야 한다.
+- **배치 이유 (`TokenBalance`, `components/shell/token-balance.tsx:20`)**: 아바타 바로 옆, **모든 화면에서** 보인다 (`app-shell.tsx:143`). 예전에는 에디터 헤더에만 있어서, "지금 몇 개 남았지" 를 보려면 설정 → 토큰까지 들어가야 했다. 폭으로 감추지 않는다 — 숫자 몇 글자라 좁은 화면에서도 자리를 다투지 않는다.
+- **시각 상태**: 잔액이 0 이하(`empty`, `components/shell/token-balance.tsx:24`)이면 빨간색(`text-destructive`, `:30`), 1 이상이면 보조 텍스트 색상으로 렌더된다. 클릭하면 `/settings/billing` 으로 즉시 이동한다 (`Link`, `:27`).
+- **무중단 원칙 (`components/shell/token-balance.tsx:16-18`)**: 잔액 조회가 로딩 중이거나 실패하면(`!data`) '—' 나 오류를 띄우지 않고 **컴포넌트 자체를 렌더하지 않는다 (`return null`, `:22`)**. `useTokenBalance` 가 `throwOnError: false` (`lib/tokens.ts:53`)인 이유이기도 하다. 잔액을 못 읽었다고 모든 화면에 오류 배너를 띄우거나 캔버스를 튕겨내면 작업 중이던 만화를 잃는다. 잔액을 몰라도 할 일은 다 할 수 있다.
 
 ### 생성하기 버튼의 비용 표시와 부족 안내 — 버튼을 잠그지 않는 이유
 

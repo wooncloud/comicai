@@ -1,8 +1,9 @@
 'use client';
-import { Ruler, Palette } from 'lucide-react';
+import { Ruler, Palette, Download } from 'lucide-react';
 import { api } from '@/lib/api';
 import { ApiPaths, type PageDTO } from '@comicai/types';
 import { PageSizeSelect } from './page-size-select';
+import { Button } from '@/components/ui/button';
 import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
 import { HexColorField } from './hex-color-field';
@@ -12,15 +13,17 @@ import { errorMessage } from '@/lib/error-message';
 interface Props {
   page: PageDTO;
   onPageUpdated: (page: PageDTO) => void;
+  /** 내보내기 다이얼로그를 연다. 다이얼로그 자체는 에디터가 들고 있다(컷 목록이 필요하다). */
+  onExport: () => void;
   /** 호출 시 인스펙터를 접는다. */
   onCollapse?: () => void;
 }
 
 /**
  * 패널이 선택되지 않았을 때 우측에 노출되는 페이지 단위 인스펙터.
- * 페이지 크기와 배경색을 편집한다.
+ * 페이지 크기·배경색·내보내기 — 이 페이지 한 장에 대한 것들.
  */
-export function PageInspector({ page, onPageUpdated, onCollapse }: Props) {
+export function PageInspector({ page, onPageUpdated, onExport, onCollapse }: Props) {
   const toast = useToast();
   const currentColor = page.backgroundColor ?? '#ffffff';
   const hasColor = !!page.backgroundColor;
@@ -74,6 +77,18 @@ export function PageInspector({ page, onPageUpdated, onCollapse }: Props) {
         <p className="text-caption text-muted-foreground">
           내보내기 시 컷이 없는 영역에 적용됩니다.
         </p>
+      </div>
+
+      {/*
+        내보내기는 **이 페이지 한 장**을 내보낸다. 예전에는 헤더 오른쪽 끝에 있었는데,
+        거기는 앱 전체에 대한 자리라 "작품 전부" 로 읽혔다. 크기·배경색과 나란히 두면
+        무엇이 나가는지가 버튼 위치로 드러난다.
+      */}
+      <div className="space-y-2">
+        <SectionLabel icon={Download}>내보내기</SectionLabel>
+        <Button variant="outline" onClick={onExport} className="w-full">
+          이 페이지 내보내기
+        </Button>
       </div>
     </InspectorShell>
   );

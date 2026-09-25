@@ -18,18 +18,28 @@ import { FEATURES } from './features';
  * 그래서 "프로젝트 리스트"와 "대시보드", "설정"과 "프로필"은 각각 한 항목이다.
  */
 
-/** 최상위 이동 지점. 상단바(데스크톱)와 드로어(모바일)가 공유한다. */
+/**
+ * 최상위 이동 지점. 상단바(데스크톱)와 드로어(모바일)가 공유한다.
+ *
+ * `account: true` 는 **계정 메뉴에 이미 있는 항목**이라는 표시다. 상단바는 그런
+ * 항목을 링크로 내놓지 않는다 — 아바타를 누르면 나오는 걸 옆에 또 늘어놓으면,
+ * 같은 목적지가 한 화면에 두 번 있는 셈이라 어느 쪽이 맞는지 고르게 만든다.
+ * 드로어에는 그대로 둔다. 거기엔 아바타 메뉴가 따로 없고, 설정 하위 탭까지
+ * 펼쳐 주는 자리가 드로어뿐이다.
+ */
 export const PRIMARY_NAV = [
   {
     href: '/dashboard',
     label: '내 프로젝트',
     // /projects/* 안에 있을 때도 이 항목이 켜져 있어야 현재 위치가 드러난다.
     match: (path: string) => path.startsWith('/dashboard') || path.startsWith('/projects'),
+    account: false,
   },
   {
     href: '/settings/profile',
     label: '설정',
     match: (path: string) => path.startsWith('/settings'),
+    account: true,
   },
 ] as const;
 

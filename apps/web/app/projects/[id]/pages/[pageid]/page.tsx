@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { BookMarked } from 'lucide-react';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { MobileBlocker } from '@/components/shell/mobile-blocker';
+import { Topbar } from '@/components/shell/app-shell';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/error-message';
 import {
@@ -27,7 +28,6 @@ import { PageTextInspector } from '@/components/editor/page-text-inspector';
 import { PageLineInspector } from '@/components/editor/page-line-inspector';
 import { PageSidebar } from '@/components/editor/page-sidebar';
 import { SaveStatus } from '@/components/editor/save-status';
-import { TokenBalance } from '@/components/editor/token-balance';
 import { ExportDialog } from '@/components/editor/export-dialog';
 import { PageInspector } from '@/components/editor/page-inspector';
 import { CollapseRail } from '@/components/editor/collapse-rail';
@@ -337,37 +337,44 @@ export default function PageEditor() {
     <div className="flex h-dvh flex-col">
       {/* 캔버스 조작이 필요한 유일한 화면이라 여기서만 작은 화면을 막는다. */}
       <MobileBlocker backHref={`/projects/${projectId}`} />
-      <header className="flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-2">
-        <div className="flex items-center gap-3">
-          <Breadcrumb
-            items={[
-              { label: '대시보드', href: '/dashboard' },
-              { label: project?.name ?? '…', href: `/projects/${projectId}` },
-              { label: page ? pageLabel(page) : '…' },
-            ]}
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <SaveStatus state={saveState} lastSavedAt={lastSavedAt} />
-          {/*
-            설정집으로 가는 지름길. 컷을 그리다 보면 "이 캐릭터 설명을 좀 고쳐야겠다"
-            가 수시로 생기는데, 예전에는 브레드크럼으로 프로젝트까지 나갔다가 다시
-            들어와야 했다 — 나가는 순간 어느 페이지를 보고 있었는지도 잃는다.
-          */}
-          <Link
-            href={`/projects/${projectId}/consistency`}
-            title="설정집 — 캐릭터·배경·세계관·그림체"
-            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-caption text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <BookMarked className="h-3.5 w-3.5" aria-hidden />
-            설정집
-          </Link>
-          <TokenBalance />
-          <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
-            내보내기
-          </Button>
-        </div>
-      </header>
+      {/*
+        다른 화면과 **같은 헤더**다. 예전에는 이 화면만 자기 헤더를 따로 그려서,
+        에디터에 들어가는 순간 로고·계정 메뉴·잔액이 사라지고 높이와 색이 미묘하게
+        달랐다 — 같은 앱 안에서 다른 앱으로 넘어온 것처럼 읽힌다. 화면마다 다른 것은
+        가운데 줄(브레드크럼)과 오른쪽 동작뿐이다.
+      */}
+      <Topbar
+        authed
+        nav={
+          <div className="min-w-0">
+            <Breadcrumb
+              items={[
+                { label: '대시보드', href: '/dashboard' },
+                { label: project?.name ?? '…', href: `/projects/${projectId}` },
+                { label: page ? pageLabel(page) : '…' },
+              ]}
+            />
+          </div>
+        }
+        actions={
+          <>
+            <SaveStatus state={saveState} lastSavedAt={lastSavedAt} />
+            {/*
+              설정집으로 가는 지름길. 컷을 그리다 보면 "이 캐릭터 설명을 좀 고쳐야겠다"
+              가 수시로 생기는데, 예전에는 브레드크럼으로 프로젝트까지 나갔다가 다시
+              들어와야 했다 — 나가는 순간 어느 페이지를 보고 있었는지도 잃는다.
+            */}
+            <Link
+              href={`/projects/${projectId}/consistency`}
+              title="설정집 — 캐릭터·배경·세계관·그림체"
+              className="flex shrink-0 items-center gap-1 rounded px-2 py-1 text-caption text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <BookMarked className="h-3.5 w-3.5" aria-hidden />
+              설정집
+            </Link>
+          </>
+        }
+      />
 
       <ExportDialog
         open={exportOpen}
@@ -478,6 +485,7 @@ export default function PageEditor() {
           <PageInspector
             page={page}
             onPageUpdated={setPage}
+            onExport={() => setExportOpen(true)}
             onCollapse={() => setRightCollapsed(true)}
           />
         ) : (

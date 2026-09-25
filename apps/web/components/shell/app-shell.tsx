@@ -19,6 +19,7 @@ import {
 import { EmailVerifyBanner } from '@/components/shell/email-verify-banner';
 import { FooterLinks } from '@/components/shell/footer-links';
 import { MobileNav } from '@/components/shell/mobile-nav';
+import { TokenBalance } from '@/components/shell/token-balance';
 import { cn } from '@/lib/cn';
 import { ADMIN_NAV, PRIMARY_NAV, useLogout } from '@/lib/nav';
 import { qk } from '@/lib/query-keys';
@@ -44,12 +45,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/**
- * @param authed 로그인한 사용자만 오는 화면인가.
- *   AppShell 을 거치는 화면은 전부 true 다. 랜딩(app/page.tsx)만 Topbar 를 직접
- *   쓰면서 false 로 둔다 — 비로그인 방문자에게 빈 자리를 예약해 둘 이유가 없다.
- */
-export function Topbar({ authed = false }: { authed?: boolean }) {
+interface TopbarProps {
+  /**
+   * 로그인한 사용자만 오는 화면인가.
+   * AppShell 을 거치는 화면은 전부 true 다. 랜딩(app/page.tsx)만 Topbar 를 직접
+   * 쓰면서 false 로 둔다 — 비로그인 방문자에게 빈 자리를 예약해 둘 이유가 없다.
+   */
+  authed?: boolean;
+  /**
+   * 가운데 내비게이션을 대신할 것. 에디터가 브레드크럼을 넣는다.
+   *
+   * 에디터도 **같은 헤더를 쓴다.** 예전에는 자기만의 헤더를 따로 그려서, 그 화면에
+   * 들어가는 순간 로고·계정 메뉴·잔액이 통째로 사라지고 높이와 색이 미묘하게 달랐다.
+   * 화면마다 다른 것은 이 줄에 무엇을 얹느냐뿐이어야 한다.
+   */
+  nav?: React.ReactNode;
+  /** 잔액·계정 메뉴 **앞**에 놓일 화면별 동작(저장 상태, 설정집 링크 등). */
+  actions?: React.ReactNode;
+}
+
+export function Topbar({ authed = false, nav, actions }: TopbarProps) {
   const path = usePathname();
   const logout = useLogout();
   const { data: me } = useQuery<SessionUser>({
@@ -72,7 +87,7 @@ export function Topbar({ authed = false }: { authed?: boolean }) {
   const initials = (me?.displayName ?? me?.email ?? '··').slice(0, 2).toUpperCase();
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:gap-6 sm:px-6">
+    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:gap-6 sm:px-6">
       {/*
         로그인한 사용자에게만. 랜딩도 이 Topbar 를 쓰는데 비로그인은 드로어에 넣을 게 없다.
         인증 화면에서는 `me` 가 도착하기 전에도 자리를 비워 둔다 — 안 그러면 응답이
@@ -102,24 +117,30 @@ export function Topbar({ authed = false }: { authed?: boolean }) {
         바깥에 둔 이유: nav 를 `hidden` 으로 감추는 순간 스페이서까지 같이 사라져
         아바타가 로고 옆으로 달라붙는다.
       */}
-      <nav className="hidden items-center gap-1 text-body-sm md:flex">
-        {me &&
-          PRIMARY_NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center whitespace-nowrap rounded px-3 py-1.5 transition-colors touch:min-h-11',
-                item.match(path)
-                  ? 'bg-muted font-medium text-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
-      </nav>
+      {nav ?? (
+        <nav className="hidden items-center gap-1 text-body-sm md:flex">
+          {me &&
+            /* `account` 항목은 아바타 메뉴에 있다 — 여기 또 내놓지 않는다(`lib/nav.ts`). */
+            PRIMARY_NAV.filter((item) => !item.account).map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex items-center whitespace-nowrap rounded px-3 py-1.5 transition-colors touch:min-h-11',
+                  item.match(path)
+                    ? 'bg-muted font-medium text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {item.label}
+              </Link>
+            ))}
+        </nav>
+      )}
       <span className="flex-1" />
+      {actions}
+      {/* 잔액은 폭에 상관없이 보인다 — 드로어에도 있지만 여는 동작이 한 번 더 든다. */}
+      {me && <TokenBalance />}
       {/* 좁은 화면에서는 드로어가 같은 항목을 담고 있어 감춘다. */}
       {me ? (
         <DropdownMenu>
