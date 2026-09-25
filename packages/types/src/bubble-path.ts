@@ -32,7 +32,9 @@ export function bubbleBodyPath(
  * 만화에서 말하는 사람은 대개 풍선 아래에 있다. 여기서 시작해 사용자가 끌어 옮긴다.
  */
 export function defaultTailPoint(w: number, h: number): { x: number; y: number } {
-  return { x: w / 2, y: h + Math.max(24, h * 0.35) };
+  // 풍선 높이에 비례하되 바닥과 천장을 둔다. 너무 짧으면 넓적한 풍선에서 꼬리가
+  // 거의 안 보이고, 너무 길면 처음부터 화면을 가로지른다.
+  return { x: w / 2, y: h + Math.max(32, Math.min(h * 0.6, 100)) };
 }
 
 /**
@@ -71,13 +73,38 @@ export function bubbleTailPath(tx: number, ty: number, w: number, h: number): st
   const bxc = cx + ux * baseDist;
   const byc = cy + uy * baseDist;
 
-  // 밑변 폭은 풍선 크기에 비례하되 꼬리 길이보다 넓어지지 않게.
-  const half = Math.max(10, Math.min(Math.min(w, h) * 0.28, dist * 0.45));
-  const ax = bxc - uy * half;
-  const ay = byc + ux * half;
-  const bx = bxc + uy * half;
-  const by = byc - ux * half;
-  return `M ${round2(ax)} ${round2(ay)} L ${round2(tx)} ${round2(ty)} L ${round2(bx)} ${round2(by)} Z`;
+  /*
+   * 밑변 폭은 **그 방향의 테두리 크기**에 맞춘다.
+   *
+   * min(w,h) 로 잡으면 넓적한 풍선에서 꼬리가 아래로 길게 빠질 때 비율이 가늘어진다 —
+   * 정작 그 자리는 풍선이 가장 넓은 곳인데도. 꼬리 길이로도 묶어, 짧은 꼬리에
+   * 넓은 밑변이 붙는 우스운 모양을 막는다.
+   */
+  const half = Math.max(10, Math.min(edge * 0.45, dist * 0.45));
+  const a = clampInside(bxc - uy * half, byc + ux * half, cx, cy, rx, ry);
+  const b = clampInside(bxc + uy * half, byc - ux * half, cx, cy, rx, ry);
+  return `M ${round2(a.x)} ${round2(a.y)} L ${round2(tx)} ${round2(ty)} L ${round2(b.x)} ${round2(b.y)} Z`;
+}
+
+/**
+ * 점을 bbox 타원 안으로 끌어당긴다.
+ *
+ * 밑변을 넓히면 모서리가 테두리 밖으로 나가 풍선에 붙은 짧은 선처럼 보인다. 폭을
+ * 줄이는 대신 모서리만 테두리로 당기면, 넓은 밑변을 지키면서도 몸통이 확실히 덮는다.
+ */
+function clampInside(
+  px: number,
+  py: number,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+): { x: number; y: number } {
+  const t = Math.hypot((px - cx) / rx, (py - cy) / ry);
+  // 0.92: 테두리 선 두께 아래로 확실히 들어가게 조금 더 당긴다.
+  if (t <= 0.92) return { x: px, y: py };
+  const k = 0.92 / t;
+  return { x: cx + (px - cx) * k, y: cy + (py - cy) * k };
 }
 
 function round2(n: number): number {
