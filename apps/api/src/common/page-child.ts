@@ -33,13 +33,15 @@ export const PAGE_CHILD_SELECT = {
  * 남의 것" 이 확인되어, id 를 훑는 것만으로 남의 리소스 존재 여부를 열거할 수 있다.
  * 자세한 근거는 `projects.service.ts` 의 `assertOwned`.
  */
-export function assertPageChildOwned(
-  row: PageChildRow | null,
+export function assertPageChildOwned<T extends PageChildRow>(
+  row: T | null,
   userId: string,
   code: ErrorCode,
-): { id: string; pageId: string; style: unknown } {
+): T {
   if (row?.page.project.userId !== userId) throw new NotFoundException(apiError({ code }));
-  return { id: row.id, pageId: row.pageId, style: row.style };
+  // 고른 컬럼을 그대로 돌려준다. 예전에는 { id, pageId, style } 로 좁혀서, 모듈이
+  // 자기만의 컬럼(말풍선의 textStyle)을 더 읽어도 호출부에서 사라졌다.
+  return row;
 }
 
 /** 맨 위에 쌓기 위한 다음 순서 값. 비어 있으면 0. */

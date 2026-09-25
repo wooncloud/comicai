@@ -317,7 +317,7 @@ auth 에 401/403 을 쓰지 않는 이유는 웹이 401 을 "세션 만료"로 �
 
 ### 3.6b SpeechBubblesModule (`speech-bubbles/*`)
 
-페이지 직속 말풍선의 CRUD + reorder. 패널과 독립이며 렌더에는 영향 없고 export 합성에서만 사용된다. 말풍선은 모양/선/채움만 담당하고 텍스트는 [[page-text]] 오브젝트로 분리되었다(2026-05-19 migration 이후).
+페이지 직속 말풍선의 CRUD + reorder. 패널과 독립이며 렌더에는 영향 없고 export 합성에서만 사용된다. **말풍선은 자기 대사(`text`·`textStyle`)를 갖는다**(2026-09-25) — 풍선을 옮기면 글자도 따라온다. 효과음·내레이션처럼 풍선과 무관한 글자는 여전히 [[page-text]] 다.
 
 | Method | Route                                      | Handler                                                 |
 | ------ | ------------------------------------------ | ------------------------------------------------------- |
@@ -730,7 +730,7 @@ Prisma 클라이언트는 `@comicai/db`로 재노출되어 컨트롤러/서비�
 
 ## 7. 외부 모델 어댑터 연계
 
-- 패키지: `packages/adapters` — `index.ts:35-45`에 `REGISTRY` 정의.
+- 패키지: `packages/adapters` — `index.ts:36-46`에 `REGISTRY` 정의.
   - `mock` → `MockAdapter`
   - `gemini-3.1-flash-image-preview` → `GeminiAdapter`
   - `gpt-image-2` → `OpenAIAdapter`

@@ -125,7 +125,7 @@ HTTP 응답 코드는 컨트롤러에서 `@HttpCode(202)`로 고정되어 있다
      - `breaker.recordSuccess(apiKeyId)` — 회로차단기 카운터 리셋 (`:166`).
   9. 예외:
      - `adapter.classifyError(err)` → `RenderError` (category: `transient|auth|quota|safety|invalid|timeout`)
-       (`render.worker.ts:106`, 타입 `packages/types/src/index.ts:404-410`).
+       (`render.worker.ts:106`, 타입 `packages/types/src/index.ts:409-415`).
      - `auth`면 `ApiKeyBreaker.recordAuthFailure` (`:108-110`).
      - 재시도 한도(`retryLimitFor`)에 못 미치면 `throw err` → BullMQ가 backoff로 재시도
        (`:112-114, 152-156`): transient=3, timeout=2, 그 외=1(즉시 실패).
@@ -328,7 +328,7 @@ UI에서 취소 버튼은 생성 중(`queued`/`running`)일 때 panel-inspector�
 
 ### 6.1 분류 (`RenderError`)
 
-`packages/types/src/index.ts:404-410`:
+`packages/types/src/index.ts:409-415`:
 
 ```ts
 type RenderErrorCategory = 'transient' | 'auth' | 'quota' | 'safety' | 'invalid' | 'timeout';
@@ -391,7 +391,7 @@ API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생�
 
 ## 6.5 말풍선과의 관계
 
-말풍선(SpeechBubble)은 **렌더 파이프라인에 영향을 주지 않는다**. `buildRenderIR`(`apps/api/src/render/ir.builder.ts`)는 SpeechBubble을 읽지 않으며, 모델에는 패널 본문 텍스트와 일관성 엔티티만 전달된다. 말풍선은 export 단계(`apps/api/src/export/export.service.ts`)에서 SVG로 직렬화되어 최종 페이지 이미지 위에 오버레이된다 — `speech-bubble.render.ts:23` (`renderSpeechBubbleLayer`).
+말풍선(SpeechBubble)은 **렌더 파이프라인에 영향을 주지 않는다**. `buildRenderIR`(`apps/api/src/render/ir.builder.ts`)는 SpeechBubble을 읽지 않으며, 모델에는 패널 본문 텍스트와 일관성 엔티티만 전달된다. 말풍선은 export 단계(`apps/api/src/export/export.service.ts`)에서 SVG로 직렬화되어 최종 페이지 이미지 위에 오버레이된다 — `speech-bubble.render.ts:30` (`renderSpeechBubbleLayer`).
 
 ---
 
@@ -414,7 +414,7 @@ API key 미존재(`RenderApiKeyMissing`)는 worker 컨텍스트에서만 발생�
 | presign                                          | `apps/api/src/storage/storage.service.ts:125,133`         |
 | SSE Hub publish/subscribe                        | `apps/api/src/render/sse.hub.ts:95,76`                    |
 | SSE wire 포맷                                    | `packages/events/src/index.ts:25`                         |
-| RenderStatus enum                                | `packages/types/src/index.ts:26-36`                       |
-| RenderError 타입                                 | `packages/types/src/index.ts:406-410`                     |
+| RenderStatus enum                                | `packages/types/src/index.ts:27-37`                       |
+| RenderError 타입                                 | `packages/types/src/index.ts:411-415`                     |
 | 패널 히스토리 (list/restore)                     | `apps/api/src/panels/panels.service.ts:208,237`           |
 | 히스토리 UI                                      | `apps/web/components/editor/history-tray.tsx:15,20`       |

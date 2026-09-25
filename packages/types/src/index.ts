@@ -15,6 +15,7 @@ import {
 
 export * from './envelope';
 export * from './schemas';
+export * from './text-layout';
 export * from './paths';
 export * from './features';
 
@@ -243,6 +244,10 @@ export interface SpeechBubbleDTO {
   variant: SpeechBubbleVariant;
   shape: SpeechBubbleShape;
   style: SpeechBubbleStyle;
+  /** 풍선 안의 대사. 풍선을 옮기면 같이 따라온다. */
+  text: string;
+  /** 대사의 글자 스타일. `PageTextStyle` 과 같은 모양을 쓴다. */
+  textStyle: PageTextStyle;
   order: number;
   createdAt: string;
   updatedAt: string;

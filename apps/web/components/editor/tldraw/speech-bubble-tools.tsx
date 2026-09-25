@@ -1,6 +1,10 @@
 'use client';
 import { StateNode, createShapeId, type TLStateNodeConstructor } from 'tldraw';
-import { defaultSpeechBubbleStyle, type SpeechBubbleVariant } from '@comicai/types';
+import {
+  defaultPageTextStyle,
+  defaultSpeechBubbleStyle,
+  type SpeechBubbleVariant,
+} from '@comicai/types';
 import type { SpeechBubbleShape } from './speech-bubble-shape';
 import { PolygonDrawingTool, type PolygonCommitArgs } from './polygon-tool-base';
 
@@ -17,6 +21,11 @@ function defaultBubbleProps(): Omit<SpeechBubbleShape['props'], 'variant' | 'w' 
     tailX: null,
     tailY: null,
     ...defaultSpeechBubbleStyle(),
+    text: '',
+    fontSize: defaultPageTextStyle().fontSize,
+    fontFamily: defaultPageTextStyle().fontFamily,
+    textColor: defaultPageTextStyle().color,
+    textAlign: defaultPageTextStyle().textAlign,
   };
 }
 
@@ -71,8 +80,9 @@ class BubbleBoxPointing extends StateNode {
   override onPointerUp(): void {
     const { originPagePoint } = this.editor.inputs;
     this.editor.markHistoryStoppingPoint(`creating_bubble_click`);
+    const id = createShapeId();
     this.editor.createShape<SpeechBubbleShape>({
-      id: createShapeId(),
+      id,
       type: 'speech-bubble',
       x: originPagePoint.x - CLICK_DEFAULT_W / 2,
       y: originPagePoint.y - CLICK_DEFAULT_H / 2,
@@ -83,7 +93,13 @@ class BubbleBoxPointing extends StateNode {
         variant: this.variant,
       },
     });
-    this.editor.setCurrentTool('select');
+    /*
+     * 풍선을 그렸으면 다음에 할 일은 대사를 쓰는 것이다 — 바로 편집으로 연다.
+     * 빈 풍선만 필요하면 Esc 한 번이면 빠져나온다.
+     */
+    this.editor.select(id);
+    this.editor.setEditingShape(id);
+    this.editor.setCurrentTool('select.editing_shape');
   }
 
   override onCancel(): void {

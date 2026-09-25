@@ -400,7 +400,7 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 
 #### 인스펙터는 바뀐 키만 넘긴다
 
-`page-line-inspector.tsx:42`·`page-text-inspector.tsx:38`·`speech-bubble-inspector.tsx:40` 의 `patch()` 는
+`page-line-inspector.tsx:42`·`page-text-inspector.tsx:38`·`speech-bubble-inspector.tsx:49` 의 `patch()` 는
 `updateShape` 에 **변경 키만** 준다. `updateShape` 는 props 를 부분 병합하므로 스프레드가 불필요하고,
 스프레드하면 해롭다 — `shape` 는 선택 시점의 스냅샷이라 그 사이 서버가 채워 준 id 가 아직 null 일 수
 있고, 그걸 되쓰면 그 뒤 이 도형의 모든 편집이 저장 큐에서 "id 없음" 으로 걸러진다. 색을 한 번
@@ -636,7 +636,7 @@ API 도메인의 JSON 에러 화면에 떨어졌다 — 거기서는 앱으로 �
 - 그 화면의 본문은 탭 이름을 쓴다(`app/projects/[id]/consistency/page.tsx:39` 의 `tabLabel`).
   전부 "항목" 이라 부르면 캐릭터 탭에서 "항목이 없습니다" 가 무엇을 만들라는 건지 모른다.
 - 내부 식별자는 화면에 내보내지 않는다. `pageLabel()` 의 폴백이 `p1` 이었고
-  (`packages/types/src/index.ts:361`), 생성 기록 캡션에 job id 6자리와 모델 ID 원문
+  (`packages/types/src/index.ts:366`), 생성 기록 캡션에 job id 6자리와 모델 ID 원문
   (`gemini-3.1-flash-image-preview`)이 찍혔으며, 엔티티 카드에 내부 `version` 이 배지로
   붙어 있었다. 모델 표시 이름은 `lib/model-options.ts` 한 곳에서 나온다 — 예전에는
   같은 목록이 세 파일에 복붙돼 있었다.

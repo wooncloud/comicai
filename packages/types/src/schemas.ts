@@ -266,17 +266,7 @@ export const SpeechBubbleStyleSchema = z.object({
   fillColor: ColorStringSchema.default('#ffffff'),
 });
 
-export const SpeechBubbleCreateSchema = z.object({
-  variant: SpeechBubbleVariantSchema,
-  shape: SpeechBubbleShapeSchema,
-  style: SpeechBubbleStyleSchema.partial().optional(),
-});
-
-export const SpeechBubblePatchSchema = z.object({
-  variant: SpeechBubbleVariantSchema.optional(),
-  shape: SpeechBubbleShapeSchema.optional(),
-  style: SpeechBubbleStyleSchema.partial().optional(),
-});
+/* 말풍선 생성·수정 스키마는 PageTextStyleSchema 를 쓰므로 그 아래에 있다. */
 
 /*
  * 입력 타입은 스키마에서 **파생시킨다.** 예전에는 서비스가 같은 모양을 손으로 다시
@@ -310,7 +300,30 @@ export const PageTextStyleSchema = z.object({
   fontSize: z.number().min(6).max(200).default(24),
   fontFamily: z.enum(PAGE_TEXT_FONT_FAMILIES).default('sans-serif'),
   color: ColorStringSchema.default('#111111'),
-  textAlign: z.enum(TEXT_ALIGNS).default('left'),
+  // `defaultPageTextStyle()` 와 같은 값이어야 한다 — 둘이 갈라지면 어디서 만들었느냐에
+  // 따라 정렬이 달라진다. `text-layout.spec.ts` 가 둘이 같은지 본다.
+  textAlign: z.enum(TEXT_ALIGNS).default('center'),
+});
+
+/*
+ * 말풍선은 **자기 대사를 갖는다.** 예전에는 PageText 를 따로 만들어 위에 얹어야 했고,
+ * 풍선을 옮기면 글자가 그 자리에 남았다. 글자 스타일은 PageText 와 같은 모양을 쓴다 —
+ * 같은 것을 두 벌로 선언하면 한쪽만 고쳐지는 날이 온다.
+ */
+export const SpeechBubbleCreateSchema = z.object({
+  variant: SpeechBubbleVariantSchema,
+  shape: SpeechBubbleShapeSchema,
+  style: SpeechBubbleStyleSchema.partial().optional(),
+  text: z.string().max(2000).optional(),
+  textStyle: PageTextStyleSchema.partial().optional(),
+});
+
+export const SpeechBubblePatchSchema = z.object({
+  variant: SpeechBubbleVariantSchema.optional(),
+  shape: SpeechBubbleShapeSchema.optional(),
+  style: SpeechBubbleStyleSchema.partial().optional(),
+  text: z.string().max(2000).optional(),
+  textStyle: PageTextStyleSchema.partial().optional(),
 });
 
 export const PageTextCreateSchema = z.object({

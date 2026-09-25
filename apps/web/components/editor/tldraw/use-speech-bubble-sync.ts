@@ -2,11 +2,13 @@
 import type { Editor, IndexKey } from 'tldraw';
 import {
   ApiPaths,
+  defaultPageTextStyle,
   defaultSpeechBubbleStyle,
   type NormalizedPoint,
   type SpeechBubbleDTO,
   type SpeechBubbleShape as ApiBubbleShape,
   type SpeechBubbleStyle,
+  type PageTextStyle,
 } from '@comicai/types';
 import type { SpeechBubbleShape } from './speech-bubble-shape';
 import { useShapeSync, type ShapeSyncSpec } from './use-shape-sync';
@@ -22,6 +24,7 @@ interface Args {
 
 function flatten(b: SpeechBubbleDTO): SpeechBubbleShape['props'] {
   const style = { ...defaultSpeechBubbleStyle(), ...b.style };
+  const ts = { ...defaultPageTextStyle(), ...b.textStyle };
   return {
     w: Math.max(1, b.shape.w),
     h: Math.max(1, b.shape.h),
@@ -33,6 +36,11 @@ function flatten(b: SpeechBubbleDTO): SpeechBubbleShape['props'] {
     strokeWidth: style.strokeWidth,
     strokeColor: style.strokeColor,
     fillColor: style.fillColor,
+    text: b.text,
+    fontSize: ts.fontSize,
+    fontFamily: ts.fontFamily,
+    textColor: ts.color,
+    textAlign: ts.textAlign,
   };
 }
 
@@ -40,10 +48,26 @@ function toApi(shape: SpeechBubbleShape): {
   variant: SpeechBubbleShape['props']['variant'];
   shape: ApiBubbleShape;
   style: Partial<SpeechBubbleStyle>;
+  text: string;
+  textStyle: Partial<PageTextStyle>;
 } {
   const { x, y } = shape;
-  const { w, h, variant, polygonPoints, tailX, tailY, strokeWidth, strokeColor, fillColor } =
-    shape.props;
+  const {
+    w,
+    h,
+    variant,
+    polygonPoints,
+    tailX,
+    tailY,
+    strokeWidth,
+    strokeColor,
+    fillColor,
+    text,
+    fontSize,
+    fontFamily,
+    textColor,
+    textAlign,
+  } = shape.props;
   return {
     variant,
     shape: {
@@ -58,6 +82,8 @@ function toApi(shape: SpeechBubbleShape): {
       tail: tailX !== null && tailY !== null ? { x: tailX, y: tailY } : null,
     },
     style: { strokeWidth, strokeColor, fillColor },
+    text,
+    textStyle: { fontSize, fontFamily, color: textColor, textAlign },
   };
 }
 
@@ -77,7 +103,12 @@ function samePropsAsDto(
     cur.tailY !== n.tailY ||
     cur.strokeWidth !== n.strokeWidth ||
     cur.strokeColor !== n.strokeColor ||
-    cur.fillColor !== n.fillColor
+    cur.fillColor !== n.fillColor ||
+    cur.text !== n.text ||
+    cur.fontSize !== n.fontSize ||
+    cur.fontFamily !== n.fontFamily ||
+    cur.textColor !== n.textColor ||
+    cur.textAlign !== n.textAlign
   ) {
     return false;
   }

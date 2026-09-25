@@ -160,13 +160,15 @@ export class ExportService {
       })
     ).flat();
 
-    // 3) 말풍선 — 패널 합성 위. 텍스트는 별도 PageText 레이어에서 처리.
+    // 3) 말풍선 — 패널 합성 위. 대사는 풍선이 갖고 있어 같은 레이어에서 함께 그린다.
     // 페이지 사이즈와 동일한 단일 SVG 로 모아 합성 (sharp 는 input 이 canvas 보다 크면 거부).
     const bubbleLayer = renderSpeechBubbleLayer(
       page.speechBubbles.map((b) => ({
         variant: b.variant as SpeechBubbleVariant,
         shape: b.shape as unknown as SpeechBubbleShape,
         style: b.style as unknown as SpeechBubbleStyle,
+        text: b.text,
+        textStyle: b.textStyle as unknown as PageTextStyle,
       })),
       canvasW,
       canvasH,

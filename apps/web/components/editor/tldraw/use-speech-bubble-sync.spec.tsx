@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { Editor } from 'tldraw';
-import type { SpeechBubbleDTO } from '@comicai/types';
+import { defaultPageTextStyle, type SpeechBubbleDTO } from '@comicai/types';
 import { useSpeechBubbleSync } from './use-speech-bubble-sync';
 
 const { apiMock } = vi.hoisted(() => ({ apiMock: vi.fn() }));
@@ -74,6 +74,8 @@ function bubbleDto(id: string, x: number, y: number): SpeechBubbleDTO {
       strokeColor: '#000000',
       fillColor: '#ffffff',
     },
+    text: '',
+    textStyle: defaultPageTextStyle(),
     createdAt: '2026-09-21T00:00:00Z',
     updatedAt: '2026-09-21T00:00:00Z',
   };

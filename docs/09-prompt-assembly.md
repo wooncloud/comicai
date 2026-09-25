@@ -13,7 +13,7 @@
 | `Panel.text` (TipTapDoc) | 사용자가 패널 인스펙터에 입력한 본문. 캐릭터/배경/세계관 멘션(@) 포함                                          |
 | `Panel.refImages`        | 패널에 직접 첨부된 참조 이미지 배열                                                                            |
 | `Panel.conti`            | 콘티(러프 스케치) 이미지 한 장                                                                                 |
-| `Panel.shape`            | 패널 도형. bbox로부터 `panelSize`와 `aspectRatio` 도출 (`shapeBoundingBox`, `packages/types/src/index.ts:435`) |
+| `Panel.shape`            | 패널 도형. bbox로부터 `panelSize`와 `aspectRatio` 도출 (`shapeBoundingBox`, `packages/types/src/index.ts:440`) |
 | `Panel.styleId`          | 패널별 그림체 override                                                                                         |
 | `Project.defaultStyleId` | 프로젝트의 대표 그림체 (`Panel.styleId`가 null이면 폴백)                                                       |
 | `ConsistencyEntity`      | 멘션된 캐릭터/배경/세계관 + effective style 엔티티                                                             |

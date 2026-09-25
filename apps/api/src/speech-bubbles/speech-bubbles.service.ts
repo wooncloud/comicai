@@ -1,11 +1,13 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { newId, prisma, Prisma } from '@comicai/db';
 import {
+  defaultPageTextStyle,
   defaultSpeechBubbleStyle,
   type SpeechBubbleDTO,
   type SpeechBubbleShape,
   type SpeechBubbleStyle,
   type SpeechBubbleVariant,
+  type PageTextStyle,
   type SpeechBubbleCreateInput,
   type SpeechBubblePatchInput,
 } from '@comicai/types';
@@ -25,6 +27,8 @@ interface BubbleRow {
   variant: string;
   shape: unknown;
   style: unknown;
+  text: string;
+  textStyle: unknown;
   order: number;
   createdAt: Date;
   updatedAt: Date;
@@ -37,6 +41,8 @@ function toDto(row: BubbleRow): SpeechBubbleDTO {
     variant: row.variant as SpeechBubbleVariant,
     shape: row.shape as SpeechBubbleShape,
     style: mergeStyle(defaultSpeechBubbleStyle(), row.style as Partial<SpeechBubbleStyle> | null),
+    text: row.text,
+    textStyle: mergeStyle(defaultPageTextStyle(), row.textStyle as Partial<PageTextStyle> | null),
     order: row.order,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -62,6 +68,7 @@ export class SpeechBubblesService {
       await prisma.speechBubble.aggregate({ where: { pageId }, _max: { order: true } }),
     );
     const style = mergeStyle(defaultSpeechBubbleStyle(), input.style);
+    const textStyle = mergeStyle(defaultPageTextStyle(), input.textStyle);
     const row = await prisma.speechBubble.create({
       data: {
         id: newId('bubble'),
@@ -69,6 +76,8 @@ export class SpeechBubblesService {
         variant: input.variant,
         shape: input.shape,
         style: style as unknown as Prisma.InputJsonValue,
+        text: input.text ?? '',
+        textStyle: textStyle as unknown as Prisma.InputJsonValue,
         order,
       },
     });
@@ -86,6 +95,15 @@ export class SpeechBubblesService {
         defaultSpeechBubbleStyle(),
         owned.style as Partial<SpeechBubbleStyle> | null,
         input.style,
+      ) as unknown as Prisma.InputJsonValue;
+    }
+    if (input.text !== undefined) data.text = input.text;
+    if (input.textStyle) {
+      // style 과 같은 이유로 기존 값을 먼저 깐다 — 부분 패치가 나머지를 기본값으로 되돌리면 안 된다.
+      data.textStyle = mergeStyle(
+        defaultPageTextStyle(),
+        owned.textStyle as Partial<PageTextStyle> | null,
+        input.textStyle,
       ) as unknown as Prisma.InputJsonValue;
     }
     const row = await prisma.speechBubble.update({ where: { id: owned.id }, data });
@@ -119,7 +137,12 @@ export class SpeechBubblesService {
   }
 
   private async assertOwned(userId: string, id: string) {
-    const row = await prisma.speechBubble.findUnique({ where: { id }, select: PAGE_CHILD_SELECT });
+    const row = await prisma.speechBubble.findUnique({
+      where: { id },
+      // 부분 패치가 기존 값을 덮지 않으려면 textStyle 도 읽어 와야 한다.
+      // 공용 select 에는 없다 — 다른 페이지 자식(텍스트·직선)에는 이 컬럼이 없어서다.
+      select: { ...PAGE_CHILD_SELECT, textStyle: true },
+    });
     return assertPageChildOwned(row, userId, 'SPEECH_BUBBLE_NOT_FOUND');
   }
 }

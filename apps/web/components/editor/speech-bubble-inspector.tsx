@@ -1,11 +1,20 @@
 'use client';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Type } from 'lucide-react';
 import type { Editor, TLShapeId } from 'tldraw';
+import { PAGE_TEXT_FONT_FAMILIES, type PageTextFontFamily } from '@comicai/types';
 import type { SpeechBubbleShape } from './tldraw/speech-bubble-shape';
 import { SectionLabel } from './section-label';
 import { InspectorShell } from './inspector-shell';
 import { HexColorField } from './hex-color-field';
 import { NumberField } from './number-field';
+import { AlignToggle } from './align-toggle';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { LayerOrderControls } from './layer-order-controls';
 import type { LayerOrderAction } from '@/lib/use-layer-reorder';
 
@@ -76,6 +85,69 @@ export function SpeechBubbleInspector({
             <span className="text-caption text-muted-foreground">px</span>
           </div>
         </div>
+      </div>
+
+      {/*
+        대사는 풍선이 갖는다. 예전에는 텍스트 상자를 따로 만들어 위에 얹어야 했고,
+        풍선을 옮기면 글자가 그 자리에 남았다. 풍선을 더블클릭하면 여기 값으로 그려진다.
+      */}
+      <div className="space-y-2">
+        <SectionLabel icon={Type}>대사</SectionLabel>
+        <p className="text-caption text-muted-foreground">
+          풍선을 더블클릭하면 바로 쓸 수 있습니다. 풍선 폭에 맞춰 줄이 바뀝니다.
+        </p>
+
+        <div className="space-y-1">
+          <div className="text-caption text-muted-foreground">폰트</div>
+          <Select
+            value={p.fontFamily}
+            onValueChange={(v) => patch({ fontFamily: v as PageTextFontFamily })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_TEXT_FONT_FAMILIES.map((f) => (
+                <SelectItem key={f} value={f}>
+                  <span style={{ fontFamily: f }}>{f}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <div className="text-caption text-muted-foreground">정렬</div>
+          <AlignToggle value={p.textAlign} onChange={(v) => patch({ textAlign: v })} />
+        </div>
+
+        <div className="space-y-1">
+          <div className="text-caption text-muted-foreground">크기</div>
+          <div className="flex items-center gap-2">
+            <NumberField
+              value={p.fontSize}
+              min={6}
+              max={200}
+              step={1}
+              onCommit={(v) => patch({ fontSize: v })}
+              ariaLabel="대사 글자 크기"
+            />
+            <span className="text-caption text-muted-foreground">px</span>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <div className="text-caption text-muted-foreground">글자 색</div>
+          <div className="flex items-center gap-2">
+            <HexColorField
+              value={p.textColor}
+              onCommit={(v) => patch({ textColor: v })}
+              ariaLabel="대사 글자 색"
+              variant="panel"
+            />
+          </div>
+        </div>
+
         {onReorder && (
           <LayerOrderControls
             canMoveForward={canMoveForward ?? false}
