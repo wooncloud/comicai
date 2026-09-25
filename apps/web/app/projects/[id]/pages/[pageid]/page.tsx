@@ -59,7 +59,9 @@ const ToolRail = dynamic(() => import('@/components/editor/tool-rail').then((m) 
 });
 
 type Selection =
-  | { kind: 'panel'; id: string }
+  // 캔버스 셰이프 id 도 같이 든다 — 인스펙터가 굵기를 끄는 동안 셰이프를 직접 고쳐야
+  // 캔버스가 따라오고, 좌표는 캔버스가 계속 쥐고 있게 된다.
+  | { kind: 'panel'; id: string; shapeId: TLShapeId }
   | { kind: 'bubble'; shape: SpeechBubbleShape }
   | { kind: 'text'; shape: PageTextShape }
   | { kind: 'line'; shape: PageLineShape }
@@ -255,7 +257,7 @@ export default function PageEditor() {
       const shape = editor!.getShape(ids[0] as TLShapeId);
       if (shape?.type === 'comic-panel') {
         const panelId = (shape as ComicPanelShape).props.panelId;
-        return panelId ? { kind: 'panel', id: panelId } : null;
+        return panelId ? { kind: 'panel', id: panelId, shapeId: shape.id } : null;
       }
       if (shape?.type === 'speech-bubble')
         return { kind: 'bubble', shape: shape as SpeechBubbleShape };
@@ -310,6 +312,7 @@ export default function PageEditor() {
       selection?.kind === 'panel' ? (panels.find((p) => p.id === selection.id) ?? null) : null,
     [panels, selection],
   );
+  const selectedPanelShapeId = selection?.kind === 'panel' ? selection.shapeId : null;
 
   /*
    * 실패했으면 캔버스를 아예 그리지 않는다. 빈 캔버스를 띄우면 사용자가 자기 컷이
@@ -403,10 +406,12 @@ export default function PageEditor() {
         </div>
         {rightCollapsed ? (
           <CollapseRail side="right" onExpand={() => setRightCollapsed(false)} />
-        ) : selectedPanel ? (
+        ) : selectedPanel && editor && selectedPanelShapeId ? (
           <PanelInspector
             key={selectedPanel.id}
             projectId={projectId}
+            editor={editor}
+            shapeId={selectedPanelShapeId}
             panel={selectedPanel}
             onPanelUpdated={(p) => setPanels((prev) => prev.map((x) => (x.id === p.id ? p : x)))}
             onPanelDeleted={() => {

@@ -17,6 +17,7 @@ import {
   type ModelId,
 } from '@comicai/types';
 import { PencilRuler, Brush, Sparkles, Square } from 'lucide-react';
+import type { Editor, TLShapeId } from 'tldraw';
 /*
  * tiptap + prosemirror 는 50kB(gzip)인데, 이 에디터는 컷이 선택됐을 때만 그려진다.
  * 정적 import 라 에디터 라우트 초기 로드에 그대로 실렸다.
@@ -51,6 +52,9 @@ import { FEATURES } from '@/lib/features';
 
 interface Props {
   projectId: string;
+  /** 굵기를 끄는 동안 셰이프를 직접 고치기 위해. 좌표는 캔버스가 계속 쥔다. */
+  editor: Editor;
+  shapeId: TLShapeId;
   panel: PanelDTO;
   onPanelUpdated: (p: PanelDTO) => void;
   onPanelDeleted: () => void;
@@ -60,6 +64,8 @@ interface Props {
 
 export function PanelInspector({
   projectId,
+  editor,
+  shapeId,
   panel,
   onPanelUpdated,
   onPanelDeleted,
@@ -296,7 +302,13 @@ export function PanelInspector({
   }
 
   return (
-    <InspectorShell title="컷" onCollapse={onCollapse} badge={<PanelStatusBadge status={status} />}>
+    <InspectorShell
+      title="컷"
+      onCollapse={onCollapse}
+      badge={<PanelStatusBadge status={status} />}
+      onDelete={onDelete}
+      deleteLabel="컷 삭제"
+    >
       <PanelTextEditor
         projectId={projectId}
         initial={doc}
@@ -310,6 +322,18 @@ export function PanelInspector({
 
       <PanelStrokeEditor
         shape={panel.shape}
+        onWidthChange={(strokeWidth) => {
+          /*
+           * 굵기는 **캔버스 셰이프를 직접** 고친다. 저장은 sync 훅이 1.5초 디바운스로
+           * 한 번만 하고, 좌표는 캔버스가 쥔 값이 그대로 나간다.
+           *
+           * DTO(`onPanelUpdated`)를 거치면 안 된다 — `panel.shape` 은 선택 시점의
+           * 스냅샷이라 그 사이 캔버스에서 옮긴 좌표가 없다. 그걸 되쓰면 컷을 옮긴
+           * 직후 굵기를 바꿀 때 **이동이 취소된다.** 아래 색 저장이 좌표를 빼고
+           * 보내는 것과 같은 이유다.
+           */
+          editor.updateShape({ id: shapeId, type: 'comic-panel', props: { strokeWidth } });
+        }}
         onChange={async (stroke) => {
           try {
             /*
@@ -539,29 +563,20 @@ export function PanelInspector({
           onPanelUpdated(p);
         }}
       />
-
-      <div className="mt-auto border-t border-border pt-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onDelete}
-          className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-        >
-          컷 삭제
-        </Button>
-      </div>
     </InspectorShell>
   );
 }
 
 function PanelStrokeEditor({
   shape,
+  onWidthChange,
   onChange,
 }: {
   shape: PanelShape;
-  /** 바뀐 필드만 넘긴다 — 좌표는 캔버스 소관이다. */
-  onChange: (next: { strokeColor?: string; strokeWidth?: number }) => void | Promise<void>;
+  /** 굵기. 캔버스 셰이프를 고치고, 저장은 sync 훅이 맡는다. */
+  onWidthChange: (strokeWidth: number) => void;
+  /** 색. 바뀐 필드만 넘긴다 — 좌표는 캔버스 소관이다. */
+  onChange: (next: { strokeColor?: string }) => void | Promise<void>;
 }) {
   // 저장된 shape 은 읽을 때 파싱하지 않는다. 이 두 필드는 Zod 기본값이라 **쓰기
   // 시점에만** 채워지므로, 필드가 생기기 전에 저장된 컷에는 아예 없다.
@@ -572,10 +587,6 @@ function PanelStrokeEditor({
   function commitColor(next: string) {
     if (next === shape.strokeColor) return;
     void onChange({ strokeColor: next });
-  }
-  function commitWidth(next: number) {
-    if (next === shape.strokeWidth) return;
-    void onChange({ strokeWidth: next });
   }
 
   return (
@@ -588,7 +599,12 @@ function PanelStrokeEditor({
       <ColorField value={color} onCommit={commitColor} ariaLabel="컷 테두리 색" variant="panel" />
       <div className="space-y-1">
         <div className="text-caption text-muted-foreground">굵기</div>
-        <StrokeWidthField value={width} onCommit={commitWidth} ariaLabel="컷 테두리 굵기" />
+        <StrokeWidthField
+          value={width}
+          onPreview={onWidthChange}
+          onCommit={onWidthChange}
+          ariaLabel="컷 테두리 굵기"
+        />
       </div>
     </div>
   );

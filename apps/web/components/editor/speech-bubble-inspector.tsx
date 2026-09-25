@@ -59,7 +59,12 @@ export function SpeechBubbleInspector({
   }
 
   return (
-    <InspectorShell title={`말풍선${p.bubbleId ? '' : ' · 저장 중…'}`} onCollapse={onCollapse}>
+    <InspectorShell
+      title={`말풍선${p.bubbleId ? '' : ' · 저장 중…'}`}
+      onCollapse={onCollapse}
+      onDelete={() => editor.deleteShapes([shapeId])}
+      deleteLabel="말풍선 삭제"
+    >
       <div className="space-y-2">
         <SectionLabel icon={MessageSquare}>말풍선</SectionLabel>
         <div className="space-y-1">
@@ -83,8 +88,14 @@ export function SpeechBubbleInspector({
             ariaLabel="말풍선 선 색"
             variant="panel"
           />
+          {/*
+            끄는 동안에도 셰이프를 고쳐 캔버스가 따라오게 한다. 서버 저장은 sync 훅이
+            1.5초 디바운스하므로 요청이 쌓이지 않는다 — 컷 테두리만 직접 PATCH 라
+            거기서는 미리보기와 저장을 갈라야 했다.
+          */}
           <StrokeWidthField
             value={p.strokeWidth}
+            onPreview={(v) => patch({ strokeWidth: v })}
             onCommit={(v) => patch({ strokeWidth: v })}
             ariaLabel="말풍선 선 굵기"
           />
