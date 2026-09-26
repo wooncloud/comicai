@@ -22,7 +22,9 @@ export function InspectorSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-md border border-border">
+    // shrink-0: 속성 창은 세로 flex + 스크롤이다. overflow-hidden 인 flex 항목은 최소 높이가 0 이
+    // 되어, 내용이 창보다 길면 스크롤 대신 구역이 찌그러지며 아래가 잘렸다(말풍선의 '꼬리 달기').
+    <section className="shrink-0 overflow-hidden rounded-md border border-border">
       <h3 className="flex items-center gap-1.5 border-b border-border bg-muted/40 px-3 py-2 text-caption font-semibold text-foreground">
         <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
         {title}

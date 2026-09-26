@@ -102,7 +102,8 @@ COMPOSE_STACK=dev bash scripts/compose.sh ps
 화면과 결과물이 말없이 달라진다. 그래서 고를 수 있는 글꼴은 **양쪽에** 있어야 한다.
 
 - `font-noto-cjk` · `font-noto-cjk-extra` — 한글 고딕·명조 (`api.Dockerfile:45`)
-- `infra/fonts/*.ttf` — 만화용 한글 글꼴 세 벌을 `/usr/share/fonts/comicai/` 로 (`api.Dockerfile:49`)
+- `infra/fonts/*.ttf` — 만화용 한글 글꼴 일곱 벌(나눔손글씨 펜·개구·주아·도현·검은고딕·연성·나눔손글씨 붓)을
+  `/usr/share/fonts/comicai/` 로 (`api.Dockerfile:49`). 목록·subset 명령·뺀 후보는 `infra/fonts/README.md`
 - `infra/fonts/50-comicai.conf` — **패키지만으로는 부족하다.** fontconfig 의 `serif` 는 기본 규칙을
   따라 Noto Sans CJK JP 로 떨어져서, '명조' 를 골라도 내보낸 PNG 는 고딕이었다. 이 규칙이
   한국어 계열을 먼저 보게 한다 (`api.Dockerfile:50`)

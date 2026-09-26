@@ -436,11 +436,16 @@ export const PAGE_TEXT_FONT_FAMILIES = [
   'sans-serif',
   'serif',
   'monospace',
-  // 아래 셋은 저장소에 직접 실은 한글 글꼴이다 — 이름은 `infra/fonts/README.md` 참고.
+  // 아래는 저장소에 직접 실은 한글 글꼴이다 — 이름은 `infra/fonts/README.md` 참고.
   // 웹은 `apps/web/public/fonts/comic/*.woff2`, 내보내기 컨테이너는 `infra/fonts/*.ttf`.
+  // 손글씨(대사) → 굵은 제목체(효과음·강조) → 붓(효과음) 순으로 둔다.
   'Nanum Pen',
-  'Black Han Sans',
+  'Gaegu',
+  'Jua',
   'Do Hyeon',
+  'Black Han Sans',
+  'Yeon Sung',
+  'Nanum Brush Script',
 ] as const;
 
 export const PageTextStyleSchema = z.object({

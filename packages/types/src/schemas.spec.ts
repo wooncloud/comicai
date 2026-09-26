@@ -133,8 +133,12 @@ describe('PageTextStyleSchema fontFamily', () => {
       'serif',
       'monospace',
       'Nanum Pen',
-      'Black Han Sans',
+      'Gaegu',
+      'Jua',
       'Do Hyeon',
+      'Black Han Sans',
+      'Yeon Sung',
+      'Nanum Brush Script',
     ]);
     for (const f of PAGE_TEXT_FONT_FAMILIES) {
       expect(PageTextStyleSchema.safeParse({ fontFamily: f }).success).toBe(true);

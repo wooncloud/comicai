@@ -205,13 +205,13 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 - `mention-suggestion.tsx` — `@` 트리거 후 일관성 엔티티 검색·삽입 팝업
 - 인스펙터:
   - `panel-inspector.tsx` — 패널 선택 시 우측 인스펙터. 콘티/모델/렌더 액션. 후술
-  - `page-inspector.tsx` — 패널이 선택되지 않았을 때 페이지 단위(크기/배경색) 인스펙터
+  - `page-inspector.tsx` — 패널이 선택되지 않았을 때 페이지 단위(크기/배경색) 인스펙터. 크기는 형식별 프리셋과 직접 입력을 **펼쳐 둔다**(`PageSizeSelect`, `page-size-select.tsx:28`) — 현재 크기가 적힌 버튼 하나를 눌러 창을 열던 때는 지금 크기가 어느 형식인지 안 보였고, 하나 바꾸는 데 세 번이 들었다. 좁히면 프리셋이 세 칸에서 두 칸으로 넘어간다(세 칸을 고집하면 크기 숫자가 잘린다)
   - `page-text-inspector.tsx` — `page-text` shape 선택 시. fontSize/fontFamily/color/textAlign 편집
   - `page-line-inspector.tsx` — `page-line` shape 선택 시. strokeWidth/strokeColor/strokeStyle(solid/dashed) 편집
   - `speech-bubble-inspector.tsx` — `speech-bubble` shape 선택 시. variant/strokeWidth/strokeColor/fillColor 만 (텍스트 키 없음)
 - 공용 입력:
   - `number-field.tsx` — 디바운스 + 화살표 조정이 있는 숫자 입력. 인스펙터 전반에서 재사용
-  - `stroke-width-field.tsx` — 선 굵기(`StrokeWidthField`, `stroke-width-field.tsx:30`). 슬라이더 1~10 + 숫자 칸. 컷 테두리·말풍선 선·직선이 공유한다
+  - `slider-field.tsx` — 슬라이더 + 숫자 칸(`SliderField`, `slider-field.tsx:31`). 선 굵기(1~10, 컷 테두리·말풍선 선·직선)와 글자 크기(6~200)가 같이 쓴다
   - `align-toggle.tsx` — `TextAlign` 토글 (left/center/right). PageText/SpeechBubble 공유
   - `inspector-section.tsx` — 구역 껍데기(`InspectorSection`)와 한 줄(`Field`). 다섯 인스펙터가 공유
   - `resize-handle.tsx` — 패널 경계의 끌기 손잡이. 접기 버튼을 대신한다
@@ -255,7 +255,6 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 - `dropdown-menu.tsx`, `select.tsx`, `avatar.tsx`, `radio-group.tsx`, `tooltip.tsx` — 동명 Radix 패키지 래퍼
 - `input.tsx`, `breadcrumb.tsx` — 순수 컴포넌트 (Radix 미사용)
 - `color-field.tsx` — 색 고르개(`ColorField`). 인스펙터의 모든 색 입력이 쓴다. 후술
-- `popover.tsx` — `@radix-ui/react-popover` 래퍼. 메뉴 시맨틱이 없어 슬라이더·색 판을 넣어도 싸우지 않는다
 - `toast.tsx` — 후술 (sonner 래퍼)
 
 ### components/billing
@@ -424,8 +423,9 @@ Next 는 이 파일을 클라이언트 컴포넌트로만 받고, 같은 세그�
 #### 같은 종류 안의 레이어 순서(앞뒤)와 영속화
 
 말풍선·자유 텍스트·자유 직선의 순서는 `useLayerReorder`(`apps/web/lib/use-layer-reorder.ts:25`)가
-담당한다. 선택된 도형의 인스펙터(`LayerOrderSection`, `components/editor/layer-order-section.tsx:21`)에
-"앞으로 · 뒤로 · 맨 앞으로 · 맨 뒤로" 네 동작을 제공하며, tldraw 단축키(`]`, `alt+]`, `alt+[`, `[`) 역시
+담당한다. 선택된 도형의 인스펙터(`LayerOrderSection`, `components/editor/layer-order-section.tsx:25`)에
+"맨 앞으로 · 앞으로 · 뒤로 · 맨 뒤로" 네 동작을 **아이콘 한 줄**로 제공하며(이름은 툴팁·
+스크린 리더가 말한다 — 글자까지 넣으면 두 줄을 차지해 자주 만지는 값들이 밀린다), tldraw 단축키(`]`, `alt+]`, `alt+[`, `[`) 역시
 `comic-editor.tsx:91`의 `actions` 오버라이드를 통해 동일한 단일 경로로 수렴한다.
 순서 변경은 새 순열 ID 배열을 만들어 즉시 캔버스/상태를 낙관적 갱신하고(`use-layer-reorder.ts:50`),
 `POST /pages/:id/.../reorder` 엔드포인트로 영속화한다. 실패 시 이전 순서로 롤백하고 토스트를 띄운다.
@@ -592,7 +592,7 @@ apps/web/
 │   │   ├── placeholder-extension.ts  # 빈 칸 안내(ProseMirror Decoration)
 │   │   ├── mention-{extension,suggestion}.{ts,tsx}
 │   │   ├── conti-dialog.tsx          # 콘티 업/다운/삭제
-│   │   ├── (number-field|stroke-width-field|align-toggle|inspector-section|resize-handle|tool-rail).tsx
+│   │   ├── (number-field|slider-field|align-toggle|inspector-section|resize-handle|tool-rail).tsx
 │   │   ├── (page-sidebar|page-size-select|export-dialog|save-status|panel-status-badge).tsx
 │   │   └── tldraw/             # comic-editor, comic-panel-{shape,tool},
 │   │                           # polygon-{panel-tool,preview,state}, polygon-tool-base,
@@ -720,7 +720,9 @@ apps/web/
 '말풍선' 이고 어디부터가 '대사' 인지 매번 읽어 봐야 했다.
 
 `InspectorSection`(`components/editor/inspector-section.tsx:16`)이 테두리와 제목 줄로
-눈에 보이는 경계를 준다. 한 줄은 `Field`(`:44`) — 라벨 위, 입력 아래다(라벨을 왼쪽에
+눈에 보이는 경계를 준다. 구역은 `shrink-0` 이다(`:27`) — 속성 창이 세로 flex + 스크롤이라,
+`overflow-hidden` 인 구역은 flex 최소 높이가 0 이 되어 내용이 창보다 길면 스크롤 대신 찌그러지며
+아래가 잘렸다(말풍선의 '꼬리 달기' 가 반쯤 가려졌다, 2026-09-26). 한 줄은 `Field`(`:44`) — 라벨 위, 입력 아래다(라벨을 왼쪽에
 두면 좁은 인스펙터에서 입력 폭이 줄마다 달라진다).
 
 **탭으로 가르지 않은 이유**: 구역이 두세 개뿐이고 서로 같이 보면서 맞추는 값들이다 —
@@ -779,8 +781,11 @@ Delete 키로 지울 수는 있었지만 **버튼이 컷에만 있었다.** 말�
 
 ### 굵기는 슬라이더로 — 숫자만으로는 정해지지 않는다
 
-컷 테두리·말풍선 선·직선의 굵기는 `StrokeWidthField`(`components/editor/stroke-width-field.tsx:30`)
-하나를 쓴다. 범위는 1~10 이다.
+컷 테두리·말풍선 선·직선의 굵기는 `SliderField`(`components/editor/slider-field.tsx:31`)
+하나를 쓴다. 범위는 1~10 이다. 글자 크기도 같은 필드(6~200, 서버가 받는 범위)에 **자주 쓰는
+크기 드롭다운**을 붙였다(`FONT_SIZE_PRESETS`, `text-style-fields.tsx:24`) — 12 작은 주석부터
+96 제목까지, 웹툰 폭(800px)에서의 쓰임새를 옆에 적었다. 숫자만 늘어놓으면 "대사는 몇이
+적당한가" 를 매번 캔버스에 넣어 보고 정해야 한다. 지금 값이 목록에 없으면 드롭다운은 비워 둔다.
 
 - **슬라이더인 이유**: 굵기는 "얼마나 굵은가" 가 눈으로 보여야 정해진다. 숫자 칸만
   있으면 3 과 6 의 차이를 머릿속으로 그려야 하고, 결국 값을 넣고 캔버스를 보고 다시
@@ -838,7 +843,7 @@ id 를 쓰기 때문에 저장 없이는 붙일 수 없다.
 ### 색은 고를 값을 정해 준다 — `<input type="color">` 를 안 쓰는 이유
 
 인스펙터의 색 입력 여섯 자리(컷 테두리·말풍선 채움/선/글자·직선·페이지 배경)는 전부
-`ColorField`(`components/ui/color-field.tsx:46`) 하나를 쓴다. 예전에는 네이티브
+`ColorField`(`components/ui/color-field.tsx:41`) 하나를 쓴다. 예전에는 네이티브
 `<input type="color">` 였다.
 
 - 그건 **OS 색상 선택 창**을 띄운다. 창이 앱 밖에 떠서 어떤 칸을 고치는 중인지 잃고,
@@ -847,23 +852,17 @@ id 를 쓰기 때문에 저장 없이는 붙일 수 없다.
 - 그래서 **쓸 만한 색을 먼저 내민다**(`PRESETS`, `color-field.tsx:16`). 무채색 한 줄,
   따뜻한 색 한 줄, 차가운 색 한 줄. 컷 테두리는 거의 검정이고 말풍선은 흰색·미색이라
   무채색이 맨 위다.
-- 그래도 없으면 직접 집는다(`CustomPicker`, `color-field.tsx:176`). 채도·밝기 판과
-  색상 띠 — 띠를 `<input type="range">` 로 둔 것은 방향키로 조절되고 스크린 리더가
-  읽기 때문이다.
-- **판·띠에서 손을 뗄 때 한 번** 알린다. 판은 포인터가 움직일 때마다 값이 나오므로,
-  처음에는 페이지 배경을 한 번 끌면 `PATCH` 가 수십 개 나갔다(굵기 손잡이와 같은 결함).
-  캔버스 도형처럼 저장이 늦게 나가는 대상만 `live` 를 켜서 끄는 동안에도 반영한다.
-- **팝오버로 띄운다**(`components/ui/popover.tsx`, Radix). 처음에는 그 자리에서 아래로
-  펼쳤는데, 폭 320px 인스펙터에서 팔레트가 펼쳐지면 아래 항목들이 한 화면 밖으로
-  밀려났다 — 색을 고르는 동안 굵기도 정렬도 보이지 않는다. 떠 있는 패널은 인스펙터
-  **왼쪽**(캔버스 위)으로 나가므로 목록이 그대로 있고, 폭도 인스펙터에 묶이지 않는다.
+- **팔레트는 속성 창에 펼쳐 둔다.** 맨 끝 줄이 지금 색과 hex 입력이다 — 팔레트에 없는 색은
+  거기서 넣는다(Enter 나 포커스 이동에서 확정). 거쳐 온 길: 처음에는 그 자리에서 아래로
+  펼쳤다가(아래 항목이 밀려났다) 팝오버로 띄웠는데, 팝오버는 색 하나 바꾸는 데 열고·고르고·닫는
+  세 번이 들었고 무슨 색들 사이에서 고르는지가 늘 가려져 있었다(2026-09-26 사장님 요청으로
+  되돌림). 견본을 작게 해 한 번에 보이게 두니 누르면 끝난다. 팝오버 안에 있던 채도판·색상 띠도
+  함께 빠졌다 — hex 가 그 몫을 한다.
+- 누르면 바로 반영된다. 끄는 동작이 없어져, 판을 끄는 동안 저장이 수십 번 나가던 문제
+  (그걸 막으려던 `live` 구분)도 같이 사라졌다.
 - 색과 굵기를 한 줄에 두지 않는다(`panel-inspector.tsx`, `speech-bubble-inspector.tsx`).
-  색칸이 펼쳐지면 그 줄 전체가 높아지면서 굵기 칸이 팔레트 옆에 떠, 무엇에 딸린 값인지
-  흐려진다.
-- hex ↔ HSV 변환은 `lib/color.ts`. `hex → hsv → hex` 왕복이 값을 바꾸지 않는다는 것이
-  `lib/color.spec.ts` 로 묶여 있다 — 어긋나면 색칸을 열었다 닫기만 해도 색이 바뀐 것으로
-  저장된다.
-- 흰색에 가까운 견본에는 테두리를 두른다(`isNearWhite`, `lib/color.ts:111`). 안 그러면
+  팔레트가 세 줄이라 한 줄에 두면 굵기 칸이 팔레트 옆에 떠, 무엇에 딸린 값인지 흐려진다.
+- 흰색에 가까운 견본에는 테두리를 두른다(`isNearWhite`, `lib/color.ts:46`). 안 그러면
   흰 바탕에서 빈 칸으로 보인다.
 
 ### 설정집은 '설정' 이 아니다 — 프로젝트 화면에 둔다
@@ -1038,7 +1037,7 @@ CSS 가 조용히 안 나오는 쪽이라 증상이 "어떤 컨트롤만 작음"
   프리미티브에 둔 것은 새로 추가되는 버튼까지 자동으로 적용되게 하기 위해서다.
   - 반대로 여기를 `button, a` 같은 전역 요소 선택자로 올리면 안 된다. 아이콘 버튼·본문 인라인
     링크·tldraw 툴바가 한꺼번에 망가진다. 폰트 하한과 층이 다른 이유가 이것이다.
-- **`.tap-link`** (`app/globals.css:183-187`) — 본문 문장 안에 놓인 링크(회원가입, 비밀번호 찾기,
+- **`.tap-link`** (`app/globals.css:166-170`) — 본문 문장 안에 놓인 링크(회원가입, 비밀번호 찾기,
   브레드크럼)의 탭 영역. 글자 높이만으로는 20px 남짓이다. 마우스 환경에서는 아무것도 하지 않고,
   터치에서만 `-my-2 inline-flex min-h-11` 이 붙어 문단 흐름을 유지한 채 탭 영역만 넓힌다.
 - **`.reveal-on-hover`** (`app/globals.css:115-121`) — hover 로만 드러나는 보조 액션(썸네일 변경,

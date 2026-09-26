@@ -7,16 +7,17 @@ interface Props {
   /** 손잡이를 끄는 동안에도 매번 부른다 — 아래 "끄는 동안" 참고. */
   onChange: (v: number) => void;
   ariaLabel: string;
-  min?: number;
-  max?: number;
+  min: number;
+  max: number;
+  unit?: string;
 }
 
 /**
- * 선 굵기 — 슬라이더와 숫자 칸을 한 줄에.
+ * 슬라이더와 숫자 칸을 한 줄에 — 선 굵기와 글자 크기가 같이 쓴다.
  *
- * **왜 슬라이더인가.** 굵기는 "얼마나 굵은가" 가 눈으로 보여야 정해진다. 숫자 칸만
- * 있으면 3 과 6 의 차이를 머릿속으로 그려야 하고, 결국 값을 넣고 캔버스를 보고 다시
- * 넣기를 반복하게 된다.
+ * **왜 슬라이더인가.** 굵기·크기는 "얼마나" 가 눈으로 보여야 정해진다. 숫자 칸만 있으면
+ * 3 과 6 의 차이를 머릿속으로 그려야 하고, 결국 값을 넣고 캔버스를 보고 다시 넣기를
+ * 반복하게 된다.
  *
  * **왜 숫자 칸도 남기나.** 슬라이더만 두면 "7 로 맞춰 둔 것과 똑같이" 가 안 된다.
  * 키보드로 값을 넣는 길이기도 하다.
@@ -27,7 +28,7 @@ interface Props {
  * "끄는 중" 과 "놓음" 을 따로 알려야 했다. 컷도 캔버스를 거치게 되며 그 구분이 사라졌다.
  * 곧장 요청을 보내는 곳에 이 필드를 쓰려면 그 구분을 다시 들여와야 한다.
  */
-export function StrokeWidthField({ value, onChange, ariaLabel, min = 1, max = 10 }: Props) {
+export function SliderField({ value, onChange, ariaLabel, min, max, unit = 'px' }: Props) {
   const shown = clamp(value, min, max);
   return (
     <div className="flex items-center gap-2">
@@ -58,7 +59,10 @@ export function StrokeWidthField({ value, onChange, ariaLabel, min = 1, max = 10
         onCommit={onChange}
         ariaLabel={`${ariaLabel} (숫자)`}
       />
-      <span className="shrink-0 text-caption text-muted-foreground">px</span>
+      <span className="shrink-0 text-caption text-muted-foreground">{unit}</span>
     </div>
   );
 }
+
+/** 선 굵기의 범위. 컷 테두리·말풍선 선·직선이 같은 범위를 쓴다. */
+export const STROKE_WIDTH_RANGE = { min: 1, max: 10 } as const;

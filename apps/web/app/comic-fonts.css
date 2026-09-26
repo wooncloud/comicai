@@ -32,3 +32,35 @@
   font-display: swap;
   src: url('/fonts/comic/DoHyeon-Regular.woff2') format('woff2');
 }
+
+@font-face {
+  font-family: 'Gaegu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/comic/Gaegu-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Jua';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/comic/Jua-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Yeon Sung';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/comic/YeonSung-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Nanum Brush Script';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/comic/NanumBrushScript-Regular.woff2') format('woff2');
+}

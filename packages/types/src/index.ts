@@ -326,8 +326,12 @@ export const PAGE_TEXT_FONT_LABEL: Record<PageTextFontFamily, string> = {
   serif: '명조',
   monospace: '고정폭',
   'Nanum Pen': '나눔손글씨 펜',
-  'Black Han Sans': '검은고딕',
+  Gaegu: '개구',
+  Jua: '주아',
   'Do Hyeon': '도현',
+  'Black Han Sans': '검은고딕',
+  'Yeon Sung': '연성',
+  'Nanum Brush Script': '나눔손글씨 붓',
 };
 
 export function defaultPageTextStyle(): PageTextStyle {

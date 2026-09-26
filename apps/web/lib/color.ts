@@ -1,25 +1,16 @@
 /**
- * hex ↔ RGB ↔ HSV.
+ * 색 고르개(`components/ui/color-field.tsx`)가 쓰는 hex 다루기.
  *
- * 색 고르개(`components/ui/color-field.tsx`)만 쓴다. 저장되는 값은 언제나 hex 라,
- * HSV 는 **화면에서 손으로 집는 동안만** 존재한다.
+ * 채도판·색상 띠가 있던 때는 HSV 변환도 여기 있었는데, 팔레트를 펼쳐 두며 판이 빠져
+ * 함께 지웠다. 저장되는 값은 언제나 hex 다.
  *
- * `@comicai/types` 에 두지 않는 이유: 서버는 색을 문자열로만 다룬다. 색상환을
- * 도는 계산은 고르개의 사정이다.
+ * `@comicai/types` 에 두지 않는 이유: 서버는 색을 문자열로만 다룬다.
  */
 
-export interface Rgb {
+interface Rgb {
   r: number;
   g: number;
   b: number;
-}
-export interface Hsv {
-  /** 0–360 */
-  h: number;
-  /** 0–1 */
-  s: number;
-  /** 0–1 */
-  v: number;
 }
 
 /** `#abc` · `#aabbcc` · `#aabbccdd` → `#aabbcc`. 알파는 버린다 — 고르개가 다루지 않는다. */
@@ -36,7 +27,7 @@ export function normalizeHex(hex: string): string | null {
   return `#${body.slice(0, 6)}`.toLowerCase();
 }
 
-export function hexToRgb(hex: string): Rgb | null {
+function hexToRgb(hex: string): Rgb | null {
   const n = normalizeHex(hex);
   if (!n) return null;
   return {
@@ -44,62 +35,6 @@ export function hexToRgb(hex: string): Rgb | null {
     g: parseInt(n.slice(3, 5), 16),
     b: parseInt(n.slice(5, 7), 16),
   };
-}
-
-export function rgbToHex({ r, g, b }: Rgb): string {
-  const part = (n: number) =>
-    Math.max(0, Math.min(255, Math.round(n)))
-      .toString(16)
-      .padStart(2, '0');
-  return `#${part(r)}${part(g)}${part(b)}`;
-}
-
-function rgbToHsv({ r, g, b }: Rgb): Hsv {
-  const rn = r / 255;
-  const gn = g / 255;
-  const bn = b / 255;
-  const max = Math.max(rn, gn, bn);
-  const min = Math.min(rn, gn, bn);
-  const d = max - min;
-
-  let h = 0;
-  // 무채색이면 색상이 정의되지 않는다. 0 으로 두면 검정·흰색을 집었다가 채도를
-  // 올릴 때 늘 빨강에서 시작하는데, 그게 가장 덜 놀라는 동작이다.
-  if (d !== 0) {
-    if (max === rn) h = ((gn - bn) / d) % 6;
-    else if (max === gn) h = (bn - rn) / d + 2;
-    else h = (rn - gn) / d + 4;
-    h *= 60;
-    if (h < 0) h += 360;
-  }
-  return { h, s: max === 0 ? 0 : d / max, v: max };
-}
-
-function hsvToRgb({ h, s, v }: Hsv): Rgb {
-  const c = v * s;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const m = v - c;
-  const seg = Math.floor((((h % 360) + 360) % 360) / 60);
-  const [r1, g1, b1] = (
-    [
-      [c, x, 0],
-      [x, c, 0],
-      [0, c, x],
-      [0, x, c],
-      [x, 0, c],
-      [c, 0, x],
-    ] as const
-  )[seg]!;
-  return { r: (r1 + m) * 255, g: (g1 + m) * 255, b: (b1 + m) * 255 };
-}
-
-export function hexToHsv(hex: string): Hsv | null {
-  const rgb = hexToRgb(hex);
-  return rgb ? rgbToHsv(rgb) : null;
-}
-
-export function hsvToHex(hsv: Hsv): string {
-  return rgbToHex(hsvToRgb(hsv));
 }
 
 /**

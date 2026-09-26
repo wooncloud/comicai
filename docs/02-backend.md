@@ -483,7 +483,7 @@ SSE 응답은 `Content-Type: text/event-stream`. `Last-Event-ID` 헤더로 재�
 **묶음은 이미지로 올리지 않는다** (`putAndPresign`, `:359` → `StorageService.putFile`,
 `storage.service.ts:116`). 처음에는 크기 0×0 으로 이미지 경로에 올렸는데, 그러면 저장소가
 크기를 읽으려고 봉투를 sharp 로 열어 보다 실패를 삼켰다. 결과는 낱장이든 묶음이든
-`ExportResultDTO`(`packages/types/src/index.ts:496`) 한 모양이고, 묶음에는 크기가 없다 —
+`ExportResultDTO`(`packages/types/src/index.ts:500`) 한 모양이고, 묶음에는 크기가 없다 —
 웹이 들고 있던 사본 타입도 지웠다. 바이트는 복사하지 않고 넘긴다(`Uint8Array.from` 과
 `Buffer.from(u8)` 은 복사다 — 봉투 크기만큼씩 몇 번 더 잡혔다).
 

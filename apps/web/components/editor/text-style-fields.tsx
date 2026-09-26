@@ -15,7 +15,26 @@ import {
 } from '@/components/ui/select';
 import { AlignToggle } from './align-toggle';
 import { Field } from './inspector-section';
-import { NumberField } from './number-field';
+import { SliderField } from './slider-field';
+
+/**
+ * 자주 쓰는 글자 크기. 캔버스 px 기준이고 웹툰 폭(800px)에서 잰 쓰임새를 붙였다 —
+ * 숫자만 늘어놓으면 "대사는 몇이 적당한가" 를 매번 캔버스에 넣어 보고 정해야 한다.
+ */
+const FONT_SIZE_PRESETS: readonly { size: number; use: string }[] = [
+  { size: 12, use: '작은 주석' },
+  { size: 16, use: '속삭임' },
+  { size: 20, use: '작은 대사' },
+  { size: 24, use: '대사' },
+  { size: 32, use: '큰 대사' },
+  { size: 40, use: '외침' },
+  { size: 56, use: '효과음' },
+  { size: 72, use: '큰 효과음' },
+  { size: 96, use: '제목' },
+];
+
+/** 슬라이더 범위. 서버가 받는 범위(`PageTextStyleSchema.fontSize`)와 같다. */
+const FONT_SIZE_RANGE = { min: 6, max: 200 } as const;
 
 export interface TextStyleValue {
   fontFamily: PageTextFontFamily;
@@ -66,16 +85,32 @@ export function TextStyleFields({
       </Field>
 
       <Field label="크기">
-        <div className="flex items-center gap-2">
-          <NumberField
+        <div className="space-y-1.5">
+          <SliderField
+            {...FONT_SIZE_RANGE}
             value={value.fontSize}
-            min={6}
-            max={200}
-            step={1}
-            onCommit={(v) => onChange({ fontSize: v })}
+            onChange={(v) => onChange({ fontSize: v })}
             ariaLabel={`${label} 크기`}
           />
-          <span className="text-caption text-muted-foreground">px</span>
+          {/* 목록에 없는 크기면 비워 둔다 — 지금 값은 위 숫자 칸이 말한다. */}
+          <Select
+            value={
+              FONT_SIZE_PRESETS.some((p) => p.size === value.fontSize) ? String(value.fontSize) : ''
+            }
+            onValueChange={(v) => onChange({ fontSize: Number(v) })}
+          >
+            <SelectTrigger className="h-8 w-full" aria-label={`${label} 자주 쓰는 크기`}>
+              <SelectValue placeholder="자주 쓰는 크기" />
+            </SelectTrigger>
+            <SelectContent>
+              {FONT_SIZE_PRESETS.map((p) => (
+                <SelectItem key={p.size} value={String(p.size)}>
+                  <span className="tabular-nums">{p.size}px</span>
+                  <span className="ml-2 text-muted-foreground">{p.use}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </Field>
 
@@ -84,7 +119,6 @@ export function TextStyleFields({
           value={value.color}
           onChange={(v) => onChange({ color: v })}
           ariaLabel={`${label} 색`}
-          live
         />
       </Field>
     </>

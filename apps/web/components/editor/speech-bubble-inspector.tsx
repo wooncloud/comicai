@@ -8,7 +8,7 @@ import { useShapeProps } from './tldraw/use-shape-props';
 import { Field, InspectorSection } from './inspector-section';
 import { InspectorShell } from './inspector-shell';
 import { ColorField } from '@/components/ui/color-field';
-import { StrokeWidthField } from './stroke-width-field';
+import { SliderField, STROKE_WIDTH_RANGE } from './slider-field';
 import { TextStyleFields } from './text-style-fields';
 import { LayerOrderSection } from './layer-order-section';
 import type { LayerOrder } from '@/lib/use-layer-reorder';
@@ -36,7 +36,6 @@ export function SpeechBubbleInspector({ editor, shapeId, order }: Props) {
             value={p.fillColor}
             onChange={(v) => patch({ fillColor: v })}
             ariaLabel="말풍선 채움색"
-            live
           />
         </Field>
         {/*
@@ -48,11 +47,11 @@ export function SpeechBubbleInspector({ editor, shapeId, order }: Props) {
             value={p.strokeColor}
             onChange={(v) => patch({ strokeColor: v })}
             ariaLabel="말풍선 선 색"
-            live
           />
         </Field>
         <Field label="선 굵기">
-          <StrokeWidthField
+          <SliderField
+            {...STROKE_WIDTH_RANGE}
             value={p.strokeWidth}
             onChange={(v) => patch({ strokeWidth: v })}
             ariaLabel="말풍선 선 굵기"

@@ -30,7 +30,7 @@ import { InspectorShell } from './inspector-shell';
 import type { ComicPanelShape } from './tldraw/comic-panel-shape';
 import { useShapeProps } from './tldraw/use-shape-props';
 import { ColorField } from '@/components/ui/color-field';
-import { StrokeWidthField } from './stroke-width-field';
+import { SliderField, STROKE_WIDTH_RANGE } from './slider-field';
 import { HistoryTray } from './history-tray';
 import { ContiDialog } from './conti-dialog';
 import { useToast } from '@/components/ui/toast';
@@ -550,11 +550,11 @@ function PanelStrokeEditor({ editor, shapeId }: { editor: Editor; shapeId: TLSha
           value={props.strokeColor}
           onChange={(strokeColor) => patch({ strokeColor })}
           ariaLabel="컷 테두리 색"
-          live
         />
       </Field>
       <Field label="굵기">
-        <StrokeWidthField
+        <SliderField
+          {...STROKE_WIDTH_RANGE}
           value={props.strokeWidth}
           onChange={(strokeWidth) => patch({ strokeWidth })}
           ariaLabel="컷 테두리 굵기"
