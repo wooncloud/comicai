@@ -36,6 +36,7 @@ export function SpeechBubbleInspector({ editor, shapeId, order }: Props) {
             value={p.fillColor}
             onChange={(v) => patch({ fillColor: v })}
             ariaLabel="말풍선 채움색"
+            live
           />
         </Field>
         {/*
@@ -47,6 +48,7 @@ export function SpeechBubbleInspector({ editor, shapeId, order }: Props) {
             value={p.strokeColor}
             onChange={(v) => patch({ strokeColor: v })}
             ariaLabel="말풍선 선 색"
+            live
           />
         </Field>
         <Field label="선 굵기">

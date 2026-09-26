@@ -550,6 +550,7 @@ function PanelStrokeEditor({ editor, shapeId }: { editor: Editor; shapeId: TLSha
           value={props.strokeColor}
           onChange={(strokeColor) => patch({ strokeColor })}
           ariaLabel="컷 테두리 색"
+          live
         />
       </Field>
       <Field label="굵기">

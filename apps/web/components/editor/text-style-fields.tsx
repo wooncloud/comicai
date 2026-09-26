@@ -119,6 +119,7 @@ export function TextStyleFields({
           value={value.color}
           onChange={(v) => onChange({ color: v })}
           ariaLabel={`${label} 색`}
+          live
         />
       </Field>
     </>

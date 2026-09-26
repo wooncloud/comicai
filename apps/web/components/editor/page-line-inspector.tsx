@@ -45,6 +45,7 @@ export function PageLineInspector({ editor, shapeId, order }: Props) {
             value={p.strokeColor}
             onChange={(v) => patch({ strokeColor: v })}
             ariaLabel="선 색"
+            live
           />
         </Field>
 
