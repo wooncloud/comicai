@@ -262,7 +262,8 @@ export interface SpeechBubbleShape {
   /** polygon variant 전용. bbox 정규화 좌표(0..1). */
   points?: { x: number; y: number }[];
   /** 꼬리 끝점 (bbox 좌상단 기준 절대 px). null이면 꼬리 없음. */
-  tail?: { x: number; y: number } | null;
+  /** `width` 는 꼬리 두께(자동 폭 대비 %). 없으면 100. */
+  tail?: { x: number; y: number; width?: number } | null;
 }
 
 export interface SpeechBubbleStyle {

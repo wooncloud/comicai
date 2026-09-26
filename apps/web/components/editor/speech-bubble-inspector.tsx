@@ -2,7 +2,7 @@
 import { MessageSquare, Type } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Editor, TLShapeId } from 'tldraw';
-import { defaultTailPoint } from '@comicai/types';
+import { defaultTailPoint, TAIL_WIDTH_RANGE } from '@comicai/types';
 import type { SpeechBubbleShape } from './tldraw/speech-bubble-shape';
 import { useShapeProps } from './tldraw/use-shape-props';
 import { Field, InspectorSection } from './inspector-section';
@@ -65,16 +65,28 @@ export function SpeechBubbleInspector({ editor, shapeId, order }: Props) {
           손잡이만 있으면 꼬리를 달 수 있다는 걸 모르고, hover 가 없는 기기에서는
           빈 손잡이가 잘 안 보인다. 없애는 길도 캔버스에는 없다.
         */}
-        <Field label="꼬리">
+        {/* 꼬리가 있으면 이 칸의 슬라이더는 두께다 — 라벨이 그걸 말해야 한다. */}
+        <Field label={hasTail ? '꼬리 두께' : '꼬리'}>
           {hasTail ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => patch({ tailX: null, tailY: null })}
-            >
-              꼬리 없애기
-            </Button>
+            <div className="space-y-2">
+              {/* 두께는 풍선 모양·꼬리 길이로 정해지는 폭에 곱하는 배율이다. */}
+              <SliderField
+                min={TAIL_WIDTH_RANGE.min}
+                max={TAIL_WIDTH_RANGE.max}
+                unit="%"
+                value={p.tailWidth}
+                onChange={(v) => patch({ tailWidth: v })}
+                ariaLabel="꼬리 두께"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => patch({ tailX: null, tailY: null })}
+              >
+                꼬리 없애기
+              </Button>
+            </div>
           ) : (
             <div className="space-y-1">
               <Button

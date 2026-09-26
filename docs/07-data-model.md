@@ -147,18 +147,18 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 
 페이지 직속(Page 1:N SpeechBubble). 패널과 독립이며 항상 패널 위 z-order로 렌더된다. **렌더 IR에는 영향 없음** — export 합성 단계에서만 SVG 오버레이로 합성된다(`apps/api/src/export/export.service.ts`, `apps/api/src/export/speech-bubble.render.ts`).
 
-| 필드      | 타입      | nullable | 기본값                                                                                                                    |
-| --------- | --------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
-| id        | String PK | no       | —                                                                                                                         |
-| pageId    | String    | no       | FK→pages (cascade)                                                                                                        |
-| variant   | String    | no       | `'ellipse' \| 'rect' \| 'spike' \| 'polygon'` (cloud/thought 는 2026-05-19 migration에서 제거되어 ellipse 로 일괄 변환됨) |
-| shape     | Json      | no       | `SpeechBubbleShape` — `{x,y,w,h,points?,tail?}`                                                                           |
-| style     | Json      | no       | `{}` — `SpeechBubbleStyle` (`strokeWidth/strokeColor/fillColor`)                                                          |
-| text      | String    | no       | `''` — 풍선 안의 대사. 풍선을 옮기면 같이 따라온다                                                                        |
-| textStyle | Json      | no       | `{}` — `PageTextStyle` 과 같은 모양 (`fontSize/fontFamily/color/textAlign`)                                               |
-| order     | Int       | no       | z-order 보조 카운터                                                                                                       |
-| createdAt | DateTime  | no       | `now()`                                                                                                                   |
-| updatedAt | DateTime  | no       | `@updatedAt`                                                                                                              |
+| 필드      | 타입      | nullable | 기본값                                                                                                                               |
+| --------- | --------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| id        | String PK | no       | —                                                                                                                                    |
+| pageId    | String    | no       | FK→pages (cascade)                                                                                                                   |
+| variant   | String    | no       | `'ellipse' \| 'rect' \| 'spike' \| 'polygon'` (cloud/thought 는 2026-05-19 migration에서 제거되어 ellipse 로 일괄 변환됨)            |
+| shape     | Json      | no       | `SpeechBubbleShape` — `{x,y,w,h,points?,tail?}`. `tail` 은 `{x,y,width?}` — `width` 는 꼬리 두께(자동 폭 대비 %, 20~200, 없으면 100) |
+| style     | Json      | no       | `{}` — `SpeechBubbleStyle` (`strokeWidth/strokeColor/fillColor`)                                                                     |
+| text      | String    | no       | `''` — 풍선 안의 대사. 풍선을 옮기면 같이 따라온다                                                                                   |
+| textStyle | Json      | no       | `{}` — `PageTextStyle` 과 같은 모양 (`fontSize/fontFamily/color/textAlign`)                                                          |
+| order     | Int       | no       | z-order 보조 카운터                                                                                                                  |
+| createdAt | DateTime  | no       | `now()`                                                                                                                              |
+| updatedAt | DateTime  | no       | `@updatedAt`                                                                                                                         |
 
 - 인덱스: `@@index([pageId, order])` (`:146`).
 - **대사는 풍선이 갖는다** (2026-09-25). 한동안 텍스트를 [[page-text]] 로 분리했었는데, 그러면 대사 하나를
@@ -203,7 +203,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | updatedAt | DateTime  | no       | `@updatedAt`                                                                      |
 
 - 인덱스: `@@index([pageId, order])` (`:184`).
-- DTO 매핑: `PageLineDTO` (`packages/types/src/index.ts:355-375`), 스타일 헬퍼 `defaultPageLineStyle()` (`index.ts:365-371`).
+- DTO 매핑: `PageLineDTO` (`packages/types/src/index.ts:355-375`), 스타일 헬퍼 `defaultPageLineStyle()` (`index.ts:366-372`).
 - tldraw 측은 BaseBoxShape 패턴으로 표현: bbox(x/y/w/h) + bbox 내 두 끝점 normalized 좌표(x1Norm/y1Norm/x2Norm/y2Norm). DB ↔ shape 변환은 `apps/web/components/editor/tldraw/use-page-line-sync.ts`.
 
 ### 2.11 Panel — `panels` (`schema.prisma:237-258`)
@@ -326,7 +326,7 @@ ComicAI는 Prisma + PostgreSQL을 사용합니다. 스키마는 `packages/db/pri
 | ModelId                     | `gemini-3.1-flash-image, gpt-image-2.5-flare, mock` (+ 기록용 옛 판)    | `schemas.ts:102`                 |
 | OAUTH_PROVIDERS             | `google, github`                                                        | `index.ts:98`                    |
 | RenderErrorCategory         | `transient, auth, quota, safety, invalid, timeout`                      | `index.ts:588`                   |
-| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                                         | `schemas.ts:514`                 |
+| PAGE_LINE_STROKE_STYLES     | `solid, dashed`                                                         | `schemas.ts:523`                 |
 | TEXT_ALIGNS                 | `left, center, right`                                                   | `schemas.ts:4`                   |
 
 **값 목록은 전부 `schemas.ts` 에만 있다.** `index.ts` 는 타입만 파생시킨다
@@ -348,10 +348,10 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
 | ApiKey                            | `ApiKeySummary`        | `index.ts:141` | `ciphertext`/`nonce`는 DTO 미노출. `provider` DTO는 `ModelProvider`(mock 포함)이지만 Zod 생성 스키마(`ApiKeyCreateSchema`, `schemas.ts:77`)는 `'gemini'\|'openai'`만 허용 — 약간의 불일치.    |
 | Project                           | `ProjectDTO`           | `index.ts:522` | `defaultStyleId` / `defaultModel` / `thumbnailUrl`(파생, presigned URL) 포함.                                                                                                                 |
 | ConsistencyEntity                 | `ConsistencyEntityDTO` | `index.ts:203` | DB `refImages`(Json) → DTO `ImageRef[]`. DTO에 **`refImageUrls`(presigned URL 배열)** 가 추가됨 — 응답 직전에 생성되는 파생 필드.                                                             |
-| Page                              | `PageDTO`              | `index.ts:451` | DB `size`(Json) → `{w,h}`. `name` 동일. `pageLabel()` 헬퍼가 `name ?? '페이지 {order+1}'` 라벨 산출 (`index.ts:451-455`). 파생 필드: `backgroundUrl`(presign). `backgroundColor`는 동일 노출. |
-| SpeechBubble                      | `SpeechBubbleDTO`      | `index.ts:279` | `text` 와 `textStyle` 을 갖는다. `style` 은 모양/선/채움 3필드.                                                                                                                               |
-| PageText                          | `PageTextDTO`          | `index.ts:345` | DB 컬럼과 거의 1:1. style 은 `defaultPageTextStyle()` 머지로 정규화.                                                                                                                          |
-| PageLine                          | `PageLineDTO`          | `index.ts:379` | DB 두 끝점 절대좌표(x1/y1/x2/y2) 와 1:1. tldraw 측은 bbox+normalized 좌표로 표현(`page-line-shape.tsx`). style 은 `defaultPageLineStyle()` 머지로 정규화.                                     |
+| Page                              | `PageDTO`              | `index.ts:452` | DB `size`(Json) → `{w,h}`. `name` 동일. `pageLabel()` 헬퍼가 `name ?? '페이지 {order+1}'` 라벨 산출 (`index.ts:451-455`). 파생 필드: `backgroundUrl`(presign). `backgroundColor`는 동일 노출. |
+| SpeechBubble                      | `SpeechBubbleDTO`      | `index.ts:280` | `text` 와 `textStyle` 을 갖는다. `style` 은 모양/선/채움 3필드.                                                                                                                               |
+| PageText                          | `PageTextDTO`          | `index.ts:346` | DB 컬럼과 거의 1:1. style 은 `defaultPageTextStyle()` 머지로 정규화.                                                                                                                          |
+| PageLine                          | `PageLineDTO`          | `index.ts:380` | DB 두 끝점 절대좌표(x1/y1/x2/y2) 와 1:1. tldraw 측은 bbox+normalized 좌표로 표현(`page-line-shape.tsx`). style 은 `defaultPageLineStyle()` 머지로 정규화.                                     |
 | Panel                             | `PanelDTO`             | `index.ts:231` | DB `text`(Json) → `TipTapDoc`. DTO에는 **`currentRenderStatus`, `currentRenderImageUrl`, `contiUrl`** 가 추가됨 (presigned). DTO `conti`/`refImages`는 `ImageRef` 구조로 강타입.              |
 | RenderJob                         | `RenderJobDTO`         | `index.ts:635` | DTO에 `ir` 필드 **없음** — IR은 워커 내부 데이터, 응답에 노출되지 않음. `model`은 DB String → DTO `ModelId`. `resultImageUrl`(presigned)은 history 엔드포인트에서만 채워짐.                   |
 | EmailVerification / PasswordReset | (DTO 없음)             | —              | 토큰은 hash만 저장, 외부 노출 없음.                                                                                                                                                           |
@@ -369,7 +369,7 @@ DB 컬럼은 모두 `String`이며, **타입 안전성은 Zod 스키마(`package
   바꾼 색이 이어지는 셰이프 저장에 덮여 사라졌다.
 - 말풍선: `SpeechBubbleVariantSchema`(4종), `SpeechBubbleShapeSchema`, `SpeechBubbleStyleSchema`(슬림), `SpeechBubbleCreateSchema`, `SpeechBubblePatchSchema`, `SpeechBubbleReorderSchema` (`schemas.ts:357-399`).
 - 페이지 텍스트: `PageTextStyleSchema`, `PageTextCreateSchema`, `PageTextPatchSchema`, `PageTextReorderSchema` (`schemas.ts:387-418`).
-- 페이지 직선: `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`schemas.ts:489-519`).
+- 페이지 직선: `PageLineStrokeStyleSchema`, `PageLineStyleSchema`, `PageLineCreateSchema`, `PageLinePatchSchema`, `PageLineReorderSchema` (`schemas.ts:498-528`).
 - 렌더: `RenderModelSchema`, `RenderStartSchema` (`schemas.ts:286-292`).
 - 내보내기: `ExportFormatSchema`, `ExportRequestSchema` (`schemas.ts:294-300`).
 - 일관성: `EntityTypeSchema`, `ConsistencyCreateSchema`, `ConsistencyPatchSchema`, `ConsistencyGenerateSchema`, `ConsistencyAttachSchema` (`schemas.ts:538-557`).

@@ -4,6 +4,7 @@ import {
   ApiPaths,
   defaultPageTextStyle,
   defaultSpeechBubbleStyle,
+  TAIL_WIDTH_RANGE,
   type SpeechBubbleDTO,
   type SpeechBubbleShape as ApiBubbleShape,
   type SpeechBubbleStyle,
@@ -32,6 +33,8 @@ function flatten(b: SpeechBubbleDTO): SpeechBubbleShape['props'] {
     polygonPoints: b.shape.points ?? null,
     tailX: b.shape.tail?.x ?? null,
     tailY: b.shape.tail?.y ?? null,
+    // 두께 조절이 생기기 전에 저장된 꼬리에는 없다.
+    tailWidth: b.shape.tail?.width ?? TAIL_WIDTH_RANGE.default,
     strokeWidth: style.strokeWidth,
     strokeColor: style.strokeColor,
     fillColor: style.fillColor,
@@ -58,6 +61,7 @@ function toApi(shape: SpeechBubbleShape): {
     polygonPoints,
     tailX,
     tailY,
+    tailWidth,
     strokeWidth,
     strokeColor,
     fillColor,
@@ -78,7 +82,7 @@ function toApi(shape: SpeechBubbleShape): {
         variant === 'polygon' && polygonPoints && polygonPoints.length >= 3
           ? polygonPoints
           : undefined,
-      tail: tailX !== null && tailY !== null ? { x: tailX, y: tailY } : null,
+      tail: tailX !== null && tailY !== null ? { x: tailX, y: tailY, width: tailWidth } : null,
     },
     style: { strokeWidth, strokeColor, fillColor },
     text,

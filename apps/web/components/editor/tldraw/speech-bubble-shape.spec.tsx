@@ -79,11 +79,15 @@ describe('말풍선 꼬리', () => {
     expect(BUBBLE).toContain('tailX: handle.x, tailY: handle.y');
   });
 
-  it('꼬리를 몸통보다 먼저 그린다 — 밑변이 풍선 안에서 보이면 안 된다', () => {
-    const tail = BUBBLE.indexOf('d={tailPath}');
-    const body = BUBBLE.indexOf('d={bodyPath}');
-    expect(tail).toBeGreaterThan(0);
-    expect(tail).toBeLessThan(body);
+  it('선(두 배 굵기)을 먼저, 채움을 나중에 — 선이 바깥쪽으로만 남고 몸통·꼬리 굵기가 같다', () => {
+    const outline = BUBBLE.indexOf('strokeWidth={strokeWidth * 2}');
+    const fill = BUBBLE.indexOf('<g fill={fillColor} stroke="none">');
+    expect(outline).toBeGreaterThan(0);
+    expect(outline).toBeLessThan(fill);
+  });
+
+  it('꼬리 두께를 경로에 넘긴다', () => {
+    expect(BUBBLE).toContain('bubbleTailPath(tailX, tailY, w, h, tailWidth)');
   });
 
   it('인스펙터에서 달고 없앨 수 있다 — 손잡이만으로는 발견되지 않는다', () => {

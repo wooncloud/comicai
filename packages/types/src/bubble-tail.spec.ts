@@ -60,4 +60,19 @@ describe('bubbleTailPath', () => {
     expect(() => bubbleTailPath(100, 50, 200, 100)).not.toThrow();
     expect(bubbleTailPath(100, 50, 200, 100)).toContain('M ');
   });
+
+  it('두께 배율만큼 밑변이 넓어지고 좁아진다', () => {
+    const base = (pct?: number) => {
+      const [a, , b] = points(bubbleTailPath(100, 200, 200, 100, pct));
+      return Math.hypot(a!.x - b!.x, a!.y - b!.y);
+    };
+    expect(base(50)).toBeLessThan(base(100));
+    expect(base(150)).toBeGreaterThan(base(100));
+    expect(base(undefined)).toBe(base(100));
+  });
+
+  it('아무리 가늘게 해도 밑변이 사라지지 않는다', () => {
+    const [a, , b] = points(bubbleTailPath(100, 200, 200, 100, 1));
+    expect(Math.hypot(a!.x - b!.x, a!.y - b!.y)).toBeGreaterThanOrEqual(7);
+  });
 });

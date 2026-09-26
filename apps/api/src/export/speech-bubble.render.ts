@@ -43,18 +43,22 @@ function buildBubbleFragment(b: BubbleInput): string {
   const defaults = defaultSpeechBubbleStyle();
   const style = { ...defaults, ...b.style };
   const bodyD = bubbleBodyPath(b.variant, W, H, b.shape.points ?? null);
-  const tailD = b.shape.tail ? bubbleTailPath(b.shape.tail.x, b.shape.tail.y, W, H) : null;
+  const tail = b.shape.tail;
+  const tailD = tail ? bubbleTailPath(tail.x, tail.y, W, H, tail.width) : null;
   const fill = safeColor(style.fillColor, defaults.fillColor);
   const stroke = safeColor(style.strokeColor, defaults.strokeColor);
   /*
-   * 순서는 `BUBBLE_DRAW_ORDER` — 꼬리, 몸통, 꼬리 채움.
-   * 마지막 채움이 몸통 테두리가 꼬리를 가로지르는 구간을 덮어, 둘이 한 덩어리가 된다.
+   * 순서는 `BUBBLE_DRAW_ORDER` — 선(두 배 굵기, 채움 없이) 먼저, 채움은 그 위에.
+   * 채움이 선의 안쪽 절반을 덮어 선이 **바깥쪽으로만** 정한 굵기만큼 남고, 몸통과 꼬리가
+   * 만나는 자리의 선도 덮여 둘이 한 덩어리가 된다.
    */
+  const paths = tailD ? [tailD, bodyD] : [bodyD];
   return `<g transform="translate(${x} ${y})">
-  <g fill="${fill}" stroke="${stroke}" stroke-width="${style.strokeWidth}" stroke-linejoin="round">
-    ${tailD ? `<path d="${tailD}" />` : ''}
-    <path d="${bodyD}" />
-    ${tailD ? `<path d="${tailD}" stroke="none" />` : ''}
+  <g fill="none" stroke="${stroke}" stroke-width="${style.strokeWidth * 2}" stroke-linejoin="round">
+    ${paths.map((d) => `<path d="${d}" />`).join('\n    ')}
+  </g>
+  <g fill="${fill}" stroke="none">
+    ${paths.map((d) => `<path d="${d}" />`).join('\n    ')}
   </g>
   ${bubbleTextFragment(b, W, H)}
 </g>`;

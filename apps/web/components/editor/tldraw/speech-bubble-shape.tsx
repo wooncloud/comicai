@@ -19,6 +19,7 @@ import {
   defaultSpeechBubbleStyle,
   PAGE_TEXT_FONT_FAMILIES,
   SPEECH_BUBBLE_VARIANTS,
+  TAIL_WIDTH_RANGE,
   TEXT_ALIGNS,
   type NormalizedPoint,
   type PageTextFontFamily,
@@ -40,6 +41,8 @@ export type SpeechBubbleShape = TLBaseShape<
     /** 꼬리 끝점 (shape 좌상단 기준 px). null이면 꼬리 없음. */
     tailX: number | null;
     tailY: number | null;
+    /** 꼬리 두께 — 자동 폭에 곱하는 %(`TAIL_WIDTH_RANGE`). */
+    tailWidth: number;
     strokeWidth: number;
     strokeColor: string;
     fillColor: string;
@@ -74,6 +77,7 @@ export class SpeechBubbleShapeUtil extends BaseBoxShapeUtil<SpeechBubbleShape> {
     polygonPoints: T.arrayOf(NormalizedPointSchema).nullable(),
     tailX: T.number.nullable(),
     tailY: T.number.nullable(),
+    tailWidth: T.number,
     strokeWidth: T.number,
     strokeColor: T.string,
     fillColor: T.string,
@@ -104,6 +108,7 @@ export class SpeechBubbleShapeUtil extends BaseBoxShapeUtil<SpeechBubbleShape> {
       polygonPoints: null,
       tailX: null,
       tailY: null,
+      tailWidth: TAIL_WIDTH_RANGE.default,
       // 스타일 기본값은 packages/types 가 단일 출처다.
       ...defaultSpeechBubbleStyle(),
       text: '',
@@ -169,6 +174,7 @@ function SpeechBubbleBody({
     polygonPoints,
     tailX,
     tailY,
+    tailWidth,
     strokeWidth,
     strokeColor,
     fillColor,
@@ -179,7 +185,8 @@ function SpeechBubbleBody({
     textAlign,
   } = shape.props;
   const bodyPath = bubbleBodyPath(variant, w, h, polygonPoints);
-  const tailPath = tailX !== null && tailY !== null ? bubbleTailPath(tailX, tailY, w, h) : null;
+  const tailPath =
+    tailX !== null && tailY !== null ? bubbleTailPath(tailX, tailY, w, h, tailWidth) : null;
 
   const box = bubbleTextBox(variant, w, h, polygonPoints);
 
@@ -198,27 +205,23 @@ function SpeechBubbleBody({
         viewBox={`0 0 ${w} ${h}`}
         style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}
       >
-        {/* 순서는 `BUBBLE_DRAW_ORDER` — 꼬리, 몸통, 꼬리 채움. 셋째가 몸통 테두리가
-            꼬리를 가로지르는 구간을 덮어 둘이 한 덩어리로 보인다. */}
-        {tailPath && (
-          <path
-            d={tailPath}
-            fill={fillColor}
-            stroke={strokeColor}
-            strokeWidth={strokeWidth}
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-          />
-        )}
-        <path
-          d={bodyPath}
-          fill={fillColor}
+        {/* 순서는 `BUBBLE_DRAW_ORDER` — 선(두 배 굵기, 채움 없이) 먼저, 채움은 그 위에.
+            채움이 선의 안쪽 절반을 덮어 선이 바깥쪽으로만 정한 굵기만큼 남고, 몸통과
+            꼬리가 만나는 자리의 선도 덮여 둘이 한 덩어리가 된다. */}
+        <g
+          fill="none"
           stroke={strokeColor}
-          strokeWidth={strokeWidth}
+          strokeWidth={strokeWidth * 2}
           strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"
-        />
-        {tailPath && <path d={tailPath} fill={fillColor} stroke="none" />}
+        >
+          {tailPath && <path d={tailPath} vectorEffect="non-scaling-stroke" />}
+          <path d={bodyPath} vectorEffect="non-scaling-stroke" />
+        </g>
+        <g fill={fillColor} stroke="none">
+          {tailPath && <path d={tailPath} />}
+          <path d={bodyPath} />
+        </g>
       </svg>
       <EditableText
         shapeId={shape.id}

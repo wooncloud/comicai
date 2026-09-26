@@ -38,22 +38,28 @@ export function defaultTailPoint(w: number, h: number): { x: number; y: number }
 }
 
 /**
- * 꼬리와 몸통을 **하나의 도형처럼** 그리는 순서.
+ * 꼬리와 몸통을 **하나의 도형처럼** 그리는 순서. 캔버스와 export 가 같은 순서를 지켜야
+ * 결과가 같다.
  *
- * 세 번 그린다. 캔버스와 export 가 같은 순서를 지켜야 결과가 같다.
+ * 1. 선 — 꼬리와 몸통 둘 다, **선 굵기의 두 배로**, 채움 없이
+ * 2. 채움 — 몸통과 꼬리 둘 다, 선 없이
  *
- * 1. 꼬리 — 선 + 채움
- * 2. 몸통 — 선 + 채움 (꼬리 밑변의 안쪽 절반을 덮는다)
- * 3. 꼬리 — **채움만, 선 없이** (몸통 테두리가 꼬리를 가로지르는 구간을 덮는다)
+ * SVG 선은 경계의 **가운데**에 걸린다. 두 배로 그린 뒤 채움이 안쪽 절반을 덮으면, 선은
+ * 도형 **바깥쪽으로만** 정한 굵기만큼 남는다. 채움이 둘 다 선 위에 오므로 몸통 테두리가
+ * 꼬리를 가로지르는 구간·꼬리 밑변도 모두 덮여, 둘 사이에 선이 남지 않는다.
  *
- * 3번이 없으면 꼬리와 풍선 사이에 선이 한 줄 남는다 — 꼬리가 풍선에 붙은 별개의
- * 삼각형으로 보인다. 만화의 말풍선은 몸통과 꼬리가 이어진 **한 덩어리**다.
+ * 예전에는 꼬리(선+채움) → 몸통(선+채움) → 꼬리(채움만) 세 번이었다. 마지막 꼬리 채움이
+ * 꼬리 선의 안쪽 절반까지 덮어, **꼬리 선만 절반 굵기**로 보였다(2026-09-26).
  *
- * 채움이 불투명할 때만 통한다. 투명한 풍선을 만들면 그 선이 다시 보이는데, 그때는
- * 꼬리 밑변 자체도 보이므로 어차피 '한 덩어리' 로 그릴 수 없다. 진짜 합집합 경로를
- * 만들려면 네 가지 몸통 모양마다 따로 풀어야 하는데, 얻는 것에 비해 너무 비싸다.
+ * 채움이 불투명할 때만 통한다. 색은 불투명 hex 만 받는다(`normalizeHex` 가 알파를 버린다).
  */
-export const BUBBLE_DRAW_ORDER = ['tail', 'body', 'tail-fill'] as const;
+export const BUBBLE_DRAW_ORDER = ['outline', 'fill'] as const;
+
+/**
+ * 꼬리 두께 — 자동으로 정해지는 밑변 폭에 곱하는 배율(%). 풍선 모양과 꼬리 길이에 맞춘
+ * 기본 폭을 살리고, 거기서 가늘게·굵게만 조절한다.
+ */
+export const TAIL_WIDTH_RANGE = { min: 20, max: 200, default: 100 } as const;
 
 /**
  * 꼬리 삼각형.
@@ -66,7 +72,13 @@ export const BUBBLE_DRAW_ORDER = ['tail', 'body', 'tail-fill'] as const;
  * 몸통이 덮어 감추므로 조금 안쪽이어도 티가 나지 않는다. 오히려 확실히 덮이도록
  * 일부러 안쪽으로 조금 당긴다.
  */
-export function bubbleTailPath(tx: number, ty: number, w: number, h: number): string {
+export function bubbleTailPath(
+  tx: number,
+  ty: number,
+  w: number,
+  h: number,
+  widthPct: number = TAIL_WIDTH_RANGE.default,
+): string {
   const cx = w / 2;
   const cy = h / 2;
   const dx = tx - cx;
@@ -98,7 +110,9 @@ export function bubbleTailPath(tx: number, ty: number, w: number, h: number): st
    * 정작 그 자리는 풍선이 가장 넓은 곳인데도. 꼬리 길이로도 묶어, 짧은 꼬리에
    * 넓은 밑변이 붙는 우스운 모양을 막는다.
    */
-  const half = Math.max(10, Math.min(edge * 0.45, dist * 0.45));
+  const auto = Math.max(10, Math.min(edge * 0.45, dist * 0.45));
+  // 가늘게 줄여도 4px 은 남긴다 — 그 밑이면 선 두 줄이 붙어 꼬리가 한 줄로 보인다.
+  const half = Math.max(4, auto * (widthPct / 100));
   const a = clampInside(bxc - uy * half, byc + ux * half, cx, cy, rx, ry);
   const b = clampInside(bxc + uy * half, byc - ux * half, cx, cy, rx, ry);
   return `M ${round2(a.x)} ${round2(a.y)} L ${round2(tx)} ${round2(ty)} L ${round2(b.x)} ${round2(b.y)} Z`;

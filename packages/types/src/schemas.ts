@@ -1,5 +1,6 @@
 // 공유 Zod 스키마. 백엔드 validation과 프론트엔드 form 검증에 동일 스키마 사용.
 import { z } from 'zod';
+import { TAIL_WIDTH_RANGE } from './bubble-path';
 
 export const TEXT_ALIGNS = ['left', 'center', 'right'] as const;
 export type TextAlign = (typeof TEXT_ALIGNS)[number];
@@ -392,7 +393,15 @@ export const SpeechBubbleShapeSchema = z.object({
   w: z.number().positive(),
   h: z.number().positive(),
   points: z.array(PointSchema).min(3).max(64).optional(),
-  tail: PointSchema.nullable().optional(),
+  /**
+   * 꼬리 끝점(풍선 좌상단 기준 px)과 두께(`width`, 자동 폭에 곱하는 %). 두께가 없으면
+   * 100 — 두께 조절이 생기기 전에 저장된 꼬리다.
+   */
+  tail: PointSchema.extend({
+    width: z.number().int().min(TAIL_WIDTH_RANGE.min).max(TAIL_WIDTH_RANGE.max).optional(),
+  })
+    .nullable()
+    .optional(),
 });
 
 export const SpeechBubbleStyleSchema = z.object({
